@@ -1,10 +1,18 @@
 local AUI = select(2, ...)
 
-local STYLE = "AeonUI"
+---@class AUIFrameSpec
+---@field key string the frame's key under `frames` in the profile
+---@field unit string
+---@field name string the frame's global name
+---@field style string
 
--- Units in creation order, and their frame names.
-local UNITS = { "player", "target" }
-local NAMES = { player = "AeonUIPlayer", target = "AeonUITarget" }
+-- Frames in creation order.
+---@type AUIFrameSpec[]
+local SPECS = {
+	{ key = "player", unit = "player", name = "AeonUIPlayer", style = "AeonUI" },
+	{ key = "target", unit = "target", name = "AeonUITarget", style = "AeonUI" },
+	{ key = "playerPower", unit = "player", name = "AeonUIPlayerPower", style = "AeonUIPower" },
+}
 
 -- Settings that change a secure frame, which waits for combat to end.
 local LAYOUT = { enabled = true, width = true, height = true, x = true, y = true }
@@ -12,7 +20,7 @@ local LAYOUT = { enabled = true, width = true, height = true, x = true, y = true
 ---Owns AeonUI's oUF frames: creates them, applies the active profile, and holds back changes to secure frames until
 ---combat ends, keeping only the latest.
 ---@class AUIFrames
----@field objects table<string, table> frames by unit
+---@field objects table<string, AUIUnitFrame> frames by key
 ---@field started boolean
 ---@field layoutPending boolean a layout change waits for combat to end
 local Frames = {
@@ -35,16 +43,20 @@ function Frames:Start()
 	end
 
 	local oUF = AUI.oUF
+	local UnitFrame = AUI.UnitFrame
 
 	-- Blizzard's own frames stay: they parent the pet, class resource, cast and target-of-target frames.
 	oUF.DisableBlizzard = function() end
 
 	AUI.Tags:Register()
-	oUF:RegisterStyle(STYLE, AUI.UnitFrame.Style)
-	oUF:SetActiveStyle(STYLE)
+	oUF:RegisterStyle("AeonUI", UnitFrame.HealthStyle)
+	oUF:RegisterStyle("AeonUIPower", UnitFrame.PowerStyle)
 
-	for _, unit in ipairs(UNITS) do
-		self.objects[unit] = oUF:Spawn(unit, NAMES[unit])
+	for _, spec in ipairs(SPECS) do
+		UnitFrame.keys[spec.unit] = spec.key
+		oUF:SetActiveStyle(spec.style)
+		self.objects[spec.key] = oUF:Spawn(spec.unit, spec.name)
+		UnitFrame.keys[spec.unit] = nil
 	end
 
 	self.started = true
@@ -53,15 +65,15 @@ function Frames:Start()
 	AUI.Events:Register("PLAYER_REGEN_ENABLED", self, self.OnCombatEnded)
 	AUI.Events:Register("UI_SCALE_CHANGED", self, self.OnScaleChanged)
 
-	for _, unit in ipairs(UNITS) do
-		self:Apply(unit, true)
+	for _, spec in ipairs(SPECS) do
+		self:Apply(spec.key, true)
 	end
 end
 
----@param unit string
+---@param key string
 ---@param layout boolean also apply size, position and enabled state
-function Frames:Apply(unit, layout)
-	local frame = self.objects[unit]
+function Frames:Apply(key, layout)
+	local frame = self.objects[key]
 	local config = AUI.Profile.config
 
 	if layout then
@@ -78,25 +90,25 @@ end
 ---@param path string? the changed setting, or nil when the whole profile may differ
 function Frames:OnProfileChanged(path)
 	if not path then
-		for _, unit in ipairs(UNITS) do
-			self:Apply(unit, true)
+		for _, spec in ipairs(SPECS) do
+			self:Apply(spec.key, true)
 		end
 
 		return
 	end
 
 	if path:match("^numbers%.") then
-		for _, unit in ipairs(UNITS) do
-			self:Apply(unit, false)
+		for _, spec in ipairs(SPECS) do
+			self:Apply(spec.key, false)
 		end
 
 		return
 	end
 
-	local unit, setting = path:match("^frames%.(%a+)%.([^.]+)")
+	local key, setting = path:match("^frames%.(%a+)%.([^.]+)")
 
-	if unit and self.objects[unit] then
-		self:Apply(unit, LAYOUT[setting] == true)
+	if key and self.objects[key] then
+		self:Apply(key, LAYOUT[setting] == true)
 	end
 end
 
@@ -107,13 +119,13 @@ function Frames:OnCombatEnded()
 
 	self.layoutPending = false
 
-	for _, unit in ipairs(UNITS) do
-		self.objects[unit]:ApplyLayout(AUI.Profile.config)
+	for _, spec in ipairs(SPECS) do
+		self.objects[spec.key]:ApplyLayout(AUI.Profile.config)
 	end
 end
 
 function Frames:OnScaleChanged()
-	for _, unit in ipairs(UNITS) do
-		self.objects[unit]:UpdateBorder()
+	for _, spec in ipairs(SPECS) do
+		self.objects[spec.key]:UpdateBorder()
 	end
 end

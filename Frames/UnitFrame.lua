@@ -2,24 +2,30 @@ local AUI = select(2, ...)
 
 local Schema = AUI.Schema
 
--- The frame's background behind the health fill.
+-- The frame's background behind the bar's fill.
 local BACKGROUND = 0.067
 
----Behavior shared by the player and target frames, mixed into each oUF frame.
+---Behavior shared by AeonUI's oUF frames, mixed into each.
 ---@class AUIUnitFrame : Button
 ---@field unit string?
 ---@field __unit string? oUF's current unit, which follows vehicles
 ---@field Enable fun(self: AUIUnitFrame) oUF: watch the unit and show the frame while it exists
 ---@field Disable fun(self: AUIUnitFrame) oUF: stop watching the unit and hide the frame
----@field configUnit string the unit whose settings the frame uses
----@field Health StatusBar
+---@field key string the frame's key under `frames` in the profile
+---@field Bar StatusBar the frame's one bar: oUF's Health or Power element
+---@field Health StatusBar?
+---@field Power StatusBar?
 ---@field Background Texture
 ---@field Border Texture[]
+---@field TextSlots FontString[]
 local UnitFrameMixin = {}
 
----Builds the oUF style for AeonUI's unit frames.
+---Builds the oUF styles for AeonUI's frames.
 ---@class AUIUnitFrameFactory
-local UnitFrame = {}
+---@field keys table<string, string> the next spawned frame's key, by unit
+local UnitFrame = {
+	keys = {},
+}
 AUI.UnitFrame = UnitFrame
 
 ---@param parent Frame
@@ -37,17 +43,14 @@ local function Border(parent)
 	return edges
 end
 
----The oUF style function: builds the frame's regions once. Settings are applied afterwards by `ApplyLayout` and
----`ApplyAppearance`.
+---Gives a frame its background, one flat bar filling it, the border and the text slots.
 ---@param frame table the oUF frame
 ---@param unit string
-function UnitFrame.Style(frame, unit)
+---@return StatusBar bar
+local function Build(frame, unit)
 	Mixin(frame, UnitFrameMixin)
 
-	frame.configUnit = unit
-	frame:RegisterForClicks("AnyUp")
-	frame:SetScript("OnEnter", frame.OnEnter)
-	frame:SetScript("OnLeave", UnitFrame_OnLeave)
+	frame.key = UnitFrame.keys[unit] or unit
 
 	local background = frame:CreateTexture(nil, "BACKGROUND")
 
@@ -55,11 +58,25 @@ function UnitFrame.Style(frame, unit)
 	background:SetColorTexture(BACKGROUND, BACKGROUND, BACKGROUND, 1)
 	frame.Background = background
 
-	local health = CreateFrame("StatusBar", nil, frame)
+	local bar = CreateFrame("StatusBar", nil, frame)
 
-	health:SetAllPoints()
-	health:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
-	health:GetStatusBarTexture():SetColorTexture(1, 1, 1, 1)
+	bar:SetAllPoints()
+	bar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
+	bar:GetStatusBarTexture():SetColorTexture(1, 1, 1, 1)
+	frame.Bar = bar
+
+	frame.Border = Border(bar)
+	AUI.Text:Create(frame, bar, Schema.textSlots[frame.key])
+
+	return bar
+end
+
+---The style for the player and target frames: health, clicks and the unit tooltip.
+---@param frame table the oUF frame
+---@param unit string
+function UnitFrame.HealthStyle(frame, unit)
+	local health = Build(frame, unit)
+
 	health.colorDisconnected = true
 	health.colorTapping = true
 	health.colorClass = true
@@ -67,8 +84,22 @@ function UnitFrame.Style(frame, unit)
 	health.colorHealth = true
 	frame.Health = health
 
-	frame.Border = Border(health)
-	AUI.Text:Create(frame, health)
+	frame:RegisterForClicks("AnyUp")
+	frame:SetScript("OnEnter", frame.OnEnter)
+	frame:SetScript("OnLeave", UnitFrame_OnLeave)
+end
+
+---The style for the central power bar: power only, and it does not take the mouse.
+---@param frame table the oUF frame
+---@param unit string
+function UnitFrame.PowerStyle(frame, unit)
+	local power = Build(frame, unit)
+
+	power.colorPower = true
+	power.frequentUpdates = true
+	frame.Power = power
+
+	frame:EnableMouse(false)
 end
 
 ---Shows Blizzard's unit tooltip. Its update reads `self.unit`, which oUF does not keep; oUF's current unit
@@ -82,7 +113,7 @@ end
 function UnitFrameMixin:UpdateBorder()
 	local pixel = AUI:Pixel(self)
 	local top, bottom, left, right = unpack(self.Border)
-	local bar = self.Health
+	local bar = self.Bar
 
 	top:ClearAllPoints()
 	top:SetPoint("TOPLEFT", bar)
@@ -108,7 +139,7 @@ end
 ---Size, position and whether the frame watches its unit. These touch a secure frame, so they run only out of combat.
 ---@param config table the active profile config
 function UnitFrameMixin:ApplyLayout(config)
-	local base = "frames." .. self.configUnit .. "."
+	local base = "frames." .. self.key .. "."
 
 	self:SetSize(Schema:Read(config, base .. "width"), Schema:Read(config, base .. "height"))
 	self:ClearAllPoints()
@@ -126,6 +157,8 @@ end
 ---Fill direction and text. Neither is protected, so this also runs in combat.
 ---@param config table the active profile config
 function UnitFrameMixin:ApplyAppearance(config)
-	self.Health:SetReverseFill(Schema:Read(config, "frames." .. self.configUnit .. ".reverse"))
-	AUI.Text:Apply(self, self.configUnit, config)
+	local reverse = Schema:Read(config, "frames." .. self.key .. ".reverse")
+
+	self.Bar:SetReverseFill(reverse == true)
+	AUI.Text:Apply(self, self.key, config)
 end

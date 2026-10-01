@@ -204,10 +204,11 @@ local function NumberSetting(config, unit, path)
 	return own
 end
 
----Creates the font strings for a frame's slots, on a layer above the health bar.
+---Creates the font strings for a frame's slots, on a layer above its bar.
 ---@param frame table the unit frame
 ---@param bar StatusBar the bar the text sits on
-function Text:Create(frame, bar)
+---@param count integer how many slots the frame has
+function Text:Create(frame, bar, count)
 	local layer = CreateFrame("Frame", nil, frame)
 
 	layer:SetAllPoints(bar)
@@ -215,7 +216,7 @@ function Text:Create(frame, bar)
 
 	local strings = {}
 
-	for index = 1, Schema.TEXT_SLOTS do
+	for index = 1, count do
 		local text = layer:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 
 		text:SetWordWrap(false)
@@ -230,16 +231,16 @@ end
 ---Applies every slot's settings to a frame: style, place, width and tag. Text is not protected, so this also runs
 ---in combat.
 ---@param frame table a unit frame made by `Text:Create`
----@param unit string
+---@param unit string the frame's key under `frames`
 ---@param config table the active profile config
 function Text:Apply(frame, unit, config)
 	local slots = {}
 
-	for index = 1, Schema.TEXT_SLOTS do
+	for index = 1, #frame.TextSlots do
 		slots[index] = self:Resolve(config, unit, index)
 	end
 
-	local bar = frame.Health
+	local bar = frame.Bar
 	local widths = self:Widths(slots, Schema:Read(config, "frames." .. unit .. ".width"))
 	local status = Schema:Read(config, "frames." .. unit .. ".text.status")
 	local nameFormat = Schema:Read(config, "frames." .. unit .. ".text.nameFormat")

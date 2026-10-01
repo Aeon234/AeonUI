@@ -429,8 +429,8 @@ local function FontString()
 	return text
 end
 
-local frame = { Health = {}, TextSlots = {}, tags = {} }
-for index = 1, Schema.TEXT_SLOTS do
+local frame = { Bar = {}, TextSlots = {}, tags = {} }
+for index = 1, Schema.textSlots.target do
 	frame.TextSlots[index] = FontString()
 end
 function frame:Tag(text, tags)
@@ -466,6 +466,27 @@ Schema:Write(config, "frames.target.text.slots.1.content", "none")
 Text:Apply(frame, "target", config)
 Equal("a slot set to none loses its tag", frame.tags[first], nil)
 Equal("a slot set to none hides", first.shown, false)
+
+-- The central power bar: two slots, power in the middle, no status slot.
+Equal("power bar has two slots", Schema.textSlots.playerPower, 2)
+Equal("power bar status slot", Schema:Read(Schema:Defaults(), "frames.playerPower.text.status"), 0)
+Equal("power bar status cannot name a third slot", (Schema:CheckValue("frames.playerPower.text.status", 3)), false)
+Equal("power bar is thin", Schema:Read(Schema:Defaults(), "frames.playerPower.height"), 12)
+Equal("power bar may be 4 high", (Schema:CheckValue("frames.playerPower.height", 4)), true)
+Equal("health frames stay at least 16 high", (Schema:CheckValue("frames.player.height", 4)), false)
+Equal("no third power slot setting", Schema:Field("frames.playerPower.text.slots.3.content"), nil)
+
+local power = { Bar = {}, TextSlots = { FontString(), FontString() }, tags = {} }
+power.Tag, power.Untag, power.IsVisible = frame.Tag, frame.Untag, frame.IsVisible
+config = Schema:Defaults()
+Text:Apply(power, "playerPower", config)
+local center, spare = unpack(power.TextSlots)
+Equal("power bar value tag", power.tags[center], "[aui:power(cur,default,0)]")
+Equal("power bar value centered", center.point[1] .. " " .. center.point[3], "CENTER CENTER")
+Equal("second power slot empty", power.tags[spare], nil)
+Equal("power bar text width", center.SetWidthArgs[1], 360 * 0.9)
+Equal("power text follows frequent power updates", AUI.oUF.Tags.Events["aui:power"]:match("UNIT_POWER_FREQUENT") ~= nil,
+	true)
 
 string.format = luaFormat
 io.stdout:write(("check_text: %d checks passed\n"):format(checks))

@@ -19,14 +19,18 @@ local MAX_DEPTH = 32
 ---dormant data from another version and are kept as they are, provided they are plain data.
 ---@class AUISchema
 ---@field VERSION integer the profile config schema version
----@field TEXT_SLOTS integer text slots on the player and target frames
+---@field textSlots table<string, integer> how many text slots each frame has
 ---@field fields table<string, AUISchemaField>
 ---@field order string[] field paths in declaration order
 ---@field branches table<string, true> every path that is a table on the way to a field
 ---@field choices table<string, string[]> each choice list in display order
 local Schema = {
 	VERSION = 1,
-	TEXT_SLOTS = 4,
+	textSlots = {
+		player = 4,
+		target = 4,
+		playerPower = 2,
+	},
 	fields = {},
 	order = {},
 	branches = {},
@@ -136,52 +140,64 @@ local function TextSlot(base, index, slot)
 	Color(path .. "color", nil)
 end
 
----@param unit string
----@param x number
----@param reverse boolean
+---A frame's text style, number overrides and slots.
+---@param key string the frame's key under `frames`
+---@param status integer the slot that shows status by default; 0 for none
 ---@param slots AUITextSlotDefault[]
-local function UnitFrameFields(unit, x, reverse, slots)
-	local base = "frames." .. unit .. "."
-
-	Boolean(base .. "enabled", true)
-	Number(base .. "width", 270, 80, 600)
-	Number(base .. "height", 36, 16, 120)
-	Number(base .. "x", x, -3000, 3000)
-	Number(base .. "y", -200, -3000, 3000)
-	Boolean(base .. "reverse", reverse)
+local function TextFields(key, status, slots)
+	local base = "frames." .. key .. "."
+	local text = base .. "text."
+	local count = Schema.textSlots[key]
 
 	Choice(base .. "numbers.precision", "precision", nil)
 	Number(base .. "numbers.percentDecimals", nil, 0, 1, true)
-
-	local text = base .. "text."
 
 	String(text .. "font", "Expressway", 64)
 	Number(text .. "size", 12, 6, 48, true)
 	Choice(text .. "outline", "outline", "OUTLINE")
 	Color(text .. "color", { r = 1, g = 1, b = 1 })
-	Number(text .. "status", 1, 0, Schema.TEXT_SLOTS, true)
+	Number(text .. "status", status, 0, count, true)
 	Choice(text .. "nameFormat", "nameFormat", "first")
 
-	for index = 1, Schema.TEXT_SLOTS do
+	for index = 1, count do
 		TextSlot(text, index, slots[index])
 	end
 end
 
-UnitFrameFields("player", -330, false, {
+---@param key string the frame's key under `frames`
+---@param width number
+---@param height number
+---@param minHeight number
+---@param x number
+---@param y number
+local function Geometry(key, width, height, minHeight, x, y)
+	local base = "frames." .. key .. "."
+
+	Boolean(base .. "enabled", true)
+	Number(base .. "width", width, 80, 600)
+	Number(base .. "height", height, minHeight, 120)
+	Number(base .. "x", x, -3000, 3000)
+	Number(base .. "y", y, -3000, 3000)
+end
+
+Geometry("player", 270, 36, 16, -330, -200)
+Boolean("frames.player.reverse", false)
+TextFields("player", 1, {
 	{ content = "healthAndPercent", anchor = "TOPRIGHT", placement = "edge", x = -4 },
 })
-UnitFrameFields("target", 330, true, {
+
+Geometry("target", 270, 36, 16, 330, -200)
+Boolean("frames.target.reverse", true)
+TextFields("target", 1, {
 	{ content = "healthAndPercent", anchor = "TOPLEFT", placement = "edge", x = 4 },
 	{ content = "levelName", separator = "space", anchor = "TOPRIGHT", placement = "edge", x = -4, colorMode = "class" },
 	{ content = "power", anchor = "BOTTOMLEFT", placement = "inside", x = 4, colorMode = "power" },
 })
 
-Boolean("frames.playerPower.enabled", true)
-Number("frames.playerPower.width", 360, 80, 600)
-Number("frames.playerPower.height", 12, 4, 40)
-Number("frames.playerPower.x", 0, -3000, 3000)
-Number("frames.playerPower.y", -184, -3000, 3000)
-Boolean("frames.playerPower.showText", true)
+Geometry("playerPower", 360, 12, 4, 0, -184)
+TextFields("playerPower", 0, {
+	{ content = "power", anchor = "CENTER", placement = "inside" },
+})
 
 ---@param path string
 ---@return AUISchemaField?
