@@ -72,22 +72,23 @@ function Previews:Sample(key, parent)
 
 	if not sample then
 		local frame = CreateFrame("Frame", nil, parent)
-		local bar, _, border = AUI.UnitFrame:CreateBar(frame)
-		local layer = CreateFrame("Frame", nil, frame)
-		local texts = {}
-
-		layer:SetAllPoints(bar)
-		layer:SetFrameLevel(bar:GetFrameLevel() + 5)
-
-		for index = 1, Schema.textSlots[key] do
-			local text = layer:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-
-			text:SetWordWrap(false)
-			texts[index] = text
-		end
+		local main = CreateFrame("Frame", nil, frame)
+		local bar, _, border = AUI.UnitFrame:CreateBar(main)
 
 		bar:SetMinMaxValues(0, 1)
-		sample = { frame = frame, bar = bar, border = border, texts = texts }
+		sample = { frame = frame, main = main, bar = bar, border = border, Bar = bar }
+
+		-- The text code works on anything shaped like a unit frame's text: slots, a Status Line, and its bar.
+		AUI.Text:Create(sample, bar, key)
+
+		if Schema:Field("frames." .. key .. ".power.enabled") then
+			local holder = CreateFrame("Frame", nil, frame)
+			local power, _, powerBorder = AUI.UnitFrame:CreateBar(holder)
+
+			power:SetMinMaxValues(0, 1)
+			sample.powerHolder, sample.power, sample.powerBorder = holder, power, powerBorder
+		end
+
 		self.samples[key] = sample
 	end
 
@@ -143,8 +144,8 @@ function Previews:Values(key, state)
 	}
 	local barColor
 
-	if key == "target" then
-		values.name = L["Sample Target"]
+	if key == "target" or key == "focus" then
+		values.name = key == "focus" and L["Sample Focus"] or L["Sample Target"]
 		values.level = 60
 		values.classColor = colors.reaction[2]
 		values.powerColor = colors.power.MANA
@@ -191,29 +192,63 @@ local function Preview(key, states)
 		Draw = function(parent, label, addPart)
 			local config = AUI.Profile.config
 			local base = "frames." .. key .. "."
-			local width, height = Schema:Read(config, base .. "width"), Schema:Read(config, base .. "height")
+			local width = Schema:Read(config, base .. "width")
+			local main, powerHeight = AUI.UnitFrame:Heights(config, key)
+			local height = main + powerHeight
 			local room = Schema:Read(config, base .. "text.size") + TEXT_ROOM
 			local sample = Previews:Sample(key, parent)
 			local values, barColor = Previews:Values(key, FindState(states, label))
 			local frame, bar = sample.frame, sample.bar
+			local pixel = AUI:Pixel(frame)
 
 			frame:SetSize(width, height)
 			frame:ClearAllPoints()
 			frame:SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, -(PAD + room))
-			AUI.UnitFrame:LayoutBorder(sample.border, bar, AUI:Pixel(frame))
+			sample.main:ClearAllPoints()
+			sample.main:SetPoint("TOPLEFT")
+			sample.main:SetPoint("TOPRIGHT")
+			sample.main:SetHeight(main)
+			AUI.UnitFrame:LayoutBorder(sample.border, bar, pixel)
+
+			if sample.powerHolder then
+				local holder, power = sample.powerHolder, sample.power
+
+				holder:SetShown(powerHeight > 0)
+
+				if powerHeight > 0 then
+					local color = values.powerColor or AUI.oUF.colors.power.MANA
+
+					holder:ClearAllPoints()
+					holder:SetPoint("TOPLEFT", sample.main, "BOTTOMLEFT")
+					holder:SetPoint("TOPRIGHT", sample.main, "BOTTOMRIGHT")
+					holder:SetHeight(powerHeight)
+					AUI.UnitFrame:LayoutBorder(sample.powerBorder, power, pixel)
+					power:SetReverseFill(Schema:Read(config, base .. "reverse") == true)
+					power:SetValue(values.status and 0 or values.powerPercent / 100)
+					power:SetStatusBarColor(color.r, color.g, color.b)
+					addPart(power, "powerHeight")
+				end
+			end
 
 			bar:SetReverseFill(Schema:Read(config, base .. "reverse") == true)
 			bar:SetValue(key == "playerPower" and values.powerPercent / 100 or values.percent / 100)
 			bar:SetStatusBarColor(barColor.r, barColor.g, barColor.b)
 			addPart(bar, key == "playerPower" and "width" or "reverse")
 
-			local slots, widths, contexts = AUI.Text:Layout(config, key, #sample.texts)
+			local slots, widths, contexts = AUI.Text:Layout(config, key, #sample.TextSlots)
+
+			sample.slotWidths = widths
+			sample.middleSlots = {}
 
 			for index, slot in ipairs(slots) do
-				local text = sample.texts[index]
+				local text = sample.TextSlots[index]
 				local shown = AUI.Tags:Sample(slot, contexts[index], values)
 
 				if shown then
+					if AUI.Text:InMiddleRow(slot) then
+						sample.middleSlots[index] = true
+					end
+
 					AUI.Text:Place(text, bar, slot, widths[index])
 					text:SetText(shown)
 					text:Show()
@@ -221,6 +256,22 @@ local function Preview(key, states)
 				else
 					text:Hide()
 				end
+			end
+
+			local line = sample.StatusLine
+
+			if line then
+				local showLine = AUI.Text:NeedsStatusLine(config, key)
+
+				line:SetText(showLine and values.status or "")
+				line:SetShown(showLine)
+
+				if showLine then
+					AUI.Text:PlaceStatusLine(line, bar, config, key)
+					addPart(line, "statusLine", true)
+				end
+
+				AUI.Text:FitStatusLine(sample)
 			end
 
 			local window = AUI.Settings.window
@@ -237,7 +288,7 @@ end
 ---@param pageID string
 ---@return table? preview the page's preview, or nil for a page without one
 function Previews:For(pageID)
-	if pageID == "player" or pageID == "target" then
+	if pageID == "player" or pageID == "target" or pageID == "targettarget" or pageID == "focus" then
 		return Preview(pageID, UNIT_STATES)
 	end
 

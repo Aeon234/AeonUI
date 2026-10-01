@@ -29,6 +29,8 @@ local Schema = {
 	textSlots = {
 		player = 4,
 		target = 4,
+		targettarget = 3,
+		focus = 4,
 		playerPower = 2,
 	},
 	fields = {},
@@ -143,8 +145,9 @@ end
 ---A frame's text style, number overrides and slots.
 ---@param key string the frame's key under `frames`
 ---@param status integer the slot that shows status by default; 0 for none
+---@param statusLine boolean? the Status Line default; nil for a frame without one
 ---@param slots AUITextSlotDefault[]
-local function TextFields(key, status, slots)
+local function TextFields(key, status, statusLine, slots)
 	local base = "frames." .. key .. "."
 	local text = base .. "text."
 	local count = Schema.textSlots[key]
@@ -158,6 +161,10 @@ local function TextFields(key, status, slots)
 	Color(text .. "color", { r = 1, g = 1, b = 1 })
 	Number(text .. "status", status, 0, count, true)
 	Choice(text .. "nameFormat", "nameFormat", "first")
+
+	if statusLine ~= nil then
+		Boolean(text .. "statusLine", statusLine)
+	end
 
 	for index = 1, count do
 		TextSlot(text, index, slots[index])
@@ -180,22 +187,45 @@ local function Geometry(key, width, height, minHeight, x, y)
 	Number(base .. "y", y, -3000, 3000)
 end
 
+---An optional power bar attached under a frame's health.
+---@param key string
+local function AttachedPower(key)
+	Boolean("frames." .. key .. ".power.enabled", false)
+	Number("frames." .. key .. ".power.height", 6, 4, 20, true)
+end
+
+-- The compact frames' default text: the name, left-aligned inside health.
+local NAME_ONLY = {
+	{ content = "name", anchor = "LEFT", placement = "inside", x = 4 },
+}
+
 Geometry("player", 270, 36, 16, -330, -200)
 Boolean("frames.player.reverse", false)
-TextFields("player", 1, {
+TextFields("player", 1, false, {
 	{ content = "healthAndPercent", anchor = "TOPRIGHT", placement = "edge", x = -4 },
 })
 
 Geometry("target", 270, 36, 16, 330, -200)
 Boolean("frames.target.reverse", true)
-TextFields("target", 1, {
+AttachedPower("target")
+TextFields("target", 1, false, {
 	{ content = "healthAndPercent", anchor = "TOPLEFT", placement = "edge", x = 4 },
 	{ content = "levelName", separator = "space", anchor = "TOPRIGHT", placement = "edge", x = -4, colorMode = "class" },
 	{ content = "power", anchor = "BOTTOMLEFT", placement = "inside", x = 4, colorMode = "power" },
 })
 
+Geometry("targettarget", 120, 24, 16, 533, -206)
+Boolean("frames.targettarget.reverse", false)
+AttachedPower("targettarget")
+TextFields("targettarget", 0, true, NAME_ONLY)
+
+Geometry("focus", 200, 24, 16, -330, -140)
+Boolean("frames.focus.reverse", false)
+AttachedPower("focus")
+TextFields("focus", 0, true, NAME_ONLY)
+
 Geometry("playerPower", 360, 12, 4, 0, -184)
-TextFields("playerPower", 0, {
+TextFields("playerPower", 0, nil, {
 	{ content = "power", anchor = "CENTER", placement = "inside" },
 })
 

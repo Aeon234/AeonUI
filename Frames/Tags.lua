@@ -259,6 +259,12 @@ Methods["aui:health"] = function(unit, _, mode, separator, precision, decimals, 
 	return UnitHealthText(unit, mode, separator, precision, decimals)
 end
 
+---A frame's Status Line: Offline, Ghost or Dead, or nothing.
+---@param unit string
+Methods["aui:status"] = function(unit)
+	return Status(unit)
+end
+
 ---@param unit string
 Methods["aui:absorb"] = function(unit)
 	if Status(unit) then
@@ -329,6 +335,7 @@ local EVENTS = {
 	["aui:level"] = "UNIT_LEVEL PLAYER_LEVEL_UP",
 	["aui:levelname"] = "UNIT_NAME_UPDATE UNIT_LEVEL PLAYER_LEVEL_UP",
 	["aui:health"] = "UNIT_HEALTH UNIT_MAXHEALTH UNIT_CONNECTION UNIT_FLAGS",
+	["aui:status"] = "UNIT_HEALTH UNIT_CONNECTION UNIT_FLAGS",
 	["aui:absorb"] = "UNIT_ABSORB_AMOUNT_CHANGED UNIT_HEALTH UNIT_CONNECTION",
 	["aui:healabsorb"] = "UNIT_HEAL_ABSORB_AMOUNT_CHANGED UNIT_HEALTH UNIT_CONNECTION",
 	["aui:power"] = "UNIT_POWER_FREQUENT UNIT_MAXPOWER UNIT_DISPLAYPOWER",

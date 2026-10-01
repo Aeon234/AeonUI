@@ -11,6 +11,11 @@ local BACKGROUND = 0.067
 ---@field __unit string? oUF's current unit, which follows vehicles
 ---@field Enable fun(self: AUIUnitFrame) oUF: watch the unit and show the frame while it exists
 ---@field Disable fun(self: AUIUnitFrame) oUF: stop watching the unit and hide the frame
+---@field EnableElement fun(self: AUIUnitFrame, name: string) oUF: activate an element
+---@field DisableElement fun(self: AUIUnitFrame, name: string) oUF: deactivate an element
+---@field Main Frame the holder of the main bar, at the top of the frame
+---@field PowerHolder Frame? the attached power bar's holder, on frames that have one
+---@field PowerBorder Texture[]?
 ---@field key string the frame's key under `frames` in the profile
 ---@field Bar StatusBar the frame's one bar: oUF's Health or Power element
 ---@field Health StatusBar?
@@ -93,6 +98,23 @@ function UnitFrame:LayoutBorder(border, bar, pixel)
 end
 
 ---Gives an oUF frame its bar and text slots.
+---The heights a frame's parts take: its health (or main) bar, and the attached power bar when one is shown.
+---@param config table
+---@param key string
+---@return number main
+---@return number power 0 when the frame shows no attached power bar
+function UnitFrame:Heights(config, key)
+	local base = "frames." .. key .. "."
+	local main = Schema:Read(config, base .. "height")
+
+	if Schema:Read(config, base .. "power.enabled") == true then
+		return main, Schema:Read(config, base .. "power.height")
+	end
+
+	return main, 0
+end
+
+---Gives an oUF frame its main bar, in a holder at the top of the frame, and its text slots.
 ---@param frame table the oUF frame
 ---@param unit string
 ---@return StatusBar bar
@@ -100,13 +122,15 @@ local function Build(frame, unit)
 	Mixin(frame, UnitFrameMixin)
 
 	frame.key = UnitFrame.keys[unit] or unit
-	frame.Bar, frame.Background, frame.Border = UnitFrame:CreateBar(frame)
-	AUI.Text:Create(frame, frame.Bar, Schema.textSlots[frame.key])
+	frame.Main = CreateFrame("Frame", nil, frame)
+	frame.Bar, frame.Background, frame.Border = UnitFrame:CreateBar(frame.Main)
+	AUI.Text:Create(frame, frame.Bar, frame.key)
 
 	return frame.Bar
 end
 
----The style for the player and target frames: health, clicks and the unit tooltip.
+---The style for the player, target, target-of-target and focus frames: health, an attached power bar where the
+---frame has one, clicks and the unit tooltip.
 ---@param frame table the oUF frame
 ---@param unit string
 function UnitFrame.HealthStyle(frame, unit)
@@ -118,6 +142,17 @@ function UnitFrame.HealthStyle(frame, unit)
 	health.colorReaction = true
 	health.colorHealth = true
 	frame.Health = health
+
+	if Schema:Field("frames." .. frame.key .. ".power.enabled") then
+		local holder = CreateFrame("Frame", nil, frame)
+		local power, _, border = UnitFrame:CreateBar(holder)
+
+		power.colorPower = true
+		power.frequentUpdates = true
+		frame.Power = power
+		frame.PowerHolder = holder
+		frame.PowerBorder = border
+	end
 
 	frame:RegisterForClicks("AnyUp")
 	frame:SetScript("OnEnter", frame.OnEnter)
@@ -144,19 +179,50 @@ function UnitFrameMixin:OnEnter()
 	UnitFrame_OnEnter(self)
 end
 
----Places the one-pixel border inside the frame's edges at the current scale.
+---Places the one-pixel borders inside the bars' edges at the current scale.
 function UnitFrameMixin:UpdateBorder()
-	UnitFrame:LayoutBorder(self.Border, self.Bar, AUI:Pixel(self))
+	local pixel = AUI:Pixel(self)
+
+	UnitFrame:LayoutBorder(self.Border, self.Bar, pixel)
+
+	local power, border = self.Power, self.PowerBorder
+
+	if power and border then
+		UnitFrame:LayoutBorder(border, power, pixel)
+	end
 end
 
----Size, position and whether the frame watches its unit. These touch a secure frame, so they run only out of combat.
+---Size, position, the attached power bar and whether the frame watches its unit. These touch a secure frame, so
+---they run only out of combat.
 ---@param config table the active profile config
 function UnitFrameMixin:ApplyLayout(config)
 	local base = "frames." .. self.key .. "."
+	local main, power = UnitFrame:Heights(config, self.key)
 
-	self:SetSize(Schema:Read(config, base .. "width"), Schema:Read(config, base .. "height"))
+	self:SetSize(Schema:Read(config, base .. "width"), main + power)
 	self:ClearAllPoints()
 	self:SetPoint("CENTER", UIParent, "CENTER", Schema:Read(config, base .. "x"), Schema:Read(config, base .. "y"))
+
+	self.Main:ClearAllPoints()
+	self.Main:SetPoint("TOPLEFT")
+	self.Main:SetPoint("TOPRIGHT")
+	self.Main:SetHeight(main)
+
+	local holder = self.PowerHolder
+
+	if holder then
+		if power > 0 then
+			holder:ClearAllPoints()
+			holder:SetPoint("TOPLEFT", self.Main, "BOTTOMLEFT")
+			holder:SetPoint("TOPRIGHT", self.Main, "BOTTOMRIGHT")
+			holder:SetHeight(power)
+			holder:Show()
+			self:EnableElement("Power")
+		else
+			self:DisableElement("Power")
+			holder:Hide()
+		end
+	end
 
 	if Schema:Read(config, base .. "enabled") then
 		self:Enable()
@@ -173,5 +239,12 @@ function UnitFrameMixin:ApplyAppearance(config)
 	local reverse = Schema:Read(config, "frames." .. self.key .. ".reverse")
 
 	self.Bar:SetReverseFill(reverse == true)
+
+	local power = self.Power
+
+	if self.PowerHolder and power then
+		power:SetReverseFill(reverse == true)
+	end
+
 	AUI.Text:Apply(self, self.key, config)
 end

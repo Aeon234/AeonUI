@@ -270,6 +270,21 @@ local function UnitPage(key, switchLabel)
 			description = L["Fill the bar from right to left."],
 		})),
 	})
+
+	if Schema:Field(base .. "power.enabled") then
+		local heightMin, heightMax = Pages.Range(base .. "power.height")
+
+		Append(elements, {
+			Row(
+				Check("power", L["Show Power Bar"], base .. "power.enabled", {
+					description = L["A power bar under health. It adds to the frame's height."],
+				}),
+				Slider("powerHeight", L["Power Bar Height"], base .. "power.height", heightMin, heightMax, {
+					depends = "power",
+				})
+			),
+		})
+	end
 	Append(elements, AUI.SettingsText:Sections(key))
 	Append(elements, {
 		Section("numbers", L["Numbers"]),
@@ -320,6 +335,12 @@ function Pages:UnitFramePages()
 		end),
 		Page("target", TARGET, "frames.target", function()
 			return UnitPage("target", L["Show Target Frame"])
+		end),
+		Page("targettarget", L["Target of Target"], "frames.targettarget", function()
+			return UnitPage("targettarget", L["Show Target of Target Frame"])
+		end),
+		Page("focus", L["Focus"], "frames.focus", function()
+			return UnitPage("focus", L["Show Focus Frame"])
 		end),
 		Page("playerPower", L["Player Power"], "frames.playerPower", PowerPage),
 	}

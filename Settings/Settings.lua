@@ -10,6 +10,8 @@ local ALIASES = {
 	globals = "globals",
 	player = "player",
 	target = "target",
+	tot = "targettarget",
+	focus = "focus",
 	power = "playerPower",
 	profiles = "profiles",
 }

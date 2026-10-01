@@ -186,7 +186,7 @@ AUI.Media = {
 		return outline == "NONE" and "" or outline
 	end,
 }
-for _, file in ipairs({ "Profile/Schema.lua", "Frames/Tags.lua", "Frames/Text.lua" }) do
+for _, file in ipairs({ "Profile/Schema.lua", "Frames/Tags.lua", "Frames/Text.lua", "Frames/UnitFrame.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 
@@ -487,6 +487,61 @@ Equal("second power slot empty", power.tags[spare], nil)
 Equal("power bar text width", center.SetWidthArgs[1], 360 * 0.9)
 Equal("power text follows frequent power updates", AUI.oUF.Tags.Events["aui:power"]:match("UNIT_POWER_FREQUENT") ~= nil,
 	true)
+
+-- Target of target and focus ------------------------------------------------------------------------------
+
+config = Schema:Defaults()
+Equal("target of target size", Schema:Read(config, "frames.targettarget.width") .. "x" ..
+	Schema:Read(config, "frames.targettarget.height"), "120x24")
+Equal("focus position", Schema:Read(config, "frames.focus.x") .. "," .. Schema:Read(config, "frames.focus.y"), "-330,-140")
+Equal("target of target slot count", Schema.textSlots.targettarget, 3)
+Equal("focus starts with the name", Text:Resolve(config, "focus", 1).content, "name")
+Equal("focus name is in the middle row", Text:InMiddleRow(Text:Resolve(config, "focus", 1)), true)
+Equal("target health is not in the middle row", Text:InMiddleRow(Text:Resolve(config, "target", 1)), false)
+Equal("focus shows the status line", Text:NeedsStatusLine(config, "focus"), true)
+Equal("player has no status line", Text:NeedsStatusLine(config, "player"), false)
+Schema:Write(config, "frames.focus.text.status", 1)
+Equal("a name slot cannot carry status, so the line stays", Text:NeedsStatusLine(config, "focus"), true)
+Schema:Write(config, "frames.focus.text.slots.1.content", "healthPercent")
+Equal("a health slot carries status, so the line hides", Text:NeedsStatusLine(config, "focus"), false)
+Schema:Write(config, "frames.focus.text.statusLine", false)
+Schema:Write(config, "frames.focus.text.status", 0)
+Equal("the setting turns the line off", Text:NeedsStatusLine(config, "focus"), false)
+
+local main, attached = AUI.UnitFrame:Heights(config, "focus")
+Equal("no attached power by default", main .. "+" .. attached, "24+0")
+Schema:Write(config, "frames.focus.power.enabled", true)
+main, attached = AUI.UnitFrame:Heights(config, "focus")
+Equal("attached power adds its height", main .. "+" .. attached, "24+6")
+Equal("the central bar has no attached power", select(2, AUI.UnitFrame:Heights(config, "playerPower")), 0)
+
+-- The Status Line shortens middle-row slots while it shows a status.
+local statusText = ""
+local status = {
+	GetText = function()
+		return statusText
+	end,
+	GetUnboundedStringWidth = function()
+		return 30
+	end,
+}
+local nameSlot = FontString()
+local fitted = { StatusLine = status, TextSlots = { nameSlot }, slotWidths = { 180 }, middleSlots = { [1] = true } }
+Text:FitStatusLine(fitted)
+Equal("no status keeps the full width", nameSlot.SetWidthArgs[1], 180)
+statusText = "Dead"
+Text:FitStatusLine(fitted)
+Equal("a status makes room", nameSlot.SetWidthArgs[1], 180 - 30 - 8)
+statusText = ""
+Text:FitStatusLine(fitted)
+Equal("the room is given back", nameSlot.SetWidthArgs[1], 180)
+
+Equal("status tag registered", type(Methods["aui:status"]), "function")
+Reset()
+Equal("no status for the living", Methods["aui:status"]("focus"), nil)
+state.dead = true
+Equal("status tag", Methods["aui:status"]("focus"), "Dead")
+Reset()
 
 string.format = luaFormat
 io.stdout:write(("check_text: %d checks passed\n"):format(checks))

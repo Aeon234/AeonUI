@@ -69,9 +69,17 @@ L["Globals"] = "Globals"
 L["How large numbers are shortened, such as 588K or 588.4K."] =
 	"How large numbers are shortened, such as 588K or 588.4K."
 
--- Player and Target pages (Settings)
+-- Player, Target, Target of Target and Focus pages (Settings)
 L["Show Player Frame"] = "Show Player Frame"
 L["Show Target Frame"] = "Show Target Frame"
+L["Target of Target"] = "Target of Target"
+L["Show Target of Target Frame"] = "Show Target of Target Frame"
+L["Focus"] = "Focus"
+L["Show Focus Frame"] = "Show Focus Frame"
+L["Show Power Bar"] = "Show Power Bar"
+L["A power bar under health. It adds to the frame's height."] =
+	"A power bar under health. It adds to the frame's height."
+L["Power Bar Height"] = "Power Bar Height"
 L["Reverse Fill"] = "Reverse Fill"
 L["Fill the bar from right to left."] = "Fill the bar from right to left."
 L["Global (%s)"] = "Global (%s)"
@@ -82,6 +90,9 @@ L["Show Player Power Bar"] = "Show Player Power Bar"
 -- Text and Text Slots sections (Settings)
 L["Text"] = "Text"
 L["Status Text In"] = "Status Text In"
+L["Status Line"] = "Status Line"
+L["Show Offline, Ghost or Dead at the right of the bar when no text slot shows the status."] =
+	"Show Offline, Ghost or Dead at the right of the bar when no text slot shows the status."
 L["The slot that shows Offline, Ghost or Dead in place of health. Other health text hides meanwhile."] =
 	"The slot that shows Offline, Ghost or Dead in place of health. Other health text hides meanwhile."
 L["Text %d"] = "Text %d"
@@ -137,6 +148,7 @@ L["Damaged"] = "Damaged"
 L["Half"] = "Half"
 L["Empty"] = "Empty"
 L["Sample Target"] = "Sample Target"
+L["Sample Focus"] = "Sample Focus"
 
 -- Profiles page (Settings)
 L["AeonUI profile \"%s\"."] = "AeonUI profile \"%s\"."

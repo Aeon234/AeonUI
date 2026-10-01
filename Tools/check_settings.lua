@@ -254,11 +254,14 @@ local order = {}
 for _, page in ipairs(Settings:Categories()[1].pages) do
 	order[#order + 1] = page.id
 end
-Equal("unit frame page order", table.concat(order, ","), "globals,player,target,playerPower")
+Equal("unit frame page order", table.concat(order, ","), "globals,player,target,targettarget,focus,playerPower")
+Equal("Target of Target page", pages.targettarget.title, "Target of Target")
+Equal("Focus page", pages.focus.title, "Focus")
+Equal("preview on Focus", type(pages.focus.preview.Draw), "function")
 
 -- Every setting on every page reads and saves ----------------------------------------------------------------
 
-for _, id in ipairs({ "globals", "player", "target", "playerPower" }) do
+for _, id in ipairs({ "globals", "player", "target", "targettarget", "focus", "playerPower" }) do
 	local elements = pages[id].Build()
 	local seen = {}
 
@@ -327,8 +330,24 @@ Find(player, "size").set(14)
 Equal("slot follows the frame size again", Find(pages.player.Build(), "slotsize").get(), 14)
 
 -- Copy Text From and Apply to All Frames.
+-- Target of Target and Focus.
+local focus = pages.focus.Build()
+Equal("focus switch", Find(focus, "enabled").label, "Show Focus Frame")
+Equal("focus status line", Find(focus, "statusLine").get(), true)
+Equal("focus power bar off", Find(focus, "power").get(), false)
+Equal("power bar height depends on the power bar", Find(focus, "powerHeight").depends, "power")
+Find(focus, "power").set(true)
+Equal("power bar saved", Profile:Get("frames.focus.power.enabled"), true)
+local tot = pages.targettarget.Build()
+Equal("target of target has three slots", #Options(Find(tot, "slot")), 3)
+Equal("target of target starts with the name", Options(Find(tot, "slot"))[1].text, "Text 1: Name")
+Equal("player status line starts off", Find(player, "statusLine").get(), false)
+Equal("player has no attached power bar", Find(pages.player.Build(), "power"), nil)
+Equal("target has an attached power bar", Find(pages.target.Build(), "power") ~= nil, true)
+Equal("power page has no attached power bar", Find(pages.playerPower.Build(), "power"), nil)
+
 local power = pages.playerPower.Build()
-Equal("copy menu lists the other frames", #Options(Find(power, "copyText")), 2)
+Equal("copy menu lists the other frames", #Options(Find(power, "copyText")), 4)
 Find(power, "copyText").set("target")
 Equal("copied slot content", Profile:Get("frames.playerPower.text.slots.1.content"), "healthAndPercent")
 Equal("copied second slot", Profile:Get("frames.playerPower.text.slots.2.content"), "levelName")
@@ -337,6 +356,8 @@ AUI.SettingsText:Choose("target", 3)
 local target = pages.target.Build()
 Find(target, "applyToAll").set()
 Equal("slot 3 applied to the player", Profile:Get("frames.player.text.slots.3.content"), "power")
+Equal("slot 3 applied to target of target", Profile:Get("frames.targettarget.text.slots.3.content"), "power")
+Equal("slot 3 applied to focus", Profile:Get("frames.focus.text.slots.3.content"), "power")
 Equal("frames without slot 3 untouched", Schema:Field("frames.playerPower.text.slots.3.content"), nil)
 Profile:Set("frames.target.text.status", 4)
 Find(pages.playerPower.Build(), "copyText").set("target")
@@ -434,6 +455,8 @@ Equal("window switches to the normal pages", window.categories[1].id, "unitFrame
 -- Opening.
 Settings:Open("power")
 Equal("alias opens the page", window.opened, "playerPower")
+Settings:Open("tot")
+Equal("tot opens Target of Target", window.opened, "targettarget")
 Settings:Open()
 Equal("no word opens the last page", window.opened, "<last>")
 local before = window.refreshed

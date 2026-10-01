@@ -11,11 +11,13 @@ local AUI = select(2, ...)
 local SPECS = {
 	{ key = "player", unit = "player", name = "AeonUIPlayer", style = "AeonUI" },
 	{ key = "target", unit = "target", name = "AeonUITarget", style = "AeonUI" },
+	{ key = "targettarget", unit = "targettarget", name = "AeonUITargetTarget", style = "AeonUI" },
+	{ key = "focus", unit = "focus", name = "AeonUIFocus", style = "AeonUI" },
 	{ key = "playerPower", unit = "player", name = "AeonUIPlayerPower", style = "AeonUIPower" },
 }
 
 -- Settings that change a secure frame, which waits for combat to end.
-local LAYOUT = { enabled = true, width = true, height = true, x = true, y = true }
+local LAYOUT = { enabled = true, width = true, height = true, x = true, y = true, power = true }
 
 ---Owns AeonUI's oUF frames: creates them, applies the active profile, and holds back changes to secure frames until
 ---combat ends, keeping only the latest.
