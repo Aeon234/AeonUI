@@ -1,6 +1,7 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/">
 	<Script file="Tags.lua" />
 	<Script file="Text.lua" />
+	<Script file="Overlays.lua" />
 	<Script file="UnitFrame.lua" />
 	<Script file="Frames.lua" />
 </Ui>

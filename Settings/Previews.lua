@@ -24,6 +24,14 @@ local UNIT_STATES = {
 	{ label = PLAYER_OFFLINE, fill = 0, status = PLAYER_OFFLINE, offline = true },
 }
 
+-- Frames with health overlays add states that show them; amounts are shares of maximum health.
+local OVERLAY_STATES = {
+	{ label = L["Absorbs"], fill = 0.6, overlays = { health = 0.6, absorb = 0.25, healAbsorb = 0, healing = 0.15 } },
+	{ label = L["Overflow"], fill = 0.3, overlays = { health = 0.3, absorb = 0.9, healAbsorb = 0.5, healing = 0 } },
+}
+
+local NO_OVERLAYS = { health = 0, absorb = 0, healAbsorb = 0, healing = 0 }
+
 local POWER_STATES = {
 	{ label = STATE_FULL, fill = 1 },
 	{ label = STATE_HALF, fill = 0.5 },
@@ -89,6 +97,10 @@ function Previews:Sample(key, parent)
 			sample.powerHolder, sample.power, sample.powerBorder = holder, power, powerBorder
 		end
 
+		if AUI.Overlays:Resolve(AUI.Profile.config, key) then
+			sample.overlays = AUI.Overlays:Create(bar)
+		end
+
 		self.samples[key] = sample
 	end
 
@@ -137,8 +149,8 @@ function Previews:Values(key, state)
 		health = health,
 		percent = fill * 100,
 		missing = HEALTH_MAX - health,
-		absorb = 0,
-		healAbsorb = 0,
+		absorb = HEALTH_MAX * (state.overlays and state.overlays.absorb or 0),
+		healAbsorb = HEALTH_MAX * (state.overlays and state.overlays.healAbsorb or 0),
 		power = POWER_MAX * 0.8,
 		powerPercent = 80,
 	}
@@ -179,7 +191,7 @@ end
 local function Preview(key, states)
 	return {
 		states = Labels(states),
-		stateKey = key ~= "playerPower" and "unit" or nil,
+		stateKey = key ~= "playerPower" and (#states > #UNIT_STATES and "overlays" or "unit") or nil,
 		Pick = function(index)
 			local window = AUI.Settings.window
 
@@ -197,7 +209,8 @@ local function Preview(key, states)
 			local height = main + powerHeight
 			local room = Schema:Read(config, base .. "text.size") + TEXT_ROOM
 			local sample = Previews:Sample(key, parent)
-			local values, barColor = Previews:Values(key, FindState(states, label))
+			local state = FindState(states, label)
+			local values, barColor = Previews:Values(key, state)
 			local frame, bar = sample.frame, sample.bar
 			local pixel = AUI:Pixel(frame)
 
@@ -234,6 +247,13 @@ local function Preview(key, states)
 			bar:SetValue(key == "playerPower" and values.powerPercent / 100 or values.percent / 100)
 			bar:SetStatusBarColor(barColor.r, barColor.g, barColor.b)
 			addPart(bar, key == "playerPower" and "width" or "reverse")
+
+			local settings = sample.overlays and AUI.Overlays:Resolve(config, key)
+
+			if settings then
+				AUI.Overlays:Apply(sample.overlays, settings, Schema:Read(config, base .. "reverse") == true, nil)
+				AUI.Overlays:ShowSample(sample.overlays, state.overlays or NO_OVERLAYS, settings.healPrediction.overheal)
+			end
 
 			local slots, widths, contexts = AUI.Text:Layout(config, key, #sample.TextSlots)
 
@@ -288,7 +308,19 @@ end
 ---@param pageID string
 ---@return table? preview the page's preview, or nil for a page without one
 function Previews:For(pageID)
-	if pageID == "player" or pageID == "target" or pageID == "targettarget" or pageID == "focus" then
+	if pageID == "player" or pageID == "target" or pageID == "focus" then
+		local states = {}
+
+		for _, list in ipairs({ UNIT_STATES, OVERLAY_STATES }) do
+			for _, state in ipairs(list) do
+				states[#states + 1] = state
+			end
+		end
+
+		return Preview(pageID, states)
+	end
+
+	if pageID == "targettarget" then
 		return Preview(pageID, UNIT_STATES)
 	end
 

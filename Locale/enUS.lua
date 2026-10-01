@@ -142,6 +142,45 @@ L["Copy this slot's settings to the same slot on every other frame."] =
 L["Copy the settings of Text %d to the same slot on every other frame?"] =
 	"Copy the settings of Text %d to the same slot on every other frame?"
 
+-- Absorbs and Heals sections (Settings)
+L["Absorbs and Heals"] = "Absorbs and Heals"
+L["Show Absorbs"] = "Show Absorbs"
+L["Absorb Position"] = "Absorb Position"
+L["Absorb Height"] = "Absorb Height"
+L["Absorb Texture"] = "Absorb Texture"
+L["Show Overshield"] = "Show Overshield"
+L["Blizzard Glow Line"] = "Blizzard Glow Line"
+L["Show Heal Absorbs"] = "Show Heal Absorbs"
+L["Heal Absorb Position"] = "Heal Absorb Position"
+L["Heal Absorb Height"] = "Heal Absorb Height"
+L["Heal Absorb Texture"] = "Heal Absorb Texture"
+L["Backing Opacity"] = "Backing Opacity"
+L["Show Heal Prediction"] = "Show Heal Prediction"
+L["Heal Prediction Position"] = "Heal Prediction Position"
+L["Heal Prediction Height"] = "Heal Prediction Height"
+L["Heal Prediction Texture"] = "Heal Prediction Texture"
+L["Overheal"] = "Overheal"
+L["Match Health Height"] = "Match Health Height"
+L["Matches the health bar's height."] = "Matches the health bar's height."
+L["Only in the Attach position."] = "Only in the Attach position."
+L["Attach"] = "Attach"
+L["Never"] = "Never"
+L["Always"] = "Always"
+L["From Left"] = "From Left"
+L["Flat"] = "Flat"
+L["Striped"] = "Striped"
+L["Blizzard"] = "Blizzard"
+L["Blizzard's shield glow where the shield meets current health."] =
+	"Blizzard's shield glow where the shield meets current health."
+L["Darkens the health under heal absorbs."] = "Darkens the health under heal absorbs."
+L["The part of a shield larger than the missing health. Always draws it back over the health from the shield's edge; From Left grows it from the other end of the bar; Never hides it."] =
+	"The part of a shield larger than the missing health. Always draws it back over the health from the shield's edge; From Left grows it from the other end of the bar; Never hides it."
+L["How far incoming heals can extend past the end of the health bar, as a percent of its length. 0 keeps them inside the bar."] =
+	"How far incoming heals can extend past the end of the health bar, as a percent of its length. 0 keeps them inside the bar."
+L["Absorb Color"] = "Absorb Color"
+L["Heal Absorb Color"] = "Heal Absorb Color"
+L["Heal Prediction Color"] = "Heal Prediction Color"
+
 -- Previews (Settings)
 L["Full"] = "Full"
 L["Damaged"] = "Damaged"
@@ -149,6 +188,8 @@ L["Half"] = "Half"
 L["Empty"] = "Empty"
 L["Sample Target"] = "Sample Target"
 L["Sample Focus"] = "Sample Focus"
+L["Absorbs"] = "Absorbs"
+L["Overflow"] = "Overflow"
 
 -- Profiles page (Settings)
 L["AeonUI profile \"%s\"."] = "AeonUI profile \"%s\"."

@@ -158,10 +158,16 @@ AUI.L = setmetatable({}, { __index = function(_, key)
 end })
 AUI.can = { surnames = false }
 AUI.oUF = { colors = { class = {}, reaction = {}, power = {} } }
+AUI.Media = {
+	FLAT = "flat",
+	STRIPED = "AeonUI Thin Stripes",
+	SHIELD = "Blizzard Shield",
+	files = { ["AeonUI Thin Stripes"] = "stripes", ["Blizzard Shield"] = "shield" },
+}
 for _, file in ipairs({
 	"Core/Callbacks.lua", "Profile/Schema.lua", "Profile/Store.lua", "Profile/Codec.lua", "Profile/Profile.lua",
-	"Frames/Tags.lua", "Frames/Text.lua",
-	"Settings/Note.lua", "Settings/Pages.lua", "Settings/TextSlots.lua", "Settings/Previews.lua",
+	"Frames/Tags.lua", "Frames/Text.lua", "Frames/Overlays.lua",
+	"Settings/Note.lua", "Settings/Pages.lua", "Settings/TextSlots.lua", "Settings/Overlays.lua", "Settings/Previews.lua",
 	"Settings/Profiles.lua", "Settings/Recovery.lua", "Settings/Settings.lua",
 }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
@@ -249,7 +255,11 @@ Equal("no Recovery page in normal mode", pages.recovery, nil)
 Equal("no preview on Globals", pages.globals.preview, nil)
 Equal("preview on Player", type(pages.player.preview.Draw), "function")
 Equal("player and target share their sample state", pages.player.preview.stateKey, pages.target.preview.stateKey)
-Equal("preview states", table.concat(pages.target.preview.states, ","), "Full,Damaged,Dead,Offline")
+Equal("preview states", table.concat(pages.target.preview.states, ","), "Full,Damaged,Dead,Offline,Absorbs,Overflow")
+Equal("target of target has no overlay states", table.concat(pages.targettarget.preview.states, ","),
+	"Full,Damaged,Dead,Offline")
+Equal("target of target keeps its own sample state", pages.targettarget.preview.stateKey ~= pages.target.preview.stateKey,
+	true)
 local order = {}
 for _, page in ipairs(Settings:Categories()[1].pages) do
 	order[#order + 1] = page.id
@@ -345,6 +355,52 @@ Equal("player status line starts off", Find(player, "statusLine").get(), false)
 Equal("player has no attached power bar", Find(pages.player.Build(), "power"), nil)
 Equal("target has an attached power bar", Find(pages.target.Build(), "power") ~= nil, true)
 Equal("power page has no attached power bar", Find(pages.playerPower.Build(), "power"), nil)
+
+-- Absorbs and Heals.
+Equal("no overlays on target of target", Find(tot, "absorb"), nil)
+Equal("no overlays on the power page", Find(pages.playerPower.Build(), "absorb"), nil)
+for _, id in ipairs({ "player", "target", "focus" }) do
+	local built = pages[id].Build()
+	for _, kind in ipairs({ "absorb", "healAbsorb", "healPrediction" }) do
+		Equal(id .. " " .. kind .. " shown", Find(built, kind).get(), true)
+		Equal(id .. " " .. kind .. " position depends on it", Find(built, kind .. "Position").depends, kind)
+		Equal(id .. " " .. kind .. " texture picker", Find(built, kind .. "Texture").picker, "texture")
+		Equal(id .. " " .. kind .. " flat first", Options(Find(built, kind .. "Texture"))[1].value, "flat")
+	end
+end
+local overlays = pages.player.Build()
+Equal("texture order", Options(Find(overlays, "absorbTexture"))[2].value .. "," .. Options(Find(overlays, "absorbTexture"))[3].value,
+	"AeonUI Thin Stripes,Blizzard Shield")
+Equal("striped texture preview", Options(Find(overlays, "absorbTexture"))[2].texture, "stripes")
+Equal("position choices", #Options(Find(overlays, "absorbPosition")), 7)
+Equal("attach first", Options(Find(overlays, "absorbPosition"))[1].value, "attach")
+Equal("height blocked while matching", Find(overlays, "absorbHeight").blocked() ~= nil, true)
+Find(overlays, "absorbMatch").set(false)
+Equal("height free after matching is off", Find(overlays, "absorbHeight").blocked(), nil)
+Find(overlays, "absorbHeight").set(8)
+Equal("height saved", Profile:Get("frames.player.overlays.absorb.height"), 8)
+Equal("overshield allowed while attached", Find(overlays, "overshield").blocked(), nil)
+Equal("glow allowed while attached", Find(overlays, "glow").blocked(), nil)
+Find(overlays, "absorbPosition").set("TOPLEFT")
+Equal("overshield blocked while detached", Find(overlays, "overshield").blocked() ~= nil, true)
+Equal("glow blocked while detached", Find(overlays, "glow").blocked() ~= nil, true)
+Equal("overshield choices", #Options(Find(overlays, "overshield")), 3)
+Find(overlays, "absorbTexture").set("AeonUI Thin Stripes")
+Equal("texture saved", Profile:Get("frames.player.overlays.absorb.texture"), "AeonUI Thin Stripes")
+Find(overlays, "backing").set(35)
+Equal("backing saved", Profile:Get("frames.player.overlays.healAbsorb.backing"), 35)
+Equal("overheal stops at 50", Find(overlays, "overheal").max, 50)
+Equal("overheal refused past 50", Find(overlays, "overheal").set(60), false)
+
+local globals = pages.globals.Build()
+Equal("absorb color has opacity", Find(globals, "absorbColor").hasOpacity, true)
+Find(globals, "absorbColor").set({ r = 1, g = 0.5, b = 0, a = 0.25 })
+Equal("color opacity saved", Profile:Get("overlays.colors.absorb").a, 0.25)
+Equal("color saved", Profile:Get("overlays.colors.absorb").g, 0.5)
+pages.globals.Reset()
+Equal("globals reset restores colors", Profile:Get("overlays.colors.absorb").a, 0.8)
+pages.player.Reset()
+Equal("player reset restores overlays", Profile:Get("frames.player.overlays.absorb.position"), "attach")
 
 local power = pages.playerPower.Build()
 Equal("copy menu lists the other frames", #Options(Find(power, "copyText")), 4)

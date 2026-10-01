@@ -495,7 +495,7 @@ end
 
 ---Restores default settings in the active profile, removing everything else stored in the scope, dormant settings
 ---included. Settings outside the scope are kept.
----@param scope string? a section or setting path; the whole profile when nil
+---@param scope string|string[]? a section or setting path, or several reset together; the whole profile when nil
 ---@return boolean ok
 ---@return string? problem
 function Profile:Reset(scope)
@@ -503,14 +503,26 @@ function Profile:Reset(scope)
 		return false, "the active profile cannot be edited"
 	end
 
-	if scope and not Schema:IsScope(scope) then
-		return false, ("%s is not a section or setting"):format(scope)
+	local scopes = type(scope) == "table" and scope or { scope }
+
+	for _, each in ipairs(scopes) do
+		if not Schema:IsScope(each) then
+			return false, ("%s is not a section or setting"):format(each)
+		end
 	end
 
 	local id = self.activeID --[[@as string]]
 
 	return self:Commit(function(candidate)
-		Schema:ResetScope(candidate.profilesByID[id].config, scope)
+		local config = candidate.profilesByID[id].config
+
+		if scope == nil then
+			Schema:ResetScope(config, nil)
+		end
+
+		for _, each in ipairs(scopes) do
+			Schema:ResetScope(config, each)
+		end
 	end)
 end
 

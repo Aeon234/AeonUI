@@ -48,6 +48,8 @@ local Schema = {
 		colorMode = { "custom", "class", "power", "difficulty" },
 		nameFormat = { "first", "full" },
 		precision = { "default", "decimal" },
+		overlayPosition = { "attach", "TOPLEFT", "TOPRIGHT", "BOTTOMLEFT", "BOTTOMRIGHT", "LEFT", "RIGHT" },
+		overshield = { "never", "always", "fromLeft" },
 	},
 }
 AUI.Schema = Schema
@@ -103,7 +105,7 @@ local function String(path, default, maxLength)
 end
 
 ---@param path string
----@param default table? `{ r, g, b }`; nil makes the field optional
+---@param default table? `{ r, g, b, a? }`; nil makes the field optional
 local function Color(path, default)
 	Field(path, { kind = "color", default = default, optional = default == nil })
 end
@@ -111,6 +113,11 @@ end
 -- How numbers are shown on every frame; each frame can override these below.
 Choice("numbers.precision", "precision", "default")
 Number("numbers.percentDecimals", 0, 0, 1, true)
+
+-- Health overlay colors, shared by every frame.
+Color("overlays.colors.absorb", { r = 0.502, g = 0.753, b = 1, a = 0.8 })
+Color("overlays.colors.healAbsorb", { r = 0.502, g = 0.251, b = 1, a = 1 })
+Color("overlays.colors.healPrediction", { r = 0.251, g = 1, b = 0.251, a = 1 })
 
 ---@class AUITextSlotDefault
 ---@field content string
@@ -187,6 +194,27 @@ local function Geometry(key, width, height, minHeight, x, y)
 	Number(base .. "y", y, -3000, 3000)
 end
 
+---The health overlays of a frame: shields, heal absorbs and heal prediction.
+---@param key string
+local function Overlays(key)
+	local base = "frames." .. key .. ".overlays."
+
+	for _, kind in ipairs({ "absorb", "healAbsorb", "healPrediction" }) do
+		local path = base .. kind .. "."
+
+		Boolean(path .. "enabled", true)
+		Choice(path .. "position", "overlayPosition", "attach")
+		Number(path .. "height", 4, 1, 40, true)
+		Boolean(path .. "matchHeight", true)
+		String(path .. "texture", "flat", 64)
+	end
+
+	Choice(base .. "absorb.overshield", "overshield", "always")
+	Boolean(base .. "absorb.glow", false)
+	Number(base .. "healAbsorb.backing", 0, 0, 100, true)
+	Number(base .. "healPrediction.overheal", 0, 0, 50, true)
+end
+
 ---An optional power bar attached under a frame's health.
 ---@param key string
 local function AttachedPower(key)
@@ -201,6 +229,7 @@ local NAME_ONLY = {
 
 Geometry("player", 270, 36, 16, -330, -200)
 Boolean("frames.player.reverse", false)
+Overlays("player")
 TextFields("player", 1, false, {
 	{ content = "healthAndPercent", anchor = "TOPRIGHT", placement = "edge", x = -4 },
 })
@@ -208,6 +237,7 @@ TextFields("player", 1, false, {
 Geometry("target", 270, 36, 16, 330, -200)
 Boolean("frames.target.reverse", true)
 AttachedPower("target")
+Overlays("target")
 TextFields("target", 1, false, {
 	{ content = "healthAndPercent", anchor = "TOPLEFT", placement = "edge", x = 4 },
 	{ content = "levelName", separator = "space", anchor = "TOPRIGHT", placement = "edge", x = -4, colorMode = "class" },
@@ -222,6 +252,7 @@ TextFields("targettarget", 0, true, NAME_ONLY)
 Geometry("focus", 200, 24, 16, -330, -140)
 Boolean("frames.focus.reverse", false)
 AttachedPower("focus")
+Overlays("focus")
 TextFields("focus", 0, true, NAME_ONLY)
 
 Geometry("playerPower", 360, 12, 4, 0, -184)
@@ -249,7 +280,9 @@ local function IsColor(value)
 	end
 
 	for key, channel in pairs(value) do
-		if (key ~= "r" and key ~= "g" and key ~= "b") or not IsFinite(channel) or channel < 0 or channel > 1 then
+		local known = key == "r" or key == "g" or key == "b" or key == "a"
+
+		if not known or not IsFinite(channel) or channel < 0 or channel > 1 then
 			return false
 		end
 	end

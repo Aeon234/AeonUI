@@ -99,9 +99,13 @@ end
 ---@param fields table?
 ---@return table setting
 function Pages.Color(id, label, path, fields)
+	local opacity = fields and fields.hasOpacity
+
 	return Setting("color", id, label, path, Merge({
 		set = function(value)
-			if not AUI.Profile:Set(path, { r = value.r, g = value.g, b = value.b }) then
+			local color = { r = value.r, g = value.g, b = value.b, a = opacity and (value.a or 1) or nil }
+
+			if not AUI.Profile:Set(path, color) then
 				return false
 			end
 		end,
@@ -206,9 +210,17 @@ local function PrecisionLabel(precision)
 	return PRECISIONS[precision] or precision
 end
 
+---@param elements table[]
+---@param more table[]
+local function Append(elements, more)
+	for _, element in ipairs(more) do
+		elements[#elements + 1] = element
+	end
+end
+
 ---@return table[] elements
 local function GlobalsPage()
-	return {
+	local elements = {
 		Section("numbers", L["Numbers"]),
 		Row(
 			Choice("precision", L["Abbreviation"], "numbers.precision", Pages.Options("precision", PRECISIONS), {
@@ -217,6 +229,10 @@ local function GlobalsPage()
 			Choice("percentDecimals", L["Percent Decimals"], "numbers.percentDecimals", DECIMALS)
 		),
 	}
+
+	Append(elements, AUI.SettingsOverlays:GlobalSection())
+
+	return elements
 end
 
 -- Frame pages -----------------------------------------------------------------------------------------------
@@ -249,14 +265,6 @@ local function Layout(key, switchLabel)
 	}
 end
 
----@param elements table[]
----@param more table[]
-local function Append(elements, more)
-	for _, element in ipairs(more) do
-		elements[#elements + 1] = element
-	end
-end
-
 ---@param key string "player" or "target"
 ---@param switchLabel string
 ---@return table[] elements
@@ -285,6 +293,7 @@ local function UnitPage(key, switchLabel)
 			),
 		})
 	end
+	Append(elements, AUI.SettingsOverlays:Sections(key))
 	Append(elements, AUI.SettingsText:Sections(key))
 	Append(elements, {
 		Section("numbers", L["Numbers"]),
@@ -311,7 +320,7 @@ end
 ---A page whose Defaults button resets one profile scope.
 ---@param id string
 ---@param title string
----@param scope string
+---@param scope string|string[]
 ---@param build fun(): table[]
 ---@return table page
 local function Page(id, title, scope, build)
@@ -329,7 +338,7 @@ end
 ---@return table[] pages the Unit Frames category's pages, in order
 function Pages:UnitFramePages()
 	return {
-		Page("globals", L["Globals"], "numbers", GlobalsPage),
+		Page("globals", L["Globals"], { "numbers", "overlays" }, GlobalsPage),
 		Page("player", PLAYER, "frames.player", function()
 			return UnitPage("player", L["Show Player Frame"])
 		end),

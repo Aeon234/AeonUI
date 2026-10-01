@@ -252,12 +252,115 @@ function PageModel:Locate(pageID, settingID)
 end
 
 ---Builds every page and matches `text`, case-insensitively and literally, against each element's search text.
----Section elements are never matched.
+-- Search synonyms -------------------------------------------------------------------------------------------
+
+-- A synonym engages from this many of its letters (a shorter term needs all of its own).
+local SYNONYM_MIN_PREFIX = 3
+
+---Other words for what a setting's label calls something: each term a player might type, and the words labels use
+---instead. Terms and alternates are plain lowercase words. Addons add their own with `AS:AddSearchSynonyms`.
+---@type { [1]: string, [2]: string[] }[]
+AS.searchSynonyms = AS.searchSynonyms or {
+	{ "shield", { "absorb" } },
+	{ "absorb", { "shield" } },
+	{ "hp", { "health" } },
+	{ "incoming", { "heal prediction" } },
+	{ "transparency", { "opacity" } },
+	{ "alpha", { "opacity" } },
+	{ "colour", { "color" } },
+	{ "move", { "offset", "position" } },
+	{ "drag", { "offset", "position" } },
+	{ "cd", { "cooldown" } },
+	{ "kick", { "interrupt" } },
+	{ "aggro", { "threat" } },
+	{ "xp", { "experience" } },
+	{ "experience", { "xp" } },
+}
+
+---Adds search synonyms for an addon's own labels.
+---@param list { [1]: string, [2]: string[] }[] terms and the words to search for in their place
+function AS:AddSearchSynonyms(list)
+	for _, entry in ipairs(list) do
+		self.searchSynonyms[#self.searchSynonyms + 1] = entry
+	end
+end
+
+---@param text string
+---@param first integer
+---@param last integer
+---@return boolean bounded the span starts and ends on word boundaries: a space or either end of the text
+local function OnWordBoundaries(text, first, last)
+	local before = first == 1 or text:sub(first - 1, first - 1) == " "
+	local after = last == #text or text:sub(last + 1, last + 1) == " "
+
+	return before and after
+end
+
+---The query and its synonym variants. A term engages while it is still being typed: the longest prefix of it, at
+---least `SYNONYM_MIN_PREFIX` letters, that sits in the query on word boundaries is replaced by each alternate, so
+---"shi", "shie" and "shield" all also search for "absorb".
+---@param query string lowercase
+---@return string[] queries the query first, then each distinct variant
+function AS:SearchVariants(query)
+	local queries, seen = { query }, { [query] = true }
+
+	for _, synonym in ipairs(self.searchSynonyms) do
+		local term = synonym[1]
+		local found
+
+		for length = #term, math.min(SYNONYM_MIN_PREFIX, #term), -1 do
+			local prefix = term:sub(1, length)
+			local first, last = query:find(prefix, 1, true)
+
+			while first do
+				if OnWordBoundaries(query, first, last) then
+					found = { first, last }
+
+					break
+				end
+
+				first, last = query:find(prefix, first + 1, true)
+			end
+
+			if found then
+				break
+			end
+		end
+
+		if found then
+			for _, alternate in ipairs(synonym[2]) do
+				local variant = query:sub(1, found[1] - 1) .. alternate .. query:sub(found[2] + 1)
+
+				if not seen[variant] then
+					seen[variant] = true
+					queries[#queries + 1] = variant
+				end
+			end
+		end
+	end
+
+	return queries
+end
+
+---@param text string lowercase
+---@param queries string[]
+---@return boolean
+local function MatchesAny(text, queries)
+	for _, query in ipairs(queries) do
+		if text:find(query, 1, true) then
+			return true
+		end
+	end
+
+	return false
+end
+
+---Section elements are never matched. A query also matches through its synonyms (`AS:SearchVariants`).
 ---@param text string
 ---@return { page: table, hits: { index: integer, data: table }[] }[] groups pages with hits, in category order
 ---@return { categories: table<string, integer>, pages: table<string, integer> } counts hits per category and page
 function PageModel:Search(text)
-	local query = text:lower()
+	local queries = AS:SearchVariants(text:lower())
 	local groups = {}
 	local counts = { categories = {}, pages = {} }
 
@@ -267,7 +370,7 @@ function PageModel:Search(text)
 			for index, data in ipairs(self:Snapshot(page).all) do
 				local kind = self.kinds[data.kind]
 				local searchText = kind and not kind.section and kind.Search and AS:CallHost(nil, kind.Search, data)
-				if searchText and searchText:lower():find(query, 1, true) then
+				if searchText and MatchesAny(searchText:lower(), queries) then
 					hits[#hits + 1] = { index = index, data = data }
 				end
 			end

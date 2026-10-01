@@ -16,6 +16,7 @@ local BACKGROUND = 0.067
 ---@field Main Frame the holder of the main bar, at the top of the frame
 ---@field PowerHolder Frame? the attached power bar's holder, on frames that have one
 ---@field PowerBorder Texture[]?
+---@field Overlays AUIOverlayWidgets? the health overlays, on frames that have them
 ---@field key string the frame's key under `frames` in the profile
 ---@field Bar StatusBar the frame's one bar: oUF's Health or Power element
 ---@field Health StatusBar?
@@ -143,6 +144,24 @@ function UnitFrame.HealthStyle(frame, unit)
 	health.colorHealth = true
 	frame.Health = health
 
+	if Schema:Field("frames." .. frame.key .. ".overlays.absorb.enabled") then
+		local overlays = AUI.Overlays:Create(health)
+
+		health.HealingAll = overlays.healing
+		health.DamageAbsorb = overlays.absorb
+		health.HealAbsorb = overlays.healAbsorb
+		health.OverHealIndicator = overlays.marker
+		health.damageAbsorbClampMode = Enum.UnitDamageAbsorbClampMode.MaximumHealth
+		health.healAbsorbClampMode = Enum.UnitHealAbsorbClampMode.MaximumHealth
+		health.healAbsorbMode = Enum.UnitHealAbsorbMode.ReducedByIncomingHeals
+		health.incomingHealClampMode = Enum.UnitIncomingHealClampMode.MissingHealth
+		health.incomingHealOverflow = 1
+		health.PostUpdate = function(element)
+			AUI.Overlays:Update(overlays, element.values)
+		end
+		frame.Overlays = overlays
+	end
+
 	if Schema:Field("frames." .. frame.key .. ".power.enabled") then
 		local holder = CreateFrame("Frame", nil, frame)
 		local power, _, border = UnitFrame:CreateBar(holder)
@@ -244,6 +263,20 @@ function UnitFrameMixin:ApplyAppearance(config)
 
 	if self.PowerHolder and power then
 		power:SetReverseFill(reverse == true)
+	end
+
+	local overlays = self.Overlays
+	local settings = overlays and AUI.Overlays:Resolve(config, self.key)
+
+	if overlays and settings then
+		-- oUF's Health element: a status bar with the element's own methods added.
+		local health = self.Health --[[@as table]]
+
+		AUI.Overlays:Apply(overlays, settings, reverse == true, health)
+
+		if self:IsVisible() then
+			health:ForceUpdate()
+		end
 	end
 
 	AUI.Text:Apply(self, self.key, config)

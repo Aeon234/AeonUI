@@ -1,9 +1,9 @@
 {
   "library": "AeonSettings",
   "version": "0.1.0",
-  "ref": "v0.1.0",
-  "commit": "60ad6a6f4982f23b0083a3e9f8959263888213ab",
-  "dev": false,
+  "ref": "worktree",
+  "commit": null,
+  "dev": true,
   "token": "AeonSettings_",
   "prefix": "AeonUISettings_",
   "files": [
@@ -164,7 +164,7 @@
     },
     {
       "path": "PageModel.lua",
-      "sha256": "0dee496b1a78c76a2a837ea93d9bf44013875009e41810a4b61bc252115d22b0",
+      "sha256": "8fe04aa876f808f03ff833300f6c151ffe18db1dc216e485234a78f30d4de2e1",
       "transformed": false
     },
     {

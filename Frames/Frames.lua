@@ -122,7 +122,7 @@ function Frames:OnCombatEnded()
 	self.layoutPending = false
 
 	for _, spec in ipairs(SPECS) do
-		self.objects[spec.key]:ApplyLayout(AUI.Profile.config)
+		self:Apply(spec.key, true)
 	end
 end
 
