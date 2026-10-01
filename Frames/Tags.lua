@@ -120,12 +120,11 @@ local function Status(unit)
 	end
 end
 
----@param unit string
+---@param name any the first return of `UnitName`, possibly secret
+---@param surname any the second return, possibly secret
 ---@param format string "first" or "full"
 ---@return any name
-local function Name(unit, format)
-	local name, surname = UnitName(unit)
-
+local function NameText(name, surname, format)
 	if not AUI.can.surnames then
 		return name
 	end
@@ -148,11 +147,9 @@ local function Name(unit, format)
 	return name
 end
 
----@param unit string
----@return any level the unit's level, or "??" when the client hides it
-local function Level(unit)
-	local level = UnitLevel(unit)
-
+---@param level any `UnitLevel`'s return, possibly secret
+---@return any level the level, or "??" when the client hides it
+local function LevelText(level)
 	if issecretvalue(level) then
 		return level
 	end
@@ -164,29 +161,59 @@ local function Level(unit)
 	return level
 end
 
+---@param current any health, possibly secret
+---@param percent any 0-100, possibly secret
+---@param missing any missing health, possibly secret
+---@param mode string "cur", "pct", "both" or "missing"
+---@param separator string
+---@param precision string
+---@param decimals string
+---@return any text
+local function HealthText(current, percent, missing, mode, separator, precision, decimals)
+	if mode == "cur" then
+		return Abbreviate(current, precision)
+	end
+
+	if mode == "pct" then
+		return Percent(percent, decimals)
+	end
+
+	if mode == "missing" then
+		return C_StringUtil.TruncateWhenZero(missing)
+	end
+
+	return Join(Abbreviate(current, precision), separator, Percent(percent, decimals))
+end
+
+---@param mode string "cur" or "pct"
+---@param current any
+---@param percent any
+---@param precision string
+---@param decimals string
+---@return any text
+local function PowerText(mode, current, percent, precision, decimals)
+	if mode == "pct" then
+		return Percent(percent, decimals)
+	end
+
+	return Abbreviate(current, precision)
+end
+
 ---@param unit string
 ---@param mode string
 ---@param separator string
 ---@param precision string
 ---@param decimals string
 ---@return any text
-local function HealthText(unit, mode, separator, precision, decimals)
-	if mode == "cur" then
-		return Abbreviate(UnitHealth(unit), precision)
-	end
-
-	if mode == "pct" then
-		return Percent(UnitHealthPercent(unit, true, CurveConstants.ScaleTo100), decimals)
-	end
-
-	if mode == "missing" then
-		return C_StringUtil.TruncateWhenZero(UnitHealthMissing(unit))
-	end
-
-	return Join(
-		Abbreviate(UnitHealth(unit), precision),
+local function UnitHealthText(unit, mode, separator, precision, decimals)
+	return HealthText(
+		UnitHealth(unit),
+		UnitHealthPercent(unit, true, CurveConstants.ScaleTo100),
+		UnitHealthMissing(unit),
+		mode,
 		separator,
-		Percent(UnitHealthPercent(unit, true, CurveConstants.ScaleTo100), decimals)
+		precision,
+		decimals
 	)
 end
 
@@ -195,19 +222,23 @@ local Methods = {}
 ---@param unit string
 ---@param format string
 Methods["aui:name"] = function(unit, _, format)
-	return Name(unit, format)
+	local name, surname = UnitName(unit)
+
+	return NameText(name, surname, format)
 end
 
 ---@param unit string
 Methods["aui:level"] = function(unit)
-	return Level(unit)
+	return LevelText(UnitLevel(unit))
 end
 
 ---@param unit string
 ---@param separator string
 ---@param format string
 Methods["aui:levelname"] = function(unit, _, separator, format)
-	return Join(Level(unit), separator, Name(unit, format))
+	local name, surname = UnitName(unit)
+
+	return Join(LevelText(UnitLevel(unit)), separator, NameText(name, surname, format))
 end
 
 ---Health in one of four modes. A dead, ghost or offline unit shows its status in the primary slot and nothing in
@@ -225,7 +256,7 @@ Methods["aui:health"] = function(unit, _, mode, separator, precision, decimals, 
 		return primary == "1" and status or nil
 	end
 
-	return HealthText(unit, mode, separator, precision, decimals)
+	return UnitHealthText(unit, mode, separator, precision, decimals)
 end
 
 ---@param unit string
@@ -252,10 +283,10 @@ end
 ---@param decimals string
 Methods["aui:power"] = function(unit, _, mode, precision, decimals)
 	if mode == "pct" then
-		return Percent(UnitPowerPercent(unit, nil, false, CurveConstants.ScaleTo100), decimals)
+		return PowerText(mode, nil, UnitPowerPercent(unit, nil, false, CurveConstants.ScaleTo100), precision, decimals)
 	end
 
-	return Abbreviate(UnitPower(unit), precision)
+	return PowerText(mode, UnitPower(unit), nil, precision, decimals)
 end
 
 ---Class color for players, reaction color for everything else; nothing while either is secret.
@@ -393,4 +424,64 @@ function Tags:Compile(slot, context)
 	end
 
 	return tag
+end
+
+---Sample values for a settings preview: plain numbers and strings in place of a unit's.
+---@class AUITextSample
+---@field status string? a status label, when the sample shows one
+---@field health number
+---@field percent number
+---@field missing number
+---@field absorb number
+---@field healAbsorb number
+---@field power number
+---@field powerPercent number
+---@field name string
+---@field level number
+---@field classColor table?
+---@field powerColor table?
+---@field difficultyColor table?
+
+---The text a slot shows for sample values, formatted exactly as its tag formats a unit's.
+---@param slot table the slot's resolved settings: content, separator, colorMode
+---@param context AUITextContext
+---@param sample AUITextSample
+---@return string? text nil when the slot shows nothing
+function Tags:Sample(slot, context, sample)
+	local content = slot.content
+	local precision, decimals = context.precision, tostring(context.decimals)
+	local text
+
+	if HEALTH_MODES[content] then
+		if sample.status then
+			text = context.primary and sample.status or ""
+		else
+			text = HealthText(sample.health, sample.percent, sample.missing, HEALTH_MODES[content], slot.separator,
+				precision, decimals)
+		end
+	elseif POWER_MODES[content] then
+		text = PowerText(POWER_MODES[content], sample.power, sample.powerPercent, precision, decimals)
+	elseif content == "name" then
+		text = NameText(sample.name, nil, context.nameFormat)
+	elseif content == "level" then
+		text = LevelText(sample.level)
+	elseif content == "levelName" then
+		text = Join(LevelText(sample.level), slot.separator, NameText(sample.name, nil, context.nameFormat))
+	elseif content == "absorb" then
+		text = sample.status and "" or C_StringUtil.TruncateWhenZero(sample.absorb)
+	elseif content == "healAbsorb" then
+		text = sample.status and "" or C_StringUtil.TruncateWhenZero(sample.healAbsorb)
+	else
+		return nil
+	end
+
+	local color = (slot.colorMode == "class" and sample.classColor)
+		or (slot.colorMode == "power" and sample.powerColor)
+		or (slot.colorMode == "difficulty" and sample.difficultyColor)
+
+	if color and text ~= "" then
+		return (Hex(color) or "") .. tostring(text) .. "|r"
+	end
+
+	return tostring(text)
 end

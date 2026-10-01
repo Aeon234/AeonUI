@@ -102,15 +102,21 @@ Equal("print formats", printed[#printed], "|cff9e754aAeonUI|r: 2 frames")
 AUI:Print("100%")
 Equal("print without arguments leaves % alone", printed[#printed], "|cff9e754aAeonUI|r: 100%")
 
-SlashCmdList.AEONUI("")
-Equal("slash without a window warns", printed[#printed]:find("not available yet", 1, true) ~= nil, true)
-
 local opened = {}
 AUI.Settings = {
 	Open = function(_, page)
 		opened[#opened + 1] = page or "<none>"
 	end,
 }
+AUI.Profile = { characterID = "" }
+SlashCmdList.AEONUI("")
+Equal("slash before the profile loads warns", printed[#printed]:find("is off for this session", 1, true) ~= nil, true)
+Equal("slash before the profile loads opens nothing", #opened, 0)
+AUI.Profile.characterID = "Player-1"
+AUI.failed = true
+SlashCmdList.AEONUI("")
+Equal("slash after a failed load opens nothing", #opened, 0)
+AUI.failed = nil
 SlashCmdList.AEONUI("")
 Equal("bare slash opens the window", opened[#opened], "<none>")
 SlashCmdList.AEONUI("  Target  extra")

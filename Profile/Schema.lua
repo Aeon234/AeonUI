@@ -342,6 +342,13 @@ local function Lookup(config, path)
 	return node
 end
 
+---@param config table
+---@param path string
+---@return any value what the config stores at the path, without falling back to a default
+function Schema:Lookup(config, path)
+	return Lookup(config, path)
+end
+
 ---Checks a profile config: every field that is present fits its definition, every branch that is present is a table,
 ---and everything is plain data.
 ---@param config any

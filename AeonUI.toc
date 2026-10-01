@@ -18,6 +18,7 @@ Core\Core.xml
 Profile\Profile.xml
 Media\Media.xml
 Frames\Frames.xml
+Settings\Settings.xml
 
 #@do-not-package@
 Dev\Dev.lua

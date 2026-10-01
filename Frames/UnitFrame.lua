@@ -43,7 +43,56 @@ local function Border(parent)
 	return edges
 end
 
----Gives a frame its background, one flat bar filling it, the border and the text slots.
+---Gives a frame the look every AeonUI bar shares: a background, one flat bar filling the frame, and a border.
+---Used by the live frames and the settings previews alike.
+---@param frame Frame
+---@return StatusBar bar
+---@return Texture background
+---@return Texture[] border
+function UnitFrame:CreateBar(frame)
+	local background = frame:CreateTexture(nil, "BACKGROUND")
+
+	background:SetAllPoints()
+	background:SetColorTexture(BACKGROUND, BACKGROUND, BACKGROUND, 1)
+
+	local bar = CreateFrame("StatusBar", nil, frame)
+
+	bar:SetAllPoints()
+	bar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
+	bar:GetStatusBarTexture():SetColorTexture(1, 1, 1, 1)
+
+	return bar, background, Border(bar)
+end
+
+---Places a border's edges inside a bar's edges.
+---@param border Texture[] top, bottom, left and right
+---@param bar Region
+---@param pixel number the edge thickness in the bar's units
+function UnitFrame:LayoutBorder(border, bar, pixel)
+	local top, bottom, left, right = unpack(border)
+
+	top:ClearAllPoints()
+	top:SetPoint("TOPLEFT", bar)
+	top:SetPoint("TOPRIGHT", bar)
+	top:SetHeight(pixel)
+
+	bottom:ClearAllPoints()
+	bottom:SetPoint("BOTTOMLEFT", bar)
+	bottom:SetPoint("BOTTOMRIGHT", bar)
+	bottom:SetHeight(pixel)
+
+	left:ClearAllPoints()
+	left:SetPoint("TOPLEFT", bar)
+	left:SetPoint("BOTTOMLEFT", bar)
+	left:SetWidth(pixel)
+
+	right:ClearAllPoints()
+	right:SetPoint("TOPRIGHT", bar)
+	right:SetPoint("BOTTOMRIGHT", bar)
+	right:SetWidth(pixel)
+end
+
+---Gives an oUF frame its bar and text slots.
 ---@param frame table the oUF frame
 ---@param unit string
 ---@return StatusBar bar
@@ -51,24 +100,10 @@ local function Build(frame, unit)
 	Mixin(frame, UnitFrameMixin)
 
 	frame.key = UnitFrame.keys[unit] or unit
+	frame.Bar, frame.Background, frame.Border = UnitFrame:CreateBar(frame)
+	AUI.Text:Create(frame, frame.Bar, Schema.textSlots[frame.key])
 
-	local background = frame:CreateTexture(nil, "BACKGROUND")
-
-	background:SetAllPoints()
-	background:SetColorTexture(BACKGROUND, BACKGROUND, BACKGROUND, 1)
-	frame.Background = background
-
-	local bar = CreateFrame("StatusBar", nil, frame)
-
-	bar:SetAllPoints()
-	bar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
-	bar:GetStatusBarTexture():SetColorTexture(1, 1, 1, 1)
-	frame.Bar = bar
-
-	frame.Border = Border(bar)
-	AUI.Text:Create(frame, bar, Schema.textSlots[frame.key])
-
-	return bar
+	return frame.Bar
 end
 
 ---The style for the player and target frames: health, clicks and the unit tooltip.
@@ -111,29 +146,7 @@ end
 
 ---Places the one-pixel border inside the frame's edges at the current scale.
 function UnitFrameMixin:UpdateBorder()
-	local pixel = AUI:Pixel(self)
-	local top, bottom, left, right = unpack(self.Border)
-	local bar = self.Bar
-
-	top:ClearAllPoints()
-	top:SetPoint("TOPLEFT", bar)
-	top:SetPoint("TOPRIGHT", bar)
-	top:SetHeight(pixel)
-
-	bottom:ClearAllPoints()
-	bottom:SetPoint("BOTTOMLEFT", bar)
-	bottom:SetPoint("BOTTOMRIGHT", bar)
-	bottom:SetHeight(pixel)
-
-	left:ClearAllPoints()
-	left:SetPoint("TOPLEFT", bar)
-	left:SetPoint("BOTTOMLEFT", bar)
-	left:SetWidth(pixel)
-
-	right:ClearAllPoints()
-	right:SetPoint("TOPRIGHT", bar)
-	right:SetPoint("BOTTOMRIGHT", bar)
-	right:SetWidth(pixel)
+	UnitFrame:LayoutBorder(self.Border, self.Bar, AUI:Pixel(self))
 end
 
 ---Size, position and whether the frame watches its unit. These touch a secure frame, so they run only out of combat.

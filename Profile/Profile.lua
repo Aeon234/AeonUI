@@ -638,3 +638,35 @@ function Profile:RawExport()
 		problem = self.problem,
 	})
 end
+
+---Copies settings between paths of the active profile as one change. Every source is read before anything is
+---written, and a source holding nothing clears its target, so the target follows the same default or shared value.
+---@param map table<string, string> target path to source path; both must be settings
+---@return boolean ok
+---@return string? problem
+function Profile:CopyPaths(map)
+	if not self:CanEdit() then
+		return false, "the active profile cannot be edited"
+	end
+
+	for target, source in pairs(map) do
+		if not Schema:Field(target) or not Schema:Field(source) then
+			return false, ("%s or %s is not a setting"):format(target, source)
+		end
+	end
+
+	local id = self.activeID --[[@as string]]
+
+	return self:Commit(function(candidate)
+		local config = candidate.profilesByID[id].config
+		local values = {}
+
+		for target, source in pairs(map) do
+			values[target] = { value = AUI:CopyTable(Schema:Lookup(config, source)) }
+		end
+
+		for target, entry in pairs(values) do
+			Schema:Write(config, target, entry.value)
+		end
+	end)
+end

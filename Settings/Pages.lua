@@ -1,0 +1,326 @@
+local AUI = select(2, ...)
+
+local L = AUI.L
+local Schema = AUI.Schema
+
+-- The choice that clears a frame's own number setting so it follows the Globals page.
+local GLOBAL = "__global"
+
+---Setting builders bound to the profile owner, and the unit-frame pages built from them.
+---@class AUISettingsPages
+local Pages = {}
+AUI.SettingsPages = Pages
+
+---@param setting table
+---@param fields table?
+---@return table setting
+function Pages.Merge(setting, fields)
+	for key, value in pairs(fields or {}) do
+		setting[key] = value
+	end
+
+	return setting
+end
+
+local Merge = Pages.Merge
+
+---A setting that reads and writes one profile path. A refused write reports the library's own message.
+---@param control string
+---@param id string
+---@param label string
+---@param path string
+---@param fields table?
+---@return table setting
+function Pages.Setting(control, id, label, path, fields)
+	return Merge({
+		id = id,
+		control = control,
+		label = label,
+		get = function()
+			return AUI.Profile:Get(path)
+		end,
+		set = function(value)
+			if not AUI.Profile:Set(path, value) then
+				return false
+			end
+		end,
+	}, fields)
+end
+
+local Setting = Pages.Setting
+
+---@param id string
+---@param label string
+---@param path string
+---@param fields table?
+---@return table setting
+function Pages.Check(id, label, path, fields)
+	return Setting("checkbox", id, label, path, fields)
+end
+
+---@param id string
+---@param label string
+---@param path string
+---@param minimum number
+---@param maximum number
+---@param fields table?
+---@return table setting
+function Pages.Slider(id, label, path, minimum, maximum, fields)
+	return Setting("slider", id, label, path, Merge({ min = minimum, max = maximum, step = 1, format = "integer" }, fields))
+end
+
+---@param list string a choice list in `Schema.choices`
+---@param labels table<string, string> each choice's label
+---@return table[] options
+function Pages.Options(list, labels)
+	local options = {}
+
+	for index, value in ipairs(Schema.choices[list]) do
+		options[index] = { value = value, text = labels[value] or value }
+	end
+
+	return options
+end
+
+---@param id string
+---@param label string
+---@param path string
+---@param options table[]|fun(): table[]
+---@param fields table?
+---@return table setting
+function Pages.Choice(id, label, path, options, fields)
+	return Setting("dropdown", id, label, path, Merge({ options = options }, fields))
+end
+
+---A color stored as `{ r, g, b }`.
+---@param id string
+---@param label string
+---@param path string
+---@param fields table?
+---@return table setting
+function Pages.Color(id, label, path, fields)
+	return Setting("color", id, label, path, Merge({
+		set = function(value)
+			if not AUI.Profile:Set(path, { r = value.r, g = value.g, b = value.b }) then
+				return false
+			end
+		end,
+	}, fields))
+end
+
+---@param path string a number setting
+---@return number min
+---@return number max
+function Pages.Range(path)
+	local field = assert(Schema:Field(path), path)
+
+	return field.min or 0, field.max or 0
+end
+
+---@param id string
+---@param title string
+---@param fields table?
+---@return table element
+function Pages.Section(id, title, fields)
+	return Merge({ kind = "section", id = id, title = title }, fields)
+end
+
+---@param left table
+---@param right table?
+---@return table element
+function Pages.Row(left, right)
+	if right then
+		return { kind = "setting", settings = { left, right } }
+	end
+
+	return { kind = "setting", setting = left }
+end
+
+local Section, Row, Choice, Slider, Check = Pages.Section, Pages.Row, Pages.Choice, Pages.Slider, Pages.Check
+
+-- Labels ----------------------------------------------------------------------------------------------------
+
+Pages.OUTLINES = {
+	NONE = NONE,
+	OUTLINE = L["Outline"],
+	THICKOUTLINE = L["Thick Outline"],
+}
+
+local PRECISIONS = {
+	default = L["Blizzard Default"],
+	decimal = L["One Decimal"],
+}
+
+local DECIMALS = {
+	{ value = 0, text = "100%" },
+	{ value = 1, text = "100.0%" },
+}
+
+-- Numbers ---------------------------------------------------------------------------------------------------
+
+---@param value any
+---@return string
+local function DecimalsLabel(value)
+	return value == 1 and DECIMALS[2].text or DECIMALS[1].text
+end
+
+---A frame's override of a Globals number setting: "Global (value)" first, then the choices.
+---@param id string
+---@param label string
+---@param path string the frame's own path
+---@param globalPath string the Globals path it follows
+---@param options table[] the choices
+---@param describe fun(value: any): string the label of a value
+---@return table setting
+local function Override(id, label, path, globalPath, options, describe)
+	return Setting("dropdown", id, label, path, {
+		options = function()
+			local list = { { value = GLOBAL, text = L["Global (%s)"]:format(describe(AUI.Profile:Get(globalPath))) } }
+
+			for _, option in ipairs(options) do
+				list[#list + 1] = option
+			end
+
+			return list
+		end,
+		get = function()
+			local own = AUI.Profile:Get(path)
+
+			if own == nil then
+				return GLOBAL
+			end
+
+			return own
+		end,
+		set = function(value)
+			if not AUI.Profile:Set(path, value ~= GLOBAL and value or nil) then
+				return false
+			end
+		end,
+	})
+end
+
+---@param precision string
+---@return string
+local function PrecisionLabel(precision)
+	return PRECISIONS[precision] or precision
+end
+
+---@return table[] elements
+local function GlobalsPage()
+	return {
+		Section("numbers", L["Numbers"]),
+		Row(
+			Choice("precision", L["Abbreviation"], "numbers.precision", Pages.Options("precision", PRECISIONS), {
+				description = L["How large numbers are shortened, such as 588K or 588.4K."],
+			}),
+			Choice("percentDecimals", L["Percent Decimals"], "numbers.percentDecimals", DECIMALS)
+		),
+	}
+end
+
+-- Frame pages -----------------------------------------------------------------------------------------------
+
+---@return number halfWidth
+---@return number halfHeight
+local function ScreenHalf()
+	return math.floor(UIParent:GetWidth() / 2), math.floor(UIParent:GetHeight() / 2)
+end
+
+---The Layout section: the page's switch, size and position.
+---@param key string
+---@param switchLabel string
+---@return table[] elements
+local function Layout(key, switchLabel)
+	local base = "frames." .. key .. "."
+	local halfWidth, halfHeight = ScreenHalf()
+
+	return {
+		Section("layout", L["Layout"]),
+		Row(Setting("toggle", "enabled", switchLabel, base .. "enabled", { pageSwitch = true })),
+		Row(
+			Slider("width", L["Width"], base .. "width", Pages.Range(base .. "width")),
+			Slider("height", L["Height"], base .. "height", Pages.Range(base .. "height"))
+		),
+		Row(
+			Slider("x", L["X Offset"], base .. "x", -halfWidth, halfWidth),
+			Slider("y", L["Y Offset"], base .. "y", -halfHeight, halfHeight)
+		),
+	}
+end
+
+---@param elements table[]
+---@param more table[]
+local function Append(elements, more)
+	for _, element in ipairs(more) do
+		elements[#elements + 1] = element
+	end
+end
+
+---@param key string "player" or "target"
+---@param switchLabel string
+---@return table[] elements
+local function UnitPage(key, switchLabel)
+	local base = "frames." .. key .. "."
+	local elements = Layout(key, switchLabel)
+
+	Append(elements, {
+		Section("health", HEALTH),
+		Row(Check("reverse", L["Reverse Fill"], base .. "reverse", {
+			description = L["Fill the bar from right to left."],
+		})),
+	})
+	Append(elements, AUI.SettingsText:Sections(key))
+	Append(elements, {
+		Section("numbers", L["Numbers"]),
+		Row(
+			Override("precision", L["Abbreviation"], base .. "numbers.precision", "numbers.precision",
+				Pages.Options("precision", PRECISIONS), PrecisionLabel),
+			Override("percentDecimals", L["Percent Decimals"], base .. "numbers.percentDecimals", "numbers.percentDecimals",
+				DECIMALS, DecimalsLabel)
+		),
+	})
+
+	return elements
+end
+
+---@return table[] elements
+local function PowerPage()
+	local elements = Layout("playerPower", L["Show Player Power Bar"])
+
+	Append(elements, AUI.SettingsText:Sections("playerPower"))
+
+	return elements
+end
+
+---A page whose Defaults button resets one profile scope.
+---@param id string
+---@param title string
+---@param scope string
+---@param build fun(): table[]
+---@return table page
+local function Page(id, title, scope, build)
+	return {
+		id = id,
+		title = title,
+		preview = AUI.SettingsPreviews:For(id),
+		Build = build,
+		Reset = function()
+			AUI.Profile:Reset(scope)
+		end,
+	}
+end
+
+---@return table[] pages the Unit Frames category's pages, in order
+function Pages:UnitFramePages()
+	return {
+		Page("globals", L["Globals"], "numbers", GlobalsPage),
+		Page("player", PLAYER, "frames.player", function()
+			return UnitPage("player", L["Show Player Frame"])
+		end),
+		Page("target", TARGET, "frames.target", function()
+			return UnitPage("target", L["Show Target Frame"])
+		end),
+		Page("playerPower", L["Player Power"], "frames.playerPower", PowerPage),
+	}
+end

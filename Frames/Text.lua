@@ -228,46 +228,71 @@ function Text:Create(frame, bar, count)
 	frame.TextSlots = strings
 end
 
----Applies every slot's settings to a frame: style, place, width and tag. Text is not protected, so this also runs
----in combat.
----@param frame table a unit frame made by `Text:Create`
----@param unit string the frame's key under `frames`
+---Resolves every slot of a frame and works out what each needs: its width and its tag context.
 ---@param config table the active profile config
-function Text:Apply(frame, unit, config)
-	local slots = {}
+---@param key string the frame's key under `frames`
+---@param count integer the frame's slot count
+---@return AUITextSlot[] slots
+---@return number[] widths
+---@return AUITextContext[] contexts
+function Text:Layout(config, key, count)
+	local slots, contexts = {}, {}
 
-	for index = 1, #frame.TextSlots do
-		slots[index] = self:Resolve(config, unit, index)
+	for index = 1, count do
+		slots[index] = self:Resolve(config, key, index)
 	end
 
-	local bar = frame.Bar
-	local widths = self:Widths(slots, Schema:Read(config, "frames." .. unit .. ".width"))
-	local status = Schema:Read(config, "frames." .. unit .. ".text.status")
-	local nameFormat = Schema:Read(config, "frames." .. unit .. ".text.nameFormat")
-	local precision = NumberSetting(config, unit, "precision")
-	local decimals = NumberSetting(config, unit, "percentDecimals")
+	local base = "frames." .. key
+	local status = Schema:Read(config, base .. ".text.status")
+	local nameFormat = Schema:Read(config, base .. ".text.nameFormat")
+	local precision = NumberSetting(config, key, "precision")
+	local decimals = NumberSetting(config, key, "percentDecimals")
 
-	for index, slot in ipairs(slots) do
-		local text = frame.TextSlots[index]
-		local tags = AUI.Tags:Compile(slot, {
+	for index = 1, count do
+		contexts[index] = {
 			primary = index == status,
 			precision = precision,
 			decimals = decimals,
 			nameFormat = nameFormat,
-		})
+		}
+	end
+
+	return slots, self:Widths(slots, Schema:Read(config, base .. ".width")), contexts
+end
+
+---Styles a slot's font string and places it on its bar.
+---@param text FontString
+---@param bar Region
+---@param slot AUITextSlot
+---@param width number
+function Text:Place(text, bar, slot, width)
+	local point, relativePoint, justify = self:Points(slot.anchor, slot.placement)
+	local color = slot.color
+
+	text:SetFont(AUI.Media:Font(slot.font), slot.size, AUI.Media:FontFlags(slot.outline))
+	text:SetTextColor(color.r, color.g, color.b)
+	text:SetJustifyH(justify)
+	text:SetWidth(width)
+	text:ClearAllPoints()
+	text:SetPoint(point, bar, relativePoint, slot.x, slot.y)
+end
+
+---Applies every slot's settings to a frame: style, place, width and tag. Text is not protected, so this also runs
+---in combat.
+---@param frame table a unit frame made by `Text:Create`
+---@param key string the frame's key under `frames`
+---@param config table the active profile config
+function Text:Apply(frame, key, config)
+	local slots, widths, contexts = self:Layout(config, key, #frame.TextSlots)
+
+	for index, slot in ipairs(slots) do
+		local text = frame.TextSlots[index]
+		local tags = AUI.Tags:Compile(slot, contexts[index])
 
 		frame:Untag(text)
 
 		if tags then
-			local point, relativePoint, justify = self:Points(slot.anchor, slot.placement)
-			local color = slot.color
-
-			text:SetFont(AUI.Media:Font(slot.font), slot.size, AUI.Media:FontFlags(slot.outline))
-			text:SetTextColor(color.r, color.g, color.b)
-			text:SetJustifyH(justify)
-			text:SetWidth(widths[index])
-			text:ClearAllPoints()
-			text:SetPoint(point, bar, relativePoint, slot.x, slot.y)
+			self:Place(text, frame.Bar, slot, widths[index])
 			frame:Tag(text, tags)
 			text:Show()
 

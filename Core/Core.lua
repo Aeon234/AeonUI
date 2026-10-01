@@ -13,7 +13,7 @@ local addonName = ...
 ---@field Schema AUISchema
 ---@field Store AUIStore
 ---@field Profile AUIProfile
----@field Settings table?
+---@field Settings AUISettings
 ---@field Codec AUICodec
 ---@field Dev AUIDev? development self-tests, present only in unpackaged builds
 ---@field failed boolean? saved data or the character could not be loaded; AeonUI stays off for the session
@@ -89,13 +89,13 @@ end
 
 ---@param page string? page to open at
 function AUI:OpenSettings(page)
-	if self.Settings then
-		self.Settings:Open(page)
+	if self.failed or self.Profile.characterID == "" then
+		self:Warn(self.L["AeonUI is off for this session, so its settings can't open."])
 
 		return
 	end
 
-	self:Warn(self.L["the settings window is not available yet."])
+	self.Settings:Open(page)
 end
 
 function AUI:PrintDiagnostics()
