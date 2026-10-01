@@ -1,0 +1,86 @@
+if GetLocale() ~= "esES" then
+	return
+end
+
+local L = select(2, ...).AeonSettings.L
+
+-- Control.lua
+L["Couldn't save %s."] = "No se ha podido guardar %s."
+
+-- PageModel.lua
+L["Requires %s to be enabled."] = "Requiere activar %s."
+
+-- Window.lua
+L["Reset %s to defaults?"] = "¿Restablecer %s a los valores predeterminados?"
+L["Reset"] = "Restablecer"
+L["Jump to section"] = "Ir a la sección"
+L["%s (collapsed)"] = "%s (contraído)"
+L["Unavailable in combat."] = "No disponible en combate."
+L["1 change needs a reload"] = "1 cambio requiere recargar"
+L["%d changes need a reload"] = "%d cambios requieren recargar"
+L["%s reset to defaults."] = "%s restablecido a los valores predeterminados."
+L['Search results for "%s"'] = 'Resultados de búsqueda de "%s"'
+L["No settings match."] = "Ninguna opción coincide."
+
+-- Preview.lua
+L["Preview"] = "Vista previa"
+L["Click part of the preview to find its setting"] = "Haz clic en una parte de la vista previa para encontrar su opción"
+
+-- SoundCheckbox.lua
+L["Play sound"] = "Reproducir sonido"
+
+-- TextInput.lua
+L["it can't be empty."] = "no puede estar vacío."
+L["It can be %d letters at most."] = "Puede tener %d letras como máximo."
+L["Couldn't save %s: %s"] = "No se ha podido guardar %s: %s"
+
+-- ActionButton.lua
+L["Couldn't %s."] = "No se ha podido %s."
+
+-- ProfileDialog.lua
+L["Press Ctrl+C to copy the text below."] = "Pulsa Ctrl+C para copiar el texto de abajo."
+
+-- Profiles.lua
+L["\"%s\" is the built-in profile's name."] = "\"%s\" es el nombre del perfil integrado."
+L["A profile named \"%s\" already exists."] = "Ya existe un perfil llamado \"%s\"."
+L["Unavailable while editing the layout."] = "No disponible mientras se edita la disposición."
+L["Active Profile"] = "Perfil activo"
+L["Use a Profile for This Character"] = "Usar un perfil para este personaje"
+L["Switches to a profile named after this character, made the first time."] = "Cambia a un perfil con el nombre de este personaje, que se crea la primera vez."
+L["New Profile"] = "Nuevo perfil"
+L["New"] = "Nuevo"
+L["Create"] = "Crear"
+L["Name the new profile. It starts with default settings."] = "Ponle nombre al nuevo perfil. Empieza con la configuración predeterminada."
+L["Profile name"] = "Nombre del perfil"
+L["Profile \"%s\" created."] = "Perfil \"%s\" creado."
+L["Copy Current Profile"] = "Copiar perfil actual"
+L["Copy"] = "Copiar"
+L["Copy Profile"] = "Copiar perfil"
+L["Name the copy of \"%s\"."] = "Ponle nombre a la copia de \"%s\"."
+L["Copy of %s"] = "Copia de %s"
+L["Copied \"%s\" to \"%s\"."] = "Se ha copiado \"%s\" en \"%s\"."
+L["Rename Current Profile"] = "Renombrar perfil actual"
+L["Rename"] = "Renombrar"
+L["Rename Profile"] = "Renombrar perfil"
+L["Rename \"%s\" to:"] = "Renombrar \"%s\" como:"
+L["Renamed \"%s\" to \"%s\"."] = "Se ha renombrado \"%s\" como \"%s\"."
+L["The last profile can't be deleted."] = "No se puede borrar el último perfil."
+L["Delete Current Profile"] = "Borrar perfil actual"
+L["Delete"] = "Borrar"
+L["Profile \"%s\" deleted; now using \"%s\"."] = "Perfil \"%s\" borrado; ahora se usa \"%s\"."
+L["Delete Profile"] = "Borrar perfil"
+L["Delete the profile \"%s\"? Its settings will be lost. Choose the profile to use instead:"] = "¿Borrar el perfil \"%s\"? Se perderá su configuración. Elige el perfil que se usará en su lugar:"
+L["Delete the profile \"%s\"? Its settings will be lost, and \"%s\" becomes active."] = "¿Borrar el perfil \"%s\"? Se perderá su configuración y \"%s\" pasará a estar activo."
+L["Reset Current Profile"] = "Restablecer perfil actual"
+L["Profile \"%s\" reset."] = "Perfil \"%s\" restablecido."
+L["Reset the profile \"%s\" to default settings?"] = "¿Restablecer el perfil \"%s\" a la configuración predeterminada?"
+L["Export Current Profile"] = "Exportar perfil actual"
+L["Export"] = "Exportar"
+L["Export Profile"] = "Exportar perfil"
+L["Import Profile"] = "Importar perfil"
+L["Import"] = "Importar"
+L["Paste a profile string. Importing creates a new profile."] = "Pega una cadena de perfil. Al importarla se crea un perfil nuevo."
+L["Imported \"%s\" as \"%s\"."] = "Se ha importado \"%s\" como \"%s\"."
+L["Profiles"] = "Perfiles"
+L["Manage"] = "Gestionar"
+L["Share"] = "Compartir"

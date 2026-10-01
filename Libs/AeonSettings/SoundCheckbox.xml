@@ -1,0 +1,40 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+	<Frame name="AeonUISettings_SoundCheckboxTemplate" mixin="AeonUISettings_SoundCheckboxMixin" virtual="true">
+		<Size x="58" y="29"/>
+		<Frames>
+			<Frame parentKey="Motion">
+				<Size x="58" y="29"/>
+				<Anchors>
+					<Anchor point="CENTER"/>
+				</Anchors>
+				<Frames>
+					<CheckButton parentKey="Box" inherits="MinimalCheckboxTemplate">
+						<Anchors>
+							<Anchor point="RIGHT"/>
+						</Anchors>
+					</CheckButton>
+				</Frames>
+			</Frame>
+			<Button parentKey="Speaker">
+				<Size x="24" y="24"/>
+				<Anchors>
+					<Anchor point="LEFT"/>
+				</Anchors>
+				<Layers>
+					<Layer level="ARTWORK">
+						<Texture parentKey="Icon" atlas="voicechat-icon-speaker">
+							<Size x="20" y="20"/>
+							<Anchors>
+								<Anchor point="CENTER"/>
+							</Anchors>
+						</Texture>
+					</Layer>
+				</Layers>
+			</Button>
+		</Frames>
+		<Scripts>
+			<OnLoad method="OnLoad"/>
+			<OnHide method="OnHide"/>
+		</Scripts>
+	</Frame>
+</Ui>

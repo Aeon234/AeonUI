@@ -1,0 +1,32 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+	<Frame name="AeonUISettings_ColorSwatchTemplate" mixin="AeonUISettings_ColorSwatchMixin" virtual="true">
+		<Size x="30" y="29"/>
+		<Frames>
+			<Button parentKey="Swatch" registerForClicks="LeftButtonUp">
+				<Size x="30" y="29"/>
+				<Anchors>
+					<Anchor point="CENTER"/>
+				</Anchors>
+				<Layers>
+					<Layer level="BACKGROUND">
+						<Texture parentKey="Border" atlas="checkbox-minimal" useAtlasSize="true">
+							<Anchors>
+								<Anchor point="CENTER"/>
+							</Anchors>
+						</Texture>
+					</Layer>
+					<Layer level="ARTWORK" textureSubLevel="1">
+						<Texture parentKey="Color"/>
+					</Layer>
+					<Layer level="OVERLAY">
+						<Texture parentKey="Highlight" hidden="true"/>
+					</Layer>
+				</Layers>
+			</Button>
+		</Frames>
+		<Scripts>
+			<OnLoad method="OnLoad"/>
+			<OnHide method="OnHide"/>
+		</Scripts>
+	</Frame>
+</Ui>

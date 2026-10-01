@@ -1,0 +1,52 @@
+# ---------------------------------------------------------------------------
+# Operating system
+# ---------------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---------------------------------------------------------------------------
+# Editors and tooling
+# ---------------------------------------------------------------------------
+.vscode/
+*.code-workspace
+
+# ---------------------------------------------------------------------------
+# Packaging output
+# ---------------------------------------------------------------------------
+/.release/
+/dist/
+*.zip
+*.7z
+
+# ---------------------------------------------------------------------------
+# Libraries
+# Fetched at release by .pkgmeta (oUF at its pinned tag); embeds.xml is ours and the .toc's only way in.
+# AeonSettings is the exception: its sync script vendors it, renamed for AeonUI, and the copy is committed.
+# Excluding the contents rather than the folder is what lets the negation apply.
+# ---------------------------------------------------------------------------
+/Libs/*
+!/Libs/embeds.xml
+!/Libs/AeonSettings/
+
+# ---------------------------------------------------------------------------
+# AI assistant files — never published to GitHub
+# Agent instructions, agent-written notes and any assistant tooling state.
+# ---------------------------------------------------------------------------
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+.claude/
+.codex/
+.cursor/
+.github/copilot-instructions.md
+.superpowers/
+/docs/
+/Scripts/
+
+# ---------------------------------------------------------------------------
+# Local scratch
+# ---------------------------------------------------------------------------
+todo.txt
+*_Test.lua
+*.local.*

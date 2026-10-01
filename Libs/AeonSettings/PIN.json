@@ -1,0 +1,286 @@
+{
+  "library": "AeonSettings",
+  "version": "0.1.0",
+  "ref": "v0.1.0",
+  "commit": "60ad6a6f4982f23b0083a3e9f8959263888213ab",
+  "dev": false,
+  "token": "AeonSettings_",
+  "prefix": "AeonUISettings_",
+  "files": [
+    {
+      "path": "ActionButton.lua",
+      "sha256": "9e337c5a33215bec2d65f11a1ae7a6ad2e6f2ade7a9c7b9f20e852f6c2d17b8f",
+      "transformed": true
+    },
+    {
+      "path": "ActionButton.xml",
+      "sha256": "6f5c935de09a34dcee0ddaf4081754e04a0591e60b4e05eee081f897c8d3a4a3",
+      "transformed": true
+    },
+    {
+      "path": "AeonSettings.xml",
+      "sha256": "3587235a3a94e8d2cc23f829245acd53d1765a653583e7b7b220a9e2a18b9e45",
+      "transformed": false
+    },
+    {
+      "path": "CategoryList.lua",
+      "sha256": "04a09bad575e15faf0470c6cb4c6df2c7b7b9051a2c36c890c3fa338245611d9",
+      "transformed": true
+    },
+    {
+      "path": "CategoryList.xml",
+      "sha256": "1f00a3a9d5a05c3f0ab44ce28f069c550b00b1f0ccd79a63bcbe82c72a7c3d76",
+      "transformed": true
+    },
+    {
+      "path": "Checkbox.lua",
+      "sha256": "2adaaffabc19b7b04b44c3f01219d45f0dc892aeb177ff5006831ebc6acdbf12",
+      "transformed": true
+    },
+    {
+      "path": "Checkbox.xml",
+      "sha256": "0041451d205123402a545f6c5783c92b733597b3cfb79b4022fc941aef29065f",
+      "transformed": true
+    },
+    {
+      "path": "ColorSwatch.lua",
+      "sha256": "3f1eabc6804ea8359a58ff20a49cc168468c0c56d7b8c4530b0a8d314681a053",
+      "transformed": true
+    },
+    {
+      "path": "ColorSwatch.xml",
+      "sha256": "6749ac57671bf4b4cc8c8c5a21b112e6d1587093b70567601c8a9b0e3d213cee",
+      "transformed": true
+    },
+    {
+      "path": "Control.lua",
+      "sha256": "bd674a3f2a99d489493d3c37c12547312262c9a4114eccfc96b0a9ed72f6f22c",
+      "transformed": false
+    },
+    {
+      "path": "Core.lua",
+      "sha256": "9e6dbe8757e1cad11d1d1c0310ff1d67280ea2772fc356caaea572ca1f4c8eed",
+      "transformed": false
+    },
+    {
+      "path": "Dropdown.lua",
+      "sha256": "abdcc9526a97489ec518b0d471ccdde2c66b1659df1d7b94eed76d1d045dfaad",
+      "transformed": true
+    },
+    {
+      "path": "Dropdown.xml",
+      "sha256": "e7e778449b258ae42681381e3af083b7156386ea9cdf6eb95277cd7621a9024d",
+      "transformed": true
+    },
+    {
+      "path": "DropdownChoices.lua",
+      "sha256": "b65a79fce381f21e6510846141c70fda60af1ccd52e52fe1b969337aa55879b3",
+      "transformed": false
+    },
+    {
+      "path": "Label.lua",
+      "sha256": "badeae7a12f90a41e80c0d34ea582445c1410737d53738d3ab93906fa068fe1f",
+      "transformed": false
+    },
+    {
+      "path": "Locale.lua",
+      "sha256": "d205735a0e0a5bb8cc93c543d1dd33a2d451f42660b8b23316dc0302647eae5f",
+      "transformed": false
+    },
+    {
+      "path": "Locale/deDE.lua",
+      "sha256": "e1887e02262bb3f250b8e711c4e02a72e9741683b8db014e9f3cbf75904c4d5b",
+      "transformed": false
+    },
+    {
+      "path": "Locale/esES.lua",
+      "sha256": "42a969098abc703c0a70f11f4bb636eeb9c099900e5e584657d006ac23ef507a",
+      "transformed": false
+    },
+    {
+      "path": "Locale/esMX.lua",
+      "sha256": "2738c14e653ca2854be3507fdd80414789e250fe02c777591fb1ae26944fdce0",
+      "transformed": false
+    },
+    {
+      "path": "Locale/frFR.lua",
+      "sha256": "a708c32f4d41193b5ea94e507f4d195ac7a5c7f2d0b6ef96c353758e851e098b",
+      "transformed": false
+    },
+    {
+      "path": "Locale/itIT.lua",
+      "sha256": "7e943c95934985e1b830e88f532bacd7319c02d0f44864ce6e1d6937be77026d",
+      "transformed": false
+    },
+    {
+      "path": "Locale/koKR.lua",
+      "sha256": "6d08fe5e83ef633a2c36bf8013d14a0b666576095e152893dffa7efa4e9c7e48",
+      "transformed": false
+    },
+    {
+      "path": "Locale/ptBR.lua",
+      "sha256": "79285e446baa339a60fcac63d92d52dcc74975ee9f347885d3959cc82775cd86",
+      "transformed": false
+    },
+    {
+      "path": "Locale/ruRU.lua",
+      "sha256": "ffd2fffcbe3542a926a505ab118699517388eb6c70c74d0c0c4d9ac8a60547e5",
+      "transformed": false
+    },
+    {
+      "path": "Locale/zhCN.lua",
+      "sha256": "41dc33a4a8e4ea34382d632caa6427b412fc89d8b218c986b6bfab990d263975",
+      "transformed": false
+    },
+    {
+      "path": "Locale/zhTW.lua",
+      "sha256": "66ee040543862a6cb333a023363b9e80b4f3a3b7b437fd1c793e4feda12cf65e",
+      "transformed": false
+    },
+    {
+      "path": "Media/Fonts/Expressway.ttf",
+      "sha256": "06a2106170c2b5b736955cc749ed755f3757d103230645158f0bd5b5b91c386b",
+      "transformed": false
+    },
+    {
+      "path": "Media/Fonts/GilroyBold.ttf",
+      "sha256": "12d5376deeda2e9647a3d3b31689c8ba6bfafc6d21f1c3dc5dd9354940bb2b25",
+      "transformed": false
+    },
+    {
+      "path": "Media/SectionHeader/Surface.png",
+      "sha256": "6fa85d537ddef3d957d6cafd987d64b7af88a2b76b7e79a7bbe9d8970b0862c0",
+      "transformed": false
+    },
+    {
+      "path": "Media/Toggle/Track.tga",
+      "sha256": "ede6ebfe6822982e1730fae4209b10d9a593603eb92294c99d92d0e7b1a50e96",
+      "transformed": false
+    },
+    {
+      "path": "Outline.lua",
+      "sha256": "68dad50299f129fc867b66c3e5fae45ca0a363f74ae780f13ee7bc0f57436ac9",
+      "transformed": false
+    },
+    {
+      "path": "PageModel.lua",
+      "sha256": "0dee496b1a78c76a2a837ea93d9bf44013875009e41810a4b61bc252115d22b0",
+      "transformed": false
+    },
+    {
+      "path": "Preview.lua",
+      "sha256": "4fa617116b4e53f7e39dfb1491f057a37fb7fb37bd824f1f2d74d67590e4042e",
+      "transformed": true
+    },
+    {
+      "path": "Preview.xml",
+      "sha256": "31b5efdaf124f78d31e81cd2cd2668c42e4f6ee7ee6aa24ffc97bef6daeac86c",
+      "transformed": true
+    },
+    {
+      "path": "ProfileDialog.lua",
+      "sha256": "b3ee4018fb8a712357982540e5b927b59851941af974c97b65fd1a4c75b36a37",
+      "transformed": true
+    },
+    {
+      "path": "ProfileDialog.xml",
+      "sha256": "a50c156c34e010651562596717f2beae5f985c16d6e7ad34494283f6ab1a0e2f",
+      "transformed": true
+    },
+    {
+      "path": "Profiles.lua",
+      "sha256": "fe65b38934abc2ed9c04346edc2aae757cf0ee94f58e8e52cbb0c470fc133d4d",
+      "transformed": false
+    },
+    {
+      "path": "Row.lua",
+      "sha256": "b9521a3b92a6defc6ab60d67ec0d2982ea3a9b3bcbd83c7ee915d035de275c41",
+      "transformed": true
+    },
+    {
+      "path": "Row.xml",
+      "sha256": "d1584b38d66e196f422871566ae65e7dab92b2404cf2750fd16eacf408f49741",
+      "transformed": true
+    },
+    {
+      "path": "Section.lua",
+      "sha256": "1a3ebf70d95d28abeaea8b623e6ce03837865233809a93696ee9f752d7813809",
+      "transformed": true
+    },
+    {
+      "path": "Section.xml",
+      "sha256": "9cc00ed69b92385bcfd915886508f91052c6df82022bc205effa23c5a45679b0",
+      "transformed": true
+    },
+    {
+      "path": "SettingSlot.lua",
+      "sha256": "f8b68ee4f3b7b2284b5197d9f3c1924be2339901ecd5473beba1a7a40b914c76",
+      "transformed": false
+    },
+    {
+      "path": "Slider.lua",
+      "sha256": "1526a758eb4f28a9256a7a89fc7bbe0fbd20f2b97269f5b32236c1c21b704611",
+      "transformed": true
+    },
+    {
+      "path": "Slider.xml",
+      "sha256": "ad6c39ba062bd7808a90106a094c1f217b73fd155bd927aabd4a4cc2885389c6",
+      "transformed": true
+    },
+    {
+      "path": "SoundCheckbox.lua",
+      "sha256": "bed50d7c1c2b6c464af28903682b1427297286daebd8a2a88818d1919eee0943",
+      "transformed": true
+    },
+    {
+      "path": "SoundCheckbox.xml",
+      "sha256": "2726e3669597f44a67d524d18b0e05c99f947fee1656782b06dd6898f6912cb5",
+      "transformed": true
+    },
+    {
+      "path": "Surface.lua",
+      "sha256": "7c83d1e489b28496a98b3e28b24919a86f58549119847737c8154b897d96dae3",
+      "transformed": false
+    },
+    {
+      "path": "TextInput.lua",
+      "sha256": "f5d760cf2656af8b3cf2f696b63152439753c2ecd3c3c7df8a2ecbc9fbd61b8d",
+      "transformed": true
+    },
+    {
+      "path": "TextInput.xml",
+      "sha256": "472dd9da544a527328da4c85fbdf2360e2cd7129ca4135792607e34de4682c72",
+      "transformed": true
+    },
+    {
+      "path": "Toggle.lua",
+      "sha256": "78c964e060a007e6a839915efc9efb3d00f6356803deca4a7719f52f1fa348f3",
+      "transformed": true
+    },
+    {
+      "path": "Toggle.xml",
+      "sha256": "da7d74a111be5bcccfc6ebbd7a688c827ef288b7426adf6f1685f11f2f2498eb",
+      "transformed": true
+    },
+    {
+      "path": "Tokens.lua",
+      "sha256": "4eb82069a6bc23a5e55e33180b78fa3d8f009dcfc03e544bd8d49be74d3f6380",
+      "transformed": false
+    },
+    {
+      "path": "Tooltip.lua",
+      "sha256": "3ea85af734161e0af64c32a6ad08ced7793cb271ddc1e5f6e5dd9845107f41bb",
+      "transformed": false
+    },
+    {
+      "path": "Window.lua",
+      "sha256": "57542679113177614aaa4ed18006bd5bd5355dc930cca450bccf7b32d84e6bf6",
+      "transformed": true
+    },
+    {
+      "path": "Window.xml",
+      "sha256": "de6268147d380309f664da2e6ba65e5c8386133c6def49c5ca7a3e79f9ba52ee",
+      "transformed": true
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+	<Frame name="AeonUISettings_ActionButtonTemplate" mixin="AeonUISettings_ActionButtonMixin" virtual="true">
+		<Size x="120" y="26"/>
+		<Frames>
+			<Button parentKey="Button" inherits="SharedButtonTemplate">
+				<Size x="120" y="26"/>
+				<Anchors>
+					<Anchor point="CENTER"/>
+				</Anchors>
+			</Button>
+		</Frames>
+		<Scripts>
+			<OnLoad method="OnLoad"/>
+			<OnHide method="OnHide"/>
+		</Scripts>
+	</Frame>
+</Ui>

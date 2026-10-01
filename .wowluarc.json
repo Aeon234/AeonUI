@@ -1,0 +1,24 @@
+{
+  "$schema": "https://raw.githubusercontent.com/TradeSkillMaster/wowlua-ls/main/editors/vscode/wowluarc.schema.json",
+
+  "library": ["Libs/"],
+  "flavors": ["retail"],
+
+  "globals": {
+    "read": ["LibStub", "SlashCmdList", "StaticPopupDialogs", "UISpecialFrames"],
+    "write": ["AeonUI*", "SLASH_AEONUI*", "SlashCmdList"]
+  },
+
+  "diagnostics": {
+    "enable": [
+      "need-check-nil",
+      "nil-index",
+      "invalid-op",
+      "redundant-condition",
+      "redundant-and",
+      "redundant-or",
+      "unused-function",
+      "unused-vararg"
+    ]
+  }
+}

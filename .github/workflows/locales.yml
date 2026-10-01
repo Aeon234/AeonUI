@@ -1,0 +1,28 @@
+name: Locales
+
+on:
+  pull_request:
+    paths:
+      - "Locale/**"
+      - "Tools/sync-locales.py"
+  push:
+    branches: [main]
+    paths:
+      - "Locale/**"
+      - "Tools/sync-locales.py"
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Install Lua 5.1
+        run: sudo apt-get update && sudo apt-get install -y lua5.1
+      - name: Check translations
+        run: python Tools/sync-locales.py --check
