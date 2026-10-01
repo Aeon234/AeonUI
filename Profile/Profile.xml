@@ -1,0 +1,5 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+	<Script file="Schema.lua" />
+	<Script file="Store.lua" />
+	<Script file="Profile.lua" />
+</Ui>

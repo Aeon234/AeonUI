@@ -10,7 +10,11 @@ local addonName = ...
 ---@field Events AUIEvents
 ---@field oUF table the private oUF instance, set by Libs/oUF/init.lua
 ---@field AeonSettings table the vendored settings library, set by Libs/AeonSettings/Core.lua
+---@field Schema AUISchema
+---@field Store AUIStore
+---@field Profile AUIProfile
 ---@field Settings table?
+---@field failed boolean? saved data or the character could not be loaded; AeonUI stays off for the session
 local AUI = select(2, ...)
 
 AUI.name = addonName
@@ -45,6 +49,23 @@ function AUI:Warn(message, ...)
 	print(WARN_PREFIX .. message)
 end
 
+---@generic T
+---@param source T
+---@return T copy a deep copy; tables are rebuilt, everything else is returned as it is
+function AUI:CopyTable(source)
+	if type(source) ~= "table" then
+		return source
+	end
+
+	local result = {}
+
+	for key, value in pairs(source) do
+		result[key] = self:CopyTable(value)
+	end
+
+	return result
+end
+
 ---@param page string? page to open at
 function AUI:OpenSettings(page)
 	if self.Settings then
@@ -56,11 +77,35 @@ function AUI:OpenSettings(page)
 	self:Warn(self.L["the settings window is not available yet."])
 end
 
+function AUI:PrintDiagnostics()
+	local Profile = self.Profile
+
+	self:Print("v%s  failed %s  mode %s", self.version, tostring(self.failed == true), Profile.mode)
+
+	if Profile.problem then
+		self:Print("problem: %s", Profile.problem)
+	end
+
+	if Profile.activeID then
+		self:Print("active %s (%s)", Profile.activeID, tostring(Profile:Name(Profile.activeID)))
+	end
+
+	for _, entry in ipairs(Profile:List()) do
+		self:Print("  %s %s%s", entry.id, entry.name, entry.quarantined and ("  quarantined: " .. entry.quarantined) or "")
+	end
+end
+
 SLASH_AEONUI1 = "/aeonui"
 SLASH_AEONUI2 = "/aui"
 
 SlashCmdList.AEONUI = function(message)
 	local command = (message or ""):lower():match("^%s*(%S*)")
+
+	if command == "debug" then
+		AUI:PrintDiagnostics()
+
+		return
+	end
 
 	AUI:OpenSettings(command ~= "" and command or nil)
 end

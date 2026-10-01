@@ -2,4 +2,5 @@
 	<Script file="Core.lua" />
 	<Script file="Callbacks.lua" />
 	<Script file="Events.lua" />
+	<Script file="Bootstrap.lua" />
 </Ui>

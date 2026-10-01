@@ -2,7 +2,7 @@
 -- Run from any directory with Lua 5.1: lua Tools/check.lua
 -- Exits non-zero when any check fails.
 
-local SCRIPTS = { "check_manifest.lua", "check_core.lua" }
+local SCRIPTS = { "check_manifest.lua", "check_core.lua", "check_profile.lua" }
 
 local dir = (arg and arg[0] or ""):match("^(.-)[^/\\]*$")
 local lua = arg and arg[-1] or "lua"

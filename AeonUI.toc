@@ -15,3 +15,4 @@ Libs\embeds.xml
 
 Locale\Locale.xml
 Core\Core.xml
+Profile\Profile.xml
