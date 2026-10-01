@@ -324,7 +324,7 @@ function Profile:Set(path, value)
 		return true
 	end
 
-	Schema:Write(self.config, path, value)
+	Schema:Write(self.config, path, AUI:CopyTable(value))
 	AUI.Callbacks:Fire(CHANNEL, path)
 
 	return true

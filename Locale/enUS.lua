@@ -30,6 +30,9 @@ L["A profile name can be %d letters at most."] = "A profile name can be %d lette
 L["That name belongs to the default profile."] = "That name belongs to the default profile."
 L["A profile with that name already exists."] = "A profile with that name already exists."
 
+-- Unit frame status text (Frames)
+L["Ghost"] = "Ghost"
+
 -- Profile strings (Profile)
 L["This is not an AeonUI profile string, or it was cut short."] =
 	"This is not an AeonUI profile string, or it was cut short."

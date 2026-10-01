@@ -15,5 +15,6 @@
 	<Script file="oUF\colors.lua" />
 	<Script file="oUF\elements\health.lua" />
 	<Script file="oUF\elements\power.lua" />
+	<Script file="oUF\elements\tags.lua" />
 	<Script file="oUF\finalize.lua" />
 </Ui>

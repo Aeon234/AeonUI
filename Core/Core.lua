@@ -51,6 +51,19 @@ function AUI:Warn(message, ...)
 	print(WARN_PREFIX .. message)
 end
 
+---Returns `value` unless it is a secret value, in which case returns `fallback`.
+---@generic T
+---@param value T
+---@param fallback T?
+---@return T? value the value itself when it can be read, otherwise the fallback
+function AUI:Readable(value, fallback)
+	if issecretvalue(value) then
+		return fallback
+	end
+
+	return value
+end
+
 ---@generic T
 ---@param source T
 ---@return T copy a deep copy; tables are rebuilt, everything else is returned as it is
@@ -66,6 +79,12 @@ function AUI:CopyTable(source)
 	end
 
 	return result
+end
+
+---@param region Region? defaults to UIParent
+---@return number pixel the size of one physical pixel in the region's units
+function AUI:Pixel(region)
+	return PixelUtil.GetPixelToUIUnitFactor() / (region or UIParent):GetEffectiveScale()
 end
 
 ---@param page string? page to open at

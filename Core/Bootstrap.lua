@@ -18,6 +18,8 @@ frame:SetScript("OnEvent", function(self, event)
 			return
 		end
 
+		AUI.Capabilities:Resolve()
+
 		local ok, problem = pcall(AUI.Profile.Initialize, AUI.Profile, AeonUIDB, guid)
 
 		if not ok then
@@ -45,5 +47,7 @@ frame:SetScript("OnEvent", function(self, event)
 				L["the active profile can't be used, so AeonUI is showing default settings until you choose another profile."]
 			)
 		end
+
+		AUI.Frames:Start()
 	end
 end)
