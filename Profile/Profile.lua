@@ -538,3 +538,103 @@ function Profile:ResetStore()
 
 	return true
 end
+
+---A decoded profile string, ready to import under a name the player chooses.
+---@class AUIProfileImport
+---@field name string the name the profile had when exported
+---@field version integer its schema version
+---@field config table
+---@field dormant integer stored settings this version does not use
+
+---@param id string
+---@return string? text the profile as a profile string
+---@return string? problem
+function Profile:Export(id)
+	local record = self.root and self:Usable(self.root, id)
+
+	if not record then
+		return nil, "the profile cannot be exported"
+	end
+
+	local text = AUI.Codec:Encode(AUI.Codec.PREFIX, {
+		addon = AUI.name,
+		version = Schema.VERSION,
+		name = record.name,
+		profile = record.config,
+	})
+
+	if not text then
+		return nil, "the profile could not be encoded"
+	end
+
+	return text
+end
+
+---Decodes and validates a profile string without changing anything.
+---@param text string
+---@return AUIProfileImport? import
+---@return string? reason why the string was refused, for the player
+function Profile:Decode(text)
+	local L = AUI.L
+	local payload, problem = AUI.Codec:Decode(AUI.Codec.PREFIX, text)
+
+	if problem == "newer" then
+		return nil, L["This profile string was made by a newer version of AeonUI."]
+	end
+
+	if not payload or payload.addon ~= AUI.name then
+		return nil, L["This is not an AeonUI profile string, or it was cut short."]
+	end
+
+	local version = payload.version
+
+	if type(version) == "number" and version > Schema.VERSION then
+		return nil, L["This profile string was made by a newer version of AeonUI."]
+	end
+
+	if version ~= Schema.VERSION or type(payload.name) ~= "string" or not Schema:ValidateConfig(payload.profile) then
+		return nil, L["This profile string holds settings AeonUI can't use."]
+	end
+
+	return {
+		name = payload.name,
+		version = version,
+		config = payload.profile,
+		dormant = Schema:CountDormant(payload.profile),
+	}
+end
+
+---Creates a profile from a decoded string, dormant settings included, and makes it active.
+---@param import AUIProfileImport
+---@param name string
+---@return boolean ok
+---@return string? idOrProblem
+function Profile:Import(import, name)
+	local created
+
+	local ok, problem = self:Commit(function(candidate)
+		local id, refusal = self:AddTo(candidate, name, AUI:CopyTable(import.config))
+
+		if not id then
+			return false, refusal
+		end
+
+		created = id
+	end)
+
+	return ok, ok and created or problem
+end
+
+---The saved data found at login as a diagnostic export, for recovery. It is not a profile string.
+---@return string? text
+---@return boolean complete whether every saved value could be encoded
+function Profile:RawExport()
+	local version, build = GetBuildInfo()
+
+	return AUI.Codec:EncodeRecovery(self.original, {
+		addon = AUI.name,
+		addonVersion = AUI.version,
+		client = ("%s.%s"):format(tostring(version), tostring(build)),
+		problem = self.problem,
+	})
+end

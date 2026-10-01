@@ -14,6 +14,8 @@ local addonName = ...
 ---@field Store AUIStore
 ---@field Profile AUIProfile
 ---@field Settings table?
+---@field Codec AUICodec
+---@field Dev AUIDev? development self-tests, present only in unpackaged builds
 ---@field failed boolean? saved data or the character could not be loaded; AeonUI stays off for the session
 local AUI = select(2, ...)
 
@@ -99,7 +101,13 @@ SLASH_AEONUI1 = "/aeonui"
 SLASH_AEONUI2 = "/aui"
 
 SlashCmdList.AEONUI = function(message)
-	local command = (message or ""):lower():match("^%s*(%S*)")
+	local command, argument = (message or ""):lower():match("^%s*(%S*)%s*(%S*)")
+
+	if command == "dev" and AUI.Dev then
+		AUI.Dev:Command(argument)
+
+		return
+	end
 
 	if command == "debug" then
 		AUI:PrintDiagnostics()

@@ -75,9 +75,7 @@ local toc = Read("AeonUI.toc")
 if not toc then
 	Problem("missing AeonUI.toc")
 else
-	toc = toc:gsub("#@do%-not%-package@.-#@end%-do%-not%-package@", function(block)
-		return block:gsub("\n#", "\n")
-	end)
+	-- Lines inside #@do-not-package@ markers are ordinary file lines in development; the markers are comments.
 	for line in toc:gmatch("[^\r\n]+") do
 		if not line:match("^%s*#") and line:match("%S") then
 			Load(line:match("^%s*(.-)%s*$"), "AeonUI.toc")

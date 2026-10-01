@@ -286,6 +286,26 @@ function Schema:ResetScope(config, scope)
 	end
 end
 
+---Counts the stored values this version does not know: each unknown key counts once, whatever it holds.
+---@param config table
+---@param prefix string? the path of `config` inside the whole config
+---@return integer count
+function Schema:CountDormant(config, prefix)
+	local count = 0
+
+	for key, value in pairs(config) do
+		local path = prefix and (prefix .. "." .. tostring(key)) or tostring(key)
+
+		if self.branches[path] and type(value) == "table" then
+			count = count + self:CountDormant(value, path)
+		elseif not self.fields[path] then
+			count = count + 1
+		end
+	end
+
+	return count
+end
+
 ---@param scope string
 ---@return boolean known whether the scope names a field or a branch
 function Schema:IsScope(scope)

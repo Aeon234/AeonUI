@@ -16,3 +16,7 @@ Libs\embeds.xml
 Locale\Locale.xml
 Core\Core.xml
 Profile\Profile.xml
+
+#@do-not-package@
+Dev\Dev.lua
+#@end-do-not-package@
