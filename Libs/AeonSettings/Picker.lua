@@ -4,7 +4,6 @@ local _, ns = ...
 local AS = ns.AeonSettings
 local tokens = AS.tokens
 
-local SURFACE_INSET = 2 -- the band stays inside the surface's bronze border
 local BUTTON_HEIGHT = 26
 local BUTTON_GAP = 4
 local BUTTON_PADDING = 30 -- BigRedThreeSliceButtonTemplate's fit-to-text padding
@@ -16,7 +15,6 @@ local BUTTON_MIN_WIDTH = 80
 AeonUISettings_PickerRowMixin = {}
 
 function AeonUISettings_PickerRowMixin:OnLoad()
-	self.surface = AS:CreateSurface(self)
 	self.Band:SetColorTexture(0, 0, 0, 1)
 	AS:SetFont(self.Label, "body")
 	self.Label:SetTextColor(unpack(tokens.color.text))
@@ -30,12 +28,7 @@ function AeonUISettings_PickerRowMixin:Init(entry, window)
 	self.entry = entry
 	self.window = window
 
-	self.surface:SetShape(entry.onSurface and (entry.last and "LAST_ROW" or "ROW") or "NONE")
-	local inset = entry.onSurface and SURFACE_INSET or 0
 	local even = (entry.position or 1) % 2 == 0
-	self.Band:ClearAllPoints()
-	self.Band:SetPoint("TOPLEFT", inset, 0)
-	self.Band:SetPoint("BOTTOMRIGHT", -inset, entry.last and inset or 0)
 	self.Band:SetAlpha(even and tokens.alpha.bandEven or tokens.alpha.bandOdd)
 
 	-- Buttons right to left from the row's right inset, in option order on screen.

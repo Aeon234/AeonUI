@@ -3,7 +3,7 @@
 		<Size y="36"/>
 		<Layers>
 			<Layer level="BACKGROUND" textureSubLevel="0">
-				<Texture parentKey="Band"/>
+				<Texture parentKey="Band" setAllPoints="true"/>
 			</Layer>
 			<Layer level="ARTWORK">
 				<FontString parentKey="Label" inherits="GameFontHighlight" justifyH="LEFT" wordwrap="false"/>

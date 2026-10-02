@@ -17,6 +17,7 @@ local NIL_VALUE = {}
 ---@field all table[] every element the page built
 ---@field index table<string, table> the page's settings by id
 ---@field switch table? the page's switch setting
+---@field settingsOf table<integer, table[]> each element's settings, by full-list index
 ---@field tabOf table<integer, string>? each element's tab, by full-list index, on a page with `tabs`
 ---@field tabs table[]? the page's tabs that hold elements, in the page's order
 ---@field pickers table<string, table> the page's picker elements by id
@@ -131,12 +132,13 @@ end
 ---@return AeonSettingsSnapshot
 function PageModel:Snapshot(page)
 	local all = page.Build and AS:CallHost(nil, page.Build) or {}
-	local index, switch = {}, nil
+	local index, switch, settingsOf = {}, nil, {}
 
-	for _, data in ipairs(all) do
+	for position, data in ipairs(all) do
 		local kind = self.kinds[data.kind]
 		if kind and kind.Settings then
-			for _, setting in ipairs(AS:CallHost(nil, kind.Settings, data) or {}) do
+			settingsOf[position] = AS:CallHost(nil, kind.Settings, data) or {}
+			for _, setting in ipairs(settingsOf[position]) do
 				index[setting.id] = setting
 				if setting.pageSwitch and not switch then
 					switch = setting
@@ -148,7 +150,7 @@ function PageModel:Snapshot(page)
 		end
 	end
 
-	local snapshot = { all = all, index = index, switch = switch }
+	local snapshot = { all = all, index = index, switch = switch, settingsOf = settingsOf }
 	snapshot.pickers, snapshot.pickOf = AssignPicks(all, self.kinds)
 	if page.tabs then
 		snapshot.tabOf, snapshot.tabs = AssignTabs(page.tabs, all, self.kinds)
@@ -171,7 +173,7 @@ function PageModel:Build(page, reuse)
 	local collapsed = self.memory.sections[page.id] or {}
 	local kinds = self.kinds
 	local shown, sections, map = {}, {}, {}
-	local hiding, inSection, position = false, false, 0
+	local hiding, position = false, 0
 	local tabOf, activeTab = snapshot.tabOf, self:ActiveTab(page.id)
 	local pickOf = snapshot.pickOf
 
@@ -184,12 +186,13 @@ function PageModel:Build(page, reuse)
 			local entry
 			if kind.section then
 				hiding = data.collapsible and collapsed[data.id] ~= false or false
-				inSection, position = true, 0
+				position = 0
 				entry = { kind = data.kind, data = data, pageID = page.id, collapsed = hiding }
 				sections[#sections + 1] = entry
 			elseif not hiding then
 				position = position + 1
-				entry = { kind = data.kind, data = data, pageID = page.id, position = position, onSurface = inSection }
+				entry = { kind = data.kind, data = data, pageID = page.id, position = position,
+					settings = snapshot.settingsOf[index] }
 				if kind.picker then
 					entry.picked = self:ActivePick(page.id, data.id)
 				end
@@ -201,19 +204,45 @@ function PageModel:Build(page, reuse)
 		end
 	end
 
-	for i, entry in ipairs(shown) do
-		local nextEntry = shown[i + 1]
-		local closes = nextEntry == nil or kinds[nextEntry.kind].section
-		if kinds[entry.kind].section then
-			entry.empty = not entry.collapsed and closes or nil
-		else
-			entry.last = entry.onSurface and closes or nil
-		end
-	end
+	self:MarkIndents(shown)
 
 	snapshot.shown, snapshot.map = shown, map
 
 	return shown, sections, map
+end
+
+---Marks the listed rows that sit one level in, `entry.indent`: every setting in the row depends on a setting in an
+---earlier listed row of the same section, other than the section's first row, which is its switch.
+---@param shown AeonSettingsEntry[]
+function PageModel:MarkIndents(shown)
+	local first, earlier
+
+	for _, entry in ipairs(shown) do
+		local kind = self.kinds[entry.kind]
+		if kind.section then
+			first, earlier = nil, {}
+		elseif entry.settings then
+			local settings = entry.settings
+			if not first then
+				first, earlier = {}, earlier or {}
+				for _, setting in ipairs(settings) do
+					first[setting.id] = true
+				end
+			else
+				local indent = #settings > 0
+				for _, setting in ipairs(settings) do
+					local parent = setting.depends
+					if not (parent and earlier[parent] and not first[parent]) then
+						indent = false
+					end
+				end
+				entry.indent = indent or nil
+			end
+			for _, setting in ipairs(settings) do
+				earlier[setting.id] = true
+			end
+		end
+	end
 end
 
 ---@param pageID string

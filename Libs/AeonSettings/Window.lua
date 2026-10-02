@@ -28,11 +28,15 @@ local FIND_TOP_GAP = 40 -- a found setting's section header lands this far below
 local TAB_TEMPLATE = "MinimalTabTemplate"
 local INTERNAL_TAB_TEMPLATE = "AeonUISettings_InternalTabTemplate"
 local INTERNAL_TAB_ATLAS = "common-internaltab" -- present on Forever, whose tabs draw the shipped tab art
--- The shipped tab art: 192x60 in the top-left of a 256x64 file, drawn at half size.
-local INTERNAL_TAB_COORDS = { 0, 192 / 256, 0, 60 / 64 }
+-- The shipped tab art: 192x60 in the top-left of a 256x64 file, drawn at half size. Its ends keep their size
+-- and its middle stretches, so a tab is as wide as its title needs.
+local INTERNAL_TAB_ART_WIDTH, INTERNAL_TAB_ART_HEIGHT = 192, 60
+local INTERNAL_TAB_FILE_WIDTH, INTERNAL_TAB_FILE_HEIGHT = 256, 64
+local INTERNAL_TAB_CAP = 32 -- art pixels at each end, beveled corners included, that never stretch
+local INTERNAL_TAB_MIN_WIDTH = 96
+local INTERNAL_TAB_TEXT_PADDING = 32 -- width beyond the title: both ends, drawn 16 wide
 local TAB_GAP = 5 -- between tabs, as Blizzard's Settings panel spaces its own
 local TAB_TEXT_PADDING = 40 -- MinimalTabTemplate's width beyond its text
-local INTERNAL_TAB_TEXT_INSET = 8 -- a long title is cut with "…" this far inside the internal tab art
 local VERSION_COLOR = "|cff9d9d9d"
 
 -- Options_InnerFrame nine-slice insets, in atlas pixels drawn at one UI unit each.
@@ -63,11 +67,10 @@ local RESET_POPUP = "AeonUISettings_RESET_PAGE"
 ---@field data table the element the page built
 ---@field pageID string? page the element belongs to
 ---@field position integer? 1-based position within its section, or within its search group
----@field last boolean? last element of its section
----@field onSurface boolean? drawn on a section surface
 ---@field collapsed boolean? a collapsible section that is collapsed
 ---@field picked string? a picker's picked option
----@field empty boolean? a section with no elements after it
+---@field settings table[]? the settings the element shows, from the build
+---@field indent boolean? the row sits one level in, under the setting it depends on
 
 ---@type table<string, AeonSettingsElementKind>
 AS.elementKinds = AS.elementKinds or {}
@@ -113,26 +116,54 @@ AS:RegisterElementKind("searchDivider", {
 -- Internal tab -------------------------------------------------------------------------------------------
 
 ---A page tab drawn with the shipped tab art (`Media\Tab`): the base, with the selected art over it while selected
----and the hover art in the highlight layer. The art does not stretch, so the tab keeps its size. It offers what
----the window uses of `MinimalTabTemplate`: `Text` and `SetSelected`, and `fixedWidth`.
+---and the hover art in the highlight layer. Each look is a three-slice whose middle stretches with the tab's
+---width. It offers what the window uses of `MinimalTabTemplate`, `Text` and `SetSelected`, plus `textPadding`
+---and `minWidth`, which the window sizes it by.
 AeonUISettings_InternalTabMixin = {}
 
-function AeonUISettings_InternalTabMixin:OnLoad()
-	for texture, file in pairs({ [self.Background] = "Base", [self.SelectedTexture] = "Selected",
-		[self.HighlightTexture] = "Hover" }) do
+---Creates one look of the tab art as a left end, a stretching middle and a right end in `layer`.
+---@param layer DrawLayer
+---@param file string the file name in `Media\Tab`, without extension
+---@return Texture[] slices left, middle, right
+function AeonUISettings_InternalTabMixin:CreateArt(layer, file)
+	local edges = { 0, INTERNAL_TAB_CAP, INTERNAL_TAB_ART_WIDTH - INTERNAL_TAB_CAP, INTERNAL_TAB_ART_WIDTH }
+	local bottom = INTERNAL_TAB_ART_HEIGHT / INTERNAL_TAB_FILE_HEIGHT
+	local slices = {}
+	for index = 1, 3 do
+		local texture = self:CreateTexture(nil, layer)
 		texture:SetTexture(AS.MEDIA .. "Tab\\" .. file .. ".png")
-		texture:SetTexCoord(unpack(INTERNAL_TAB_COORDS))
+		texture:SetTexCoord(edges[index] / INTERNAL_TAB_FILE_WIDTH, edges[index + 1] / INTERNAL_TAB_FILE_WIDTH, 0, bottom)
+		slices[index] = texture
 	end
-	self.Text:SetWidth(self:GetWidth() - INTERNAL_TAB_TEXT_INSET * 2)
-	self.fixedWidth = true
-	self.selected = false
-	self:UpdateText()
+
+	local left, middle, right = slices[1], slices[2], slices[3]
+	left:SetPoint("TOPLEFT")
+	left:SetPoint("BOTTOMLEFT")
+	left:SetWidth(INTERNAL_TAB_CAP / 2)
+	right:SetPoint("TOPRIGHT")
+	right:SetPoint("BOTTOMRIGHT")
+	right:SetWidth(INTERNAL_TAB_CAP / 2)
+	middle:SetPoint("TOPLEFT", left, "TOPRIGHT")
+	middle:SetPoint("BOTTOMRIGHT", right, "BOTTOMLEFT")
+
+	return slices
+end
+
+function AeonUISettings_InternalTabMixin:OnLoad()
+	self:CreateArt("BACKGROUND", "Base")
+	self.selectedArt = self:CreateArt("OVERLAY", "Selected")
+	self:CreateArt("HIGHLIGHT", "Hover")
+	self.textPadding = INTERNAL_TAB_TEXT_PADDING
+	self.minWidth = INTERNAL_TAB_MIN_WIDTH
+	self:SetSelected(false)
 end
 
 ---@param selected boolean
 function AeonUISettings_InternalTabMixin:SetSelected(selected)
 	self.selected = selected
-	self.SelectedTexture:SetShown(selected)
+	for _, slice in ipairs(self.selectedArt) do
+		slice:SetShown(selected)
+	end
 	self:UpdateText()
 end
 
@@ -228,6 +259,13 @@ function AeonUISettings_WindowMixin:BuildInnerFrame()
 	local anchor = CreateFrame("Frame", nil, self)
 	anchor:SetPoint("TOPLEFT", INNER_X, -INNER_Y)
 	anchor:SetPoint("BOTTOMRIGHT", -INNER_X, INNER_BOTTOM_OFFSET)
+
+	-- The content side's fill: right of the category column, inside the inner frame's border, under its art.
+	local fill = self:CreateTexture(nil, "OVERLAY", nil, 1)
+	local color = tokens.color.contentFill
+	fill:SetColorTexture(color[1], color[2], color[3], 1)
+	fill:SetPoint("TOPLEFT", anchor, "TOPLEFT", INNER_LEFT, -INNER_TOP)
+	fill:SetPoint("BOTTOMRIGHT", anchor, "BOTTOMRIGHT", -INNER_RIGHT, INNER_BOTTOM)
 
 	local file = info.file or info.filename
 	local width, height = info.width, info.height
@@ -457,9 +495,8 @@ function AeonUISettings_WindowMixin:UpdateTabs(page)
 		if tab then
 			button.tabID = tab.id
 			button.Text:SetText(tab.title)
-			if not button.fixedWidth then
-				button:SetWidth(button.Text:GetStringWidth() + TAB_TEXT_PADDING)
-			end
+			local padding = button.textPadding or TAB_TEXT_PADDING
+			button:SetWidth(math.max(button.minWidth or 0, math.ceil(button.Text:GetStringWidth()) + padding))
 			button:SetSelected(tab.id == self.listTabID)
 			button:Show()
 		elseif button then

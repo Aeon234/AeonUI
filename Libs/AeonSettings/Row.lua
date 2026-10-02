@@ -4,7 +4,6 @@ local AS = ns.AeonSettings
 local L = AS.L
 local tokens = AS.tokens
 
-local SURFACE_INSET = 2 -- bands stay inside the surface's bronze border
 
 ---@class AeonSettingsControlDefinition
 ---@field frameType string frame type of the template
@@ -62,23 +61,77 @@ end
 ---@field outline Frame
 ---@field controls table<string, table>
 ---@field slot AeonSettingsSettingSlot
----@field tag FontString Shared or Custom, for a setting that inherits
----@field useShared Button shown while an inheriting setting is Custom
+---@field dot Texture before the label of a setting that inherits: gray while Shared, bronze while Custom
+---@field dotHover Frame names the dot's state in a tooltip
+---@field useShared Button shown while an inheriting setting is Custom and the cursor is over the half
+---@field hover Texture the half's hover band, on the row
+---@field watched table<Frame, true> frames whose enter and leave move the hover band here
 local Half = {}
 Half.__index = Half
+
+-- The half whose hover band shows. The half owning the frame the cursor last entered takes it, so crossing from
+-- one row's control into the next row's works even where the two controls' frames overlap.
+local hovered
+
+---@param half AeonSettingsRowHalf
+local function EnterHalf(half)
+	local previous = hovered
+	hovered = half
+	half.hover:Show()
+	half:RefreshInherit()
+	if previous and previous ~= half then
+		previous.hover:Hide()
+		previous:RefreshInherit()
+	end
+end
+
+---@param half AeonSettingsRowHalf
+local function LeaveHalf(half)
+	if hovered == half and not (half.frame:IsVisible() and half.frame:IsMouseOver()) then
+		hovered = nil
+		half.hover:Hide()
+		half:RefreshInherit()
+	end
+end
 
 ---@param frame Frame
 ---@return AeonSettingsRowHalf
 local function CreateHalf(frame)
-	local half = setmetatable({ frame = frame, controls = {} }, Half)
+	local half = setmetatable({ frame = frame, controls = {}, watched = setmetatable({}, { __mode = "k" }) }, Half)
+	half.hover = frame:GetParent():CreateTexture(nil, "BACKGROUND", nil, 1)
+	half.hover:SetColorTexture(1, 1, 1, tokens.alpha.rowHover)
+	half.hover:Hide()
 	half.label = AS:CreateLabel(frame)
 	half.outline = AS:CreateOutline(frame, tokens.color.flash)
 	half.outline:SetAllPoints()
 	half.slot = AS:CreateSettingSlot(half.label)
 
-	half.tag = frame:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-	AS:SetFont(half.tag, "body", tokens.font.tagSize)
-	half.tag:Hide()
+	local dot = frame:CreateTexture(nil, "ARTWORK")
+	dot:SetSize(tokens.size.inheritDot, tokens.size.inheritDot)
+	dot:SetColorTexture(1, 1, 1, 1)
+	local mask = frame:CreateMaskTexture()
+	mask:SetTexture("Interface\\CharacterFrame\\TempPortraitAlphaMask", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+	mask:SetAllPoints(dot)
+	dot:AddMaskTexture(mask)
+	dot:Hide()
+	half.dot = dot
+
+	local dotHover = CreateFrame("Frame", nil, frame)
+	dotHover:SetSize(tokens.size.useShared, tokens.size.useShared)
+	dotHover:SetPoint("CENTER", dot, "CENTER")
+	dotHover:SetMouseMotionEnabled(true)
+	dotHover:SetMouseClickEnabled(false)
+	dotHover:SetScript("OnEnter", function()
+		local custom = half.slot:Custom()
+		if custom ~= nil then
+			AS.Tooltip:Show(dotHover, { { custom and L["Custom"] or L["Shared"], tokens.color.text } })
+		end
+	end)
+	dotHover:SetScript("OnLeave", function()
+		AS.Tooltip:Hide(dotHover)
+	end)
+	dotHover:Hide()
+	half.dotHover = dotHover
 
 	local button = CreateFrame("Button", nil, frame)
 	button:SetSize(tokens.size.useShared, tokens.size.useShared)
@@ -104,7 +157,41 @@ local function CreateHalf(frame)
 	button:Hide()
 	half.useShared = button
 
+	-- The half takes motion only, so clicks and the mouse wheel reach the controls and the list.
+	frame:SetMouseMotionEnabled(true)
+	frame:SetMouseClickEnabled(false)
+	half:WatchHover(frame)
+
 	return half
+end
+
+---Moves the hover band to this half when the cursor enters `frame` or any frame inside it, and takes it away when
+---the cursor leaves the half. Every frame is hooked, whether or not it takes the mouse yet; a script runs only on
+---a frame that does.
+---@param frame Frame
+function Half:WatchHover(frame)
+	if self.watched[frame] then
+		return
+	end
+	self.watched[frame] = true
+
+	frame:HookScript("OnEnter", function()
+		EnterHalf(self)
+	end)
+	frame:HookScript("OnLeave", function()
+		LeaveHalf(self)
+	end)
+	for _, child in ipairs({ frame:GetChildren() }) do
+		self:WatchHover(child)
+	end
+end
+
+---Hides the half's hover band if it shows.
+function Half:ClearHover()
+	if hovered == self then
+		hovered = nil
+	end
+	self.hover:Hide()
 end
 
 ---@param kind string
@@ -117,17 +204,18 @@ function Half:Control(kind)
 		control = CreateFrame(definition.frameType, nil, self.frame, definition.template)
 		control:SetPoint("RIGHT", self.frame, "RIGHT", -tokens.space.rowInset, 0)
 		self.controls[kind] = control
-		self.frame:GetParent():WatchHover(control)
+		self:WatchHover(control)
 	end
 
 	return control
 end
 
----Shows the control for the setting's kind, lays out the label, and binds the setting through the slot.
+---Shows the control for the setting's kind, lays out the dot and label, and binds the setting through the slot.
 ---@param setting AeonSettingsSetting
 ---@param pageID string
 ---@param window table
-function Half:Bind(setting, pageID, window)
+---@param indent boolean? the row sits one level in
+function Half:Bind(setting, pageID, window, indent)
 	local control = self:Control(setting.control)
 	for kind, other in pairs(self.controls) do
 		other:SetShown(kind == setting.control)
@@ -138,12 +226,24 @@ function Half:Bind(setting, pageID, window)
 	label:SetDescription(setting.description)
 	label:SetShown(setting.label ~= nil)
 
+	local left = tokens.space.rowInset + (indent and tokens.space.indent or 0)
+	self.dot:ClearAllPoints()
+	self.dot:SetPoint("LEFT", self.frame, "LEFT", left, 0)
+	if setting.inherit then
+		left = left + tokens.size.inheritDot + tokens.space.dotToLabel
+	end
+
+	-- An inheriting setting keeps room for Use Shared, so the label does not change length when it shows.
+	local useShared = self.useShared
+	useShared:ClearAllPoints()
+	useShared:SetPoint("RIGHT", control, "LEFT", -tokens.space.labelToControl, 0)
+
 	local text = label.text
 	text:ClearAllPoints()
 	text:SetJustifyH("LEFT")
-	text:SetPoint("LEFT", self.frame, "LEFT", tokens.space.rowInset, 0)
+	text:SetPoint("LEFT", self.frame, "LEFT", left, 0)
 	if setting.inherit then
-		text:SetPoint("RIGHT", self.tag, "LEFT", -tokens.space.gap, 0)
+		text:SetPoint("RIGHT", useShared, "LEFT", -tokens.space.tagGap, 0)
 	else
 		text:SetPoint("RIGHT", control, "LEFT", -tokens.space.labelToControl, 0)
 	end
@@ -152,34 +252,25 @@ function Half:Bind(setting, pageID, window)
 	self:RefreshInherit()
 end
 
----Shows an inheriting setting's Shared or Custom tag, and the Use Shared button while Custom, both dimmed
----with the control.
+---Shows an inheriting setting's dot, gray while Shared and bronze while Custom, and, while Custom and the cursor is
+---over the half, the Use Shared button; both dim with the control.
 function Half:RefreshInherit()
 	local custom, control = self.slot:Custom(), self.slot.control
-	local tag, button = self.tag, self.useShared
+	local dot, button = self.dot, self.useShared
 
-	tag:SetShown(custom ~= nil)
-	button:SetShown(custom == true)
+	dot:SetShown(custom ~= nil)
+	self.dotHover:SetShown(custom ~= nil)
+	button:SetShown(custom == true and hovered == self)
 	if custom == nil or not control then
 		return
 	end
 
 	local enabled = control.enabled ~= false
-	tag:SetText(custom and L["Custom"] or L["Shared"])
-	tag:SetTextColor(unpack(custom and tokens.color.notice or tokens.color.neutral))
-	tag:SetAlpha(enabled and 1 or tokens.alpha.inactive)
+	dot:SetVertexColor(unpack(custom and tokens.color.accent or tokens.color.neutral))
+	dot:SetAlpha(enabled and 1 or tokens.alpha.inactive)
 	button:SetEnabled(enabled)
 	button.Icon:SetDesaturated(not enabled)
 	button.Icon:SetAlpha(enabled and 1 or tokens.alpha.inactive)
-
-	tag:ClearAllPoints()
-	if custom then
-		button:ClearAllPoints()
-		button:SetPoint("RIGHT", control, "LEFT", -tokens.space.labelToControl, 0)
-		tag:SetPoint("RIGHT", button, "LEFT", -tokens.space.tagGap, 0)
-	else
-		tag:SetPoint("RIGHT", control, "LEFT", -tokens.space.labelToControl, 0)
-	end
 end
 
 ---Re-applies the active state, then the inheritance tag.
@@ -191,10 +282,13 @@ end
 function Half:Release()
 	AS.Tooltip:Hide(self.label.hover)
 	AS.Tooltip:Hide(self.useShared)
+	AS.Tooltip:Hide(self.dotHover)
 	AS:HideOutline(self.outline)
-	self.tag:Hide()
+	self.dot:Hide()
+	self.dotHover:Hide()
 	self.useShared:Hide()
 	self.slot:Release()
+	self:ClearHover()
 end
 
 -- Row ------------------------------------------------------------------------------------------------------
@@ -202,43 +296,19 @@ end
 AeonUISettings_SettingRowMixin = {}
 
 function AeonUISettings_SettingRowMixin:OnLoad()
-	self.surface = AS:CreateSurface(self)
 	self.halves = { CreateHalf(self.First), CreateHalf(self.Second) }
 	self.Band:SetColorTexture(0, 0, 0, 1)
-	self.Hover:SetColorTexture(1, 1, 1, tokens.alpha.rowHover)
 	local divider = tokens.color.text
 	self.Divider:SetColorTexture(divider[1], divider[2], divider[3], tokens.alpha.divider)
-
-	-- The row takes motion only, so clicks and the mouse wheel reach the controls and the list.
-	self:SetMouseMotionEnabled(true)
-	self:SetMouseClickEnabled(false)
-	self.watched = setmetatable({}, { __mode = "k" })
-	self:WatchHover(self)
+	self.Guide:SetColorTexture(divider[1], divider[2], divider[3], tokens.alpha.guide)
+	self.Guide:SetPoint("TOP", self, "TOPLEFT", tokens.space.rowInset + tokens.space.guide, 0)
+	self.Guide:SetPoint("BOTTOM", self, "BOTTOMLEFT", tokens.space.rowInset + tokens.space.guide, 0)
 end
 
----Shows the hover band while the cursor is over the row, its controls included.
-function AeonUISettings_SettingRowMixin:RefreshHover()
-	self.Hover:SetShown(self:IsVisible() and self:IsMouseOver())
-end
-
----Refreshes the hover band whenever the cursor enters or leaves `frame` or any frame inside it that takes the
----mouse, since leaving the row's own region for one of them, or for the list outside, reaches only that frame.
----@param frame Frame
-function AeonUISettings_SettingRowMixin:WatchHover(frame)
-	if self.watched[frame] then
-		return
-	end
-	self.watched[frame] = true
-
-	if frame ~= self and (frame:IsMouseEnabled() or frame:IsMouseMotionEnabled()) then
-		local refresh = function()
-			self:RefreshHover()
-		end
-		frame:HookScript("OnEnter", refresh)
-		frame:HookScript("OnLeave", refresh)
-	end
-	for _, child in ipairs({ frame:GetChildren() }) do
-		self:WatchHover(child)
+---Hides both halves' hover bands.
+function AeonUISettings_SettingRowMixin:ClearHover()
+	for _, half in ipairs(self.halves) do
+		half:ClearHover()
 	end
 end
 
@@ -248,18 +318,8 @@ function AeonUISettings_SettingRowMixin:Init(entry, window)
 	local settings = AeonUISettings_SettingRowMixin.Settings(entry.data)
 	local split = #settings > 1
 
-	self.surface:SetShape(entry.onSurface and (entry.last and "LAST_ROW" or "ROW") or "NONE")
-
-	local inset = entry.onSurface and SURFACE_INSET or 0
 	local even = (entry.position or 1) % 2 == 0
-	self.Band:ClearAllPoints()
-	self.Band:SetPoint("TOPLEFT", inset, 0)
-	self.Band:SetPoint("BOTTOMRIGHT", -inset, entry.last and inset or 0)
 	self.Band:SetAlpha(even and tokens.alpha.bandEven or tokens.alpha.bandOdd)
-	self.Hover:ClearAllPoints()
-	self.Hover:SetPoint("TOPLEFT", inset, 0)
-	self.Hover:SetPoint("BOTTOMRIGHT", -inset, entry.last and inset or 0)
-	self:RefreshHover()
 
 	self.Divider:SetShown(split)
 	self.First:ClearAllPoints()
@@ -270,9 +330,18 @@ function AeonUISettings_SettingRowMixin:Init(entry, window)
 	self.Second:SetPoint("BOTTOMRIGHT")
 	self.Second:SetShown(split)
 
-	self.halves[1]:Bind(settings[1], entry.pageID, window)
+	-- Each half's hover band covers its half.
+	local first, second = self.halves[1].hover, self.halves[2].hover
+	first:ClearAllPoints()
+	first:SetAllPoints(self.First)
+	second:ClearAllPoints()
+	second:SetAllPoints(self.Second)
+
+	-- An indented row's labels move in a level; a guide line runs down its left, joining the indented rows below.
+	self.Guide:SetShown(entry.indent == true)
+	self.halves[1]:Bind(settings[1], entry.pageID, window, entry.indent)
 	if split then
-		self.halves[2]:Bind(settings[2], entry.pageID, window)
+		self.halves[2]:Bind(settings[2], entry.pageID, window, entry.indent)
 	else
 		self.halves[2]:Release()
 	end

@@ -1,4 +1,4 @@
--- Section header: the top of a section panel, with its title and, on a collapsible group, a plus/minus.
+-- Section header: a section's title with its bar and divider and, on a collapsible group, a plus/minus.
 local _, ns = ...
 local AS = ns.AeonSettings
 local tokens = AS.tokens
@@ -13,11 +13,10 @@ local ACTION_TO_TOGGLE = 10
 AeonUISettings_SectionHeaderMixin = {}
 
 function AeonUISettings_SectionHeaderMixin:OnLoad()
-	self.surface = AS:CreateSurface(self)
 	AS:SetFont(self.Title, "header")
 	self.Title:SetTextColor(unpack(tokens.color.sectionTitle))
 
-	-- The section gap above the surface takes no clicks.
+	-- The section gap above the header takes no clicks.
 	self:SetHitRectInsets(0, 0, tokens.space.sectionGap, 0)
 
 	self.titleCenter, self.toggleLift = AS:HeaderLayout()
@@ -26,6 +25,7 @@ function AeonUISettings_SectionHeaderMixin:OnLoad()
 	self.Title:ClearAllPoints()
 	self.Title:SetPoint("LEFT", self, "TOPLEFT", inset, -self.titleCenter)
 	self.bar = AS:CreateHeaderBar(self, self.Title)
+	self.divider = AS:CreateHeaderDivider(self)
 	self.Toggle:ClearAllPoints()
 	self.Toggle:SetPoint("RIGHT", self, "TOPRIGHT", -inset, -self.titleCenter + self.toggleLift)
 
@@ -48,7 +48,6 @@ function AeonUISettings_SectionHeaderMixin:Init(entry, window)
 	self.window = window
 	self.entry = entry
 
-	self.surface:SetShape((entry.collapsed or entry.empty) and "CLOSED_HEADER" or "HEADER")
 	self.Title:SetText(data.title)
 
 	local collapsible = data.collapsible == true

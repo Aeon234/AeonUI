@@ -3,12 +3,12 @@
 		<Size y="36"/>
 		<Layers>
 			<Layer level="BACKGROUND" textureSubLevel="0">
-				<Texture parentKey="Band"/>
-			</Layer>
-			<Layer level="BACKGROUND" textureSubLevel="1">
-				<Texture parentKey="Hover" hidden="true"/>
+				<Texture parentKey="Band" setAllPoints="true"/>
 			</Layer>
 			<Layer level="ARTWORK">
+				<Texture parentKey="Guide" hidden="true">
+					<Size x="1"/>
+				</Texture>
 				<Texture parentKey="Divider" hidden="true">
 					<Size x="1"/>
 					<Anchors>
@@ -24,9 +24,7 @@
 		</Frames>
 		<Scripts>
 			<OnLoad method="OnLoad"/>
-			<OnEnter method="RefreshHover"/>
-			<OnLeave method="RefreshHover"/>
-			<OnHide method="RefreshHover"/>
+			<OnHide method="ClearHover"/>
 		</Scripts>
 	</Frame>
 </Ui>

@@ -14,7 +14,7 @@
 	<Script file="Locale\zhTW.lua"/>
 	<Script file="Tooltip.lua"/>
 	<Script file="Label.lua"/>
-	<Script file="Surface.lua"/>
+	<Script file="Header.lua"/>
 	<Script file="Outline.lua"/>
 	<Script file="Control.lua"/>
 	<Script file="SettingSlot.lua"/>

@@ -13,6 +13,7 @@ AS.tokens = {
 		sectionTitle = { 0.96, 0.91, 0.82 },
 		speakerIcon = { 0.85, 0.85, 0.85 },
 		flash = { 1, 0.82, 0 },
+		contentFill = { 0.149, 0.102, 0.063 },
 	},
 	alpha = {
 		inactive = 0.5,
@@ -22,11 +23,11 @@ AS.tokens = {
 		bandEven = 0.18,
 		divider = 0.12,
 		rowHover = 0.05,
+		guide = 0.15,
 	},
 	font = {
 		bodySize = 14,
 		headerSize = 16,
-		tagSize = 12,
 		shadowOffset = { 1, -1 },
 	},
 	space = {
@@ -45,6 +46,9 @@ AS.tokens = {
 		speakerGap = 4,
 		tagGap = 4,
 		headerBarToTitle = 8,
+		indent = 16,
+		guide = 6,
+		dotToLabel = 6,
 	},
 	size = {
 		row = 36,
@@ -61,6 +65,7 @@ AS.tokens = {
 		speakerIcon = 20,
 		useShared = 16,
 		headerBar = 2,
+		inheritDot = 6,
 	},
 	motion = {
 		slide = 0.20,

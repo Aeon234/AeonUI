@@ -35,8 +35,6 @@ AeonUISettings_PreviewPanelMixin = {}
 
 function AeonUISettings_PreviewPanelMixin:OnLoad()
 	local band = self.Band
-	self.bandSurface = AS:CreateSurface(band)
-	self.bodySurface = AS:CreateSurface(self.Body)
 	self.hits = {}
 	self.activeHits = 0
 
@@ -50,6 +48,7 @@ function AeonUISettings_PreviewPanelMixin:OnLoad()
 	band.Title:ClearAllPoints()
 	band.Title:SetPoint("LEFT", band, "TOPLEFT", inset, -titleCenter)
 	AS:CreateHeaderBar(band, band.Title)
+	AS:CreateHeaderDivider(band)
 
 	band.Toggle:ClearAllPoints()
 	band.Toggle:SetPoint("RIGHT", band, "TOPRIGHT", -inset, -titleCenter + toggleLift)
@@ -119,7 +118,6 @@ function AeonUISettings_PreviewPanelMixin:Setup(window, page, hidden, state, fad
 	end
 
 	if hidden then
-		self.bandSurface:SetShape("CLOSED_HEADER")
 		self.Body:Hide()
 		self:ReleaseHits()
 		self:SetHeight(row)
@@ -127,7 +125,6 @@ function AeonUISettings_PreviewPanelMixin:Setup(window, page, hidden, state, fad
 		return row
 	end
 
-	self.bandSurface:SetShape("HEADER")
 	self.Body:Show()
 
 	local preview = page.preview
@@ -153,7 +150,6 @@ function AeonUISettings_PreviewPanelMixin:Setup(window, page, hidden, state, fad
 	self:SetHeight(panelHeight)
 	local bodyHeight = panelHeight - row - tokens.space.sectionGap
 	self.Body:SetHeight(bodyHeight)
-	self.bodySurface:SetShape("BODY", bodyHeight)
 
 	sample:SetScale(scale)
 	sample:SetSize(width, height)

@@ -19,7 +19,7 @@
     },
     {
       "path": "AeonSettings.xml",
-      "sha256": "c72234f567001eccf0f91baa1cb2f8fca01bebbb434c4cd05daa51acd5f4b3f7",
+      "sha256": "b04a8011ac2d9ff0268c460c83e43ce210e257576e470a3b0bd593647a19852f",
       "transformed": false
     },
     {
@@ -75,6 +75,11 @@
     {
       "path": "DropdownChoices.lua",
       "sha256": "b65a79fce381f21e6510846141c70fda60af1ccd52e52fe1b969337aa55879b3",
+      "transformed": false
+    },
+    {
+      "path": "Header.lua",
+      "sha256": "b25e57a9c2b32071930c6dadfccf0bbf02fc3f2bafeb4632797d0b8be80a4a28",
       "transformed": false
     },
     {
@@ -148,11 +153,6 @@
       "transformed": false
     },
     {
-      "path": "Media/SectionHeader/Surface.png",
-      "sha256": "6fa85d537ddef3d957d6cafd987d64b7af88a2b76b7e79a7bbe9d8970b0862c0",
-      "transformed": false
-    },
-    {
       "path": "Media/Tab/Base.png",
       "sha256": "efc8a3999129261471d52d5c6a9503d39fa35d69154c3dc020f21af16e94bf66",
       "transformed": false
@@ -179,22 +179,22 @@
     },
     {
       "path": "PageModel.lua",
-      "sha256": "fa8f77bd1c72ee89ba5bf4dc05862090172a2c3830ebac32f1073445bc7a6bfe",
+      "sha256": "1b469755c16127e0d7652a822dced1548025a3d7583d2b3a2934901b2f5b8b23",
       "transformed": false
     },
     {
       "path": "Picker.lua",
-      "sha256": "f05c304c90c95d27d58c2cf23e263266fbd9c3d61a3a20cdfffecdbba4b48ae0",
+      "sha256": "53bca822388780026a2fdc02eb93fee051838ee540496ad56dc5f2edce8bb1ab",
       "transformed": true
     },
     {
       "path": "Picker.xml",
-      "sha256": "1c277e8e358582b5b303b91cd4da91ba6b27ec9472f525d8ca307206aa47de5c",
+      "sha256": "fdfe4082b8e633dc5356833260033cf9307d27f240bc8fa02a494eaadbbe0d0f",
       "transformed": true
     },
     {
       "path": "Preview.lua",
-      "sha256": "3b0b8a5fd60bb564f27324e93ca0f275d4c2e37d8f11b59c9ad28383ba047563",
+      "sha256": "ffea95a244b2dba8366e982c3cc21014ebf18e8ae0e37bdd07518e88ad70a09b",
       "transformed": true
     },
     {
@@ -219,17 +219,17 @@
     },
     {
       "path": "Row.lua",
-      "sha256": "7d7d03332f97808edba6098f8af6b1dc1e7a072a7f93ee2b43c17f3a37db6812",
+      "sha256": "623b0d5ae03a03e9aa139ffef533de571b11529094b31e8477ffdbfb20f1c22e",
       "transformed": true
     },
     {
       "path": "Row.xml",
-      "sha256": "ab5743c7f4b528b7326d1bd7d7831a21bb0a9e83952f471c7d25b840dc822465",
+      "sha256": "81c36ccee3d38317726c2be00edc4d7cdf3ac6fce06452028a57cd83b24f9688",
       "transformed": true
     },
     {
       "path": "Section.lua",
-      "sha256": "3f4658d95806e4cb5f26d0dcb772ba4f8796d4d8af1828403be104b261e5d46b",
+      "sha256": "77e04e17d36dcda13f37bf1037234bb1aedc6fe0fd02152e8c4a7e701e5d2452",
       "transformed": true
     },
     {
@@ -263,11 +263,6 @@
       "transformed": true
     },
     {
-      "path": "Surface.lua",
-      "sha256": "9ce2b2887861517e5c052f6eb698f155e265370bbf49ea7f0dd3838649da15f2",
-      "transformed": false
-    },
-    {
       "path": "TextInput.lua",
       "sha256": "f5d760cf2656af8b3cf2f696b63152439753c2ecd3c3c7df8a2ecbc9fbd61b8d",
       "transformed": true
@@ -289,7 +284,7 @@
     },
     {
       "path": "Tokens.lua",
-      "sha256": "66ed28fe2075a4cf958bfef9482cb75288d221e49133a1f2198d0e701f828325",
+      "sha256": "bd0f2f1df70038bb91ca561ae35cb25053d7cd0fdcf67eee7179eca86e48d83d",
       "transformed": false
     },
     {
@@ -299,12 +294,12 @@
     },
     {
       "path": "Window.lua",
-      "sha256": "9b0f18a449ee32c30a107d71a6ce0f3d4be4e0b6316725b47f37fdecd700969e",
+      "sha256": "cbd10c4f821698b49e3821a8b155b61371f6dda8e17ed58cd2cc9981ee7230c6",
       "transformed": true
     },
     {
       "path": "Window.xml",
-      "sha256": "2a577784d27c25e9da5a07ce12ee3218b08268ff03775d8057becdb6c2c1a26b",
+      "sha256": "52ae28bca1f025e7adfeeccb76493ac094d8a6a63d98c05497ba488f54ec635f",
       "transformed": true
     }
   ]
