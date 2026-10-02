@@ -23,7 +23,8 @@ local TITLE_X = 7
 local JUMP_GAP = 8
 local JUMP_WIDTH = 25
 local JUMP_MIN_SECTIONS = 3
-local JUMP_FLASH_DELAY = 0.25
+local JUMP_FLASH_DELAY = 0.15
+local FIND_TOP_GAP = 40 -- a found setting's section header lands this far below the list's top
 local VERSION_COLOR = "|cff9d9d9d"
 
 -- Options_InnerFrame nine-slice insets, in atlas pixels drawn at one UI unit each.
@@ -906,11 +907,12 @@ function AeonUISettings_WindowMixin:CancelSmoothScroll()
 	self.Page.ScrollBar:SetInterpolateScroll(false)
 end
 
----Scrolls smoothly until the entry at `index` is at the top of the list, then calls `onArrive` after the
+---Scrolls smoothly until the entry at `index` is `gap` below the list's top, then calls `onArrive` after the
 ---flash delay, unless another smooth scroll, a page change or a search has happened since.
 ---@param index integer
 ---@param onArrive fun()
-function AeonUISettings_WindowMixin:SmoothScrollTo(index, onArrive)
+---@param gap number? distance from the list's top; 0 when nil
+function AeonUISettings_WindowMixin:SmoothScrollTo(index, onArrive, gap)
 	local scrollBox = self.Page.ScrollBox
 	local scrollBar = self.Page.ScrollBar
 	self.scrollGeneration = self.scrollGeneration + 1
@@ -919,7 +921,7 @@ function AeonUISettings_WindowMixin:SmoothScrollTo(index, onArrive)
 
 	scrollBox:SetInterpolateScroll(true)
 	scrollBar:SetInterpolateScroll(true)
-	scrollBox:ScrollToElementDataIndex(index, ScrollBoxConstants.AlignBegin)
+	scrollBox:ScrollToElementDataIndex(index, ScrollBoxConstants.AlignBegin, gap)
 
 	C_Timer.After(JUMP_FLASH_DELAY, function()
 		if generation ~= self.scrollGeneration then
@@ -934,8 +936,8 @@ function AeonUISettings_WindowMixin:SmoothScrollTo(index, onArrive)
 	end)
 end
 
----Finds a setting from the preview: opens its collapsed group, scrolls its section header to the top, then
----flashes its row, or its half of a split row, if the row is on screen.
+---Finds a setting from the preview: opens its collapsed group, scrolls its section header to just below the
+---list's top, then flashes its row, or its half of a split row, if the row is on screen.
 ---@param settingID string
 function AeonUISettings_WindowMixin:FindSetting(settingID)
 	local page = self:CurrentPage()
@@ -961,7 +963,7 @@ function AeonUISettings_WindowMixin:FindSetting(settingID)
 		if frame and kind and kind.Flash then
 			AS:CallHost(nil, kind.Flash, frame, settingID)
 		end
-	end)
+	end, FIND_TOP_GAP)
 end
 
 -- Search ----------------------------------------------------------------------------------------------------

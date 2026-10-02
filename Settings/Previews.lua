@@ -91,6 +91,7 @@ local POWER_STATES = {
 ---fixed sample values. The copies are ordinary frames, never secure ones.
 ---@class AUISettingsPreviews
 ---@field samples table<string, table> each sample's frame and regions by page and slot, created on first draw
+---@field picked string? the frame whose text slot was last picked in its preview; cleared on a page change
 local Previews = {
 	samples = {},
 }
@@ -757,6 +758,7 @@ local function Preview(key, states, stateKey)
 			local window = AUI.Settings.window
 
 			if type(index) == "number" and window then
+				Previews.picked = key
 				AUI.SettingsText:Choose(key, index)
 				window:SetPreviewChosen(index)
 				window:RefreshPage()
@@ -802,7 +804,8 @@ local function Preview(key, states, stateKey)
 
 			local window = AUI.Settings.window
 
-			if window then
+			-- The outline follows the edited slot only once a slot has been picked in the sample.
+			if window and Previews.picked == key then
 				window:SetPreviewChosen(AUI.SettingsText:Chosen(key))
 			end
 

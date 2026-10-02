@@ -57,6 +57,9 @@ function Settings:Create()
 		onClose = function()
 			AUI.Editor:OnSettingsHidden()
 		end,
+		onPageChanged = function()
+			AUI.SettingsPreviews.picked = nil
+		end,
 	})
 
 	self.window = window
