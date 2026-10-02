@@ -26,9 +26,8 @@ local MAX_DEPTH = 32
 ---@field order string[] field paths in declaration order
 ---@field branches table<string, true> every path that is a table on the way to a field
 ---@field choices table<string, string[]> each choice list in display order
----@field upgrades table<integer, fun(config: table)> step from the keyed version to the next
 local Schema = {
-	VERSION = 2,
+	VERSION = 1,
 	textSlots = {
 		player = 4,
 		pet = 3,
@@ -84,8 +83,9 @@ local Schema = {
 		classPowerAttach = { "power", "screen" },
 		auraSort = { "stable", "shortest", "yours", "blizzard", "importance", "name" },
 		auraCorner = { "BOTTOMRIGHT", "BOTTOMLEFT", "TOPRIGHT", "TOPLEFT", "CENTER" },
+		healthMode = { "classReaction", "custom", "classic", "stops", "classFade" },
+		healthBackground = { "custom", "classReaction" },
 	},
-	upgrades = {},
 }
 AUI.Schema = Schema
 
@@ -222,6 +222,37 @@ Number("auras.durationSize", 10, 6, 32, true)
 Choice("auras.countCorner", "auraCorner", "BOTTOMRIGHT")
 Number("auras.countSize", 14, 6, 32, true)
 
+-- The health color look, as paths under a frame's `health.`.
+local HEALTH_LOOK = {
+	"mode", "color", "stops.full", "stops.half", "stops.empty", "gradient", "gradientDirection", "gradientColor",
+	"background", "fillAlpha", "deadBackground", "deadColor", "dark", "darkFill", "darkBackground",
+}
+
+Choice("health.mode", "healthMode", "classReaction")
+Color("health.color", { r = 0.192, g = 0.812, b = 0.145 })
+Color("health.stops.full", { r = 0, g = 1, b = 0 })
+Color("health.stops.half", { r = 0.925, g = 0.925, b = 0.196 })
+Color("health.stops.empty", { r = 0.890, g = 0.188, b = 0.188 })
+Boolean("health.gradient", false)
+Choice("health.gradientDirection", "orientation", "HORIZONTAL")
+Color("health.gradientColor", { r = 0.1, g = 0.1, b = 0.1, a = 1 })
+Choice("health.background", "healthBackground", "custom")
+Number("health.fillAlpha", 100, 0, 100, true)
+Boolean("health.deadBackground", false)
+Color("health.deadColor", { r = 0.35, g = 0.05, b = 0.05, a = 1 })
+Boolean("health.dark", false)
+Color("health.darkFill", { r = 0.067, g = 0.067, b = 0.067, a = 0.9 })
+Color("health.darkBackground", { r = 0.31, g = 0.31, b = 0.31, a = 1 })
+
+-- Game-state health colors, on Globals only. A reaction color left unset uses Blizzard's.
+Boolean("health.tapped", true)
+Color("health.tappedColor", { r = 0.6, g = 0.6, b = 0.6 })
+Boolean("health.disconnected", true)
+Color("health.disconnectedColor", { r = 0.6, g = 0.6, b = 0.6 })
+Color("health.reaction.hostile", nil)
+Color("health.reaction.neutral", nil)
+Color("health.reaction.friendly", nil)
+
 String("overlays.textures.absorb", "flat", 64)
 String("overlays.textures.healAbsorb", "flat", 64)
 String("overlays.textures.healPrediction", "flat", 64)
@@ -237,6 +268,7 @@ Color("overlays.colors.healPrediction", { r = 0.251, g = 1, b = 0.251, a = 1 })
 
 Schema.CASTBAR_LOOK = CASTBAR_LOOK
 Schema.AURA_LOOK = AURA_LOOK
+Schema.HEALTH_LOOK = HEALTH_LOOK
 
 -- Frames -----------------------------------------------------------------------------------------------------
 
@@ -354,6 +386,14 @@ local function Overlays(key)
 	Boolean(base .. "absorb.glow", false)
 	Number(base .. "healAbsorb.backing", 0, 0, 100, true)
 	Number(base .. "healPrediction.overheal", 0, 0, 50, true)
+end
+
+---A frame's health colors, following the shared ones.
+---@param key string
+local function HealthColors(key)
+	for _, name in ipairs(HEALTH_LOOK) do
+		Inherit("frames." .. key .. ".health." .. name, "health." .. name)
+	end
 end
 
 ---An optional power bar attached under a frame's health.
@@ -532,6 +572,7 @@ Geometry("player", 270, 36, 16, -330, -200)
 Boolean("frames.player.hideBlizzard", true)
 Boolean("frames.player.reverse", false)
 Bars("player", true, false)
+HealthColors("player")
 Overlays("player")
 CastBar("player", { width = 386, x = 0, y = -254, icon = false, target = false })
 Auras("player", Buffs(false), { enabled = false, anchor = "belowLeft", growth = "right", limit = 10, filter = "all" })
@@ -555,6 +596,7 @@ Geometry("target", 270, 36, 16, 330, -200)
 Boolean("frames.target.hideBlizzard", true)
 Boolean("frames.target.reverse", true)
 Bars("target", true, true)
+HealthColors("target")
 AttachedPower("target")
 Overlays("target")
 CastBar("target", { width = 270, x = 0, y = 0, icon = true, target = true, side = "below" })
@@ -577,6 +619,7 @@ Geometry("pet", 120, 24, 16, -405, -234)
 Boolean("frames.pet.hideBlizzard", true)
 Boolean("frames.pet.reverse", false)
 Bars("pet", true, true)
+HealthColors("pet")
 AttachedPower("pet")
 TextFields("pet", 0, true, NAME_ONLY)
 Indicator("pet", "raid", true, 14, "RIGHT", "outside", 2)
@@ -586,6 +629,7 @@ Tooltip("pet")
 Geometry("targettarget", 120, 24, 16, 533, -206)
 Boolean("frames.targettarget.reverse", false)
 Bars("targettarget", true, true)
+HealthColors("targettarget")
 AttachedPower("targettarget")
 TextFields("targettarget", 0, true, NAME_ONLY)
 Indicator("targettarget", "raid", true, 14, "RIGHT", "outside", 2)
@@ -595,6 +639,7 @@ Geometry("focus", 200, 24, 16, -330, -140)
 Boolean("frames.focus.hideBlizzard", true)
 Boolean("frames.focus.reverse", false)
 Bars("focus", true, true)
+HealthColors("focus")
 AttachedPower("focus")
 Overlays("focus")
 CastBar("focus", { width = 200, x = 0, y = 0, icon = false, target = true, side = "above" })
@@ -613,6 +658,7 @@ Choice("frames.boss.growth", "growth", "down")
 Number("frames.boss.spacing", 14, 0, 100, true)
 Boolean("frames.boss.reverse", false)
 Bars("boss", true, true)
+HealthColors("boss")
 AttachedPower("boss")
 Overlays("boss")
 CastBar("boss", { width = 200, x = 0, y = 0, icon = true, target = false, side = "below" })
@@ -908,105 +954,6 @@ function Schema:Clear(config, path)
 	if type(parent) == "table" then
 		parent[key or path] = nil
 	end
-end
-
----@param a any
----@param b any
----@return boolean equal the same plain value, tables compared by content
-local function SameValue(a, b)
-	if type(a) ~= "table" or type(b) ~= "table" then
-		return a == b
-	end
-
-	for key, value in pairs(a) do
-		if not SameValue(value, b[key]) then
-			return false
-		end
-	end
-
-	for key in pairs(b) do
-		if a[key] == nil then
-			return false
-		end
-	end
-
-	return true
-end
-
--- Version 1 stored every frame's appearance; version 2 lets a frame follow the shared appearance. Each frame value
--- equal to its version 1 default is removed so the frame follows the shared one. Keyed by the path under a frame.
-local V1_DEFAULTS = {
-	["text.font"] = "Expressway",
-	["text.size"] = 12,
-	["text.outline"] = "SLUG_OUTLINE",
-	["text.color"] = { r = 1, g = 1, b = 1 },
-	["castbar.texture"] = "flat",
-	["castbar.color"] = { r = 1, g = 0.71, b = 0.192 },
-	["castbar.gradient"] = true,
-	["castbar.gradientColor"] = { r = 1, g = 0.682, b = 0.224 },
-	["castbar.gradientDirection"] = "HORIZONTAL",
-	["castbar.classColor"] = false,
-	["castbar.background"] = { r = 1, g = 1, b = 1, a = 0.5 },
-	["castbar.border"] = 1,
-	["castbar.spark"] = true,
-	["castbar.smooth"] = true,
-	["castbar.outline"] = "SLUG",
-	["castbar.shadow"] = true,
-	["castbar.notInterruptible"] = { r = 0.8, g = 0.1, b = 0.1 },
-	["castbar.interrupted"] = { r = 0.8, g = 0.1, b = 0.1 },
-	["castbar.name.size"] = 14,
-	["castbar.name.color"] = { r = 1, g = 1, b = 1 },
-	["castbar.time.size"] = 14,
-	["castbar.time.color"] = { r = 1, g = 1, b = 1 },
-	["castbar.target.size"] = 14,
-	["overlays.absorb.texture"] = "flat",
-	["overlays.healAbsorb.texture"] = "flat",
-	["overlays.healPrediction.texture"] = "flat",
-}
-
-for _, kind in ipairs({ "buffs", "debuffs" }) do
-	V1_DEFAULTS[kind .. ".swipe"] = true
-	V1_DEFAULTS[kind .. ".border"] = true
-	V1_DEFAULTS[kind .. ".duration"] = false
-	V1_DEFAULTS[kind .. ".durationSize"] = 10
-	V1_DEFAULTS[kind .. ".countCorner"] = "BOTTOMRIGHT"
-	V1_DEFAULTS[kind .. ".countSize"] = 14
-end
-
-Schema.upgrades[1] = function(config)
-	if type(config.frames) ~= "table" then
-		return
-	end
-
-	for key in pairs(config.frames) do
-		for path, default in pairs(V1_DEFAULTS) do
-			local full = ("frames.%s.%s"):format(tostring(key), path)
-
-			if SameValue(Lookup(config, full), default) then
-				Schema:Clear(config, full)
-			end
-		end
-	end
-end
-
----Brings a config from an older schema version to this one, in place, one step at a time.
----@param config table
----@param version integer the config's schema version
----@return boolean ok
----@return string? problem
-function Schema:Upgrade(config, version)
-	while version < self.VERSION do
-		local step = self.upgrades[version]
-
-		if not step then
-			return false, ("there is no upgrade from profile schema %d"):format(version)
-		end
-
-		step(config)
-		version = version + 1
-	end
-
-	return true
 end
 
 ---@param config table
