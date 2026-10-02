@@ -399,6 +399,47 @@ local function PortraitSection(key)
 	}
 end
 
+-- The tabs of a frame's page, in order.
+local FRAME_TABS = {
+	{ id = "frame", title = L["Frame"] },
+	{ id = "colors", title = COLORS },
+	{ id = "castBar", title = L["Cast Bar"] },
+	{ id = "auras", title = L["Auras"] },
+	{ id = "text", title = L["Text"] },
+	{ id = "indicators", title = L["Indicators"] },
+}
+
+-- The tab each section of a frame's page shows on, by section id.
+local SECTION_TABS = {
+	layout = "frame",
+	appearance = "frame",
+	portrait = "frame",
+	healthColors = "colors",
+	powerColors = "colors",
+	absorbsAndHeals = "colors",
+	castBar = "castBar",
+	buffs = "auras",
+	debuffs = "auras",
+	text = "text",
+	textSlots = "text",
+	numbers = "text",
+	indicators = "indicators",
+	fading = "indicators",
+}
+
+---Names each section's tab.
+---@param elements table[]
+---@return table[] elements
+local function Tabbed(elements)
+	for _, element in ipairs(elements) do
+		if element.kind == "section" then
+			element.tab = SECTION_TABS[element.id]
+		end
+	end
+
+	return elements
+end
+
 ---@param key string a frame with health
 ---@param switchLabel string
 ---@return table[] elements
@@ -444,7 +485,7 @@ local function UnitPage(key, switchLabel)
 		NumberRow(base .. "numbers."),
 	})
 
-	return elements
+	return Tabbed(elements)
 end
 
 ---@return table[] elements
@@ -454,10 +495,10 @@ local function PowerPage()
 	elements[#elements + 1] = AppearanceSection("playerPower")
 	Append(elements, AUI.SettingsShared:BarRows("frames.playerPower.bars."))
 	Append(elements, PowerSection("playerPower"))
-	Append(elements, AUI.SettingsText:Sections("playerPower"))
 	Append(elements, AUI.SettingsIndicators:FadingSection("playerPower"))
+	Append(elements, AUI.SettingsText:Sections("playerPower"))
 
-	return elements
+	return Tabbed(elements)
 end
 
 -- The frame pages' builders, by frame key.
@@ -496,11 +537,13 @@ end
 ---@param title string
 ---@param scope string|string[]
 ---@param build fun(): table[]
+---@param tabs table[]? the page's tabs; its sections name theirs
 ---@return table page
-local function Page(id, title, scope, build)
+local function Page(id, title, scope, build, tabs)
 	return {
 		id = id,
 		title = title,
+		tabs = tabs,
 		preview = AUI.SettingsPreviews:For(id),
 		Build = build,
 		Reset = function()
@@ -513,13 +556,13 @@ end
 function Pages:UnitFramePages()
 	return {
 		Page("globals", L["Globals"], { "bars", "text", "castbar", "auras", "numbers", "overlays" }, GlobalsPage),
-		Page("player", PLAYER, "frames.player", FRAME_PAGES.player),
-		Page("pet", PET, "frames.pet", FRAME_PAGES.pet),
-		Page("target", TARGET, "frames.target", FRAME_PAGES.target),
-		Page("targettarget", L["Target of Target"], "frames.targettarget", FRAME_PAGES.targettarget),
-		Page("focus", L["Focus"], "frames.focus", FRAME_PAGES.focus),
-		Page("boss", L["Bosses"], "frames.boss", FRAME_PAGES.boss),
-		Page("playerPower", L["Player Power"], "frames.playerPower", FRAME_PAGES.playerPower),
+		Page("player", PLAYER, "frames.player", FRAME_PAGES.player, FRAME_TABS),
+		Page("pet", PET, "frames.pet", FRAME_PAGES.pet, FRAME_TABS),
+		Page("target", TARGET, "frames.target", FRAME_PAGES.target, FRAME_TABS),
+		Page("targettarget", L["Target of Target"], "frames.targettarget", FRAME_PAGES.targettarget, FRAME_TABS),
+		Page("focus", L["Focus"], "frames.focus", FRAME_PAGES.focus, FRAME_TABS),
+		Page("boss", L["Bosses"], "frames.boss", FRAME_PAGES.boss, FRAME_TABS),
+		Page("playerPower", L["Player Power"], "frames.playerPower", FRAME_PAGES.playerPower, FRAME_TABS),
 		Page("classPower", L["Class Resource"], "frames.classPower", function()
 			return AUI.SettingsClassPower:Build()
 		end),

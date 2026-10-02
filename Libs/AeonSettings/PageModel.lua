@@ -1,4 +1,4 @@
--- Page model: each page's built elements, section collapse, setting activity, search and reload tracking.
+-- Page model: each page's built elements, tabs, section collapse, setting activity, search and reload tracking.
 -- Frame-free; the window draws what it returns. Every host function runs through `AS:CallHost`.
 local _, ns = ...
 local AS = ns.AeonSettings
@@ -16,11 +16,13 @@ local NIL_VALUE = {}
 ---@field all table[] every element the page built
 ---@field index table<string, table> the page's settings by id
 ---@field switch table? the page's switch setting
+---@field tabOf table<integer, string>? each element's tab, by full-list index, on a page with `tabs`
+---@field tabs table[]? the page's tabs that hold elements, in the page's order
 ---@field shown AeonSettingsEntry[]? listed entries, in order
 ---@field map table<integer, integer>? full-list index to shown index
 
 ---@class AeonSettingsPageModel
----@field memory table the window's session memory; the model reads and writes `sections` and `initial`
+---@field memory table the window's session memory; the model reads and writes `sections`, `tabs` and `initial`
 ---@field kinds table<string, AeonSettingsElementKind>
 ---@field categories table[]
 ---@field snapshots table<string, AeonSettingsSnapshot> the latest build of each page, by page id
@@ -29,10 +31,12 @@ local PageModel = {}
 PageModel.__index = PageModel
 
 ---Creates a page model.
----@param memory { sections: table<string, table<string, boolean>>, initial: table<string, any> }
+---@param memory { sections: table<string, table<string, boolean>>, tabs: table<string, string>?, initial: table<string, any> }
 ---@param kinds table<string, AeonSettingsElementKind> registered element kinds, read at each build
 ---@return AeonSettingsPageModel
 function AS.CreatePageModel(memory, kinds)
+	memory.tabs = memory.tabs or {}
+
 	return setmetatable({
 		memory = memory,
 		kinds = kinds,
@@ -50,8 +54,44 @@ function PageModel:SetCategories(categories)
 	self.snapshots = {}
 end
 
----Calls the page's `Build()` once, indexes its settings and records reload tracking for each reload-requiring
----setting. The result replaces the page's previous build.
+---Assigns each element of a page with `tabs` to a tab: a section to the tab it names, or to the tab of the section
+---before it when it names none or an unknown one; every other element to its section's tab. Elements before the
+---first section take the first tab.
+---@param pageTabs table[] the page's tabs, `{ id, title }`
+---@param all table[]
+---@param kinds table<string, AeonSettingsElementKind>
+---@return table<integer, string> tabOf
+---@return table[] tabs the tabs that hold elements, in the page's order
+local function AssignTabs(pageTabs, all, kinds)
+	local known, tabOf, used = {}, {}, {}
+	for _, tab in ipairs(pageTabs) do
+		known[tab.id] = true
+	end
+
+	local current = pageTabs[1] and pageTabs[1].id
+	for index, data in ipairs(all) do
+		local kind = kinds[data.kind]
+		if kind and kind.section and known[data.tab] then
+			current = data.tab
+		end
+		if current then
+			tabOf[index] = current
+			used[current] = true
+		end
+	end
+
+	local tabs = {}
+	for _, tab in ipairs(pageTabs) do
+		if used[tab.id] then
+			tabs[#tabs + 1] = tab
+		end
+	end
+
+	return tabOf, tabs
+end
+
+---Calls the page's `Build()` once, indexes its settings, assigns its elements to tabs and records reload tracking
+---for each reload-requiring setting. The result replaces the page's previous build.
 ---@param page table
 ---@return AeonSettingsSnapshot
 function PageModel:Snapshot(page)
@@ -74,13 +114,16 @@ function PageModel:Snapshot(page)
 	end
 
 	local snapshot = { all = all, index = index, switch = switch }
+	if page.tabs then
+		snapshot.tabOf, snapshot.tabs = AssignTabs(page.tabs, all, self.kinds)
+	end
 	self.snapshots[page.id] = snapshot
 
 	return snapshot
 end
 
 ---Lists a page: builds it, or with `reuse` keeps its latest build when there is one, then lays out its entries,
----leaving out the members of collapsed sections.
+---leaving out the members of collapsed sections and, on a page with tabs, every element outside the active tab.
 ---@param page table
 ---@param reuse boolean?
 ---@return AeonSettingsEntry[] entries shown entries in list order
@@ -92,10 +135,11 @@ function PageModel:Build(page, reuse)
 	local kinds = self.kinds
 	local shown, sections, map = {}, {}, {}
 	local hiding, inSection, position = false, false, 0
+	local tabOf, activeTab = snapshot.tabOf, self:ActiveTab(page.id)
 
 	for index, data in ipairs(snapshot.all) do
 		local kind = kinds[data.kind]
-		if kind then
+		if kind and (not tabOf or tabOf[index] == activeTab) then
 			local entry
 			if kind.section then
 				hiding = data.collapsible and collapsed[data.id] == true or false
@@ -126,6 +170,50 @@ function PageModel:Build(page, reuse)
 	snapshot.shown, snapshot.map = shown, map
 
 	return shown, sections, map
+end
+
+---@param pageID string
+---@return table[]? tabs the tabs that hold elements in the page's latest build; nil on a page without tabs
+function PageModel:Tabs(pageID)
+	local snapshot = self.snapshots[pageID]
+
+	return snapshot and snapshot.tabs
+end
+
+---Returns the page's active tab: the one chosen this session while the latest build still has it, otherwise the
+---first.
+---@param pageID string
+---@return string? tabID nil on a page without tabs, or with none that holds elements
+function PageModel:ActiveTab(pageID)
+	local tabs = self:Tabs(pageID)
+	if not tabs or not tabs[1] then
+		return nil
+	end
+
+	local chosen = self.memory.tabs[pageID]
+	for _, tab in ipairs(tabs) do
+		if tab.id == chosen then
+			return chosen
+		end
+	end
+
+	return tabs[1].id
+end
+
+---Chooses a page's tab for the session. Takes effect at the page's next `Build`.
+---@param pageID string
+---@param tabID string
+function PageModel:SetTab(pageID, tabID)
+	self.memory.tabs[pageID] = tabID
+end
+
+---@param pageID string
+---@param index integer index into the page's full element list
+---@return string? tabID the element's tab in the page's latest build; nil on a page without tabs
+function PageModel:TabOf(pageID, index)
+	local snapshot = self.snapshots[pageID]
+
+	return snapshot and snapshot.tabOf and snapshot.tabOf[index]
 end
 
 ---@param pageID string
@@ -216,7 +304,7 @@ end
 ---@param pageID string
 ---@param settingID string
 ---@return integer? index index into the page's full element list
----@return integer? shownIndex its index in the latest layout; nil while its section is collapsed
+---@return integer? shownIndex its index in the latest layout; nil while its section is collapsed or its tab inactive
 ---@return integer? anchor shown index of its section's header, or its own when it is in no section
 function PageModel:Locate(pageID, settingID)
 	local snapshot = self.snapshots[pageID]

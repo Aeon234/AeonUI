@@ -35,6 +35,9 @@ local L = select(2, ...).L
 -- L["Profiles"] = "Profiles"
 -- L["Recovery"] = "Recovery"
 
+-- Unit-frame page tabs (Settings)
+-- L["Frame"] = "Frame"
+
 -- Settings strings on several unit-frame pages (Settings)
 -- L["Layout"] = "Layout"
 -- L["Width"] = "Width"

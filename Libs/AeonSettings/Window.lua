@@ -1,4 +1,4 @@
--- Settings window: chrome, category column, page list, search, bands and session memory.
+-- Settings window: chrome, category column, page tabs and list, search, bands and session memory.
 local _, ns = ...
 local AS = ns.AeonSettings
 local L = AS.L
@@ -25,6 +25,9 @@ local JUMP_WIDTH = 25
 local JUMP_MIN_SECTIONS = 3
 local JUMP_FLASH_DELAY = 0.15
 local FIND_TOP_GAP = 40 -- a found setting's section header lands this far below the list's top
+local TAB_TEMPLATE = "MinimalTabTemplate"
+local TAB_GAP = 5 -- between tabs, as Blizzard's Settings panel spaces its own
+local TAB_TEXT_PADDING = 40 -- MinimalTabTemplate's width beyond its text
 local VERSION_COLOR = "|cff9d9d9d"
 
 -- Options_InnerFrame nine-slice insets, in atlas pixels drawn at one UI unit each.
@@ -122,15 +125,18 @@ StaticPopupDialogs[RESET_POPUP] = {
 ---@field options table creation options
 ---@field categories table[] category definitions
 ---@field pages table<string, table> page definitions by id
----@field memory { page: string?, scroll: table<string, number>, sections: table<string, table<string, boolean>>, initial: table<string, any>, previewHidden: boolean, previewStates: table<string, string> }
+---@field memory { page: string?, scroll: table<string, number>, sections: table<string, table<string, boolean>>, tabs: table<string, string>, initial: table<string, any>, previewHidden: boolean, previewStates: table<string, string> }
 ---`memory.page` is the page the window is on, kept through a search; `memory.scroll` holds each page's scroll
----position from when it was last left.
+---position, per tab, from when it was last left; `memory.tabs` each page's chosen tab.
 ---@field scrollGeneration integer increments with each smooth scroll; a stale scroll's follow-up is dropped
 ---@field reloadPending table<string, true>
 ---@field shownElements AeonSettingsEntry[]? entries in the page list, in order
 ---@field model AeonSettingsPageModel
 ---@field sections AeonSettingsEntry[] section entries of the shown page
 ---@field listPageID string? the page the list shows; nil while it shows search results
+---@field listTabID string? the tab the list shows, on a page with tabs
+---@field tabButtons Button[] the tab bar's buttons, reused across pages
+---@field tabsShown boolean the tab bar shows, taking one row above the list
 ---@field listHeight number height of the list area at the window's size, before any pinned preview
 ---@field initializers table<string, fun(frame: Frame, entry: AeonSettingsEntry)> cached frame initializers by kind
 ---@field pinnedHeight number? height of the preview panel pinned above the list
@@ -140,13 +146,15 @@ AeonUISettings_WindowMixin = {}
 function AeonUISettings_WindowMixin:OnLoad()
 	self.categories = {}
 	self.pages = {}
-	self.memory = { scroll = {}, sections = {}, initial = {}, previewHidden = false, previewStates = {} }
+	self.memory = { scroll = {}, sections = {}, tabs = {}, initial = {}, previewHidden = false, previewStates = {} }
 	self.scrollGeneration = 0
 	self.reloadPending = {}
 	self.sections = {}
 	self.model = AS.CreatePageModel(self.memory, AS.elementKinds)
 	self.searching = false
 	self.initializers = {}
+	self.tabButtons = {}
+	self.tabsShown = false
 
 	self:RegisterForDrag("LeftButton")
 	self:RegisterEvent("PLAYER_REGEN_DISABLED")
@@ -156,6 +164,7 @@ function AeonUISettings_WindowMixin:OnLoad()
 
 	self:BuildInnerFrame()
 	self:InitPageList()
+	self:InitTabBar()
 	self:InitBands()
 	self:InitHeader()
 
@@ -235,6 +244,14 @@ function AeonUISettings_WindowMixin:InitPageList()
 	page.ScrollBar:SetPoint("TOPLEFT", page.ScrollBox, "TOPRIGHT", SCROLLBAR_GAP, 0)
 	page.ScrollBar:SetPoint("BOTTOMLEFT", page.ScrollBox, "BOTTOMRIGHT", SCROLLBAR_GAP, 0)
 	ScrollUtil.AddManagedScrollBarVisibilityBehavior(page.ScrollBox, page.ScrollBar)
+end
+
+---Creates the tab bar: one row above the page list, under any pinned preview.
+function AeonUISettings_WindowMixin:InitTabBar()
+	local bar = CreateFrame("Frame", nil, self.Page)
+	bar:SetHeight(tokens.size.row)
+	bar:Hide()
+	self.Page.TabBar = bar
 end
 
 ---Returns the cached frame initializer for an element kind.
@@ -366,14 +383,68 @@ function AeonUISettings_WindowMixin:Layout()
 	self:LayoutList(0)
 end
 
----Places the page list below a pinned area of `pinned` height; the list keeps its bottom edge.
----@param pinned number
-function AeonUISettings_WindowMixin:LayoutList(pinned)
+---Places the tab bar, when shown, below a pinned preview of `preview` height, and the page list below both; the
+---list keeps its bottom edge.
+---@param preview number
+function AeonUISettings_WindowMixin:LayoutList(preview)
+	local top = HEADER_HEIGHT + LIST_GAP + preview
+	local bar = self.Page.TabBar
+	bar:ClearAllPoints()
+	bar:SetPoint("TOPLEFT", 0, -top)
+	bar:SetPoint("TOPRIGHT", 0, -top)
+
+	local pinned = preview + (self.tabsShown and tokens.size.row or 0)
 	self.pinnedHeight = pinned
 	local scrollBox = self.Page.ScrollBox
 	scrollBox:ClearAllPoints()
 	scrollBox:SetPoint("TOPLEFT", 0, -(HEADER_HEIGHT + LIST_GAP + pinned))
 	scrollBox:SetSize(self.Page:GetWidth(), self.listHeight - pinned)
+end
+
+---Shows the tab bar for a page with tabs, the active one selected, or hides it. Takes effect at the next
+---`LayoutList`.
+---@param page table? nil for search results
+function AeonUISettings_WindowMixin:UpdateTabs(page)
+	local tabs = page and self.model:Tabs(page.id)
+	local count = tabs and #tabs or 0
+	self.tabsShown = count > 0
+	self.Page.TabBar:SetShown(self.tabsShown)
+	self.listTabID = page and self.model:ActiveTab(page.id)
+
+	local buttons = self.tabButtons
+	for index = 1, math.max(count, #buttons) do
+		local tab = tabs and tabs[index]
+		local button = buttons[index] or tab and self:CreateTabButton(index)
+		if tab then
+			button.tabID = tab.id
+			button.Text:SetText(tab.title)
+			button:SetWidth(button.Text:GetStringWidth() + TAB_TEXT_PADDING)
+			button:SetSelected(tab.id == self.listTabID)
+			button:Show()
+		elseif button then
+			button:Hide()
+		end
+	end
+end
+
+---Creates the tab bar's button at `index`, after the one before it.
+---@param index integer
+---@return Button
+function AeonUISettings_WindowMixin:CreateTabButton(index)
+	local bar = self.Page.TabBar
+	local previous = self.tabButtons[index - 1]
+	local button = CreateFrame("Button", nil, bar, TAB_TEMPLATE)
+	if previous then
+		button:SetPoint("BOTTOMLEFT", previous, "BOTTOMRIGHT", TAB_GAP, 0)
+	else
+		button:SetPoint("BOTTOMLEFT", bar, "BOTTOMLEFT")
+	end
+	button:SetScript("OnClick", function()
+		self:SelectTab(button.tabID)
+	end)
+	self.tabButtons[index] = button
+
+	return button
 end
 
 ---Returns the key a page's selected preview state is remembered under; pages sharing a `stateKey` share it.
@@ -398,7 +469,7 @@ function AeonUISettings_WindowMixin:LayoutPreview(page)
 	local state = self.memory.previewStates[PreviewStateKey(page)] or (preview.states and preview.states[1])
 	local switch = self.model:PageSwitch(page.id)
 	local faded = switch ~= nil and not AS:CallHost(nil, switch.get)
-	local availableRows = math.floor(self.listHeight / tokens.size.row) - 1
+	local availableRows = math.floor(self.listHeight / tokens.size.row) - 1 - (self.tabsShown and 1 or 0)
 	local height = panel:Setup(self, page, self.memory.previewHidden, state, faded, availableRows)
 	self:LayoutList(height)
 end
@@ -509,9 +580,10 @@ function AS:CreateWindow(options)
 end
 
 ---Replaces the category and page definitions.
----Each category is `{ id, title, icon?, pages }`; each page is `{ id, title, icon?, Build, Reset?, preview? }`,
----where `Build()` returns the page's element list, `Reset()`, when present, restores the page's defaults, and
----`preview` is an `AeonSettingsPreview`.
+---Each category is `{ id, title, icon?, pages }`; each page is `{ id, title, icon?, Build, Reset?, preview?, tabs? }`,
+---where `Build()` returns the page's element list, `Reset()`, when present, restores the page's defaults,
+---`preview` is an `AeonSettingsPreview`, and `tabs`, `{ { id, title } }`, splits the page's sections across tabs:
+---each section names its tab in `tab`, and a tab that holds nothing is not shown.
 ---@param categories table[]
 function AeonUISettings_WindowMixin:SetCategories(categories)
 	self.categories = categories
@@ -705,6 +777,7 @@ function AeonUISettings_WindowMixin:ShowList(entries, sections, page, title, emp
 
 	self.listPageID = page and page.id
 	self:NoteListedPage(page)
+	self:UpdateTabs(page)
 	self:LayoutPreview(page)
 	self.Page.ScrollBox:SetDataProvider(CreateDataProvider(entries), ScrollBoxConstants.DiscardScrollPosition)
 end
@@ -723,6 +796,10 @@ function AeonUISettings_WindowMixin:ShowPage(page, hitIndex)
 
 	if hitIndex then
 		self.model:Reveal(page.id, hitIndex)
+		local tab = self.model:TabOf(page.id, hitIndex)
+		if tab then
+			self.model:SetTab(page.id, tab)
+		end
 	end
 
 	local map = self:BuildList(page, hitIndex ~= nil)
@@ -731,17 +808,40 @@ function AeonUISettings_WindowMixin:ShowPage(page, hitIndex)
 		scrollBox:ScrollToElementDataIndex(map[hitIndex], ScrollBoxConstants.AlignBegin, 0,
 			ScrollBoxConstants.NoScrollInterpolation)
 	else
-		scrollBox:SetScrollPercentage(self.memory.scroll[page.id] or 0, ScrollBoxConstants.NoScrollInterpolation)
+		scrollBox:SetScrollPercentage(self.memory.scroll[self:ScrollKey()] or 0, ScrollBoxConstants.NoScrollInterpolation)
 	end
 end
 
----Remembers the scroll position of the page the list is showing.
+---@return string key the listed page's scroll memory key, which names its tab on a page with tabs
+function AeonUISettings_WindowMixin:ScrollKey()
+	if self.listTabID then
+		return self.listPageID .. "/" .. self.listTabID
+	end
+
+	return self.listPageID
+end
+
+---Remembers the scroll position of the page and tab the list is showing.
 function AeonUISettings_WindowMixin:SaveScroll()
 	if self.searching or not self.listPageID then
 		return
 	end
 
-	self.memory.scroll[self.listPageID] = self.Page.ScrollBox:GetScrollPercentage()
+	self.memory.scroll[self:ScrollKey()] = self.Page.ScrollBox:GetScrollPercentage()
+end
+
+---Shows another tab of the shown page, for the session, at the scroll position it was last left at.
+---@param tabID string
+function AeonUISettings_WindowMixin:SelectTab(tabID)
+	local page = self:CurrentPage()
+	if not page or self.searching or tabID == self.listTabID then
+		return
+	end
+
+	PlaySound(SOUNDKIT.IG_CHARACTER_INFO_TAB)
+	self:SaveScroll()
+	self.model:SetTab(page.id, tabID)
+	self:ShowPage(page)
 end
 
 ---Sets the page header title, truncated so it stays clear of the jump menu and the Defaults button.
@@ -936,8 +1036,8 @@ function AeonUISettings_WindowMixin:SmoothScrollTo(index, onArrive, gap)
 	end)
 end
 
----Finds a setting from the preview: opens its collapsed group, scrolls its section header to just below the
----list's top, then flashes its row, or its half of a split row, if the row is on screen.
+---Finds a setting from the preview: shows its tab, opens its collapsed group, scrolls its section header to just
+---below the list's top, then flashes its row, or its half of a split row, if the row is on screen.
 ---@param settingID string
 function AeonUISettings_WindowMixin:FindSetting(settingID)
 	local page = self:CurrentPage()
@@ -946,7 +1046,17 @@ function AeonUISettings_WindowMixin:FindSetting(settingID)
 	end
 
 	local index = self.model:Locate(page.id, settingID)
-	if index and self.model:Reveal(page.id, index) then
+	if not index then
+		return
+	end
+
+	local tab = self.model:TabOf(page.id, index)
+	local revealed = self.model:Reveal(page.id, index)
+	if tab and tab ~= self.listTabID then
+		self:SaveScroll()
+		self.model:SetTab(page.id, tab)
+		self:ShowPage(page)
+	elseif revealed then
 		self:RefreshPage()
 	end
 

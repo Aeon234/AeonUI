@@ -13,6 +13,7 @@ UNKNOWN, NONE, NAME, LEVEL, HEALTH, CUSTOM = "Unknown", "None", "Name", "Level",
 CLASS, MANA, RAGE = "Class", "Mana", "Rage"
 INTERRUPTED = "Interrupted"
 PET = "Pet"
+COLORS = "Colors"
 PLAYER, TARGET, COLOR, DELETE, RESET, DEAD, PLAYER_OFFLINE = "Player", "Target", "Color", "Delete", "Reset", "Dead",
 	"Offline"
 SlashCmdList = {}
@@ -288,6 +289,29 @@ Equal("unit frame page order", table.concat(order, ","), "globals,player,pet,tar
 Equal("Target of Target page", pages.targettarget.title, "Target of Target")
 Equal("Focus page", pages.focus.title, "Focus")
 Equal("preview on Focus", type(pages.focus.preview.Draw), "function")
+
+-- Tabs ----------------------------------------------------------------------------------------------------
+
+local tabTitles = {}
+for _, tab in ipairs(pages.player.tabs) do
+	tabTitles[#tabTitles + 1] = tab.title
+end
+Equal("frame page tabs", table.concat(tabTitles, ","), "Frame,Colors,Cast Bar,Auras,Text,Indicators")
+Equal("no tabs on Globals", pages.globals.tabs, nil)
+Equal("no tabs on Class Resource", pages.classPower.tabs, nil)
+
+for _, id in ipairs({ "player", "pet", "target", "targettarget", "focus", "boss", "playerPower" }) do
+	local known = {}
+	for _, tab in ipairs(pages[id].tabs) do
+		known[tab.id] = true
+	end
+
+	for _, element in ipairs(pages[id].Build()) do
+		if element.kind == "section" then
+			Equal(id .. " section " .. element.id .. " names a tab", known[element.tab], true)
+		end
+	end
+end
 
 -- Every setting on every page reads and saves ----------------------------------------------------------------
 
