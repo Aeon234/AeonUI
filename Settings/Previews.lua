@@ -674,19 +674,24 @@ local function DrawSample(sample, key, config, state, addPart, editing)
 	end
 end
 
----Draws a sample for the layout editor, in the editor's state, with no settings parts.
+---Draws a sample for the layout editor in a state, with no settings parts; a group's lost slot hides.
 ---@param sample table from `NewSample`
 ---@param key string
 ---@param config table
-function Previews:DrawEditSample(sample, key, config)
-	DrawSample(sample, key, config, self.EDIT_STATE, Ignore, true)
+---@param state table? a state from `States`; the editor's default when nil
+function Previews:DrawEditSample(sample, key, config, state)
+	state = state or self.EDIT_STATE
+
+	DrawSample(sample, key, config, state, Ignore, true)
+	sample.frame:SetShown(state.lost ~= sample.slot)
 end
 
 ---Draws the player's cast bar for the layout editor, centered on `anchor`.
 ---@param cast AUICastBarWidgets from `CastBar:Create`
 ---@param config table
 ---@param anchor Region
-function Previews:DrawEditCast(cast, config, anchor)
+---@param state table? a state from `States`; the editor's default when nil
+function Previews:DrawEditCast(cast, config, anchor, state)
 	local settings = AUI.CastBar:Resolve(config, "player")
 
 	if not settings then
@@ -696,7 +701,7 @@ function Previews:DrawEditCast(cast, config, anchor)
 	settings.x, settings.y, settings.strata = 0, 0, nil
 
 	AUI.CastBar:Apply(cast, settings, anchor, anchor:GetWidth())
-	self:ShowCast(cast, self.EDIT_STATE)
+	self:ShowCast(cast, state or self.EDIT_STATE)
 end
 
 ---@param key string
@@ -928,6 +933,32 @@ local function ClassPowerPreview()
 			return width + PAD * 2, height + PAD * 2
 		end,
 	}
+end
+
+-- The states each layout editor element can show: its settings page's states, and the player cast bar's own.
+local EDIT_STATES = {
+	player = Join(UNIT_STATES, OVERLAY_STATES, CAST_STATES, EMPOWER_STATES),
+	target = Join(UNIT_STATES, OVERLAY_STATES, CAST_STATES, KICK_STATES),
+	focus = Join(UNIT_STATES, OVERLAY_STATES, CAST_STATES, KICK_STATES),
+	boss = Join(UNIT_STATES, OVERLAY_STATES, CAST_STATES, KICK_STATES, GROUP_STATES),
+	pet = UNIT_STATES,
+	targettarget = UNIT_STATES,
+	playerPower = POWER_STATES,
+	classPower = RESOURCE_STATES,
+	cast = Join(CAST_STATES, EMPOWER_STATES),
+}
+
+---@param element string an element's frame key, or "cast" for the player cast bar
+---@return table[] states the sample states the layout editor offers for it, the first its default
+function Previews:States(element)
+	return EDIT_STATES[element] or UNIT_STATES
+end
+
+---@param element string
+---@param label string?
+---@return table state the element's state with that label, else its default
+function Previews:FindState(element, label)
+	return FindState(self:States(element), label)
 end
 
 ---@param pageID string

@@ -178,7 +178,7 @@ for _, file in ipairs({
 	"Settings/Note.lua", "Settings/Pages.lua", "Settings/Shared.lua", "Settings/TextSlots.lua", "Settings/Overlays.lua", "Settings/CastBar.lua", "Settings/Auras.lua", "Settings/ClassPower.lua", "Settings/Indicators.lua",
 	"Settings/Previews.lua",
 	"Settings/Profiles.lua", "Settings/Recovery.lua", "Settings/Settings.lua",
-	"Editor/Layout.lua", "Editor/Mover.lua", "Editor/Panel.lua", "Editor/Editor.lua",
+	"Editor/Layout.lua", "Editor/External.lua", "Editor/Mover.lua", "Editor/Panel.lua", "Editor/Editor.lua",
 }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
@@ -923,6 +923,120 @@ for _, element in ipairs(Layout.ELEMENTS) do
 	Equal("element paths agree: " .. element.id, Schema.LAYOUT_ELEMENTS[element.id],
 		"frames." .. element.key .. "." .. element.base)
 end
+
+-- External targets ------------------------------------------------------------------------------------------------
+
+local function Offered(element, id)
+	for _, other in ipairs(Layout:Eligible(Profile.config, element)) do
+		if other.id == id then
+			return true
+		end
+	end
+
+	return false
+end
+
+Profile:Reset()
+local bars = Layout:Find("levelbound.bars") --[[@as table]]
+Equal("external found", bars.external, true)
+Equal("external label", Layout:Label(bars), "Levelbound Bars")
+Equal("an external target not yet found is not offered", Offered(pet, "levelbound.bars"), false)
+Layout.external["levelbound.bars"] = { x = 0, y = -300, width = 400, height = 20 }
+Equal("a found external target is offered", Offered(pet, "levelbound.bars"), true)
+Editor:Attach("unit.pet", "levelbound.bars", "TOP")
+Equal("attaching to it keeps the position", Profile:Get("frames.pet.x"), -405)
+Layout.external["levelbound.bars"] = { x = 10, y = -300, width = 400, height = 20 }
+Profile:Recalculate()
+Equal("the attached frame follows the external frame", Profile:Get("frames.pet.x"), -395)
+Editor:Link("power.player", "width", "levelbound.bars")
+Equal("a size linked to the external frame matches it", Profile:Get("frames.playerPower.width"), 400)
+Layout.external["levelbound.bars"] = false
+Profile:Recalculate()
+Equal("a missing external frame marks the element waiting", Profile:Get("frames.pet.layout.attach.waiting"), true)
+Equal("a waiting element keeps its position", Profile:Get("frames.pet.x"), -395)
+Equal("a linked size keeps its last value", Profile:Get("frames.playerPower.width"), 400)
+Equal("waiting X reason", Find(pages.pet.Build(), "x").blocked(), "Waiting to reconnect to Levelbound Bars.")
+Layout.external["levelbound.bars"] = { x = 50, y = -300, width = 380, height = 20 }
+Profile:Recalculate()
+Equal("a returned frame does not move a waiting element", Profile:Get("frames.pet.x"), -395)
+Equal("a linked size follows again", Profile:Get("frames.playerPower.width"), 380)
+Equal("reconnect", Editor:Reconnect("unit.pet"), true)
+Equal("reconnected", Profile:Get("frames.pet.layout.attach.waiting"), false)
+Equal("reconnecting applies the stored offsets", Profile:Get("frames.pet.x"), -355)
+Layout.external["levelbound.bars"] = nil
+Profile:Recalculate()
+Equal("a frame not yet looked for does not mark waiting", Profile:Get("frames.pet.layout.attach.waiting"), false)
+Layout.external["levelbound.bars"] = false
+Profile:Recalculate()
+Editor:Attach("unit.pet")
+Equal("detaching ends the wait", Profile:Get("frames.pet.layout.attach.waiting"), false)
+Equal("detached", Profile:Get("frames.pet.layout.attach.target"), "none")
+
+-- Measuring the external frame.
+local External = AUI.EditorExternal
+AUI.Events = AUI.Events or { Merge = function() end, Register = function() end }
+local loaded = false
+C_AddOns.IsAddOnLoaded = function()
+	return loaded
+end
+function GetTime()
+	return 100
+end
+function hooksecurefunc() end
+UIParent.GetEffectiveScale = function()
+	return 1
+end
+LevelboundBarGroup = {
+	GetRect = function()
+		return 760, 100, 400, 20
+	end,
+	GetEffectiveScale = function()
+		return 0.5
+	end,
+	HookScript = function() end,
+}
+External.started = 0
+External:Update()
+Equal("not loaded: missing", Layout.external["levelbound.bars"], false)
+loaded = true
+External:Update()
+local rect = Layout.external["levelbound.bars"] --[[@as table]]
+Equal("loaded: measured in UIParent units", rect.width .. "x" .. rect.height, "200x10")
+Equal("measured center", rect.x .. "," .. rect.y, (380 + 100 - 960) .. "," .. (50 + 5 - 540))
+LevelboundBarGroup.GetRect = function() end
+External.started = 99
+External:Update()
+Equal("no position just after login: not yet known", Layout.external["levelbound.bars"], nil)
+External.started = 0
+External:Update()
+Equal("no position later: missing", Layout.external["levelbound.bars"], false)
+Layout.external["levelbound.bars"] = nil
+LevelboundBarGroup = nil
+
+-- Sample states.
+local Previews = AUI.SettingsPreviews
+local function HasState(key, label)
+	for _, state in ipairs(Previews:States(key)) do
+		if state.label == label then
+			return true
+		end
+	end
+
+	return false
+end
+Equal("target of target has no cast state", HasState("targettarget", "Casting"), false)
+Equal("target has cast states", HasState("target", "Casting"), true)
+Equal("bosses can lose a slot", HasState("boss", "Slot Lost"), true)
+Equal("the player cast bar has the empowered state", HasState("cast", "Empowered"), true)
+Equal("cast bar state key", Editor:StateKey(Layout:Find("cast.player") --[[@as table]]), "cast")
+Editor.states = {}
+Equal("default state is full", Editor:SampleState(player).label, "Full")
+Editor.states["unit.player"] = "Damaged"
+Equal("a chosen state", Editor:SampleState(player).label, "Damaged")
+Editor.states["unit.player"] = "Nothing"
+Equal("an unknown state falls back to the default", Editor:SampleState(player).label, "Full")
+Editor.states = {}
+Profile:Reset()
 
 print = luaPrint
 io.stdout:write(("check_settings: %d checks passed\n"):format(checks))

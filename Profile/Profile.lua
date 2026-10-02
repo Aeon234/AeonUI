@@ -371,6 +371,12 @@ function Profile:Set(path, value)
 	return true
 end
 
+---Recalculates attached elements and linked sizes in every profile, after something outside the profiles moved.
+---@return boolean ok
+function Profile:Recalculate()
+	return (self:Commit(function() end))
+end
+
 ---Changes several settings of the active profile as one change.
 ---@param values table<string, any> values by path
 ---@return boolean ok

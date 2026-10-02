@@ -49,5 +49,6 @@ frame:SetScript("OnEvent", function(self, event)
 		end
 
 		AUI.Frames:Start()
+		AUI.EditorExternal:Start()
 	end
 end)

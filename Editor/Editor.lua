@@ -25,6 +25,7 @@ local GRID_ALPHA = { DIMMED = { 0.25, 0.5 }, BRIGHT = { 0.45, 0.8 } }
 local GRID_NEXT = { BRIGHT = "DIMMED", DIMMED = "OFF", OFF = "BRIGHT" }
 
 local EXIT_POPUP = "AEONUI_EDIT_EXIT"
+local RECONNECT_POPUP = "AEONUI_EDIT_RECONNECT"
 
 StaticPopupDialogs[EXIT_POPUP] = {
 	text = L["Save your layout changes?"],
@@ -39,6 +40,18 @@ StaticPopupDialogs[EXIT_POPUP] = {
 	end,
 	OnAlt = function()
 		AUI.Editor:Discard()
+	end,
+}
+
+StaticPopupDialogs[RECONNECT_POPUP] = {
+	text = L["Reconnect %s to %s? It moves back against it."],
+	button1 = L["Reconnect"],
+	button2 = CANCEL,
+	timeout = 0,
+	whileDead = 1,
+	hideOnEscape = 1,
+	OnAccept = function(_, id)
+		AUI.Editor:Reconnect(id)
 	end,
 }
 
@@ -87,6 +100,7 @@ local function Ignore() end
 ---@field fromSettings boolean? the session began from settings, which Save and Exit return to
 ---@field snapshot AUIProfileSnapshot?
 ---@field selected string? the selected element's id
+---@field states table<string, string> each element's sample state label, for the session
 ---@field movers table<string, AUIMover>
 ---@field toolbar AUIEditToolbar?
 ---@field keyboard Frame?
@@ -99,6 +113,7 @@ local Editor = {
 	hidden = false,
 	dragging = false,
 	movers = {},
+	states = {},
 }
 AUI.Editor = Editor
 
@@ -135,6 +150,7 @@ function Editor:Enter(fromSettings)
 	self.hidden = false
 	self.dragging = false
 	self.selected = nil
+	self.states = {}
 	self.fromSettings = fromSettings == true
 	self.snapshot = AUI.Profile:Snapshot()
 
@@ -230,6 +246,7 @@ function Editor:Exit()
 	AUI.Callbacks:Unregister("Profile", self)
 	AUI.Events:Cancel("editorRefresh")
 	StaticPopup_Hide(EXIT_POPUP)
+	StaticPopup_Hide(RECONNECT_POPUP)
 
 	self.active = false
 	self.paused = false
@@ -388,16 +405,55 @@ function Editor:QueueRefresh()
 	end)
 end
 
----Draws a mover's samples from the profile.
+---@param element AUIEditorElement
+---@return string key the element's key for sample states: its frame key, or "cast" for the player cast bar
+function Editor:StateKey(element)
+	return element.base == "castbar." and "cast" or element.key
+end
+
+---@param element AUIEditorElement
+---@return table state the sample state the element shows
+function Editor:SampleState(element)
+	return AUI.SettingsPreviews:FindState(self:StateKey(element), self.states[element.id])
+end
+
+---@param id string
+---@param label string
+function Editor:SetState(id, label)
+	self.states[id] = label
+
+	self:RefreshMovers()
+end
+
+---Shows a sample state on every shown element that offers it.
+---@param label string
+function Editor:ApplyStateToAll(label)
+	for _, id in ipairs(self:ShownIDs()) do
+		local element = Layout:Find(id) --[[@as AUIEditorElement]]
+
+		for _, state in ipairs(AUI.SettingsPreviews:States(self:StateKey(element))) do
+			if state.label == label then
+				self.states[id] = label
+
+				break
+			end
+		end
+	end
+
+	self:RefreshMovers()
+end
+
+---Draws a mover's samples from the profile, in the element's sample state.
 ---@param mover AUIMover
 ---@param config table
 local function DrawSamples(mover, config)
 	local element, content = mover.element, mover.content
 	local Previews = AUI.SettingsPreviews
+	local state = Editor:SampleState(element)
 
 	if element.base == "castbar." then
 		mover.cast = mover.cast or AUI.CastBar:Create(content)
-		Previews:DrawEditCast(mover.cast --[[@as AUICastBarWidgets]], config, content)
+		Previews:DrawEditCast(mover.cast --[[@as AUICastBarWidgets]], config, content, state)
 
 		return
 	end
@@ -409,7 +465,7 @@ local function DrawSamples(mover, config)
 
 		frame:ClearAllPoints()
 		frame:SetPoint("TOPLEFT", content, "TOPLEFT")
-		Previews:DrawClassPower(mover.resource, config, Previews.EDIT_RESOURCE_STATE, Ignore)
+		Previews:DrawClassPower(mover.resource, config, state, Ignore)
 
 		return
 	end
@@ -432,7 +488,7 @@ local function DrawSamples(mover, config)
 		sample.frame:SetSize(width, main + power)
 		sample.frame:ClearAllPoints()
 		sample.frame:SetPoint("CENTER", content, "CENTER", x - shiftX, y - shiftY)
-		Previews:DrawEditSample(sample, key, config)
+		Previews:DrawEditSample(sample, key, config, state)
 	end
 end
 
@@ -593,7 +649,15 @@ function Editor:SnapLines(mover)
 		end
 	end
 
-	return Layout:Lines(rects, UIParent:GetWidth(), UIParent:GetHeight())
+	local screenWidth, screenHeight = UIParent:GetWidth(), UIParent:GetHeight()
+
+	for _, element in ipairs(Layout.EXTERNAL) do
+		if Layout:Available(element) then
+			rects[#rects + 1] = { Layout:Rect(config, element, screenWidth, screenHeight) }
+		end
+	end
+
+	return Layout:Lines(rects, screenWidth, screenHeight)
 end
 
 ---Moves a dragged mover: snapped unless Alt is held or snapping is off, kept on screen, on whole pixels.
@@ -665,6 +729,30 @@ function Editor:Attach(id, targetID, side)
 	local target = targetID and Layout:Find(targetID) or nil
 
 	return (AUI.Profile:SetPaths(Layout:Attach(AUI.Profile.config, element, target, side)))
+end
+
+---Asks before ending an element's wait for a missing frame that came back, since reconnecting may move it.
+---@param id string
+function Editor:RequestReconnect(id)
+	local element = Layout:Find(id)
+	local target = element and Layout:AttachTarget(AUI.Profile.config, element)
+
+	if element and target then
+		StaticPopup_Show(RECONNECT_POPUP, Layout:Label(element), Layout:Label(target), id)
+	end
+end
+
+---Ends an element's wait, so its stored offsets apply again.
+---@param id string
+---@return boolean ok
+function Editor:Reconnect(id)
+	local element = Layout:Find(id)
+
+	if not element then
+		return false
+	end
+
+	return (AUI.Profile:SetPaths(Layout:Reconnect(element)))
 end
 
 ---Keeps an element's width or height matched to another's, or ends the link with `targetID` nil.

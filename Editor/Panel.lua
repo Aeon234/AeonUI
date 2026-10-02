@@ -31,12 +31,18 @@ local SIDES = { "LEFT", "RIGHT", "TOP", "BOTTOM" }
 
 ---@class AUIEditPanelFrame : Frame
 ---@field picker AUIEditMenu the element picker
+---@field sample AUIEditMenu the element's sample state
+---@field applyAll Button shows that state on every element offering it
+---@field waiting FontString why the element waits
+---@field reconnect Button
+---@field detach Button
 ---@field boxes AUIEditBox[]
 ---@field target AUIEditMenu
 ---@field side AUIEditMenu
 ---@field links table<string, AUIEditMenu> the width and height links
 ---@field matches table<string, AUIEditMenu> Match Now for width and height
 ---@field attachRows Region[] shown while the attach part is open
+---@field waitRows Region[] shown while the element waits for a missing frame
 ---@field expand Button
 ---@field settings Button
 ---@field id string? the element the panel shows
@@ -222,9 +228,51 @@ function Panel:Build()
 	end)
 	frame.picker:SetPoint("TOPLEFT", PAD, -PAD)
 
+	local sampleWidth = WIDTH - PAD * 2 - MENU_GAP - MATCH_WIDTH
+
+	frame.sample = Menu(frame, nil, sampleWidth, function(root)
+		local element = Shown()
+
+		if not element then
+			return
+		end
+
+		local Editor = AUI.Editor
+		local current = Editor:SampleState(element)
+
+		for _, state in ipairs(AUI.SettingsPreviews:States(Editor:StateKey(element))) do
+			root:CreateRadio(state.label, function()
+				return current.label == state.label
+			end, function()
+				Editor:SetState(element.id, state.label)
+				Panel:Refresh()
+			end)
+		end
+	end)
+	frame.sample:SetPoint("TOPLEFT", PAD, -PAD - PICKER_HEIGHT - MENU_GAP)
+
+	frame.applyAll = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+	frame.applyAll:SetText(L["Apply to All"])
+	frame.applyAll:SetSize(MATCH_WIDTH, BUTTON_HEIGHT)
+	frame.applyAll:SetPoint("LEFT", frame.sample, "RIGHT", MENU_GAP, 0)
+	frame.applyAll:SetScript("OnEnter", function(button)
+		GameTooltip:SetOwner(button, "ANCHOR_TOP")
+		GameTooltip:SetText(L["Show this sample state on every element that has it."], 1, 1, 1, 1, true)
+		GameTooltip:Show()
+	end)
+	frame.applyAll:SetScript("OnLeave", GameTooltip_Hide)
+	frame.applyAll:SetScript("OnClick", function()
+		local element = Shown()
+
+		if element then
+			AUI.Editor:ApplyStateToAll(AUI.Editor:SampleState(element).label)
+			Panel:Refresh()
+		end
+	end)
+
 	local column = PAD + LABEL_WIDTH + LABEL_GAP
 	local second = column + BOX_WIDTH + COLUMN_GAP + LABEL_WIDTH + LABEL_GAP
-	local top = -PAD - PICKER_HEIGHT - SECTION_GAP
+	local top = -PAD - PICKER_HEIGHT * 2 - MENU_GAP - SECTION_GAP
 
 	frame.boxes = {
 		NumberBox(frame, "x"),
@@ -287,6 +335,40 @@ function Panel:Build()
 	frame.links.width:SetPoint("TOPLEFT", menuLeft, menuTop - ROW * 2)
 	frame.links.height:SetPoint("TOPLEFT", menuLeft, menuTop - ROW * 3)
 
+	frame.waiting = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+	frame.waiting:SetPoint("TOPLEFT", PAD, menuTop - ROW * 4 - 4)
+	frame.waiting:SetPoint("TOPRIGHT", -PAD, menuTop - ROW * 4 - 4)
+	frame.waiting:SetJustifyH("LEFT")
+	frame.waiting:SetTextColor(1, 0.82, 0)
+
+	local waitHalf = (WIDTH - PAD * 2 - MENU_GAP) / 2
+
+	frame.reconnect = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+	frame.reconnect:SetText(L["Reconnect"])
+	frame.reconnect:SetSize(waitHalf, BUTTON_HEIGHT)
+	frame.reconnect:SetPoint("TOPLEFT", PAD, menuTop - ROW * 5)
+	frame.reconnect:SetScript("OnClick", function()
+		local element = Shown()
+
+		if element then
+			AUI.Editor:RequestReconnect(element.id)
+		end
+	end)
+
+	frame.detach = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+	frame.detach:SetText(L["Detach"])
+	frame.detach:SetSize(waitHalf, BUTTON_HEIGHT)
+	frame.detach:SetPoint("TOPRIGHT", -PAD, menuTop - ROW * 5)
+	frame.detach:SetScript("OnClick", function()
+		local element = Shown()
+
+		if element then
+			AUI.Editor:Attach(element.id)
+			Panel:Refresh()
+		end
+	end)
+
+	frame.waitRows = { frame.waiting, frame.reconnect, frame.detach }
 	frame.attachRows = { frame.target, frame.side }
 
 	for _, menu in ipairs({ frame.target, frame.side, frame.links.width, frame.links.height }) do
@@ -323,11 +405,13 @@ function Panel:Build()
 	self.frame = frame
 end
 
+---@param waiting boolean the element waits for a missing frame, which adds a row with Reconnect and Detach
 ---@return number height the panel's height with the attach part open or closed
-function Panel:Height()
-	local rows = self.expanded and 6 or 2
+function Panel:Height(waiting)
+	local rows = self.expanded and (waiting and 8 or 6) or 2
 
-	return PAD * 2 + PICKER_HEIGHT + SECTION_GAP + ROW * rows + (self.expanded and SECTION_GAP or 0) + BUTTON_HEIGHT
+	return PAD * 2 + PICKER_HEIGHT * 2 + MENU_GAP + SECTION_GAP + ROW * rows + (self.expanded and SECTION_GAP or 0)
+		+ BUTTON_HEIGHT
 end
 
 ---Places the panel under the selected mover, or above it near the bottom of the screen.
@@ -360,12 +444,21 @@ function Panel:Refresh()
 	local frame = self.frame --[[@as AUIEditPanelFrame]]
 	local element = mover.element
 	local config = AUI.Profile.config
-	local attached = Layout:AttachTarget(config, element) ~= nil
+	local target = Layout:AttachTarget(config, element)
+	local attached = target ~= nil
+	local waiting = attached and Layout:Waiting(config, element)
+
+	-- An element waiting for a missing frame opens the attach part, where Reconnect and Detach are.
+	if waiting then
+		self.expanded = true
+	end
 
 	frame.id = element.id
-	frame:SetHeight(self:Height())
+	frame:SetHeight(self:Height(waiting))
 	frame.picker:GenerateMenu()
 	frame.picker:OverrideText(Layout:Label(element))
+	frame.sample:GenerateMenu()
+	frame.sample:OverrideText(AUI.Editor:SampleState(element).label)
 
 	frame.boxes[1].label:SetText(attached and L["X Offset"] or L["X"])
 	frame.boxes[2].label:SetText(attached and L["Y Offset"] or L["Y"])
@@ -381,6 +474,15 @@ function Panel:Refresh()
 
 	for _, region in ipairs(frame.attachRows) do
 		region:SetShown(self.expanded)
+	end
+
+	for _, region in ipairs(frame.waitRows) do
+		region:SetShown(self.expanded and waiting)
+	end
+
+	if waiting and target then
+		frame.waiting:SetText(L["Waiting for %s."]:format(Layout:Label(target)))
+		frame.reconnect:SetEnabled(Layout:Available(target))
 	end
 
 	if self.expanded then

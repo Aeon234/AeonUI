@@ -162,6 +162,10 @@ function Pages.Placed(base, kind, other)
 		if element then
 			local label = AUI.EditorLayout:Label(element)
 
+			if kind == "position" and AUI.Profile:Get(base .. "layout.attach.waiting") then
+				return L["Waiting to reconnect to %s."]:format(label)
+			end
+
 			if kind == "position" then
 				return L["Attached to %s. Move it in Edit Mode."]:format(label)
 			end

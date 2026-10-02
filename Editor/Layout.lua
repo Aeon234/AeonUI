@@ -12,6 +12,9 @@ local L = AUI.L
 ---@field page string the settings page that opens on right-click
 ---@field setting string? the setting revealed on that page
 ---@field group boolean? the boss frames, placed as one
+---@field external boolean? another addon's frame: a target only, never a mover
+---@field global string? an external target's frame name
+---@field addon string? an external target's addon
 
 -- Elements in the order the picker lists them.
 ---@type AUIEditorElement[]
@@ -27,31 +30,61 @@ local ELEMENTS = {
 	{ id = "cast.player", key = "player", base = "castbar.", page = "player", setting = "castEnabled" },
 }
 
+-- Other addons' frames AeonUI's elements can snap, attach and match sizes to, when those addons are loaded.
+---@type AUIEditorElement[]
+local EXTERNAL = {
+	{ id = "levelbound.bars", key = "", base = "", page = "", external = true, global = "LevelboundBarGroup",
+		addon = "Levelbound" },
+}
+
+---@class AUIExternalRect
+---@field x number the center's offset from the screen's center
+---@field y number
+---@field width number
+---@field height number
+
 ---The elements the layout editor places, and the arithmetic of placing them: sizes and positions from the profile,
 ---snapping and clamping. Coordinates are UIParent units: stored positions are center offsets from the screen's
 ---center, positive right and up; on-screen rectangles are left, bottom, width and height from the bottom left.
 ---@class AUIEditorLayout
 ---@field ELEMENTS AUIEditorElement[]
+---@field EXTERNAL AUIEditorElement[]
 ---@field SNAP_DISTANCE number how close a dragged edge or center comes to a line before it snaps
+---@field external table<string, AUIExternalRect|false> each external target's rectangle; false once it is known to
+---be missing, absent while not yet looked for
 local Layout = {
 	ELEMENTS = ELEMENTS,
+	EXTERNAL = EXTERNAL,
 	SNAP_DISTANCE = 8,
+	external = {},
 }
 AUI.EditorLayout = Layout
 
 ---@param id string
 ---@return AUIEditorElement?
 function Layout:Find(id)
-	for _, element in ipairs(ELEMENTS) do
-		if element.id == id then
-			return element
+	for _, list in ipairs({ ELEMENTS, EXTERNAL }) do
+		for _, element in ipairs(list) do
+			if element.id == id then
+				return element
+			end
 		end
 	end
 end
 
 ---@param element AUIEditorElement
+---@return boolean available the element's geometry is known: always for AeonUI's own, once found for another addon's
+function Layout:Available(element)
+	return not element.external or type(self.external[element.id]) == "table"
+end
+
+---@param element AUIEditorElement
 ---@return string label
 function Layout:Label(element)
+	if element.external then
+		return L["Levelbound Bars"]
+	end
+
 	if element.base == "castbar." then
 		return L["Player Cast Bar"]
 	end
@@ -92,6 +125,12 @@ end
 ---@return number x the stored horizontal offset of the element's center (a group's first slot) from the screen's
 ---@return number y
 function Layout:Position(config, element)
+	if element.external then
+		local rect = self.external[element.id]
+
+		return rect and rect.x or 0, rect and rect.y or 0
+	end
+
 	return Schema:Read(config, self:Path(element, "x")), Schema:Read(config, self:Path(element, "y"))
 end
 
@@ -103,6 +142,12 @@ end
 ---@return number shiftY
 function Layout:Size(config, element)
 	local key = element.key
+
+	if element.external then
+		local rect = self.external[element.id]
+
+		return rect and rect.width or 0, rect and rect.height or 0, 0, 0
+	end
 
 	if element.base == "castbar." then
 		return Schema:Read(config, self:Path(element, "width")), Schema:Read(config, self:Path(element, "height")), 0, 0
@@ -243,8 +288,10 @@ end
 ---@param side string?
 ---@return table<string, any> values the attachment, with offsets that keep the element where it is, by path
 function Layout:Attach(config, element, target, side)
+	local waiting = self:Path(element, "layout.attach.waiting")
+
 	if not target then
-		return { [self:Path(element, "layout.attach.target")] = "none" }
+		return { [self:Path(element, "layout.attach.target")] = "none", [waiting] = false }
 	end
 
 	side = side or Schema:Read(config, self:Path(element, "layout.attach.side"))
@@ -257,7 +304,35 @@ function Layout:Attach(config, element, target, side)
 		[self:Path(element, "layout.attach.side")] = side,
 		[self:Path(element, "layout.attach.x")] = cx - px,
 		[self:Path(element, "layout.attach.y")] = cy - py,
+		[waiting] = false,
 	}
+end
+
+---@param config table
+---@param element AUIEditorElement
+---@return boolean waiting attached to another addon's frame that went missing, and frozen until reconnected
+function Layout:Waiting(config, element)
+	return Schema:Read(config, self:Path(element, "layout.attach.waiting")) == true
+end
+
+---@param element AUIEditorElement
+---@return table<string, boolean> values ends the wait, so the stored offsets apply again, by path
+function Layout:Reconnect(element)
+	return { [self:Path(element, "layout.attach.waiting")] = false }
+end
+
+---@param config table
+---@param target AUIEditorElement
+---@param dimension "width"|"height"
+---@return number value the target's own width or height setting, or an external target's size
+function Layout:Dimension(config, target, dimension)
+	if target.external then
+		local rect = self.external[target.id]
+
+		return rect and rect[dimension] or 0
+	end
+
+	return Schema:Read(config, self:Path(target, dimension))
 end
 
 ---@param element AUIEditorElement
@@ -282,9 +357,7 @@ end
 ---@param target AUIEditorElement
 ---@return table<string, number> values the target's size copied once, fitted to the element, by path
 function Layout:MatchNow(config, element, dimension, target)
-	local value = Schema:Read(config, self:Path(target, dimension))
-
-	return { [self:Path(element, dimension)] = self:Fit(element, dimension, value) }
+	return { [self:Path(element, dimension)] = self:Fit(element, dimension, self:Dimension(config, target, dimension)) }
 end
 
 ---@param config table
@@ -296,6 +369,12 @@ function Layout:Eligible(config, element)
 
 	for _, other in ipairs(ELEMENTS) do
 		if other ~= element and not Schema:DependsOn(config, other.id, element.id) then
+			targets[#targets + 1] = other
+		end
+	end
+
+	for _, other in ipairs(EXTERNAL) do
+		if self:Available(other) then
 			targets[#targets + 1] = other
 		end
 	end
@@ -317,7 +396,7 @@ function Layout:Resolve(config)
 	end
 
 	local function Visit(element)
-		if done[element.id] then
+		if done[element.id] or element.external then
 			return
 		end
 
@@ -334,13 +413,25 @@ function Layout:Resolve(config)
 		for _, dimension in ipairs({ "width", "height" }) do
 			local target = self:SizeTarget(config, element, dimension)
 
-			if target then
-				Write(self:Path(element, dimension),
-					self:Fit(element, dimension, Schema:Read(config, self:Path(target, dimension))))
+			if target and self:Available(target) then
+				Write(self:Path(element, dimension), self:Fit(element, dimension, self:Dimension(config, target, dimension)))
 			end
 		end
 
 		local target = self:AttachTarget(config, element)
+
+		-- A missing external target freezes the element and marks it waiting; one not yet looked for leaves it be.
+		if target and target.external and not self:Available(target) then
+			if self.external[target.id] == false then
+				Write(self:Path(element, "layout.attach.waiting"), true)
+			end
+
+			target = nil
+		end
+
+		if target and self:Waiting(config, element) then
+			target = nil
+		end
 
 		if target then
 			local side = Schema:Read(config, self:Path(element, "layout.attach.side"))

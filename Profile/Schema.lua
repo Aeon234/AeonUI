@@ -99,7 +99,7 @@ local Schema = {
 		healthBackground = { "custom", "classReaction" },
 		layoutTarget = {
 			"none", "unit.player", "unit.pet", "unit.target", "unit.targettarget", "unit.focus", "boss.group",
-			"power.player", "resource.player", "cast.player",
+			"power.player", "resource.player", "cast.player", "levelbound.bars",
 		},
 		layoutSide = { "LEFT", "RIGHT", "TOP", "BOTTOM" },
 	},
@@ -715,7 +715,8 @@ Boolean("frames.classPower.extraMana", true)
 Number("frames.classPower.extraManaHeight", 4, 2, 20, true)
 Fade("classPower", "idle")
 
--- Where each element is attached and whose sizes it keeps: the layout editor's relationships.
+-- Where each element is attached and whose sizes it keeps: the layout editor's relationships. An element attached to
+-- another addon's frame that has gone waits, frozen, until it is reconnected or detached.
 for _, id in ipairs(Schema.choices.layoutTarget) do
 	local base = Schema.LAYOUT_ELEMENTS[id]
 
@@ -724,6 +725,7 @@ for _, id in ipairs(Schema.choices.layoutTarget) do
 		Choice(base .. "layout.attach.side", "layoutSide", "BOTTOM")
 		Number(base .. "layout.attach.x", 0, -3000, 3000)
 		Number(base .. "layout.attach.y", 0, -3000, 3000)
+		Boolean(base .. "layout.attach.waiting", false)
 		Choice(base .. "layout.width", "layoutTarget", "none")
 		Choice(base .. "layout.height", "layoutTarget", "none")
 	end
