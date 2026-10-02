@@ -1,5 +1,5 @@
--- Checks Media/Media.lua outside the game: font flags with and without the Slug setting and client support, and
--- the support probe running once.
+-- Checks Media/Media.lua outside the game: the font flags for every outline choice, the Slug variants included, and
+-- the bar textures AeonUI registers.
 -- Run from any directory with Lua 5.1: lua Tools/check_media.lua
 
 local root = (arg and arg[0] or ""):match("^(.-)[^/\\]*$") .. "../"
@@ -26,24 +26,6 @@ function LibStub()
 	return LSM
 end
 
--- Whether the stand-in client accepts the SLUG flag, and how often it was asked.
-local slugAccepted, probes = true, 0
-
-function CreateFrame()
-	return {
-		CreateFontString = function()
-			return {
-				SetFont = function(_, _, _, flags)
-					probes = probes + 1
-					if flags:find("SLUG") and not slugAccepted then
-						error("unknown font flag")
-					end
-				end,
-			}
-		end,
-	}
-end
-
 local AUI = {}
 assert(loadfile(root .. "Core/Core.lua"))("AeonUI", AUI)
 assert(loadfile(root .. "Profile/Schema.lua"))("AeonUI", AUI)
@@ -66,24 +48,18 @@ end
 -- Font flags ----------------------------------------------------------------------------------------------
 
 Equal("stripes registered", registered["statusbar:AeonUI Thin Stripes"] ~= nil, true)
-Equal("no profile yet: outline only", Media:FontFlags("OUTLINE"), "OUTLINE")
+Equal("Blizzard shield registered", registered["statusbar:Blizzard Shield"], "Interface\\RaidFrame\\Shield-Fill")
 
-AUI.Profile = { config = Schema:Defaults() }
-Equal("Slug on by default", Schema:Read(AUI.Profile.config, "text.slug"), true)
-Equal("outline with Slug", Media:FontFlags("OUTLINE"), "OUTLINE,SLUG")
-Equal("thick outline with Slug", Media:FontFlags("THICKOUTLINE"), "THICKOUTLINE,SLUG")
-Equal("Slug alone", Media:FontFlags("NONE"), "SLUG")
-Equal("probed once", probes, 1)
-Media:FontFlags("OUTLINE")
-Equal("probe remembered", probes, 1)
+Equal("no outline", Media:FontFlags("NONE"), "")
+Equal("outline", Media:FontFlags("OUTLINE"), "OUTLINE")
+Equal("thick outline", Media:FontFlags("THICKOUTLINE"), "THICKOUTLINE")
+Equal("Slug", Media:FontFlags("SLUG"), "SLUG")
+Equal("Slug Outline", Media:FontFlags("SLUG_OUTLINE"), "SLUG, OUTLINE")
+Equal("Slug Thick Outline", Media:FontFlags("SLUG_THICKOUTLINE"), "SLUG, THICKOUTLINE")
+Equal("unknown choice draws plain", Media:FontFlags("SHADOW"), "")
 
-Schema:Write(AUI.Profile.config, "text.slug", false)
-Equal("setting off: outline only", Media:FontFlags("OUTLINE"), "OUTLINE")
-Equal("setting off: no flags", Media:FontFlags("NONE"), "")
-
-Schema:Write(AUI.Profile.config, "text.slug", true)
-Media.slug, slugAccepted = nil, false
-Equal("client without Slug: outline only", Media:FontFlags("OUTLINE"), "OUTLINE")
-Equal("client without Slug remembered", Media.slug, false)
+for _, choice in ipairs(Schema.choices.outline) do
+	Equal(choice .. " has flags", type(Media:FontFlags(choice)), "string")
+end
 
 print(("check_media: %d checks passed"):format(checks))

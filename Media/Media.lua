@@ -11,7 +11,6 @@ local FLAT_BASE = "Interface\\TargetingFrame\\UI-StatusBar"
 ---@field STRIPED string LibSharedMedia's name for AeonUI's thin stripes
 ---@field SHIELD string LibSharedMedia's name for Blizzard's shield fill
 ---@field files table<string, string> the files of the bar textures AeonUI registers, by name
----@field slug boolean? the client accepts the SLUG font flag, once probed
 local Media = {
 	FLAT = "flat",
 	STRIPED = "AeonUI Thin Stripes",
@@ -23,6 +22,16 @@ local Media = {
 }
 AUI.Media = Media
 
+-- `SetFont` flags for each outline choice; the Slug choices use the client's Slug text renderer.
+local OUTLINE_FLAGS = {
+	NONE = "",
+	OUTLINE = "OUTLINE",
+	THICKOUTLINE = "THICKOUTLINE",
+	SLUG = "SLUG",
+	SLUG_OUTLINE = "SLUG, OUTLINE",
+	SLUG_THICKOUTLINE = "SLUG, THICKOUTLINE",
+}
+
 for name, file in pairs(Media.files) do
 	LSM:Register(LSM.MediaType.STATUSBAR, name, file)
 end
@@ -33,28 +42,10 @@ function Media:Font(name)
 	return LSM:Fetch(LSM.MediaType.FONT, name, true) or STANDARD_TEXT_FONT
 end
 
----@return boolean slug the client renders text with Slug when `SetFont` is given the SLUG flag
-function Media:SlugAvailable()
-	if self.slug == nil then
-		local probe = CreateFrame("Frame"):CreateFontString()
-
-		self.slug = pcall(probe.SetFont, probe, STANDARD_TEXT_FONT, 12, "SLUG") == true
-	end
-
-	return self.slug
-end
-
 ---@param outline string a schema outline choice
----@return string flags `SetFont` flags: the outline, and SLUG while the Globals setting asks for it and the client has it
+---@return string flags `SetFont` flags
 function Media:FontFlags(outline)
-	local flags = outline == "NONE" and "" or outline
-	local config = AUI.Profile and AUI.Profile.config
-
-	if config and AUI.Schema:Read(config, "text.slug") and self:SlugAvailable() then
-		flags = flags == "" and "SLUG" or flags .. ",SLUG"
-	end
-
-	return flags
+	return OUTLINE_FLAGS[outline] or ""
 end
 
 ---Gives a status bar a texture choice: AeonUI's flat fill, or a LibSharedMedia bar texture.

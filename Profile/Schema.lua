@@ -46,7 +46,7 @@ local Schema = {
 		separator = { "bar", "dash", "slash", "space", "parentheses", "brackets", "bullet" },
 		anchor = { "TOPLEFT", "TOP", "TOPRIGHT", "LEFT", "CENTER", "RIGHT", "BOTTOMLEFT", "BOTTOM", "BOTTOMRIGHT" },
 		placement = { "inside", "edge", "outside" },
-		outline = { "NONE", "OUTLINE", "THICKOUTLINE" },
+		outline = { "NONE", "OUTLINE", "THICKOUTLINE", "SLUG", "SLUG_OUTLINE", "SLUG_THICKOUTLINE" },
 		colorMode = { "custom", "class", "power", "difficulty" },
 		nameFormat = { "first", "full" },
 		precision = { "default", "decimal" },
@@ -151,9 +151,6 @@ end
 Choice("numbers.precision", "precision", "default")
 Number("numbers.percentDecimals", 0, 0, 1, true)
 
--- How every AeonUI text renders.
-Boolean("text.slug", true)
-
 -- Health overlay colors, shared by every frame.
 Color("overlays.colors.absorb", { r = 0.502, g = 0.753, b = 1, a = 0.8 })
 Color("overlays.colors.healAbsorb", { r = 0.502, g = 0.251, b = 1, a = 1 })
@@ -204,7 +201,7 @@ local function TextFields(key, status, statusLine, slots)
 
 	String(text .. "font", "Expressway", 64)
 	Number(text .. "size", 12, 6, 48, true)
-	Choice(text .. "outline", "outline", "OUTLINE")
+	Choice(text .. "outline", "outline", "SLUG_OUTLINE")
 	Color(text .. "color", { r = 1, g = 1, b = 1 })
 	Number(text .. "status", status, 0, count, true)
 	Choice(text .. "nameFormat", "nameFormat", "first")
@@ -307,7 +304,7 @@ local function CastBar(key, defaults)
 	Number(base .. "time.x", 0, -200, 200)
 	Number(base .. "time.y", 0, -200, 200)
 	Choice(base .. "time.format", "timeFormat", "remaining")
-	Choice(base .. "outline", "outline", "NONE")
+	Choice(base .. "outline", "outline", "SLUG")
 	Boolean(base .. "shadow", true)
 	Color(base .. "notInterruptible", { r = 0.8, g = 0.1, b = 0.1 })
 	Color(base .. "interrupted", { r = 0.8, g = 0.1, b = 0.1 })

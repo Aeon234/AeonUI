@@ -455,7 +455,7 @@ Equal("used slot is shown", first.shown, true)
 Equal("primary placed on the top edge", first.point[1] .. " " .. first.point[3], "LEFT TOPLEFT")
 Equal("primary inset", first.point[4], 4)
 Equal("font comes from the media lookup", first.SetFontArgs[1], "font:Expressway")
-Equal("outline flag", first.SetFontArgs[3], "OUTLINE")
+Equal("outline flag", first.SetFontArgs[3], "SLUG_OUTLINE")
 
 Schema:Write(config, "numbers.precision", "decimal")
 Schema:Write(config, "frames.target.numbers.percentDecimals", 1)

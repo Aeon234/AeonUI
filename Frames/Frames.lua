@@ -121,7 +121,7 @@ function Frames:OnProfileChanged(path)
 		return
 	end
 
-	if path:match("^numbers%.") or path:match("^text%.") then
+	if path:match("^numbers%.") then
 		for _, spec in ipairs(SPECS) do
 			self:Apply(spec.key, false)
 		end

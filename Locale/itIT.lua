@@ -50,13 +50,14 @@ local L = select(2, ...).L
 -- L["Size"] = "Size"
 -- L["Outline"] = "Outline"
 -- L["Thick Outline"] = "Thick Outline"
+-- L["Slug"] = "Slug"
+-- L["Slug Outline"] = "Slug Outline"
+-- L["Slug Thick Outline"] = "Slug Thick Outline"
 -- L["Power"] = "Power"
 -- L["Player Power"] = "Player Power"
 
 -- Globals page (Settings)
 -- L["Globals"] = "Globals"
--- L["Slug Rendering"] = "Slug Rendering"
--- L["Draws every AeonUI text with the client's sharper Slug renderer, where the client has it."] = "Draws every AeonUI text with the client's sharper Slug renderer, where the client has it."
 -- L["How large numbers are shortened, such as 588K or 588.4K."] = "How large numbers are shortened, such as 588K or 588.4K."
 
 -- Player, Target, Target of Target, Focus and Bosses pages (Settings)
