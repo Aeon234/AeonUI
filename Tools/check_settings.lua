@@ -166,7 +166,7 @@ AUI.Media = {
 }
 for _, file in ipairs({
 	"Core/Callbacks.lua", "Profile/Schema.lua", "Profile/Store.lua", "Profile/Codec.lua", "Profile/Profile.lua",
-	"Frames/Tags.lua", "Frames/Text.lua", "Frames/Overlays.lua",
+	"Frames/Tags.lua", "Frames/Text.lua", "Frames/Overlays.lua", "Frames/UnitFrame.lua",
 	"Settings/Note.lua", "Settings/Pages.lua", "Settings/TextSlots.lua", "Settings/Overlays.lua", "Settings/Previews.lua",
 	"Settings/Profiles.lua", "Settings/Recovery.lua", "Settings/Settings.lua",
 }) do
@@ -264,14 +264,14 @@ local order = {}
 for _, page in ipairs(Settings:Categories()[1].pages) do
 	order[#order + 1] = page.id
 end
-Equal("unit frame page order", table.concat(order, ","), "globals,player,target,targettarget,focus,playerPower")
+Equal("unit frame page order", table.concat(order, ","), "globals,player,target,targettarget,focus,boss,playerPower")
 Equal("Target of Target page", pages.targettarget.title, "Target of Target")
 Equal("Focus page", pages.focus.title, "Focus")
 Equal("preview on Focus", type(pages.focus.preview.Draw), "function")
 
 -- Every setting on every page reads and saves ----------------------------------------------------------------
 
-for _, id in ipairs({ "globals", "player", "target", "targettarget", "focus", "playerPower" }) do
+for _, id in ipairs({ "globals", "player", "target", "targettarget", "focus", "boss", "playerPower" }) do
 	local elements = pages[id].Build()
 	local seen = {}
 
@@ -403,7 +403,7 @@ pages.player.Reset()
 Equal("player reset restores overlays", Profile:Get("frames.player.overlays.absorb.position"), "attach")
 
 local power = pages.playerPower.Build()
-Equal("copy menu lists the other frames", #Options(Find(power, "copyText")), 4)
+Equal("copy menu lists the other frames", #Options(Find(power, "copyText")), 5)
 Find(power, "copyText").set("target")
 Equal("copied slot content", Profile:Get("frames.playerPower.text.slots.1.content"), "healthAndPercent")
 Equal("copied second slot", Profile:Get("frames.playerPower.text.slots.2.content"), "levelName")
@@ -418,6 +418,46 @@ Equal("frames without slot 3 untouched", Schema:Field("frames.playerPower.text.s
 Profile:Set("frames.target.text.status", 4)
 Find(pages.playerPower.Build(), "copyText").set("target")
 Equal("a status the frame cannot hold is not copied", Profile:Get("frames.playerPower.text.status"), 1)
+
+-- Bosses.
+local bosses = pages.boss.Build()
+Equal("Bosses page", pages.boss.title, "Bosses")
+Equal("boss switch", Find(bosses, "enabled").label, "Show Boss Frames")
+Equal("growth starts down", Find(bosses, "growth").get(), "down")
+Equal("growth choices", #Options(Find(bosses, "growth")), 4)
+Equal("spacing starts at 14", Find(bosses, "spacing").get(), 14)
+Equal("spacing range", Find(bosses, "spacing").max, 100)
+Equal("no growth on single frames", Find(pages.focus.Build(), "growth"), nil)
+Equal("boss power bar off", Find(bosses, "power").get(), false)
+Equal("boss overlays", Find(bosses, "absorb").get(), true)
+Equal("no Status Line on bosses", Find(bosses, "statusLine"), nil)
+Equal("boss slots", #Options(Find(bosses, "slot")), 4)
+Equal("boss status in the percentage slot", Profile:Get("frames.boss.text.status"), 2)
+Equal("boss preview states", table.concat(pages.boss.preview.states, ","),
+	"Full,Damaged,Dead,Offline,Absorbs,Overflow,Slot Lost")
+Equal("boss preview keeps its own state", pages.boss.preview.stateKey ~= pages.target.preview.stateKey, true)
+
+local UnitFrame = AUI.UnitFrame
+local function Offset(slot)
+	local x, y = UnitFrame:SlotOffset(Profile.config, "boss", slot)
+
+	return x .. "," .. y
+end
+Equal("first slot at the group position", Offset(1), "0,0")
+Equal("a single frame has no offset", Offset(nil), "0,0")
+Equal("down by height and spacing", Offset(2), "0,-46")
+Equal("down, third slot", Offset(3), "0,-92")
+Find(bosses, "power").set(true)
+Equal("the power bar adds to each step", Offset(2), "0,-52")
+Find(bosses, "growth").set("up")
+Equal("up", Offset(2), "0,52")
+Find(bosses, "growth").set("right")
+Find(bosses, "spacing").set(10)
+Equal("right by width and spacing", Offset(3), "420,0")
+Find(bosses, "growth").set("left")
+Equal("left", Offset(2), "-210,0")
+pages.boss.Reset()
+Equal("boss reset", Profile:Get("frames.boss.growth"), "down")
 
 -- Page resets.
 pages.player.Reset()
@@ -513,6 +553,8 @@ Settings:Open("power")
 Equal("alias opens the page", window.opened, "playerPower")
 Settings:Open("tot")
 Equal("tot opens Target of Target", window.opened, "targettarget")
+Settings:Open("boss")
+Equal("boss opens Bosses", window.opened, "boss")
 Settings:Open()
 Equal("no word opens the last page", window.opened, "<last>")
 local before = window.refreshed

@@ -4,6 +4,7 @@ local AUI = select(2, ...)
 local Codec = AUI.Codec
 
 ---@class AUIDev
+---@field bossTest boolean? the boss frames show the player
 local Dev = {}
 AUI.Dev = Dev
 
@@ -132,6 +133,32 @@ function Dev:Codec()
 	AUI:Print("codec: %d passed, %d failed", passed, failed)
 end
 
+---Shows the boss frames on the player, for placing them without an encounter, or returns them to their boss units.
+---Changing a secure frame's unit is refused in combat.
+function Dev:Bosses()
+	local frames = AUI.Frames.objects.boss
+
+	if not frames then
+		AUI:Warn("the boss frames have not been created.")
+
+		return
+	end
+
+	if InCombatLockdown() then
+		AUI:Warn("boss test mode can only change out of combat.")
+
+		return
+	end
+
+	self.bossTest = not self.bossTest
+
+	for slot, frame in ipairs(frames) do
+		frame:SetAttribute("unit", self.bossTest and "player" or ("boss" .. slot))
+	end
+
+	AUI:Print("boss test mode %s.", self.bossTest and "on: the boss frames show the player" or "off")
+end
+
 ---@param command string
 function Dev:Command(command)
 	if command == "codec" then
@@ -140,5 +167,11 @@ function Dev:Command(command)
 		return
 	end
 
-	AUI:Print("dev commands: codec")
+	if command == "boss" then
+		self:Bosses()
+
+		return
+	end
+
+	AUI:Print("dev commands: codec, boss")
 end

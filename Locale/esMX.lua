@@ -53,13 +53,20 @@ local L = select(2, ...).L
 -- L["Globals"] = "Globals"
 -- L["How large numbers are shortened, such as 588K or 588.4K."] = "How large numbers are shortened, such as 588K or 588.4K."
 
--- Player, Target, Target of Target and Focus pages (Settings)
+-- Player, Target, Target of Target, Focus and Bosses pages (Settings)
 -- L["Show Player Frame"] = "Show Player Frame"
 -- L["Show Target Frame"] = "Show Target Frame"
 -- L["Target of Target"] = "Target of Target"
 -- L["Show Target of Target Frame"] = "Show Target of Target Frame"
 -- L["Focus"] = "Focus"
 -- L["Show Focus Frame"] = "Show Focus Frame"
+-- L["Bosses"] = "Bosses"
+-- L["Show Boss Frames"] = "Show Boss Frames"
+-- L["Growth Direction"] = "Growth Direction"
+-- L["The direction the frames after the first are placed in."] = "The direction the frames after the first are placed in."
+-- L["Spacing"] = "Spacing"
+-- L["Down"] = "Down"
+-- L["Up"] = "Up"
 -- L["Show Power Bar"] = "Show Power Bar"
 -- L["A power bar under health. It adds to the frame's height."] = "A power bar under health. It adds to the frame's height."
 -- L["Power Bar Height"] = "Power Bar Height"
@@ -164,6 +171,8 @@ local L = select(2, ...).L
 -- L["Empty"] = "Empty"
 -- L["Sample Target"] = "Sample Target"
 -- L["Sample Focus"] = "Sample Focus"
+-- L["Sample Boss %d"] = "Sample Boss %d"
+-- L["Slot Lost"] = "Slot Lost"
 -- L["Absorbs"] = "Absorbs"
 -- L["Overflow"] = "Overflow"
 

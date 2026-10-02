@@ -31,6 +31,7 @@ local Schema = {
 		target = 4,
 		targettarget = 3,
 		focus = 4,
+		boss = 4,
 		playerPower = 2,
 	},
 	fields = {},
@@ -50,6 +51,7 @@ local Schema = {
 		precision = { "default", "decimal" },
 		overlayPosition = { "attach", "TOPLEFT", "TOPRIGHT", "BOTTOMLEFT", "BOTTOMRIGHT", "LEFT", "RIGHT" },
 		overshield = { "never", "always", "fromLeft" },
+		growth = { "down", "up", "right", "left" },
 	},
 }
 AUI.Schema = Schema
@@ -254,6 +256,19 @@ Boolean("frames.focus.reverse", false)
 AttachedPower("focus")
 Overlays("focus")
 TextFields("focus", 0, true, NAME_ONLY)
+
+-- The boss frames: one group, the first slot at the position, the others following by growth and spacing.
+Geometry("boss", 200, 32, 16, 720, -120)
+Choice("frames.boss.growth", "growth", "down")
+Number("frames.boss.spacing", 14, 0, 100, true)
+Boolean("frames.boss.reverse", false)
+AttachedPower("boss")
+Overlays("boss")
+TextFields("boss", 2, nil, {
+	{ content = "name", anchor = "TOPLEFT", placement = "inside", x = 4 },
+	{ content = "healthPercent", anchor = "TOPRIGHT", placement = "inside", x = -4 },
+	{ content = "health", anchor = "BOTTOMLEFT", placement = "inside", x = 4 },
+})
 
 Geometry("playerPower", 360, 12, 4, 0, -184)
 TextFields("playerPower", 0, nil, {

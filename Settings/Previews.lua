@@ -32,6 +32,14 @@ local OVERLAY_STATES = {
 
 local NO_OVERLAYS = { health = 0, absorb = 0, healAbsorb = 0, healing = 0 }
 
+-- Group frames add a state that empties one slot, which keeps its place.
+local GROUP_STATES = {
+	{ label = L["Slot Lost"], fill = 1, lost = 2 },
+}
+
+-- How many samples a group's preview shows.
+local GROUP_SAMPLES = 3
+
 local POWER_STATES = {
 	{ label = STATE_FULL, fill = 1 },
 	{ label = STATE_HALF, fill = 0.5 },
@@ -41,7 +49,7 @@ local POWER_STATES = {
 ---Settings previews: a copy of each frame drawn by the same bar, border and text code as the live frames, with
 ---fixed sample values. The copies are ordinary frames, never secure ones.
 ---@class AUISettingsPreviews
----@field samples table<string, table> each page's sample frame and regions, created on first draw
+---@field samples table<string, table> each sample's frame and regions by page and slot, created on first draw
 local Previews = {
 	samples = {},
 }
@@ -74,9 +82,11 @@ end
 
 ---@param key string
 ---@param parent Frame the preview panel's sample frame
+---@param slot integer the sample's place in its group; 1 for a single frame
 ---@return table sample
-function Previews:Sample(key, parent)
-	local sample = self.samples[key]
+function Previews:Sample(key, parent, slot)
+	local id = key .. slot
+	local sample = self.samples[id]
 
 	if not sample then
 		local frame = CreateFrame("Frame", nil, parent)
@@ -84,7 +94,7 @@ function Previews:Sample(key, parent)
 		local bar, _, border = AUI.UnitFrame:CreateBar(main)
 
 		bar:SetMinMaxValues(0, 1)
-		sample = { frame = frame, main = main, bar = bar, border = border, Bar = bar }
+		sample = { key = key, slot = slot, frame = frame, main = main, bar = bar, border = border, Bar = bar }
 
 		-- The text code works on anything shaped like a unit frame's text: slots, a Status Line, and its bar.
 		AUI.Text:Create(sample, bar, key)
@@ -101,19 +111,24 @@ function Previews:Sample(key, parent)
 			sample.overlays = AUI.Overlays:Create(bar)
 		end
 
-		self.samples[key] = sample
-	end
-
-	for other, cached in pairs(self.samples) do
-		if other ~= key then
-			cached.frame:Hide()
-		end
+		self.samples[id] = sample
 	end
 
 	sample.frame:SetParent(parent)
 	sample.frame:Show()
 
 	return sample
+end
+
+---Hides every sample except a page's first `count`.
+---@param key string
+---@param count integer
+function Previews:HideOthers(key, count)
+	for _, sample in pairs(self.samples) do
+		if sample.key ~= key or sample.slot > count then
+			sample.frame:Hide()
+		end
+	end
 end
 
 ---@return table? color the player's class color, unless it cannot be read
@@ -138,9 +153,10 @@ end
 ---The sample a page shows in a state.
 ---@param key string
 ---@param state table
+---@param slot integer? the sample's place in its group
 ---@return AUITextSample values
 ---@return table barColor
-function Previews:Values(key, state)
+function Previews:Values(key, state, slot)
 	local colors = AUI.oUF.colors
 	local fill = state.fill
 	local health = HEALTH_MAX * fill
@@ -156,8 +172,15 @@ function Previews:Values(key, state)
 	}
 	local barColor
 
-	if key == "target" or key == "focus" then
-		values.name = key == "focus" and L["Sample Focus"] or L["Sample Target"]
+	if key == "target" or key == "focus" or key == "boss" then
+		values.name = L["Sample Target"]
+
+		if key == "focus" then
+			values.name = L["Sample Focus"]
+		elseif key == "boss" then
+			values.name = L["Sample Boss %d"]:format(slot or 1)
+		end
+
 		values.level = 60
 		values.classColor = colors.reaction[2]
 		values.powerColor = colors.power.MANA
@@ -185,13 +208,110 @@ function Previews:Values(key, state)
 	return values, barColor
 end
 
+local function Ignore() end
+
+---Draws one sample in a state.
+---@param sample table
+---@param key string
+---@param config table
+---@param state table
+---@param addPart fun(region: Region, settingID: string, ...)
+local function DrawSample(sample, key, config, state, addPart)
+	local base = "frames." .. key .. "."
+	local main, powerHeight = AUI.UnitFrame:Heights(config, key)
+	local values, barColor = Previews:Values(key, state, sample.slot)
+	local bar = sample.bar
+	local pixel = AUI:Pixel(sample.frame)
+	local reverse = Schema:Read(config, base .. "reverse") == true
+
+	sample.main:ClearAllPoints()
+	sample.main:SetPoint("TOPLEFT")
+	sample.main:SetPoint("TOPRIGHT")
+	sample.main:SetHeight(main)
+	AUI.UnitFrame:LayoutBorder(sample.border, bar, pixel)
+
+	if sample.powerHolder then
+		local holder, power = sample.powerHolder, sample.power
+
+		holder:SetShown(powerHeight > 0)
+
+		if powerHeight > 0 then
+			local color = values.powerColor or AUI.oUF.colors.power.MANA
+
+			holder:ClearAllPoints()
+			holder:SetPoint("TOPLEFT", sample.main, "BOTTOMLEFT")
+			holder:SetPoint("TOPRIGHT", sample.main, "BOTTOMRIGHT")
+			holder:SetHeight(powerHeight)
+			AUI.UnitFrame:LayoutBorder(sample.powerBorder, power, pixel)
+			power:SetReverseFill(reverse)
+			power:SetValue(values.status and 0 or values.powerPercent / 100)
+			power:SetStatusBarColor(color.r, color.g, color.b)
+			addPart(power, "powerHeight")
+		end
+	end
+
+	bar:SetReverseFill(reverse)
+	bar:SetValue(key == "playerPower" and values.powerPercent / 100 or values.percent / 100)
+	bar:SetStatusBarColor(barColor.r, barColor.g, barColor.b)
+	addPart(bar, key == "playerPower" and "width" or "reverse")
+
+	local settings = sample.overlays and AUI.Overlays:Resolve(config, key)
+
+	if settings then
+		AUI.Overlays:Apply(sample.overlays, settings, reverse, nil)
+		AUI.Overlays:ShowSample(sample.overlays, state.overlays or NO_OVERLAYS, settings.healPrediction.overheal)
+	end
+
+	local slots, widths, contexts = AUI.Text:Layout(config, key, #sample.TextSlots)
+
+	sample.slotWidths = widths
+	sample.middleSlots = {}
+
+	for index, slot in ipairs(slots) do
+		local text = sample.TextSlots[index]
+		local shown = AUI.Tags:Sample(slot, contexts[index], values)
+
+		if shown then
+			if AUI.Text:InMiddleRow(slot) then
+				sample.middleSlots[index] = true
+			end
+
+			AUI.Text:Place(text, bar, slot, widths[index])
+			text:SetText(shown)
+			text:Show()
+			addPart(text, "slot", true, index)
+		else
+			text:Hide()
+		end
+	end
+
+	local line = sample.StatusLine
+
+	if line then
+		local showLine = AUI.Text:NeedsStatusLine(config, key)
+
+		line:SetText(showLine and values.status or "")
+		line:SetShown(showLine)
+
+		if showLine then
+			AUI.Text:PlaceStatusLine(line, bar, config, key)
+			addPart(line, "statusLine", true)
+		end
+
+		AUI.Text:FitStatusLine(sample)
+	end
+end
+
 ---@param key string
 ---@param states table[]
+---@param stateKey string? pages with the same state list share the chosen state
 ---@return table preview
-local function Preview(key, states)
+local function Preview(key, states, stateKey)
+	local count = Schema:Field("frames." .. key .. ".growth") and GROUP_SAMPLES or 1
+
 	return {
 		states = Labels(states),
-		stateKey = key ~= "playerPower" and (#states > #UNIT_STATES and "overlays" or "unit") or nil,
+		stateKey = stateKey,
 		Pick = function(index)
 			local window = AUI.Settings.window
 
@@ -208,90 +328,29 @@ local function Preview(key, states)
 			local main, powerHeight = AUI.UnitFrame:Heights(config, key)
 			local height = main + powerHeight
 			local room = Schema:Read(config, base .. "text.size") + TEXT_ROOM
-			local sample = Previews:Sample(key, parent)
 			local state = FindState(states, label)
-			local values, barColor = Previews:Values(key, state)
-			local frame, bar = sample.frame, sample.bar
-			local pixel = AUI:Pixel(frame)
+			local offsets, left, right, top, bottom = {}, 0, 0, 0, 0
 
-			frame:SetSize(width, height)
-			frame:ClearAllPoints()
-			frame:SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, -(PAD + room))
-			sample.main:ClearAllPoints()
-			sample.main:SetPoint("TOPLEFT")
-			sample.main:SetPoint("TOPRIGHT")
-			sample.main:SetHeight(main)
-			AUI.UnitFrame:LayoutBorder(sample.border, bar, pixel)
+			for slot = 1, count do
+				local x, y = AUI.UnitFrame:SlotOffset(config, key, count > 1 and slot or nil)
 
-			if sample.powerHolder then
-				local holder, power = sample.powerHolder, sample.power
-
-				holder:SetShown(powerHeight > 0)
-
-				if powerHeight > 0 then
-					local color = values.powerColor or AUI.oUF.colors.power.MANA
-
-					holder:ClearAllPoints()
-					holder:SetPoint("TOPLEFT", sample.main, "BOTTOMLEFT")
-					holder:SetPoint("TOPRIGHT", sample.main, "BOTTOMRIGHT")
-					holder:SetHeight(powerHeight)
-					AUI.UnitFrame:LayoutBorder(sample.powerBorder, power, pixel)
-					power:SetReverseFill(Schema:Read(config, base .. "reverse") == true)
-					power:SetValue(values.status and 0 or values.powerPercent / 100)
-					power:SetStatusBarColor(color.r, color.g, color.b)
-					addPart(power, "powerHeight")
-				end
+				offsets[slot] = { x = x, y = y }
+				left, right = math.min(left, x), math.max(right, x)
+				top, bottom = math.max(top, y), math.min(bottom, y)
 			end
 
-			bar:SetReverseFill(Schema:Read(config, base .. "reverse") == true)
-			bar:SetValue(key == "playerPower" and values.powerPercent / 100 or values.percent / 100)
-			bar:SetStatusBarColor(barColor.r, barColor.g, barColor.b)
-			addPart(bar, key == "playerPower" and "width" or "reverse")
+			Previews:HideOthers(key, count)
 
-			local settings = sample.overlays and AUI.Overlays:Resolve(config, key)
+			-- Only the first sample's regions open settings, so each setting is reached from one place.
+			for slot = 1, count do
+				local sample = Previews:Sample(key, parent, slot)
+				local offset = offsets[slot]
 
-			if settings then
-				AUI.Overlays:Apply(sample.overlays, settings, Schema:Read(config, base .. "reverse") == true, nil)
-				AUI.Overlays:ShowSample(sample.overlays, state.overlays or NO_OVERLAYS, settings.healPrediction.overheal)
-			end
-
-			local slots, widths, contexts = AUI.Text:Layout(config, key, #sample.TextSlots)
-
-			sample.slotWidths = widths
-			sample.middleSlots = {}
-
-			for index, slot in ipairs(slots) do
-				local text = sample.TextSlots[index]
-				local shown = AUI.Tags:Sample(slot, contexts[index], values)
-
-				if shown then
-					if AUI.Text:InMiddleRow(slot) then
-						sample.middleSlots[index] = true
-					end
-
-					AUI.Text:Place(text, bar, slot, widths[index])
-					text:SetText(shown)
-					text:Show()
-					addPart(text, "slot", true, index)
-				else
-					text:Hide()
-				end
-			end
-
-			local line = sample.StatusLine
-
-			if line then
-				local showLine = AUI.Text:NeedsStatusLine(config, key)
-
-				line:SetText(showLine and values.status or "")
-				line:SetShown(showLine)
-
-				if showLine then
-					AUI.Text:PlaceStatusLine(line, bar, config, key)
-					addPart(line, "statusLine", true)
-				end
-
-				AUI.Text:FitStatusLine(sample)
+				sample.frame:SetSize(width, height)
+				sample.frame:ClearAllPoints()
+				sample.frame:SetPoint("TOPLEFT", parent, "TOPLEFT", PAD + offset.x - left, -(PAD + room + top - offset.y))
+				DrawSample(sample, key, config, state, slot == 1 and addPart or Ignore)
+				sample.frame:SetShown(state.lost ~= slot)
 			end
 
 			local window = AUI.Settings.window
@@ -300,28 +359,38 @@ local function Preview(key, states)
 				window:SetPreviewChosen(AUI.SettingsText:Chosen(key))
 			end
 
-			return width + PAD * 2, height + (PAD + room) * 2
+			return width + right - left + PAD * 2, height + top - bottom + (PAD + room) * 2
 		end,
 	}
+end
+
+---@param ... table[] state lists
+---@return table[] states
+local function Join(...)
+	local states = {}
+
+	for index = 1, select("#", ...) do
+		for _, state in ipairs((select(index, ...))) do
+			states[#states + 1] = state
+		end
+	end
+
+	return states
 end
 
 ---@param pageID string
 ---@return table? preview the page's preview, or nil for a page without one
 function Previews:For(pageID)
 	if pageID == "player" or pageID == "target" or pageID == "focus" then
-		local states = {}
+		return Preview(pageID, Join(UNIT_STATES, OVERLAY_STATES), "overlays")
+	end
 
-		for _, list in ipairs({ UNIT_STATES, OVERLAY_STATES }) do
-			for _, state in ipairs(list) do
-				states[#states + 1] = state
-			end
-		end
-
-		return Preview(pageID, states)
+	if pageID == "boss" then
+		return Preview(pageID, Join(UNIT_STATES, OVERLAY_STATES, GROUP_STATES), "group")
 	end
 
 	if pageID == "targettarget" then
-		return Preview(pageID, UNIT_STATES)
+		return Preview(pageID, UNIT_STATES, "unit")
 	end
 
 	if pageID == "playerPower" then

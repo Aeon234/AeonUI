@@ -5,6 +5,7 @@ local AUI = select(2, ...)
 ---@field unit string
 ---@field name string the frame's global name
 ---@field style string
+---@field count integer? for a group: how many slots, each spawned for the unit and global name followed by its number
 
 -- Frames in creation order.
 ---@type AUIFrameSpec[]
@@ -13,16 +14,19 @@ local SPECS = {
 	{ key = "target", unit = "target", name = "AeonUITarget", style = "AeonUI" },
 	{ key = "targettarget", unit = "targettarget", name = "AeonUITargetTarget", style = "AeonUI" },
 	{ key = "focus", unit = "focus", name = "AeonUIFocus", style = "AeonUI" },
+	{ key = "boss", unit = "boss", name = "AeonUIBoss", style = "AeonUI", count = MAX_BOSS_FRAMES or 5 },
 	{ key = "playerPower", unit = "player", name = "AeonUIPlayerPower", style = "AeonUIPower" },
 }
 
 -- Settings that change a secure frame, which waits for combat to end.
-local LAYOUT = { enabled = true, width = true, height = true, x = true, y = true, power = true }
+local LAYOUT = {
+	enabled = true, width = true, height = true, x = true, y = true, power = true, growth = true, spacing = true,
+}
 
 ---Owns AeonUI's oUF frames: creates them, applies the active profile, and holds back changes to secure frames until
 ---combat ends, keeping only the latest.
 ---@class AUIFrames
----@field objects table<string, AUIUnitFrame> frames by key
+---@field objects table<string, AUIUnitFrame[]> frames by key: one, or a group's slots in order
 ---@field started boolean
 ---@field layoutPending boolean a layout change waits for combat to end
 local Frames = {
@@ -55,10 +59,21 @@ function Frames:Start()
 	oUF:RegisterStyle("AeonUIPower", UnitFrame.PowerStyle)
 
 	for _, spec in ipairs(SPECS) do
-		UnitFrame.keys[spec.unit] = spec.key
+		local frames = {}
+
 		oUF:SetActiveStyle(spec.style)
-		self.objects[spec.key] = oUF:Spawn(spec.unit, spec.name)
-		UnitFrame.keys[spec.unit] = nil
+
+		for slot = 1, spec.count or 1 do
+			local suffix = spec.count and slot or ""
+			local unit = spec.unit .. suffix
+
+			UnitFrame.keys[unit] = spec.key
+			frames[slot] = oUF:Spawn(unit, spec.name .. suffix)
+			frames[slot].slot = spec.count and slot or nil
+			UnitFrame.keys[unit] = nil
+		end
+
+		self.objects[spec.key] = frames
 	end
 
 	self.started = true
@@ -75,18 +90,20 @@ end
 ---@param key string
 ---@param layout boolean also apply size, position and enabled state
 function Frames:Apply(key, layout)
-	local frame = self.objects[key]
 	local config = AUI.Profile.config
+	local defer = layout and InCombatLockdown()
 
-	if layout then
-		if InCombatLockdown() then
-			self.layoutPending = true
-		else
-			frame:ApplyLayout(config)
-		end
+	if defer then
+		self.layoutPending = true
 	end
 
-	frame:ApplyAppearance(config)
+	for _, frame in ipairs(self.objects[key]) do
+		if layout and not defer then
+			frame:ApplyLayout(config)
+		end
+
+		frame:ApplyAppearance(config)
+	end
 end
 
 ---@param path string? the changed setting, or nil when the whole profile may differ
@@ -128,6 +145,8 @@ end
 
 function Frames:OnScaleChanged()
 	for _, spec in ipairs(SPECS) do
-		self.objects[spec.key]:UpdateBorder()
+		for _, frame in ipairs(self.objects[spec.key]) do
+			frame:UpdateBorder()
+		end
 	end
 end

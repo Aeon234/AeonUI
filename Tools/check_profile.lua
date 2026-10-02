@@ -152,7 +152,7 @@ for _ = 1, 40 do
 end
 Equal("too deep is not plain", Schema:IsPlain(deep), false)
 Equal("branch that is not a table", (Schema:ValidateConfig({ frames = { player = 5 } })), false)
-Equal("a dormant key is accepted", (Schema:ValidateConfig({ frames = { boss = { width = 9 } }, future = "x" })), true)
+Equal("a dormant key is accepted", (Schema:ValidateConfig({ frames = { arena = { width = 9 } }, future = "x" })), true)
 
 -- Pristine ------------------------------------------------------------------------------------------------
 

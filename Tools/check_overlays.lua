@@ -143,7 +143,7 @@ local config = Schema:Defaults()
 Equal("no overlays on Target of Target", Overlays:Resolve(config, "targettarget"), nil)
 Equal("no overlays on the power bar", Overlays:Resolve(config, "playerPower"), nil)
 
-for _, key in ipairs({ "player", "target", "focus" }) do
+for _, key in ipairs({ "player", "target", "focus", "boss" }) do
 	local settings = Overlays:Resolve(config, key)
 	for _, kind in ipairs({ "absorb", "healAbsorb", "healPrediction" }) do
 		local option = settings[kind]

@@ -18,6 +18,7 @@ local BACKGROUND = 0.067
 ---@field PowerBorder Texture[]?
 ---@field Overlays AUIOverlayWidgets? the health overlays, on frames that have them
 ---@field key string the frame's key under `frames` in the profile
+---@field slot integer? the frame's place in its group, for a group's frames
 ---@field Bar StatusBar the frame's one bar: oUF's Health or Power element
 ---@field Health StatusBar?
 ---@field Power StatusBar?
@@ -115,6 +116,34 @@ function UnitFrame:Heights(config, key)
 	return main, 0
 end
 
+---How far a group's slot sits from the group's first slot: one frame's width or height plus the spacing per slot,
+---in the growth direction. Every slot keeps its place whether or not its unit exists.
+---@param config table
+---@param key string a group's key
+---@param slot integer? the frame's place in the group; nil or 1 for the first
+---@return number x
+---@return number y
+function UnitFrame:SlotOffset(config, key, slot)
+	if not slot or slot <= 1 then
+		return 0, 0
+	end
+
+	local base = "frames." .. key .. "."
+	local growth = Schema:Read(config, base .. "growth")
+	local spacing = Schema:Read(config, base .. "spacing")
+
+	if growth == "right" or growth == "left" then
+		local step = (Schema:Read(config, base .. "width") + spacing) * (slot - 1)
+
+		return growth == "right" and step or -step, 0
+	end
+
+	local main, power = self:Heights(config, key)
+	local step = (main + power + spacing) * (slot - 1)
+
+	return 0, growth == "up" and step or -step
+end
+
 ---Gives an oUF frame its main bar, in a holder at the top of the frame, and its text slots.
 ---@param frame table the oUF frame
 ---@param unit string
@@ -130,7 +159,7 @@ local function Build(frame, unit)
 	return frame.Bar
 end
 
----The style for the player, target, target-of-target and focus frames: health, an attached power bar where the
+---The style for the player, target, target-of-target, focus and boss frames: health, an attached power bar where the
 ---frame has one, clicks and the unit tooltip.
 ---@param frame table the oUF frame
 ---@param unit string
@@ -217,10 +246,11 @@ end
 function UnitFrameMixin:ApplyLayout(config)
 	local base = "frames." .. self.key .. "."
 	local main, power = UnitFrame:Heights(config, self.key)
+	local x, y = UnitFrame:SlotOffset(config, self.key, self.slot)
 
 	self:SetSize(Schema:Read(config, base .. "width"), main + power)
 	self:ClearAllPoints()
-	self:SetPoint("CENTER", UIParent, "CENTER", Schema:Read(config, base .. "x"), Schema:Read(config, base .. "y"))
+	self:SetPoint("CENTER", UIParent, "CENTER", Schema:Read(config, base .. "x") + x, Schema:Read(config, base .. "y") + y)
 
 	self.Main:ClearAllPoints()
 	self.Main:SetPoint("TOPLEFT")

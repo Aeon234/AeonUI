@@ -21,7 +21,7 @@ local TEXT_FIELDS = { "font", "size", "outline", "color", "nameFormat" }
 local COMBINED = { healthAndPercent = true, levelName = true }
 
 -- The frames that hold text, in the order Copy Text From and Apply to All Frames list them.
-local FRAME_KEYS = { "player", "target", "targettarget", "focus", "playerPower" }
+local FRAME_KEYS = { "player", "target", "targettarget", "focus", "boss", "playerPower" }
 
 local CONTENTS = {
 	none = NONE,
@@ -104,6 +104,10 @@ function Text:FrameTitle(key)
 
 	if key == "focus" then
 		return L["Focus"]
+	end
+
+	if key == "boss" then
+		return L["Bosses"]
 	end
 
 	return L["Player Power"]

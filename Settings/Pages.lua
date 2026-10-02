@@ -155,6 +155,13 @@ local PRECISIONS = {
 	decimal = L["One Decimal"],
 }
 
+local GROWTHS = {
+	down = L["Down"],
+	up = L["Up"],
+	right = L["Right"],
+	left = L["Left"],
+}
+
 local DECIMALS = {
 	{ value = 0, text = "100%" },
 	{ value = 1, text = "100.0%" },
@@ -250,8 +257,7 @@ end
 local function Layout(key, switchLabel)
 	local base = "frames." .. key .. "."
 	local halfWidth, halfHeight = ScreenHalf()
-
-	return {
+	local elements = {
 		Section("layout", L["Layout"]),
 		Row(Setting("toggle", "enabled", switchLabel, base .. "enabled", { pageSwitch = true })),
 		Row(
@@ -263,9 +269,22 @@ local function Layout(key, switchLabel)
 			Slider("y", L["Y Offset"], base .. "y", -halfHeight, halfHeight)
 		),
 	}
+
+	if Schema:Field(base .. "growth") then
+		local spacingMin, spacingMax = Pages.Range(base .. "spacing")
+
+		elements[#elements + 1] = Row(
+			Choice("growth", L["Growth Direction"], base .. "growth", Pages.Options("growth", GROWTHS), {
+				description = L["The direction the frames after the first are placed in."],
+			}),
+			Slider("spacing", L["Spacing"], base .. "spacing", spacingMin, spacingMax)
+		)
+	end
+
+	return elements
 end
 
----@param key string "player" or "target"
+---@param key string a frame with health
 ---@param switchLabel string
 ---@return table[] elements
 local function UnitPage(key, switchLabel)
@@ -350,6 +369,9 @@ function Pages:UnitFramePages()
 		end),
 		Page("focus", L["Focus"], "frames.focus", function()
 			return UnitPage("focus", L["Show Focus Frame"])
+		end),
+		Page("boss", L["Bosses"], "frames.boss", function()
+			return UnitPage("boss", L["Show Boss Frames"])
 		end),
 		Page("playerPower", L["Player Power"], "frames.playerPower", PowerPage),
 	}
