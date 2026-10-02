@@ -117,6 +117,7 @@ function Half:Control(kind)
 		control = CreateFrame(definition.frameType, nil, self.frame, definition.template)
 		control:SetPoint("RIGHT", self.frame, "RIGHT", -tokens.space.rowInset, 0)
 		self.controls[kind] = control
+		self.frame:GetParent():WatchHover(control)
 	end
 
 	return control
@@ -204,8 +205,41 @@ function AeonUISettings_SettingRowMixin:OnLoad()
 	self.surface = AS:CreateSurface(self)
 	self.halves = { CreateHalf(self.First), CreateHalf(self.Second) }
 	self.Band:SetColorTexture(0, 0, 0, 1)
-	local accent = tokens.color.accent
-	self.Divider:SetColorTexture(accent[1], accent[2], accent[3], tokens.alpha.divider)
+	self.Hover:SetColorTexture(1, 1, 1, tokens.alpha.rowHover)
+	local divider = tokens.color.text
+	self.Divider:SetColorTexture(divider[1], divider[2], divider[3], tokens.alpha.divider)
+
+	-- The row takes motion only, so clicks and the mouse wheel reach the controls and the list.
+	self:SetMouseMotionEnabled(true)
+	self:SetMouseClickEnabled(false)
+	self.watched = setmetatable({}, { __mode = "k" })
+	self:WatchHover(self)
+end
+
+---Shows the hover band while the cursor is over the row, its controls included.
+function AeonUISettings_SettingRowMixin:RefreshHover()
+	self.Hover:SetShown(self:IsVisible() and self:IsMouseOver())
+end
+
+---Refreshes the hover band whenever the cursor enters or leaves `frame` or any frame inside it that takes the
+---mouse, since leaving the row's own region for one of them, or for the list outside, reaches only that frame.
+---@param frame Frame
+function AeonUISettings_SettingRowMixin:WatchHover(frame)
+	if self.watched[frame] then
+		return
+	end
+	self.watched[frame] = true
+
+	if frame ~= self and (frame:IsMouseEnabled() or frame:IsMouseMotionEnabled()) then
+		local refresh = function()
+			self:RefreshHover()
+		end
+		frame:HookScript("OnEnter", refresh)
+		frame:HookScript("OnLeave", refresh)
+	end
+	for _, child in ipairs({ frame:GetChildren() }) do
+		self:WatchHover(child)
+	end
 end
 
 ---@param entry AeonSettingsEntry
@@ -222,6 +256,10 @@ function AeonUISettings_SettingRowMixin:Init(entry, window)
 	self.Band:SetPoint("TOPLEFT", inset, 0)
 	self.Band:SetPoint("BOTTOMRIGHT", -inset, entry.last and inset or 0)
 	self.Band:SetAlpha(even and tokens.alpha.bandEven or tokens.alpha.bandOdd)
+	self.Hover:ClearAllPoints()
+	self.Hover:SetPoint("TOPLEFT", inset, 0)
+	self.Hover:SetPoint("BOTTOMRIGHT", -inset, entry.last and inset or 0)
+	self:RefreshHover()
 
 	self.Divider:SetShown(split)
 	self.First:ClearAllPoints()

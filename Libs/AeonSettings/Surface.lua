@@ -14,6 +14,22 @@ function AS:HeaderLayout()
 	return tokens.space.sectionGap + HEADER_TOP_PADDING + tokens.size.sectionHeader / 2, HEADER_TOGGLE_LIFT
 end
 
+---Adds the bronze bar a section-style header shows left of its title: `size.headerBar` wide, as tall as the
+---header font, `space.headerBarToTitle` before the title.
+---@param parent Frame
+---@param title FontString
+---@return Texture
+function AS:CreateHeaderBar(parent, title)
+	local tokens = self.tokens
+	local accent = tokens.color.accent
+	local bar = parent:CreateTexture(nil, "ARTWORK")
+	bar:SetColorTexture(accent[1], accent[2], accent[3], 1)
+	bar:SetSize(tokens.size.headerBar, tokens.font.headerSize)
+	bar:SetPoint("RIGHT", title, "LEFT", -tokens.space.headerBarToTitle, 0)
+
+	return bar
+end
+
 local FILE_WIDTH, FILE_HEIGHT = 1024, 256
 local ART_WIDTH = 1024
 local SIDE = 20 -- side piece width in art pixels

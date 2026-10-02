@@ -16,7 +16,7 @@
 				</Layers>
 				<Frames>
 					<Frame parentKey="StateSlot">
-						<Size x="256" y="26"/>
+						<Size x="220" y="26"/>
 					</Frame>
 				</Frames>
 			</Button>

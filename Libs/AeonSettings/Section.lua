@@ -25,6 +25,7 @@ function AeonUISettings_SectionHeaderMixin:OnLoad()
 	-- Regions declared without anchors fill their parent; clear that before placing them.
 	self.Title:ClearAllPoints()
 	self.Title:SetPoint("LEFT", self, "TOPLEFT", inset, -self.titleCenter)
+	self.bar = AS:CreateHeaderBar(self, self.Title)
 	self.Toggle:ClearAllPoints()
 	self.Toggle:SetPoint("RIGHT", self, "TOPRIGHT", -inset, -self.titleCenter + self.toggleLift)
 

@@ -4,7 +4,7 @@ local AS = ns.AeonSettings
 local L = AS.L
 
 local MIN_WIDTH = 120
-local MAX_WIDTH = 256
+local MAX_WIDTH = AS.tokens.size.valueControl
 local TEXT_PADDING = 40
 local ROW_HEIGHT = 26
 local CONFIRM_POPUP = "AeonUISettings_CONFIRM_ACTION"

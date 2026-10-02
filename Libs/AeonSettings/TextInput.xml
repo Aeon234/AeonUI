@@ -1,15 +1,15 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/">
 	<Frame name="AeonUISettings_TextInputTemplate" mixin="AeonUISettings_TextInputMixin" virtual="true">
-		<Size x="256" y="29"/>
+		<Size x="220" y="29"/>
 		<Frames>
 			<Frame parentKey="Motion">
-				<Size x="256" y="29"/>
+				<Size x="220" y="29"/>
 				<Anchors>
 					<Anchor point="CENTER"/>
 				</Anchors>
 				<Frames>
 					<EditBox parentKey="Box" inherits="InputBoxInstructionsTemplate" autoFocus="false">
-						<Size x="251" y="22"/>
+						<Size x="215" y="22"/>
 						<Anchors>
 							<Anchor point="RIGHT"/>
 						</Anchors>

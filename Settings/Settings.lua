@@ -50,7 +50,7 @@ function Settings:Create()
 		name = FRAME_NAME,
 		title = AUI.title,
 		version = AUI.version,
-		contentWidth = 900,
+		contentWidth = 980,
 		onEditMode = function()
 			AUI.Editor:FromSettings()
 		end,

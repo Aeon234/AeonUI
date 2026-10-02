@@ -49,6 +49,7 @@ function AeonUISettings_PreviewPanelMixin:OnLoad()
 	-- Regions declared without anchors fill their parent; clear that before placing them.
 	band.Title:ClearAllPoints()
 	band.Title:SetPoint("LEFT", band, "TOPLEFT", inset, -titleCenter)
+	AS:CreateHeaderBar(band, band.Title)
 
 	band.Toggle:ClearAllPoints()
 	band.Toggle:SetPoint("RIGHT", band, "TOPRIGHT", -inset, -titleCenter + toggleLift)

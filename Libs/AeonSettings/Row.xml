@@ -5,6 +5,9 @@
 			<Layer level="BACKGROUND" textureSubLevel="0">
 				<Texture parentKey="Band"/>
 			</Layer>
+			<Layer level="BACKGROUND" textureSubLevel="1">
+				<Texture parentKey="Hover" hidden="true"/>
+			</Layer>
 			<Layer level="ARTWORK">
 				<Texture parentKey="Divider" hidden="true">
 					<Size x="1"/>
@@ -21,6 +24,9 @@
 		</Frames>
 		<Scripts>
 			<OnLoad method="OnLoad"/>
+			<OnEnter method="RefreshHover"/>
+			<OnLeave method="RefreshHover"/>
+			<OnHide method="RefreshHover"/>
 		</Scripts>
 	</Frame>
 </Ui>
