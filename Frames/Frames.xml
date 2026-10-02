@@ -4,6 +4,7 @@
 	<Script file="Overlays.lua" />
 	<Script file="CastData.lua" />
 	<Script file="CastBar.lua" />
+	<Script file="Auras.lua" />
 	<Script file="UnitFrame.lua" />
 	<Script file="Frames.lua" />
 </Ui>

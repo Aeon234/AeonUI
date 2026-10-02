@@ -63,6 +63,24 @@ local EMPOWER_STATES = {
 
 local SAMPLE_ICON = "Interface\\Icons\\INV_Misc_QuestionMark"
 
+-- Sample aura icons, present on both clients.
+local AURA_ICONS = {
+	"Interface\\Icons\\Spell_Nature_Rejuvenation",
+	"Interface\\Icons\\Spell_Holy_PowerWordShield",
+	"Interface\\Icons\\Spell_Shadow_ShadowWordPain",
+	"Interface\\Icons\\Spell_Fire_Immolation",
+	"Interface\\Icons\\Spell_Frost_FrostNova",
+	"Interface\\Icons\\Ability_Rogue_Rupture",
+}
+
+-- Sample debuff borders: Magic, Curse, Poison and Disease.
+local DISPEL_COLORS = {
+	{ r = 0.2, g = 0.6, b = 1 },
+	{ r = 0.6, g = 0, b = 1 },
+	{ r = 0, g = 0.6, b = 0 },
+	{ r = 0.6, g = 0.4, b = 0 },
+}
+
 local POWER_STATES = {
 	{ label = STATE_FULL, fill = 1 },
 	{ label = STATE_HALF, fill = 0.5 },
@@ -237,6 +255,133 @@ end
 
 local function Ignore() end
 
+-- Where each sample icon's corner sits, as a rectangle against the frame's top left (y up).
+local CORNER_RECTS = {
+	BOTTOMLEFT = { 0, 1, 0, 1 },
+	TOPLEFT = { 0, 1, -1, 0 },
+	TOPRIGHT = { -1, 0, -1, 0 },
+	BOTTOMRIGHT = { -1, 0, 0, 1 },
+}
+
+-- Each frame point against the frame's top left (y up), as shares of its width and height.
+local FRAME_POINTS = {
+	TOPLEFT = { 0, 0 },
+	TOPRIGHT = { 1, 0 },
+	BOTTOMLEFT = { 0, -1 },
+	BOTTOMRIGHT = { 1, -1 },
+}
+
+---How far a frame's aura displays reach past its edges at their limits, for sizing the preview.
+---@param config table
+---@param key string
+---@param width number
+---@param height number
+---@return number above
+---@return number below
+---@return number left
+---@return number right
+function Previews:AuraSpace(config, key, width, height)
+	local above, below, left, right = 0, 0, 0, 0
+	local clearAbove, clearBelow = AUI.Auras:Clearance(config, key)
+
+	for _, kind in ipairs({ "buffs", "debuffs" }) do
+		local settings = AUI.Auras:Resolve(config, key, kind)
+
+		if settings and settings.enabled then
+			local placement = AUI.Auras:Placement(settings, width, clearAbove, clearBelow)
+			local frame = FRAME_POINTS[placement.relative] or FRAME_POINTS.TOPLEFT
+			local corner = CORNER_RECTS[placement.point] or CORNER_RECTS.TOPLEFT
+			local size = settings.size
+
+			for _, offset in ipairs(AUI.Auras:IconOffsets(settings, placement, settings.limit)) do
+				local x = frame[1] * width + placement.x + offset.x
+				local y = frame[2] * height + placement.y + offset.y
+
+				left = math.max(left, -(x + corner[1] * size))
+				right = math.max(right, x + corner[2] * size - width)
+				above = math.max(above, y + corner[4] * size)
+				below = math.max(below, -height - (y + corner[3] * size))
+			end
+		end
+	end
+
+	return above, below, left, right
+end
+
+---Draws a sample's aura displays at their limits.
+---@param sample table
+---@param key string
+---@param config table
+---@param addPart fun(region: Region, settingID: string, ...)
+local function DrawAuras(sample, key, config, addPart)
+	local width = Schema:Read(config, "frames." .. key .. ".width")
+	local clearAbove, clearBelow = AUI.Auras:Clearance(config, key)
+
+	sample.auraIcons = sample.auraIcons or { buffs = {}, debuffs = {} }
+
+	for kind, icons in pairs(sample.auraIcons) do
+		local settings = AUI.Auras:Resolve(config, key, kind)
+		local count = 0
+
+		if settings and settings.enabled then
+			count = settings.limit
+			local placement = AUI.Auras:Placement(settings, width, clearAbove, clearBelow)
+			local font = AUI.Media:Font(settings.font)
+			local flags = AUI.Media:FontFlags(settings.outline)
+
+			for index, offset in ipairs(AUI.Auras:IconOffsets(settings, placement, count)) do
+				local icon = icons[index]
+
+				if not icon then
+					local frame = CreateFrame("Frame", nil, sample.frame)
+
+					icon = {
+						frame = frame,
+						texture = frame:CreateTexture(nil, "ARTWORK"),
+						border = frame:CreateTexture(nil, "BACKGROUND"),
+						count = frame:CreateFontString(nil, "OVERLAY"),
+						time = frame:CreateFontString(nil, "OVERLAY"),
+					}
+					icon.texture:SetAllPoints()
+					icon.texture:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+					-- The border is a colored backing one unit wider than the icon on each side.
+					icon.border:SetPoint("TOPLEFT", -1, 1)
+					icon.border:SetPoint("BOTTOMRIGHT", 1, -1)
+					icons[index] = icon
+				end
+
+				local frame = icon.frame
+				local dispel = DISPEL_COLORS[(index - 1) % #DISPEL_COLORS + 1]
+
+				frame:SetSize(settings.size, settings.size)
+				frame:ClearAllPoints()
+				frame:SetPoint(placement.point, sample.frame, placement.relative, placement.x + offset.x,
+					placement.y + offset.y)
+				icon.texture:SetTexture(AURA_ICONS[(index - 1) % #AURA_ICONS + 1])
+				icon.border:SetColorTexture(dispel.r, dispel.g, dispel.b, 1)
+				icon.border:SetShown(kind == "debuffs" and settings.border)
+				icon.count:SetFont(font, settings.countSize, flags)
+				icon.count:ClearAllPoints()
+				icon.count:SetPoint(settings.countCorner, frame, settings.countCorner, settings.countX, settings.countY)
+				icon.count:SetText(index % 3 == 0 and "2" or "")
+				icon.time:SetFont(font, settings.durationSize, flags)
+				icon.time:ClearAllPoints()
+				icon.time:SetPoint("CENTER", frame, "CENTER", settings.durationX, settings.durationY)
+				icon.time:SetText(settings.duration and tostring(4 * index) or "")
+				frame:Show()
+
+				if index == 1 then
+					addPart(frame, kind == "buffs" and "buffEnabled" or "debuffEnabled")
+				end
+			end
+		end
+
+		for index = count + 1, #icons do
+			icons[index].frame:Hide()
+		end
+	end
+end
+
 ---A frame's cast bar settings as its preview draws them: always under the sample, even the player's, which on
 ---screen stands on its own, and in the window's strata.
 ---@param config table
@@ -353,6 +498,10 @@ local function DrawSample(sample, key, config, state, addPart)
 		cast.holder:Hide()
 	end
 
+	if Schema:Field("frames." .. key .. ".buffs.enabled") then
+		DrawAuras(sample, key, config, addPart)
+	end
+
 	local settings = sample.overlays and AUI.Overlays:Resolve(config, key)
 
 	if settings then
@@ -427,6 +576,10 @@ local function Preview(key, states, stateKey)
 			local height = main + powerHeight
 			local room = Schema:Read(config, base .. "text.size") + TEXT_ROOM
 			local castAbove, castBelow, fullWidth = Previews:CastSpace(config, key, width)
+			local auraAbove, auraBelow, auraLeft, auraRight = Previews:AuraSpace(config, key, width, height)
+			local topMargin = math.max(room + castAbove, auraAbove)
+			local bottomMargin = math.max(room + castBelow, auraBelow)
+			local rightMargin = math.max(fullWidth - width, auraRight)
 			local state = FindState(states, label)
 			local offsets, left, right, top, bottom = {}, 0, 0, 0, 0
 
@@ -447,8 +600,8 @@ local function Preview(key, states, stateKey)
 
 				sample.frame:SetSize(width, height)
 				sample.frame:ClearAllPoints()
-				sample.frame:SetPoint("TOPLEFT", parent, "TOPLEFT", PAD + offset.x - left,
-					-(PAD + room + castAbove + top - offset.y))
+				sample.frame:SetPoint("TOPLEFT", parent, "TOPLEFT", PAD + auraLeft + offset.x - left,
+					-(PAD + topMargin + top - offset.y))
 				DrawSample(sample, key, config, state, slot == 1 and addPart or Ignore)
 				sample.frame:SetShown(state.lost ~= slot)
 			end
@@ -459,8 +612,8 @@ local function Preview(key, states, stateKey)
 				window:SetPreviewChosen(AUI.SettingsText:Chosen(key))
 			end
 
-			return math.max(width, fullWidth) + right - left + PAD * 2,
-				height + top - bottom + castAbove + castBelow + (PAD + room) * 2
+			return width + auraLeft + rightMargin + right - left + PAD * 2,
+				height + top - bottom + topMargin + bottomMargin + PAD * 2
 		end,
 	}
 end

@@ -321,6 +321,7 @@ local function UnitPage(key, switchLabel)
 	end
 	Append(elements, AUI.SettingsOverlays:Sections(key))
 	Append(elements, AUI.SettingsCastBar:Sections(key))
+	Append(elements, AUI.SettingsAuras:Sections(key))
 	Append(elements, AUI.SettingsText:Sections(key))
 	Append(elements, {
 		Section("numbers", L["Numbers"]),

@@ -167,8 +167,8 @@ AUI.Media = {
 }
 for _, file in ipairs({
 	"Core/Callbacks.lua", "Profile/Schema.lua", "Profile/Store.lua", "Profile/Codec.lua", "Profile/Profile.lua",
-	"Frames/Tags.lua", "Frames/Text.lua", "Frames/Overlays.lua", "Frames/CastBar.lua", "Frames/UnitFrame.lua",
-	"Settings/Note.lua", "Settings/Pages.lua", "Settings/TextSlots.lua", "Settings/Overlays.lua", "Settings/CastBar.lua",
+	"Frames/Tags.lua", "Frames/Text.lua", "Frames/Overlays.lua", "Frames/CastBar.lua", "Frames/Auras.lua", "Frames/UnitFrame.lua",
+	"Settings/Note.lua", "Settings/Pages.lua", "Settings/TextSlots.lua", "Settings/Overlays.lua", "Settings/CastBar.lua", "Settings/Auras.lua",
 	"Settings/Previews.lua",
 	"Settings/Profiles.lua", "Settings/Recovery.lua", "Settings/Settings.lua",
 }) do
@@ -485,6 +485,28 @@ Equal("glow style saved", Profile:Get("frames.target.castbar.glowStyle"), "blizz
 Equal("glow speed range", Find(targetCast, "castGlowSpeed").max, 10)
 Equal("bosses get interrupt colors", Find(pages.boss.Build(), "castReady") ~= nil, true)
 Equal("boss cast target off", Find(pages.boss.Build(), "castTarget").get(), false)
+
+-- Auras.
+local targetAuras = pages.target.Build()
+Equal("buffs section", Find(targetAuras, "buffEnabled").get(), true)
+Equal("debuffs section", Find(targetAuras, "debuffEnabled").get(), true)
+Equal("buff filters", #Options(Find(targetAuras, "buffFilter")), 5)
+Equal("debuff filters", #Options(Find(targetAuras, "debuffFilter")), 4)
+Equal("sorts", #Options(Find(targetAuras, "debuffSort")), 6)
+Equal("anchors", #Options(Find(targetAuras, "debuffAnchor")), 6)
+Equal("limit range", Find(targetAuras, "debuffLimit").max, 40)
+Equal("per row explained", Find(targetAuras, "debuffPerRow").description ~= nil, true)
+Equal("duration size depends on duration", Find(targetAuras, "debuffDurationSize").depends, "debuffDuration")
+Equal("rows depend on the switch", Find(targetAuras, "debuffSort").depends, "debuffEnabled")
+Equal("debuff border label", Find(targetAuras, "debuffBorder").label, "Dispel Type Border")
+Equal("buff border label", Find(targetAuras, "buffBorder").label, "Stealable Glow")
+Find(targetAuras, "debuffLimit").set(12)
+Equal("limit saved", Profile:Get("frames.target.debuffs.limit"), 12)
+Equal("no auras on target of target", Find(pages.targettarget.Build(), "buffEnabled"), nil)
+Equal("no auras on the power bar", Find(pages.playerPower.Build(), "debuffEnabled"), nil)
+Equal("boss debuffs on the left", Find(pages.boss.Build(), "debuffAnchor").get(), "left")
+Equal("player buff clicks cancel", Find(pages.player.Build(), "buffClicks").description:find("cancels") ~= nil, true)
+Equal("other clicks pass through", Find(targetAuras, "buffClicks").description:find("cancels"), nil)
 
 -- Page resets.
 pages.player.Reset()

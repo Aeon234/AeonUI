@@ -543,5 +543,22 @@ state.dead = true
 Equal("status tag", Methods["aui:status"]("focus"), "Dead")
 Reset()
 
+-- Overhang: text past the frame's top and bottom edges.
+config = Schema:Defaults()
+local function Overhang(key)
+	return table.concat({ Text:Overhang(config, key) }, ",")
+end
+Equal("target text straddles the top", Overhang("target"), "6,0")
+Equal("player text straddles the top", Overhang("player"), "6,0")
+Equal("focus text stays inside", Overhang("focus"), "0,0")
+Schema:Write(config, "frames.target.text.slots.1.placement", "outside")
+Equal("outside reaches its full size", Overhang("target"), "12,0")
+Schema:Write(config, "frames.target.text.slots.1.y", 3)
+Equal("moved up reaches further", Overhang("target"), "15,0")
+Schema:Write(config, "frames.target.text.slots.3.placement", "edge")
+Equal("bottom edge", Overhang("target"), "15,6")
+Schema:Write(config, "frames.target.text.slots.3.content", "none")
+Equal("empty slots reach nowhere", Overhang("target"), "15,0")
+
 string.format = luaFormat
 io.stdout:write(("check_text: %d checks passed\n"):format(checks))

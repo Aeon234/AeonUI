@@ -168,6 +168,33 @@ function Text:Widths(slots, barWidth)
 	return widths
 end
 
+---How far a frame's text reaches past its top and bottom edges: a slot on an edge reaches half its size past it,
+---one outside the whole of it, moved by its vertical offset. Empty slots reach nowhere.
+---@param config table
+---@param key string
+---@return number above
+---@return number below
+function Text:Overhang(config, key)
+	local above, below = 0, 0
+
+	for index = 1, Schema.textSlots[key] or 0 do
+		local slot = self:Resolve(config, key, index)
+		local vertical = Split(slot.anchor)
+
+		if slot.content ~= "none" and slot.placement ~= "inside" and vertical ~= "" then
+			local reach = slot.placement == "edge" and slot.size / 2 or slot.size
+
+			if vertical == "TOP" then
+				above = math.max(above, reach + slot.y)
+			else
+				below = math.max(below, reach - slot.y)
+			end
+		end
+	end
+
+	return above, below
+end
+
 ---Resolves a slot's settings, filling its style from the frame's text style where the slot has none of its own.
 ---@param config table the active profile config
 ---@param unit string

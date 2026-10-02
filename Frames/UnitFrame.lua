@@ -18,6 +18,7 @@ local BACKGROUND = 0.067
 ---@field PowerBorder Texture[]?
 ---@field Overlays AUIOverlayWidgets? the health overlays, on frames that have them
 ---@field CastBarWidgets AUICastBarWidgets? the cast bar, on frames that have one
+---@field AuraDisplays table<string, AUIAuraWidgets>? the buff and debuff displays, on frames that have them
 ---@field key string the frame's key under `frames` in the profile
 ---@field slot integer? the frame's place in its group, for a group's frames
 ---@field Bar StatusBar the frame's one bar: oUF's Health or Power element
@@ -211,6 +212,13 @@ function UnitFrame.HealthStyle(frame, unit)
 		frame.CastBarWidgets = widgets
 	end
 
+	if Schema:Field("frames." .. frame.key .. ".buffs.enabled") then
+		frame.AuraDisplays = {
+			buffs = AUI.Auras:Create(frame, "buffs"),
+			debuffs = AUI.Auras:Create(frame, "debuffs"),
+		}
+	end
+
 	frame:RegisterForClicks("AnyUp")
 	frame:SetScript("OnEnter", frame.OnEnter)
 	frame:SetScript("OnLeave", UnitFrame_OnLeave)
@@ -297,6 +305,10 @@ function UnitFrameMixin:ApplyLayout(config)
 		end
 	end
 
+	for kind, display in pairs(self.AuraDisplays or {}) do
+		AUI.Auras:Configure(display, AUI.Auras:Resolve(config, self.key, kind) --[[@as table]])
+	end
+
 	if Schema:Read(config, base .. "enabled") then
 		self:Enable()
 	else
@@ -341,6 +353,15 @@ function UnitFrameMixin:ApplyAppearance(config)
 
 		AUI.CastBar:Apply(cast, castSettings, anchor, Schema:Read(config, "frames." .. self.key .. ".width"))
 		AUI.CastBar:ApplyElement(cast, castSettings)
+	end
+
+	if self.AuraDisplays then
+		local above, below = AUI.Auras:Clearance(config, self.key)
+		local width = Schema:Read(config, "frames." .. self.key .. ".width")
+
+		for kind, display in pairs(self.AuraDisplays) do
+			AUI.Auras:Place(display, AUI.Auras:Resolve(config, self.key, kind) --[[@as table]], width, above, below)
+		end
 	end
 
 	AUI.Text:Apply(self, self.key, config)

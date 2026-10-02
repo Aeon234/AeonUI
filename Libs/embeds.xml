@@ -16,5 +16,7 @@
 	<Script file="oUF\elements\health.lua" />
 	<Script file="oUF\elements\power.lua" />
 	<Script file="oUF\elements\tags.lua" />
+	<Script file="oUF\elements\castbar.lua" />
+	<Script file="oUF\elements\auras.lua" />
 	<Script file="oUF\finalize.lua" />
 </Ui>

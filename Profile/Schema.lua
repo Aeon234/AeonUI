@@ -58,6 +58,12 @@ local Schema = {
 		iconSide = { "LEFT", "RIGHT" },
 		timeFormat = { "remaining", "elapsed", "remainingTotal", "elapsedTotal" },
 		glowStyle = { "pixel", "blizzard" },
+		auraAnchor = { "aboveLeft", "aboveRight", "belowLeft", "belowRight", "left", "right" },
+		auraGrowth = { "right", "left" },
+		buffFilter = { "all", "own", "important", "importantOwn", "hasDuration" },
+		debuffFilter = { "all", "own", "important", "importantOwn" },
+		auraSort = { "stable", "shortest", "yours", "blizzard", "importance", "name" },
+		auraCorner = { "BOTTOMRIGHT", "BOTTOMLEFT", "TOPRIGHT", "TOPLEFT", "CENTER" },
 	},
 }
 AUI.Schema = Schema
@@ -317,6 +323,52 @@ local function CastBar(key, defaults)
 	end
 end
 
+---A frame's buff or debuff display.
+---@param key string
+---@param kind "buffs"|"debuffs"
+---@param defaults table `enabled`, `anchor`, `growth`, `limit` and `filter`
+local function AuraDisplay(key, kind, defaults)
+	local base = "frames." .. key .. "." .. kind .. "."
+
+	Boolean(base .. "enabled", defaults.enabled)
+	Number(base .. "size", 22, 10, 60, true)
+	Number(base .. "limit", defaults.limit, 1, 40, true)
+	Number(base .. "perRow", 0, 0, 40, true)
+	Number(base .. "spacing", 2, 0, 20, true)
+	Choice(base .. "anchor", "auraAnchor", defaults.anchor)
+	Choice(base .. "growth", "auraGrowth", defaults.growth)
+	Number(base .. "x", 0, -200, 200)
+	Number(base .. "y", 0, -200, 200)
+	Choice(base .. "filter", kind == "buffs" and "buffFilter" or "debuffFilter", defaults.filter)
+	Choice(base .. "sort", "auraSort", "stable")
+	Boolean(base .. "reverse", false)
+	Boolean(base .. "clicks", false)
+	Boolean(base .. "tooltips", true)
+	Boolean(base .. "duration", false)
+	Number(base .. "durationSize", 10, 6, 32, true)
+	Number(base .. "durationX", 0, -40, 40)
+	Number(base .. "durationY", 0, -40, 40)
+	Choice(base .. "countCorner", "auraCorner", "BOTTOMRIGHT")
+	Number(base .. "countSize", 14, 6, 32, true)
+	Number(base .. "countX", -1, -40, 40)
+	Number(base .. "countY", 0, -40, 40)
+	Boolean(base .. "swipe", true)
+	Boolean(base .. "border", true)
+end
+
+---@param key string
+---@param buffs table
+---@param debuffs table
+local function Auras(key, buffs, debuffs)
+	AuraDisplay(key, "buffs", buffs)
+	AuraDisplay(key, "debuffs", debuffs)
+end
+
+-- Buffs start above-left; the player's, focus's and bosses' are off until enabled.
+local function Buffs(enabled)
+	return { enabled = enabled, anchor = "aboveLeft", growth = "right", limit = 4, filter = "all" }
+end
+
 -- The compact frames' default text: the name, left-aligned inside health.
 local NAME_ONLY = {
 	{ content = "name", anchor = "LEFT", placement = "inside", x = 4 },
@@ -326,6 +378,7 @@ Geometry("player", 270, 36, 16, -330, -200)
 Boolean("frames.player.reverse", false)
 Overlays("player")
 CastBar("player", { width = 386, x = 0, y = -254, icon = false, target = false })
+Auras("player", Buffs(false), { enabled = false, anchor = "belowLeft", growth = "right", limit = 10, filter = "all" })
 TextFields("player", 1, false, {
 	{ content = "healthAndPercent", anchor = "TOPRIGHT", placement = "edge", x = -4 },
 })
@@ -335,6 +388,7 @@ Boolean("frames.target.reverse", true)
 AttachedPower("target")
 Overlays("target")
 CastBar("target", { width = 270, x = 0, y = 0, icon = true, target = true, side = "below" })
+Auras("target", Buffs(true), { enabled = true, anchor = "belowLeft", growth = "right", limit = 20, filter = "all" })
 TextFields("target", 1, false, {
 	{ content = "healthAndPercent", anchor = "TOPLEFT", placement = "edge", x = 4 },
 	{ content = "levelName", separator = "space", anchor = "TOPRIGHT", placement = "edge", x = -4, colorMode = "class" },
@@ -351,6 +405,7 @@ Boolean("frames.focus.reverse", false)
 AttachedPower("focus")
 Overlays("focus")
 CastBar("focus", { width = 200, x = 0, y = 0, icon = false, target = true, side = "above" })
+Auras("focus", Buffs(false), { enabled = true, anchor = "belowLeft", growth = "right", limit = 10, filter = "own" })
 TextFields("focus", 0, true, NAME_ONLY)
 
 -- The boss frames: one group, the first slot at the position, the others following by growth and spacing.
@@ -361,6 +416,7 @@ Boolean("frames.boss.reverse", false)
 AttachedPower("boss")
 Overlays("boss")
 CastBar("boss", { width = 200, x = 0, y = 0, icon = true, target = false, side = "below" })
+Auras("boss", Buffs(false), { enabled = true, anchor = "left", growth = "left", limit = 10, filter = "own" })
 TextFields("boss", 2, nil, {
 	{ content = "name", anchor = "TOPLEFT", placement = "inside", x = 4 },
 	{ content = "healthPercent", anchor = "TOPRIGHT", placement = "inside", x = -4 },
