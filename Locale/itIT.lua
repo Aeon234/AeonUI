@@ -38,6 +38,9 @@ local L = select(2, ...).L
 -- Unit-frame page tabs (Settings)
 -- L["Frame"] = "Frame"
 
+-- Details group titles, as "Cast Bar Details" (Settings)
+-- L["%s Details"] = "%s Details"
+
 -- Settings strings on several unit-frame pages (Settings)
 -- L["Layout"] = "Layout"
 -- L["Width"] = "Width"

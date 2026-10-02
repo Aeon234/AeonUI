@@ -215,6 +215,14 @@ function Pages.Pick(option, elements)
 	return elements
 end
 
+---A collapsible "Details" group after a section, holding its fine tuning. It starts collapsed.
+---@param id string the section's id
+---@param title string the section's title
+---@return table element
+function Pages.Details(id, title)
+	return Pages.Section(id .. "Details", L["%s Details"]:format(title), { collapsible = true })
+end
+
 local Section, Row, Choice, Slider, Check = Pages.Section, Pages.Row, Pages.Choice, Pages.Slider, Pages.Check
 
 -- Labels ----------------------------------------------------------------------------------------------------
@@ -370,8 +378,11 @@ local function PowerSection(key)
 	end
 
 	local elements = { Shared:Section("powerColors", L["Power Colors"], key, Shared.SCOPES.powerColors, true) }
+	local main, details = Shared:PowerRows(base)
 
-	Append(elements, Shared:PowerRows(base))
+	Append(elements, main)
+	elements[#elements + 1] = Pages.Details("powerColors", L["Power Colors"])
+	Append(elements, details)
 
 	return elements
 end
@@ -413,6 +424,7 @@ local function PortraitSection(key)
 			depends = "portrait",
 			blocked = Detached,
 		})),
+		Pages.Details("portrait", L["Portrait"]),
 		Row(
 			Slider("portraitX", L["X Offset"], base .. "x", offsetMin, offsetMax, { depends = "portrait", blocked = Detached }),
 			Slider("portraitY", L["Y Offset"], base .. "y", offsetMin, offsetMax, { depends = "portrait", blocked = Detached })
@@ -493,7 +505,12 @@ local function UnitPage(key, switchLabel)
 	Append(elements, Shared:BarRows(base .. "bars."))
 	Append(elements, PortraitSection(key))
 	Append(elements, { Shared:Section("healthColors", L["Health Colors"], key, Shared.SCOPES.healthColors, true) })
-	Append(elements, Shared:HealthRows(base .. "health."))
+
+	local healthMain, healthDetails = Shared:HealthRows(base .. "health.")
+
+	Append(elements, healthMain)
+	elements[#elements + 1] = Pages.Details("healthColors", L["Health Colors"])
+	Append(elements, healthDetails)
 	Append(elements, PowerSection(key))
 	Append(elements, AUI.SettingsOverlays:Sections(key))
 	Append(elements, AUI.SettingsCastBar:Sections(key))

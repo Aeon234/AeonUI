@@ -318,7 +318,8 @@ end
 
 ---The health color rows of a frame page's Health Colors section, or of the Globals page's.
 ---@param base string `health.` or a frame's `frames.<key>.health.`
----@return table[] elements
+---@return table[] main the section's rows
+---@return table[] details the rows of its Details group
 function Shared:HealthRows(base)
 	---@param modes table<string, true> the fill modes that use the setting
 	---@param reason string
@@ -337,7 +338,7 @@ function Shared:HealthRows(base)
 
 	local stopsReason = L["Only with Custom Stops or Class Fade."]
 
-	return {
+	local main = {
 		Row(
 			Choice("healthMode", L["Health Color"], base .. "mode", Pages.Options("healthMode", HEALTH_MODES), {
 				description = L["Classic and Custom Stops follow the unit's health; Class Fade starts from the class or reaction color at full health."],
@@ -363,33 +364,10 @@ function Shared:HealthRows(base)
 			Color("healthEmpty", L["Empty Health Color"], base .. "stops.empty", {
 				blocked = Unless({ stops = true, classFade = true }, stopsReason),
 			}),
-			Slider("healthFillAlpha", L["Fill Opacity"], base .. "fillAlpha", 0, 100, { format = "percent", step = 5 })
-		),
-		Row(
-			Check("healthGradient", L["Gradient"], base .. "gradient", {
-				description = L["Blends the fill toward the end color. A restricted unit's health color stays solid."],
-			}),
-			Choice("healthGradientDirection", L["Gradient Direction"], base .. "gradientDirection",
-				Pages.Options("orientation", AUI.SettingsCastBar.ORIENTATIONS), { depends = "healthGradient" })
-		),
-		Row(
-			Color("healthGradientColor", L["Gradient End Color"], base .. "gradientColor", {
-				depends = "healthGradient",
-				hasOpacity = true,
-			}),
 			Choice("healthBackground", L["Background Color"], base .. "background",
 				Pages.Options("healthBackground", HEALTH_BACKGROUNDS), {
 					description = L["Class / Reaction uses the unit's color at the bar background's opacity."],
 				})
-		),
-		Row(
-			Check("healthDead", L["Dead Background"], base .. "deadBackground", {
-				description = L["Colors the background while the unit is dead or a ghost."],
-			}),
-			Color("healthDeadColor", L["Dead Background Color"], base .. "deadColor", {
-				depends = "healthDead",
-				hasOpacity = true,
-			})
 		),
 		Row(
 			Check("healthDark", L["Dark Mode"], base .. "dark", {
@@ -402,13 +380,41 @@ function Shared:HealthRows(base)
 			hasOpacity = true,
 		})),
 	}
+	local details = {
+		Row(
+			Check("healthGradient", L["Gradient"], base .. "gradient", {
+				description = L["Blends the fill toward the end color. A restricted unit's health color stays solid."],
+			}),
+			Choice("healthGradientDirection", L["Gradient Direction"], base .. "gradientDirection",
+				Pages.Options("orientation", AUI.SettingsCastBar.ORIENTATIONS), { depends = "healthGradient" })
+		),
+		Row(
+			Color("healthGradientColor", L["Gradient End Color"], base .. "gradientColor", {
+				depends = "healthGradient",
+				hasOpacity = true,
+			}),
+			Slider("healthFillAlpha", L["Fill Opacity"], base .. "fillAlpha", 0, 100, { format = "percent", step = 5 })
+		),
+		Row(
+			Check("healthDead", L["Dead Background"], base .. "deadBackground", {
+				description = L["Colors the background while the unit is dead or a ghost."],
+			}),
+			Color("healthDeadColor", L["Dead Background Color"], base .. "deadColor", {
+				depends = "healthDead",
+				hasOpacity = true,
+			})
+		),
+	}
+
+	return main, details
 end
 
 ---The power color rows of a frame page's Power Colors section, or of the Globals page's.
 ---@param base string `powerColors.` or a frame's `frames.<key>.powerColors.`
----@return table[] elements
+---@return table[] main the section's rows
+---@return table[] details the rows of its Details group
 function Shared:PowerRows(base)
-	return {
+	local main = {
 		Row(
 			Choice("powerMode", L["Power Color"], base .. "mode", Pages.Options("powerMode", POWER_MODES), {
 				description = L["Class colors a player's power bar by class; other units keep their power type's color."],
@@ -421,6 +427,12 @@ function Shared:PowerRows(base)
 				end,
 			})
 		),
+		Row(Choice("powerBackground", L["Background Color"], base .. "background",
+			Pages.Options("powerBackground", POWER_BACKGROUNDS), {
+				description = L["Power Color uses the bar's color at the bar background's opacity."],
+			})),
+	}
+	local details = {
 		Row(
 			Check("powerGradient", L["Gradient"], base .. "gradient"),
 			Choice("powerGradientDirection", L["Gradient Direction"], base .. "gradientDirection",
@@ -431,20 +443,19 @@ function Shared:PowerRows(base)
 				depends = "powerGradient",
 				hasOpacity = true,
 			}),
-			Choice("powerBackground", L["Background Color"], base .. "background",
-				Pages.Options("powerBackground", POWER_BACKGROUNDS), {
-					description = L["Power Color uses the bar's color at the bar background's opacity."],
-				})
+			Slider("powerFillAlpha", L["Fill Opacity"], base .. "fillAlpha", 0, 100, { format = "percent", step = 5 })
 		),
-		Row(Slider("powerFillAlpha", L["Fill Opacity"], base .. "fillAlpha", 0, 100, { format = "percent", step = 5 })),
 	}
+
+	return main, details
 end
 
 ---@return table[] elements the Globals page's Power Colors section, with a color for each power type the client has
 local function GlobalPowerSection()
 	local elements = { Section("powerColors", L["Power Colors"]) }
+	local main, details = Shared:PowerRows("powerColors.")
 
-	for _, element in ipairs(Shared:PowerRows("powerColors.")) do
+	for _, element in ipairs(main) do
 		elements[#elements + 1] = element
 	end
 
@@ -469,14 +480,21 @@ local function GlobalPowerSection()
 		elements[#elements + 1] = Row(swatches[index], swatches[index + 1])
 	end
 
+	elements[#elements + 1] = Pages.Details("powerColors", L["Power Colors"])
+
+	for _, element in ipairs(details) do
+		elements[#elements + 1] = element
+	end
+
 	return elements
 end
 
 ---@return table[] elements the Globals page's Health Colors section, with the game-state and reaction colors
 local function GlobalHealthSection()
 	local elements = { Section("healthColors", L["Health Colors"]) }
+	local main, details = Shared:HealthRows("health.")
 
-	for _, element in ipairs(Shared:HealthRows("health.")) do
+	for _, element in ipairs(main) do
 		elements[#elements + 1] = element
 	end
 
@@ -511,6 +529,11 @@ local function GlobalHealthSection()
 
 	elements[#elements + 1] = Row(swatches[1], swatches[2])
 	elements[#elements + 1] = Row(swatches[3])
+	elements[#elements + 1] = Pages.Details("healthColors", L["Health Colors"])
+
+	for _, element in ipairs(details) do
+		elements[#elements + 1] = element
+	end
 
 	return elements
 end

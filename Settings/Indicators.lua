@@ -22,7 +22,8 @@ local Indicators = {}
 AUI.SettingsIndicators = Indicators
 
 ---@param key string
----@return table[] elements the frame page's Indicators section, or nothing for a frame without indicators
+---@return table[] elements the frame page's Indicators section and its Details group, or nothing for a frame without
+---indicators
 function Indicators:Sections(key)
 	local base = "frames." .. key .. "."
 	local elements = {}
@@ -33,7 +34,7 @@ function Indicators:Sections(key)
 
 	local anchors = AUI.SettingsText.ANCHORS
 	local placements = AUI.SettingsText.PLACEMENTS
-	local present, options = {}, {}
+	local present, options, details = {}, {}, {}
 
 	for _, indicator in ipairs(INDICATORS) do
 		if Schema:Field(base .. "indicators." .. indicator.name .. ".enabled") then
@@ -64,15 +65,16 @@ function Indicators:Sections(key)
 				Choice(id .. "Placement", L["Placement"], path .. "placement", Pages.Options("placement", placements),
 					Pages.Merge({}, on))
 			),
-			Row(
-				Slider(id .. "X", L["X Offset"], path .. "x", offsetMin, offsetMax, Pages.Merge({}, on)),
-				Slider(id .. "Y", L["Y Offset"], path .. "y", offsetMin, offsetMax, Pages.Merge({}, on))
-			),
 		}
+		local offsets = Row(
+			Slider(id .. "X", L["X Offset"], path .. "x", offsetMin, offsetMax, Pages.Merge({}, on)),
+			Slider(id .. "Y", L["Y Offset"], path .. "y", offsetMin, offsetMax, Pages.Merge({}, on))
+		)
 
 		for _, row in ipairs(picked and Pages.Pick(id, rows) or rows) do
 			elements[#elements + 1] = row
 		end
+		details[#details + 1] = picked and Pages.Pick(id, { offsets })[1] or offsets
 	end
 
 	if Schema:Field(base .. "indicators.threat.enabled") then
@@ -121,6 +123,14 @@ function Indicators:Sections(key)
 			}),
 			Check("tooltipCombat", L["Hide Tooltip in Combat"], base .. "tooltip.hideInCombat", { depends = "tooltip" })
 		)
+	end
+
+	if #details > 0 then
+		elements[#elements + 1] = Pages.Details("indicators", L["Indicators"])
+
+		for _, row in ipairs(details) do
+			elements[#elements + 1] = row
+		end
 	end
 
 	return elements

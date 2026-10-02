@@ -153,6 +153,21 @@
       "transformed": false
     },
     {
+      "path": "Media/Tab/Base.png",
+      "sha256": "efc8a3999129261471d52d5c6a9503d39fa35d69154c3dc020f21af16e94bf66",
+      "transformed": false
+    },
+    {
+      "path": "Media/Tab/Hover.png",
+      "sha256": "11c17ea6b990bec929d9263938b7c41c74cd9874e6793f3af5f9320f0cfeb6bf",
+      "transformed": false
+    },
+    {
+      "path": "Media/Tab/Selected.png",
+      "sha256": "5b91d3bef0abef0f50fbfd339f22fa34df856ac01c72d8b3e07c83f4a09b43cc",
+      "transformed": false
+    },
+    {
       "path": "Media/Toggle/Track.tga",
       "sha256": "ede6ebfe6822982e1730fae4209b10d9a593603eb92294c99d92d0e7b1a50e96",
       "transformed": false
@@ -284,12 +299,12 @@
     },
     {
       "path": "Window.lua",
-      "sha256": "e909d2496747912999a41cc74c307b9cf4d723b70a54a53f9758239f0790459f",
+      "sha256": "9b0f18a449ee32c30a107d71a6ce0f3d4be4e0b6316725b47f37fdecd700969e",
       "transformed": true
     },
     {
       "path": "Window.xml",
-      "sha256": "c0302365be110ba71dce66068d003ae2deb60b05cd5d48b449c9799ded0279b3",
+      "sha256": "2a577784d27c25e9da5a07ce12ee3218b08268ff03775d8057becdb6c2c1a26b",
       "transformed": true
     }
   ]

@@ -52,7 +52,7 @@ local CastBar = {
 AUI.SettingsCastBar = CastBar
 
 ---@param key string a frame with a cast bar
----@return table[] elements the frame page's Cast Bar section, or nothing for a frame without one
+---@return table[] elements the frame page's Cast Bar section and its Details group, or nothing for a frame without one
 function CastBar:Sections(key)
 	local base = "frames." .. key .. ".castbar."
 
@@ -86,21 +86,33 @@ function CastBar:Sections(key)
 	local Shared = AUI.SettingsShared
 	local elements = {
 		Shared:Section("castBar", L["Cast Bar"], key, Shared.SCOPES.castBar, true),
-		Row(
-			Check("castEnabled", L["Show Cast Bar"], base .. "enabled", {
-				description = attached and nil or L["Replaces Blizzard's player cast bar while shown."],
-			}),
-			Choice("castStrata", L["Frame Strata"], base .. "strata", Pages.Options("strata", STRATA), On())
-		),
 	}
+	local details = {}
 
-	---@return table element the row added
+	---@return table element the row added to the section
 	local function Add(left, right)
 		local row = Row(left, right)
 		elements[#elements + 1] = row
 
 		return row
 	end
+
+	---@return table element the row added to the Details group
+	local function Detail(left, right)
+		local row = Row(left, right)
+		details[#details + 1] = row
+
+		return row
+	end
+
+	Add(
+		Check("castEnabled", L["Show Cast Bar"], base .. "enabled", {
+			description = attached and nil or L["Replaces Blizzard's player cast bar while shown."],
+		}),
+		Check("castAlwaysShow", L["Always Show"], base .. "alwaysShow", On({
+			description = L["Keep the empty bar visible between casts."],
+		}))
+	)
 
 	local width = Slider("castWidth", L["Width"], base .. "width", widthMin, widthMax,
 		On({ blocked = Pages.Placed(base, "width") }))
@@ -125,12 +137,6 @@ function CastBar:Sections(key)
 		Slider("castY", L["Y Offset"], base .. "y", -offsetY, offsetY, On({ blocked = Pages.Placed(base, "position") }))
 	)
 	Add(
-		Check("castAlwaysShow", L["Always Show"], base .. "alwaysShow", On({
-			description = L["Keep the empty bar visible between casts."],
-		})),
-		Check("castSmooth", L["Smooth Animation"], base .. "smooth", On())
-	)
-	Add(
 		Pages.Setting("dropdown", "castTexture", L["Bar Texture"], base .. "texture", On({
 			picker = "texture",
 			options = Pages.TEXTURES,
@@ -144,23 +150,15 @@ function CastBar:Sections(key)
 		}))
 	)
 	Add(
-		Check("castGradient", L["Gradient"], base .. "gradient", On()),
-		Choice("castGradientDirection", L["Gradient Direction"], base .. "gradientDirection",
-			Pages.Options("orientation", ORIENTATIONS), On({ depends = "castGradient" }))
-	)
-	Add(
-		Color("castGradientColor", L["Gradient End Color"], base .. "gradientColor", On({ depends = "castGradient" })),
-		Color("castBackground", L["Background"], base .. "background", On({ hasOpacity = true }))
-	)
-	Add(
-		Slider("castBorder", L["Border Size"], base .. "border", borderMin, borderMax, On()),
-		Check("castSpark", L["Show Spark"], base .. "spark", On())
+		Color("castBackground", L["Background"], base .. "background", On({ hasOpacity = true })),
+		Slider("castBorder", L["Border Size"], base .. "border", borderMin, borderMax, On())
 	)
 	Add(
 		Check("castIcon", L["Show Icon"], base .. "icon", On()),
 		Choice("castIconSide", L["Icon Side"], base .. "iconSide", Pages.Options("iconSide", ICON_SIDES),
 			On({ depends = "castIcon" }))
 	)
+
 	elements[#elements + 1] = Pages.Picker("castText", L["Text"], {
 		{ id = "name", title = L["Spell Name"] },
 		{ id = "time", title = L["Time"] },
@@ -170,19 +168,7 @@ function CastBar:Sections(key)
 		Check("castName", L["Show Spell Name"], base .. "name.enabled", On()),
 		Slider("castNameSize", L["Spell Name Size"], base .. "name.size", sizeMin, sizeMax, On({ depends = "castName" }))
 	).pick = "name"
-	Add(
-		Color("castNameColor", L["Spell Name Color"], base .. "name.color", On({ depends = "castName" })),
-		Slider("castNameLength", L["Max Length"], base .. "name.maxLength", lengthMin, lengthMax, On({
-			depends = "castName",
-			description = L["The most letters of a spell name shown. 0 shortens a name only where it meets the time."],
-		}))
-	).pick = "name"
-	Add(
-		Slider("castNameX", L["Spell Name X"], base .. "name.x", -ATTACHED_OFFSET, ATTACHED_OFFSET,
-			On({ depends = "castName" })),
-		Slider("castNameY", L["Spell Name Y"], base .. "name.y", -ATTACHED_OFFSET, ATTACHED_OFFSET,
-			On({ depends = "castName" }))
-	).pick = "name"
+	Add(Color("castNameColor", L["Spell Name Color"], base .. "name.color", On({ depends = "castName" }))).pick = "name"
 	Add(
 		Check("castTime", L["Show Time"], base .. "time.enabled", On()),
 		Choice("castTimeFormat", L["Time Format"], base .. "time.format", Pages.Options("timeFormat", TIME_FORMATS),
@@ -193,28 +179,13 @@ function CastBar:Sections(key)
 		Color("castTimeColor", L["Time Color"], base .. "time.color", On({ depends = "castTime" }))
 	).pick = "time"
 	Add(
-		Slider("castTimeX", L["Time X"], base .. "time.x", -ATTACHED_OFFSET, ATTACHED_OFFSET,
-			On({ depends = "castTime" })),
-		Slider("castTimeY", L["Time Y"], base .. "time.y", -ATTACHED_OFFSET, ATTACHED_OFFSET,
-			On({ depends = "castTime" }))
-	).pick = "time"
-	Add(
 		Check("castTarget", L["Show Cast Target"], base .. "target.enabled", On({
 			description = L["The name of the cast's target, in its class color, when the game shows it."],
 		})),
 		Slider("castTargetSize", L["Cast Target Size"], base .. "target.size", sizeMin, sizeMax,
 			On({ depends = "castTarget" }))
 	).pick = "target"
-	Add(
-		Slider("castTargetX", L["Cast Target X"], base .. "target.x", -ATTACHED_OFFSET, ATTACHED_OFFSET,
-			On({ depends = "castTarget" })),
-		Slider("castTargetY", L["Cast Target Y"], base .. "target.y", -ATTACHED_OFFSET, ATTACHED_OFFSET,
-			On({ depends = "castTarget" }))
-	).pick = "target"
-	Add(
-		Choice("castOutline", L["Outline"], base .. "outline", Pages.Options("outline", Pages.OUTLINES), On()),
-		Check("castShadow", L["Text Shadow"], base .. "shadow", On())
-	)
+
 	Add(
 		Color("castNotInterruptible", L["Not Interruptible"], base .. "notInterruptible", On({
 			description = L["The fill color while the cast cannot be interrupted."],
@@ -223,11 +194,53 @@ function CastBar:Sections(key)
 			description = L["The fill color while Interrupted or Failed shows."],
 		}))
 	)
-	Add(Slider("castHoldTime", L["Hold Time"], base .. "holdTime", holdMin, holdMax, On({
-		step = 0.1,
-		format = "decimal",
-		description = L["How long Interrupted or Failed stays on the bar, in seconds."],
-	})))
+
+	Detail(
+		Choice("castStrata", L["Frame Strata"], base .. "strata", Pages.Options("strata", STRATA), On()),
+		Check("castSmooth", L["Smooth Animation"], base .. "smooth", On())
+	)
+	Detail(
+		Check("castSpark", L["Show Spark"], base .. "spark", On()),
+		Slider("castHoldTime", L["Hold Time"], base .. "holdTime", holdMin, holdMax, On({
+			step = 0.1,
+			format = "decimal",
+			description = L["How long Interrupted or Failed stays on the bar, in seconds."],
+		}))
+	)
+	Detail(
+		Check("castGradient", L["Gradient"], base .. "gradient", On()),
+		Choice("castGradientDirection", L["Gradient Direction"], base .. "gradientDirection",
+			Pages.Options("orientation", ORIENTATIONS), On({ depends = "castGradient" }))
+	)
+	Detail(
+		Color("castGradientColor", L["Gradient End Color"], base .. "gradientColor", On({ depends = "castGradient" }))
+	)
+	Detail(
+		Choice("castOutline", L["Outline"], base .. "outline", Pages.Options("outline", Pages.OUTLINES), On()),
+		Check("castShadow", L["Text Shadow"], base .. "shadow", On())
+	)
+	Detail(
+		Slider("castNameX", L["Spell Name X"], base .. "name.x", -ATTACHED_OFFSET, ATTACHED_OFFSET,
+			On({ depends = "castName" })),
+		Slider("castNameY", L["Spell Name Y"], base .. "name.y", -ATTACHED_OFFSET, ATTACHED_OFFSET,
+			On({ depends = "castName" }))
+	).pick = "name"
+	Detail(Slider("castNameLength", L["Max Length"], base .. "name.maxLength", lengthMin, lengthMax, On({
+		depends = "castName",
+		description = L["The most letters of a spell name shown. 0 shortens a name only where it meets the time."],
+	}))).pick = "name"
+	Detail(
+		Slider("castTimeX", L["Time X"], base .. "time.x", -ATTACHED_OFFSET, ATTACHED_OFFSET,
+			On({ depends = "castTime" })),
+		Slider("castTimeY", L["Time Y"], base .. "time.y", -ATTACHED_OFFSET, ATTACHED_OFFSET,
+			On({ depends = "castTime" }))
+	).pick = "time"
+	Detail(
+		Slider("castTargetX", L["Cast Target X"], base .. "target.x", -ATTACHED_OFFSET, ATTACHED_OFFSET,
+			On({ depends = "castTarget" })),
+		Slider("castTargetY", L["Cast Target Y"], base .. "target.y", -ATTACHED_OFFSET, ATTACHED_OFFSET,
+			On({ depends = "castTarget" }))
+	).pick = "target"
 
 	if Schema:Field(base .. "interruptReady") then
 		local linesMin, linesMax = Pages.Range(base .. "glowLines")
@@ -263,14 +276,14 @@ function CastBar:Sections(key)
 			Check("castGlow", L["Important Spell Glow"], base .. "glow", On({
 				description = L["A glow around the bar while the spell is one the game marks important."],
 			})),
-			Choice("castGlowStyle", L["Glow Style"], base .. "glowStyle", Pages.Options("glowStyle", GLOW_STYLES),
-				On({ depends = "castGlow" }))
+			Color("castGlowColor", L["Glow Color"], base .. "glowColor", On({ depends = "castGlow" }))
 		)
-		Add(
-			Color("castGlowColor", L["Glow Color"], base .. "glowColor", On({ depends = "castGlow" })),
+		Detail(
+			Choice("castGlowStyle", L["Glow Style"], base .. "glowStyle", Pages.Options("glowStyle", GLOW_STYLES),
+				On({ depends = "castGlow" })),
 			Slider("castGlowLines", L["Glow Lines"], base .. "glowLines", linesMin, linesMax, On({ depends = "castGlow" }))
 		)
-		Add(
+		Detail(
 			Slider("castGlowThickness", L["Glow Thickness"], base .. "glowThickness", thickMin, thickMax,
 				On({ depends = "castGlow" })),
 			Slider("castGlowSpeed", L["Glow Speed"], base .. "glowSpeed", speedMin, speedMax, On({ depends = "castGlow" }))
@@ -316,6 +329,12 @@ function CastBar:Sections(key)
 					On({ depends = "castEmpowerColors" }))
 			)
 		end
+	end
+
+	elements[#elements + 1] = Pages.Details("castBar", L["Cast Bar"])
+
+	for _, row in ipairs(details) do
+		elements[#elements + 1] = row
 	end
 
 	return elements

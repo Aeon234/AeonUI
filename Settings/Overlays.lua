@@ -38,23 +38,30 @@ local function OnlyAttached(path)
 	end
 end
 
----The rows one overlay shares with the others: show, position, height and texture.
+---The rows one overlay shares with the others: show, position and texture, then height in its Details group.
 ---@param path string the overlay's path, ending in a dot
 ---@param id string
 ---@param labels table `show`, `position`, `height`, `texture`
----@param extra table? the setting paired with the texture
----@return table[] elements
-local function Common(path, id, labels, extra)
+---@return table[] main
+---@return table[] details
+local function Common(path, id, labels)
 	local heightMin, heightMax = Pages.Range(path .. "height")
 	local options = function()
 		return Pages.Options("overlayPosition", POSITIONS)
 	end
 
-	return {
+	local main = {
 		Row(
 			Check(id, labels.show, path .. "enabled"),
 			Choice(id .. "Position", labels.position, path .. "position", options, { depends = id })
 		),
+		Row(Pages.Setting("dropdown", id .. "Texture", labels.texture, path .. "texture", {
+			picker = "texture",
+			options = Pages.TEXTURES,
+			depends = id,
+		})),
+	}
+	local details = {
 		Row(
 			Check(id .. "Match", L["Match Health Height"], path .. "matchHeight", { depends = id }),
 			Slider(id .. "Height", labels.height, path .. "height", heightMin, heightMax, {
@@ -66,19 +73,14 @@ local function Common(path, id, labels, extra)
 				end,
 			})
 		),
-		Row(
-			Pages.Setting("dropdown", id .. "Texture", labels.texture, path .. "texture", {
-				picker = "texture",
-				options = Pages.TEXTURES,
-				depends = id,
-			}),
-			extra
-		),
 	}
+
+	return main, details
 end
 
 ---@param key string a frame with overlays
----@return table[] elements the frame page's Absorbs and Heals section, or nothing for a frame without overlays
+---@return table[] elements the frame page's Absorbs and Heals section and its Details group, or nothing for a frame
+---without overlays
 function Overlays:Sections(key)
 	local base = "frames." .. key .. ".overlays."
 
@@ -103,46 +105,57 @@ function Overlays:Sections(key)
 		end
 	end
 
-	Append(Pages.Pick("absorb", Common(absorb, "absorb", {
+	local absorbMain, absorbDetails = Common(absorb, "absorb", {
 		show = L["Show Absorbs"],
 		position = L["Absorb Position"],
 		height = L["Absorb Height"],
 		texture = L["Absorb Texture"],
-	}, Choice("overshield", L["Show Overshield"], absorb .. "overshield", Pages.Options("overshield", OVERSHIELD), {
-		depends = "absorb",
-		blocked = OnlyAttached(absorb),
-		description = L["The part of a shield larger than the missing health. Always draws it back over the health from the shield's edge; From Left grows it from the other end of the bar; Never hides it."],
-	}))))
-	Append(Pages.Pick("absorb", {
-		Row(Check("glow", L["Blizzard Glow Line"], absorb .. "glow", {
+	})
+	absorbDetails[#absorbDetails + 1] = Row(
+		Choice("overshield", L["Show Overshield"], absorb .. "overshield", Pages.Options("overshield", OVERSHIELD), {
+			depends = "absorb",
+			blocked = OnlyAttached(absorb),
+			description = L["The part of a shield larger than the missing health. Always draws it back over the health from the shield's edge; From Left grows it from the other end of the bar; Never hides it."],
+		}),
+		Check("glow", L["Blizzard Glow Line"], absorb .. "glow", {
 			depends = "absorb",
 			blocked = OnlyAttached(absorb),
 			description = L["Blizzard's shield glow where the shield meets current health."],
-		})),
-	}))
+		})
+	)
 
-	Append(Pages.Pick("healAbsorb", Common(healAbsorb, "healAbsorb", {
+	local healAbsorbMain, healAbsorbDetails = Common(healAbsorb, "healAbsorb", {
 		show = L["Show Heal Absorbs"],
 		position = L["Heal Absorb Position"],
 		height = L["Heal Absorb Height"],
 		texture = L["Heal Absorb Texture"],
-	}, Slider("backing", L["Backing Opacity"], healAbsorb .. "backing", 0, 100, {
+	})
+	healAbsorbDetails[#healAbsorbDetails + 1] = Row(Slider("backing", L["Backing Opacity"], healAbsorb .. "backing", 0, 100, {
 		depends = "healAbsorb",
 		format = "percent",
 		step = 5,
 		description = L["Darkens the health under heal absorbs."],
-	}))))
+	}))
 
-	Append(Pages.Pick("healPrediction", Common(prediction, "healPrediction", {
+	local predictionMain, predictionDetails = Common(prediction, "healPrediction", {
 		show = L["Show Heal Prediction"],
 		position = L["Heal Prediction Position"],
 		height = L["Heal Prediction Height"],
 		texture = L["Heal Prediction Texture"],
-	}, Slider("overheal", L["Overheal"], prediction .. "overheal", 0, 50, {
+	})
+	predictionDetails[#predictionDetails + 1] = Row(Slider("overheal", L["Overheal"], prediction .. "overheal", 0, 50, {
 		depends = "healPrediction",
 		format = "percent",
 		description = L["How far incoming heals can extend past the end of the health bar, as a percent of its length. 0 keeps them inside the bar."],
-	}))))
+	}))
+
+	Append(Pages.Pick("absorb", absorbMain))
+	Append(Pages.Pick("healAbsorb", healAbsorbMain))
+	Append(Pages.Pick("healPrediction", predictionMain))
+	elements[#elements + 1] = Pages.Details("absorbsAndHeals", L["Absorbs and Heals"])
+	Append(Pages.Pick("absorb", absorbDetails))
+	Append(Pages.Pick("healAbsorb", healAbsorbDetails))
+	Append(Pages.Pick("healPrediction", predictionDetails))
 
 	return elements
 end

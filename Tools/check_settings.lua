@@ -307,9 +307,60 @@ for _, id in ipairs({ "player", "pet", "target", "targettarget", "focus", "boss"
 	end
 
 	for _, element in ipairs(pages[id].Build()) do
-		if element.kind == "section" then
+		-- A Details group stays on the tab of the section before it.
+		if element.kind == "section" and not element.collapsible then
 			Equal(id .. " section " .. element.id .. " names a tab", known[element.tab], true)
+		elseif element.kind == "section" then
+			Equal(id .. " Details group " .. element.id .. " names no tab", element.tab, nil)
 		end
+	end
+end
+
+-- Details groups ------------------------------------------------------------------------------------------
+
+do
+	local after, titles = {}, {}
+	local previous
+
+	for _, element in ipairs(pages.target.Build()) do
+		if element.kind == "section" then
+			if element.collapsible then
+				after[element.id] = previous
+				titles[element.id] = element.title
+			else
+				previous = element.id
+			end
+		end
+	end
+
+	for _, section in ipairs({ "portrait", "healthColors", "powerColors", "absorbsAndHeals", "castBar", "buffs",
+		"debuffs", "indicators", "textSlots" }) do
+		Equal("target " .. section .. " Details follows its section", after[section .. "Details"], section)
+	end
+	Equal("Details title", titles.castBarDetails, "Cast Bar Details")
+	Equal("Globals health Details", Find(pages.globals.Build(), "healthGradient") ~= nil, true)
+
+	-- Fine tuning sits in the Details groups, the main settings outside them.
+	local inDetails, current = {}, nil
+	for _, element in ipairs(pages.target.Build()) do
+		if element.kind == "section" then
+			current = element.collapsible and element.id or nil
+		elseif element.kind == "setting" then
+			for _, setting in ipairs(element.settings or { element.setting }) do
+				inDetails[setting.id] = current
+			end
+		end
+	end
+	for id, group in pairs({
+		portraitX = "portraitDetails", healthGradient = "healthColorsDetails", powerFillAlpha = "powerColorsDetails",
+		absorbHeight = "absorbsAndHealsDetails", castStrata = "castBarDetails", castNameX = "castBarDetails",
+		buffSort = "buffsDetails", debuffCountX = "debuffsDetails", slotX = "textSlotsDetails",
+	}) do
+		Equal("target " .. id .. " in " .. group, inDetails[id], group)
+	end
+	for _, id in ipairs({ "portrait", "healthMode", "castEnabled", "castName", "buffEnabled", "buffX", "absorb",
+		"anchor" }) do
+		Equal("target " .. id .. " outside Details", inDetails[id], nil)
 	end
 end
 

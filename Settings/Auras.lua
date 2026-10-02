@@ -168,16 +168,6 @@ local function Display(key, kind)
 		Slider(id .. "Size", L["Icon Size"], base .. "size", Range("size")),
 		Slider(id .. "Limit", L["Limit"], base .. "limit", Range("limit"))
 	)
-
-	local perRowMin, perRowMax = Range("perRow")
-	local spacingMin, spacingMax = Range("spacing")
-
-	Add(
-		Slider(id .. "PerRow", L["Icons Per Row"], base .. "perRow", perRowMin, perRowMax, On({
-			description = L["0 fits as many icons as the frame is wide."],
-		})),
-		Slider(id .. "Spacing", L["Spacing"], base .. "spacing", spacingMin, spacingMax, On())
-	)
 	Add(
 		Choice(id .. "Anchor", L["Position"], base .. "anchor", Pages.Options("auraAnchor", ANCHORS), On()),
 		Choice(id .. "Growth", L["Growth Direction"], base .. "growth", Pages.Options("auraGrowth", GROWTHS), On())
@@ -199,6 +189,19 @@ local function Display(key, kind)
 
 		Add(Hide(first), second and Hide(second) or nil)
 	end
+	Add(Check(id .. "Duration", L["Show Duration"], base .. "duration", On()))
+
+	elements[#elements + 1] = Pages.Details(kind, kind == "buffs" and L["Buffs"] or L["Debuffs"])
+
+	local perRowMin, perRowMax = Range("perRow")
+	local spacingMin, spacingMax = Range("spacing")
+
+	Add(
+		Slider(id .. "PerRow", L["Icons Per Row"], base .. "perRow", perRowMin, perRowMax, On({
+			description = L["0 fits as many icons as the frame is wide."],
+		})),
+		Slider(id .. "Spacing", L["Spacing"], base .. "spacing", spacingMin, spacingMax, On())
+	)
 
 	local validate = function(text)
 		return AUI.Auras:CheckSpellList(text)
@@ -237,11 +240,8 @@ local function Display(key, kind)
 	local textMin, textMax = Range("durationSize")
 	local shiftMin, shiftMax = Range("durationX")
 
-	Add(
-		Check(id .. "Duration", L["Show Duration"], base .. "duration", On()),
-		Slider(id .. "DurationSize", L["Duration Size"], base .. "durationSize", textMin, textMax,
-			On({ depends = id .. "Duration" }))
-	)
+	Add(Slider(id .. "DurationSize", L["Duration Size"], base .. "durationSize", textMin, textMax,
+		On({ depends = id .. "Duration" })))
 	Add(
 		Slider(id .. "DurationX", L["Duration X"], base .. "durationX", shiftMin, shiftMax, On({ depends = id .. "Duration" })),
 		Slider(id .. "DurationY", L["Duration Y"], base .. "durationY", shiftMin, shiftMax, On({ depends = id .. "Duration" }))

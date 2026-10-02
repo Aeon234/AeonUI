@@ -27,9 +27,12 @@ local JUMP_FLASH_DELAY = 0.15
 local FIND_TOP_GAP = 40 -- a found setting's section header lands this far below the list's top
 local TAB_TEMPLATE = "MinimalTabTemplate"
 local INTERNAL_TAB_TEMPLATE = "AeonUISettings_InternalTabTemplate"
-local INTERNAL_TAB_ATLAS = "common-internaltab" -- the internal tab art, used where the client has it
+local INTERNAL_TAB_ATLAS = "common-internaltab" -- present on Forever, whose tabs draw the shipped tab art
+-- The shipped tab art: 192x60 in the top-left of a 256x64 file, drawn at half size.
+local INTERNAL_TAB_COORDS = { 0, 192 / 256, 0, 60 / 64 }
 local TAB_GAP = 5 -- between tabs, as Blizzard's Settings panel spaces its own
 local TAB_TEXT_PADDING = 40 -- MinimalTabTemplate's width beyond its text
+local INTERNAL_TAB_TEXT_INSET = 8 -- a long title is cut with "…" this far inside the internal tab art
 local VERSION_COLOR = "|cff9d9d9d"
 
 -- Options_InnerFrame nine-slice insets, in atlas pixels drawn at one UI unit each.
@@ -109,35 +112,34 @@ AS:RegisterElementKind("searchDivider", {
 
 -- Internal tab -------------------------------------------------------------------------------------------
 
----A page tab drawn with the `common-internaltab` art: normal, hover and selected. It offers what the window uses
----of `MinimalTabTemplate`: `Text` and `SetSelected`.
+---A page tab drawn with the shipped tab art (`Media\Tab`): the base, with the selected art over it while selected
+---and the hover art in the highlight layer. The art does not stretch, so the tab keeps its size. It offers what
+---the window uses of `MinimalTabTemplate`: `Text` and `SetSelected`, and `fixedWidth`.
 AeonUISettings_InternalTabMixin = {}
 
 function AeonUISettings_InternalTabMixin:OnLoad()
-	local info = C_Texture.GetAtlasInfo(INTERNAL_TAB_ATLAS)
-	if info then
-		self:SetHeight(math.min(info.height, tokens.size.row))
+	for texture, file in pairs({ [self.Background] = "Base", [self.SelectedTexture] = "Selected",
+		[self.HighlightTexture] = "Hover" }) do
+		texture:SetTexture(AS.MEDIA .. "Tab\\" .. file .. ".png")
+		texture:SetTexCoord(unpack(INTERNAL_TAB_COORDS))
 	end
+	self.Text:SetWidth(self:GetWidth() - INTERNAL_TAB_TEXT_INSET * 2)
+	self.fixedWidth = true
 	self.selected = false
-	self:UpdateArt()
+	self:UpdateText()
 end
 
 ---@param selected boolean
 function AeonUISettings_InternalTabMixin:SetSelected(selected)
 	self.selected = selected
-	self:UpdateArt()
+	self.SelectedTexture:SetShown(selected)
+	self:UpdateText()
 end
 
-function AeonUISettings_InternalTabMixin:UpdateArt()
-	local hovered = self:IsMouseOver()
-	local atlas = INTERNAL_TAB_ATLAS
-	if self.selected then
-		atlas = atlas .. "-selected"
-	elseif hovered then
-		atlas = atlas .. "-hover"
-	end
-	self.Background:SetAtlas(atlas)
-	self.Text:SetFontObject((self.selected or hovered) and "GameFontHighlightSmall" or "GameFontNormalSmall")
+---White text while selected or hovered, gold otherwise.
+function AeonUISettings_InternalTabMixin:UpdateText()
+	local lit = self.selected or self:IsMouseOver()
+	self.Text:SetFontObject(lit and "GameFontHighlight" or "GameFontNormal")
 end
 
 -- Reset confirmation ----------------------------------------------------------------------------------------
@@ -455,7 +457,9 @@ function AeonUISettings_WindowMixin:UpdateTabs(page)
 		if tab then
 			button.tabID = tab.id
 			button.Text:SetText(tab.title)
-			button:SetWidth(button.Text:GetStringWidth() + TAB_TEXT_PADDING)
+			if not button.fixedWidth then
+				button:SetWidth(button.Text:GetStringWidth() + TAB_TEXT_PADDING)
+			end
 			button:SetSelected(tab.id == self.listTabID)
 			button:Show()
 		elseif button then

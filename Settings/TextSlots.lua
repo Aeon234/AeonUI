@@ -286,33 +286,31 @@ local function SlotsSection(key)
 		Choice("placement", L["Placement"], path .. "placement", Pages.Options("placement", PLACEMENTS))
 	)
 	elements[#elements + 1] = Row(
-		Slider("slotX", L["X Offset"], path .. "x", math.max(xMin, -100), math.min(xMax, 100)),
-		Slider("slotY", L["Y Offset"], path .. "y", math.max(yMin, -100), math.min(yMax, 100))
-	)
-	elements[#elements + 1] = Row(
-		Slider("slotWidth", L["Width"], path .. "width", widthMin, widthMax, { format = "percent", step = 5 }),
-		colorMode
-	)
-	elements[#elements + 1] = Row(
 		StyleSetting(key, index, "dropdown", "font", L["Font"], { picker = "font", options = {} }),
 		StyleSetting(key, index, "slider", "size", L["Size"], { min = sizeMin, max = sizeMax, step = 1, format = "integer" })
 	)
-
-	local outline = StyleSetting(key, index, "dropdown", "outline", L["Outline"], {
+	elements[#elements + 1] = Row(colorMode, StyleSetting(key, index, "dropdown", "outline", L["Outline"], {
 		options = Pages.Options("outline", Pages.OUTLINES),
-	})
+	}))
 
 	if AUI.Profile:Get(path .. "colorMode") == "custom" then
-		elements[#elements + 1] = Row(outline, StyleSetting(key, index, "color", "color", COLOR, {
+		elements[#elements + 1] = Row(StyleSetting(key, index, "color", "color", COLOR, {
 			set = function(value)
 				if not AUI.Profile:Set(path .. "color", { r = value.r, g = value.g, b = value.b }) then
 					return false
 				end
 			end,
 		}))
-	else
-		elements[#elements + 1] = Row(outline)
 	end
+
+	elements[#elements + 1] = Pages.Details("textSlots", L["Text Slots"])
+	elements[#elements + 1] = Row(
+		Slider("slotX", L["X Offset"], path .. "x", math.max(xMin, -100), math.min(xMax, 100)),
+		Slider("slotY", L["Y Offset"], path .. "y", math.max(yMin, -100), math.min(yMax, 100))
+	)
+	elements[#elements + 1] = Row(
+		Slider("slotWidth", L["Width"], path .. "width", widthMin, widthMax, { format = "percent", step = 5 })
+	)
 
 	return elements
 end
