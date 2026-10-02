@@ -828,5 +828,101 @@ Equal("a preference saves", Profile:SetEditorPreference("grid", "DIMMED"), true)
 Equal("a preference reads back", Profile:EditorPreference("grid", "BRIGHT"), "DIMMED")
 Equal("a preference stays out of the profile", Profile.config.grid, nil)
 
+-- Attachments and size links -------------------------------------------------------------------------------------
+
+Profile:Reset()
+local pet = Layout:Find("unit.pet") --[[@as table]]
+local focus = Layout:Find("unit.focus") --[[@as table]]
+Equal("attach keeps the position", Editor:Attach("unit.pet", "unit.player", "BOTTOM"), true)
+Equal("attached", Profile:Get("frames.pet.layout.attach.target"), "unit.player")
+Equal("position kept x", Profile:Get("frames.pet.x"), -405)
+Equal("position kept y", Profile:Get("frames.pet.y"), -234)
+Equal("offset x from the bottom center", Profile:Get("frames.pet.layout.attach.x"), -75)
+Equal("offset y below the edge", Profile:Get("frames.pet.layout.attach.y"), -4)
+local fired
+AUI.Callbacks:Register("Profile", {}, function(_, path)
+	fired = path or "*"
+end)
+Profile:Set("frames.player.x", -320)
+Equal("the attached frame follows", Profile:Get("frames.pet.x"), -395)
+Equal("a change that moves others announces the whole profile", fired, "*")
+Profile:Set("frames.player.height", 46)
+Equal("a taller target moves the frame below it", Profile:Get("frames.pet.y"), -239)
+Profile:Set("frames.player.reverse", true)
+Equal("an unrelated change announces itself", fired, "frames.player.reverse")
+local moves = Layout:Moved(Profile.config, pet, 5, 0)
+Equal("dragging an attached frame changes its offset", moves["frames.pet.layout.attach.x"], -70)
+Profile:SetPaths(moves)
+Equal("the offset moves it", Profile:Get("frames.pet.x"), -390)
+Equal("its X reads the offset", Layout:FieldPath(Profile.config, pet, "x"), "frames.pet.layout.attach.x")
+Equal("loop: the target is not offered", (function()
+	for _, element in ipairs(Layout:Eligible(Profile.config, player)) do
+		if element.id == "unit.pet" then
+			return true
+		end
+	end
+
+	return false
+end)(), false)
+Equal("loop: refused", (Profile:Set("frames.player.layout.attach.target", "unit.pet")), false)
+Equal("loop: nothing changed", Profile:Get("frames.player.layout.attach.target"), "none")
+Equal("loop: refused across link kinds", (Profile:Set("frames.player.layout.width", "unit.pet")), false)
+local looped = AUI:CopyTable(Profile.config)
+Schema:Write(looped, "frames.player.layout.height", "unit.pet")
+Equal("loop: a config with one is invalid", (Schema:ValidateConfig(looped)), false)
+local playerX = Find(pages.player.Build(), "x")
+local petPage = pages.pet.Build()
+Equal("player X stays free", playerX.blocked(), nil)
+Equal("attached X is disabled with a reason", Find(petPage, "x").blocked(), "Attached to Player. Move it in Edit Mode.")
+Equal("detach", Editor:Attach("unit.pet"), true)
+Equal("detached", Profile:Get("frames.pet.layout.attach.target"), "none")
+Equal("detaching keeps the position", Profile:Get("frames.pet.x"), -390)
+Profile:Set("frames.player.x", -300)
+Equal("a detached frame stays", Profile:Get("frames.pet.x"), -390)
+
+Equal("link width", Editor:Link("unit.pet", "width", "unit.focus"), true)
+Equal("linked width matches", Profile:Get("frames.pet.width"), 200)
+Profile:Set("frames.focus.width", 220)
+Equal("linked width follows", Profile:Get("frames.pet.width"), 220)
+Equal("linked width slider is disabled", Find(pages.pet.Build(), "width").blocked(), "Matches Focus.")
+Editor:Link("unit.pet", "height", "power.player")
+Equal("a linked size stays in range", Profile:Get("frames.pet.height"), 16)
+Editor:Link("unit.pet", "width")
+Profile:Set("frames.focus.width", 240)
+Equal("an unlinked width stays", Profile:Get("frames.pet.width"), 220)
+Equal("match once", Editor:MatchNow("unit.pet", "width", "unit.focus"), true)
+Equal("matched once", Profile:Get("frames.pet.width"), 240)
+Equal("match once leaves no link", Profile:Get("frames.pet.layout.width"), "none")
+Profile:Set("frames.focus.width", 250)
+Equal("a one-time match does not follow", Profile:Get("frames.pet.width"), 240)
+
+local bossGroup = Layout:Find("boss.group") --[[@as table]]
+Editor:Attach("unit.focus", "boss.group", "LEFT")
+local groupLeft, groupBottom, groupWidth, groupHeight = Layout:Rect(Profile.config, bossGroup, 0, 0)
+local focusLeft, focusBottom, focusWidth, focusHeight = Layout:Rect(Profile.config, focus, 0, 0)
+Equal("attached to a group keeps the position", focusLeft .. "," .. focusBottom, (-330 - 125) .. "," .. (-140 - 12))
+Editor:SetField("unit.focus", "x", 0)
+Editor:SetField("unit.focus", "y", 0)
+focusLeft, focusBottom, focusWidth, focusHeight = Layout:Rect(Profile.config, focus, 0, 0)
+Equal("zero offsets touch the group's left edge", focusLeft + focusWidth, groupLeft)
+Equal("zero offsets center on the group", focusBottom + focusHeight / 2, groupBottom + groupHeight / 2)
+Equal("copying the cast bar leaves out its attachment", (function()
+	for _, path in ipairs(AUI.SettingsShared:Paths("player", AUI.SettingsShared.SCOPES.castBar)) do
+		if path:find("castbar.layout.", 1, true) then
+			return true
+		end
+	end
+
+	return false
+end)(), false)
+pages.pet.Reset()
+Equal("page defaults unlink", Profile:Get("frames.pet.layout.width"), "none")
+Profile:Reset()
+
+for _, element in ipairs(Layout.ELEMENTS) do
+	Equal("element paths agree: " .. element.id, Schema.LAYOUT_ELEMENTS[element.id],
+		"frames." .. element.key .. "." .. element.base)
+end
+
 print = luaPrint
 io.stdout:write(("check_settings: %d checks passed\n"):format(checks))

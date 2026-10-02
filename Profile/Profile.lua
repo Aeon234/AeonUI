@@ -44,6 +44,10 @@ local Profile = {
 }
 AUI.Profile = Profile
 
+---@type (fun(config: table): boolean)? recalculates attached elements and linked sizes in a config, returning whether
+---anything changed; set by the layout code, which knows each element's geometry
+Profile.Normalize = nil
+
 ---Publishes a root as the saved data.
 ---@param root any the store, or the original saved data when putting it back
 function Profile:Save(root)
@@ -203,6 +207,14 @@ function Profile:Commit(change, quiet)
 		return false, refusal
 	end
 
+	if self.Normalize and type(candidate.profilesByID) == "table" then
+		for _, record in pairs(candidate.profilesByID) do
+			if type(record) == "table" and type(record.config) == "table" and not Schema:LayoutLoop(record.config) then
+				pcall(self.Normalize, record.config)
+			end
+		end
+	end
+
 	local report = Store:Inspect(candidate)
 
 	if report.problem then
@@ -339,8 +351,22 @@ function Profile:Set(path, value)
 		return true
 	end
 
+	local previous = AUI:CopyTable(Schema:Lookup(self.config, path))
+
 	Schema:Write(self.config, path, AUI:CopyTable(value))
-	AUI.Callbacks:Fire(CHANNEL, path)
+
+	local loop = Schema:LayoutLoop(self.config)
+
+	if loop then
+		Schema:Write(self.config, path, previous)
+
+		return false, loop
+	end
+
+	-- A change that moved attached or linked elements announces the whole profile.
+	local moved = self.Normalize ~= nil and self.Normalize(self.config)
+
+	AUI.Callbacks:Fire(CHANNEL, (not moved) and path or nil)
 
 	return true
 end

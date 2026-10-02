@@ -58,12 +58,15 @@ function ClassPower:Build()
 			Slider("spacing", L["Spacing"], BASE .. "spacing", spacingMin, spacingMax, On())
 		),
 		Row(
-			Slider("width", L["Width"], BASE .. "width", widthMin, widthMax, On()),
-			Slider("height", L["Height"], BASE .. "height", heightMin, heightMax, On())
+			Slider("width", L["Width"], BASE .. "width", widthMin, widthMax, On({ blocked = Pages.Placed(BASE, "width") })),
+			Slider("height", L["Height"], BASE .. "height", heightMin, heightMax,
+				On({ blocked = Pages.Placed(BASE, "height") }))
 		),
 		Row(
-			Slider("x", L["X Offset"], BASE .. "x", -halfWidth, halfWidth, On({ blocked = Detached })),
-			Slider("y", L["Y Offset"], BASE .. "y", -halfHeight, halfHeight, On({ blocked = Detached }))
+			Slider("x", L["X Offset"], BASE .. "x", -halfWidth, halfWidth,
+				On({ blocked = Pages.Placed(BASE, "position", Detached) })),
+			Slider("y", L["Y Offset"], BASE .. "y", -halfHeight, halfHeight,
+				On({ blocked = Pages.Placed(BASE, "position", Detached) }))
 		),
 		Section("look", L["Appearance"]),
 		Row(

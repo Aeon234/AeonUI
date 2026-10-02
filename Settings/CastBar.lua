@@ -98,7 +98,8 @@ function CastBar:Sections(key)
 		elements[#elements + 1] = Row(left, right)
 	end
 
-	local width = Slider("castWidth", L["Width"], base .. "width", widthMin, widthMax, On())
+	local width = Slider("castWidth", L["Width"], base .. "width", widthMin, widthMax,
+		On({ blocked = Pages.Placed(base, "width") }))
 
 	if attached then
 		width.blocked = function()
@@ -113,10 +114,11 @@ function CastBar:Sections(key)
 		)
 	end
 
-	Add(width, Slider("castHeight", L["Height"], base .. "height", heightMin, heightMax, On()))
+	Add(width, Slider("castHeight", L["Height"], base .. "height", heightMin, heightMax,
+		On({ blocked = Pages.Placed(base, "height") })))
 	Add(
-		Slider("castX", L["X Offset"], base .. "x", -offsetX, offsetX, On()),
-		Slider("castY", L["Y Offset"], base .. "y", -offsetY, offsetY, On())
+		Slider("castX", L["X Offset"], base .. "x", -offsetX, offsetX, On({ blocked = Pages.Placed(base, "position") })),
+		Slider("castY", L["Y Offset"], base .. "y", -offsetY, offsetY, On({ blocked = Pages.Placed(base, "position") }))
 	)
 	Add(
 		Check("castAlwaysShow", L["Always Show"], base .. "alwaysShow", On({

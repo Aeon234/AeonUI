@@ -584,9 +584,11 @@ end
 ---@return AUISnapLines
 function Editor:SnapLines(mover)
 	local rects = {}
+	local config = AUI.Profile.config
 
-	for _, other in pairs(self.movers) do
-		if other ~= mover and other:IsShown() then
+	-- An element that relies on the dragged one moves with it, so its lines would chase the drag.
+	for id, other in pairs(self.movers) do
+		if other ~= mover and other:IsShown() and not AUI.Schema:DependsOn(config, id, mover.element.id) then
 			rects[#rects + 1] = { other:Rect() }
 		end
 	end
@@ -645,7 +647,54 @@ function Editor:SetField(id, field, value)
 		return false
 	end
 
-	return (AUI.Profile:Set(Layout:Path(element, field), value))
+	return (AUI.Profile:Set(Layout:FieldPath(AUI.Profile.config, element, field), value))
+end
+
+---Attaches an element to another's side, keeping it where it is, or detaches it with `targetID` nil.
+---@param id string
+---@param targetID string?
+---@param side string?
+---@return boolean ok
+function Editor:Attach(id, targetID, side)
+	local element = Layout:Find(id)
+
+	if not element then
+		return false
+	end
+
+	local target = targetID and Layout:Find(targetID) or nil
+
+	return (AUI.Profile:SetPaths(Layout:Attach(AUI.Profile.config, element, target, side)))
+end
+
+---Keeps an element's width or height matched to another's, or ends the link with `targetID` nil.
+---@param id string
+---@param dimension "width"|"height"
+---@param targetID string?
+---@return boolean ok
+function Editor:Link(id, dimension, targetID)
+	local element = Layout:Find(id)
+
+	if not element then
+		return false
+	end
+
+	return (AUI.Profile:SetPaths({ [Layout:Path(element, "layout." .. dimension)] = targetID or "none" }))
+end
+
+---Copies another element's width or height once.
+---@param id string
+---@param dimension "width"|"height"
+---@param targetID string
+---@return boolean ok
+function Editor:MatchNow(id, dimension, targetID)
+	local element, target = Layout:Find(id), Layout:Find(targetID)
+
+	if not element or not target then
+		return false
+	end
+
+	return (AUI.Profile:SetPaths(Layout:MatchNow(AUI.Profile.config, element, dimension, target)))
 end
 
 ---@param key string

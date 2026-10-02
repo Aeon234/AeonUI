@@ -137,6 +137,40 @@ function Pages.Range(path)
 	return field.min or 0, field.max or 0
 end
 
+---Disables a placed element's position or size slider while the layout editor's relationships set it.
+---@param base string the element's settings path, ending in a dot
+---@param kind "position"|"width"|"height"
+---@param other (fun(): string?)? another reason, checked first
+---@return (fun(): string?)? blocked nil for a path that is no placed element
+function Pages.Placed(base, kind, other)
+	local name = kind == "position" and "layout.attach.target" or ("layout." .. kind)
+
+	if not Schema:Field(base .. name) then
+		return other
+	end
+
+	return function()
+		local reason = other and other()
+
+		if reason then
+			return reason
+		end
+
+		local id = AUI.Profile:Get(base .. name)
+		local element = id ~= "none" and AUI.EditorLayout:Find(id)
+
+		if element then
+			local label = AUI.EditorLayout:Label(element)
+
+			if kind == "position" then
+				return L["Attached to %s. Move it in Edit Mode."]:format(label)
+			end
+
+			return L["Matches %s."]:format(label)
+		end
+	end
+end
+
 ---@param id string
 ---@param title string
 ---@param fields table?
@@ -239,16 +273,19 @@ local function Layout(key, switchLabel)
 	local base = "frames." .. key .. "."
 	local halfWidth, halfHeight = ScreenHalf()
 	local hides = Schema:Field(base .. "hideBlizzard") ~= nil
+	local widthMin, widthMax = Pages.Range(base .. "width")
+	local heightMin, heightMax = Pages.Range(base .. "height")
 	local elements = {
 		Section("layout", L["Layout"]),
 		Row(Setting("toggle", "enabled", switchLabel, base .. "enabled", { pageSwitch = true, reload = hides or nil })),
 		Row(
-			Slider("width", L["Width"], base .. "width", Pages.Range(base .. "width")),
-			Slider("height", L["Height"], base .. "height", Pages.Range(base .. "height"))
+			Slider("width", L["Width"], base .. "width", widthMin, widthMax, { blocked = Pages.Placed(base, "width") }),
+			Slider("height", L["Height"], base .. "height", heightMin, heightMax,
+				{ blocked = Pages.Placed(base, "height") })
 		),
 		Row(
-			Slider("x", L["X Offset"], base .. "x", -halfWidth, halfWidth),
-			Slider("y", L["Y Offset"], base .. "y", -halfHeight, halfHeight)
+			Slider("x", L["X Offset"], base .. "x", -halfWidth, halfWidth, { blocked = Pages.Placed(base, "position") }),
+			Slider("y", L["Y Offset"], base .. "y", -halfHeight, halfHeight, { blocked = Pages.Placed(base, "position") })
 		),
 	}
 

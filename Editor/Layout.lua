@@ -157,11 +157,223 @@ end
 ---@param element AUIEditorElement
 ---@param dx number
 ---@param dy number
----@return table<string, number> values the stored position moved by the offsets, by path
+---@return table<string, number> values the position, and an attached element's offsets, moved by the deltas, by path
 function Layout:Moved(config, element, dx, dy)
 	local x, y = self:Position(config, element)
+	local values = { [self:Path(element, "x")] = x + dx, [self:Path(element, "y")] = y + dy }
 
-	return { [self:Path(element, "x")] = x + dx, [self:Path(element, "y")] = y + dy }
+	if self:AttachTarget(config, element) then
+		local offsetX, offsetY = self:Offsets(config, element)
+
+		values[self:Path(element, "layout.attach.x")] = offsetX + dx
+		values[self:Path(element, "layout.attach.y")] = offsetY + dy
+	end
+
+	return values
+end
+
+-- Attachments and size links ----------------------------------------------------------------------------------
+
+---@param config table
+---@param element AUIEditorElement
+---@return AUIEditorElement? target the element it is attached to
+function Layout:AttachTarget(config, element)
+	local id = Schema:Read(config, self:Path(element, "layout.attach.target"))
+
+	return id ~= "none" and self:Find(id) or nil
+end
+
+---@param config table
+---@param element AUIEditorElement
+---@param dimension "width"|"height"
+---@return AUIEditorElement? target the element whose size it keeps
+function Layout:SizeTarget(config, element, dimension)
+	local id = Schema:Read(config, self:Path(element, "layout." .. dimension))
+
+	return id ~= "none" and self:Find(id) or nil
+end
+
+---@param config table
+---@param element AUIEditorElement
+---@return number x an attached element's offsets from its place against the target's edge
+---@return number y
+function Layout:Offsets(config, element)
+	return Schema:Read(config, self:Path(element, "layout.attach.x")),
+		Schema:Read(config, self:Path(element, "layout.attach.y"))
+end
+
+---@param config table
+---@param element AUIEditorElement
+---@return number x the center of the element's rectangle, as an offset from the screen's center
+---@return number y
+function Layout:Center(config, element)
+	local x, y = self:Position(config, element)
+	local _, _, shiftX, shiftY = self:Size(config, element)
+
+	return x + shiftX, y + shiftY
+end
+
+---Where an element's center goes against a target's side, before its offsets: its near edge on the target's edge,
+---centered along it.
+---@param config table
+---@param element AUIEditorElement
+---@param target AUIEditorElement
+---@param side string "LEFT", "RIGHT", "TOP" or "BOTTOM"
+---@return number x
+---@return number y
+function Layout:SidePoint(config, element, target, side)
+	local tx, ty = self:Center(config, target)
+	local tw, th = self:Size(config, target)
+	local cw, ch = self:Size(config, element)
+
+	if side == "LEFT" then
+		return tx - tw / 2 - cw / 2, ty
+	elseif side == "RIGHT" then
+		return tx + tw / 2 + cw / 2, ty
+	elseif side == "TOP" then
+		return tx, ty + th / 2 + ch / 2
+	end
+
+	return tx, ty - th / 2 - ch / 2
+end
+
+---@param config table
+---@param element AUIEditorElement
+---@param target AUIEditorElement? nil detaches, keeping the position
+---@param side string?
+---@return table<string, any> values the attachment, with offsets that keep the element where it is, by path
+function Layout:Attach(config, element, target, side)
+	if not target then
+		return { [self:Path(element, "layout.attach.target")] = "none" }
+	end
+
+	side = side or Schema:Read(config, self:Path(element, "layout.attach.side"))
+
+	local cx, cy = self:Center(config, element)
+	local px, py = self:SidePoint(config, element, target, side)
+
+	return {
+		[self:Path(element, "layout.attach.target")] = target.id,
+		[self:Path(element, "layout.attach.side")] = side,
+		[self:Path(element, "layout.attach.x")] = cx - px,
+		[self:Path(element, "layout.attach.y")] = cy - py,
+	}
+end
+
+---@param element AUIEditorElement
+---@param dimension "width"|"height"
+---@param value number
+---@return number value fitted to the element's own setting: inside its range, whole when it must be
+function Layout:Fit(element, dimension, value)
+	local field = Schema:Field(self:Path(element, dimension)) --[[@as AUISchemaField]]
+
+	value = self:Clamp(value, field.min or value, field.max or value)
+
+	if field.integer then
+		value = math.floor(value + 0.5)
+	end
+
+	return value
+end
+
+---@param config table
+---@param element AUIEditorElement
+---@param dimension "width"|"height"
+---@param target AUIEditorElement
+---@return table<string, number> values the target's size copied once, fitted to the element, by path
+function Layout:MatchNow(config, element, dimension, target)
+	local value = Schema:Read(config, self:Path(target, dimension))
+
+	return { [self:Path(element, dimension)] = self:Fit(element, dimension, value) }
+end
+
+---@param config table
+---@param element AUIEditorElement
+---@return AUIEditorElement[] targets the elements it can be attached or linked to: not itself, and none that relies
+---on it
+function Layout:Eligible(config, element)
+	local targets = {}
+
+	for _, other in ipairs(ELEMENTS) do
+		if other ~= element and not Schema:DependsOn(config, other.id, element.id) then
+			targets[#targets + 1] = other
+		end
+	end
+
+	return targets
+end
+
+---Recalculates every attached element's position and every linked size, targets before what relies on them.
+---@param config table a config with no relationship loop
+---@return boolean changed
+function Layout:Resolve(config)
+	local changed, done = false, {}
+
+	local function Write(path, value)
+		if Schema:Read(config, path) ~= value then
+			Schema:Write(config, path, value)
+			changed = true
+		end
+	end
+
+	local function Visit(element)
+		if done[element.id] then
+			return
+		end
+
+		done[element.id] = true
+
+		for _, id in ipairs(Schema:LayoutTargets(config, element.id)) do
+			local target = self:Find(id)
+
+			if target then
+				Visit(target)
+			end
+		end
+
+		for _, dimension in ipairs({ "width", "height" }) do
+			local target = self:SizeTarget(config, element, dimension)
+
+			if target then
+				Write(self:Path(element, dimension),
+					self:Fit(element, dimension, Schema:Read(config, self:Path(target, dimension))))
+			end
+		end
+
+		local target = self:AttachTarget(config, element)
+
+		if target then
+			local side = Schema:Read(config, self:Path(element, "layout.attach.side"))
+			local px, py = self:SidePoint(config, element, target, side)
+			local offsetX, offsetY = self:Offsets(config, element)
+			local _, _, shiftX, shiftY = self:Size(config, element)
+
+			Write(self:Path(element, "x"), px + offsetX - shiftX)
+			Write(self:Path(element, "y"), py + offsetY - shiftY)
+		end
+	end
+
+	for _, element in ipairs(ELEMENTS) do
+		Visit(element)
+	end
+
+	return changed
+end
+
+---@param config table
+---@param element AUIEditorElement
+---@param field string "x", "y", "width" or "height"
+---@return string path where the panel's field reads and writes: an attached element's X and Y are its offsets
+function Layout:FieldPath(config, element, field)
+	if (field == "x" or field == "y") and self:AttachTarget(config, element) then
+		return self:Path(element, "layout.attach." .. field)
+	end
+
+	return self:Path(element, field)
+end
+
+AUI.Profile.Normalize = function(config)
+	return Layout:Resolve(config)
 end
 
 ---@param value number

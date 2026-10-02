@@ -34,7 +34,8 @@ local FRAME_KEYS = { "player", "pet", "target", "targettarget", "focus", "boss",
 ---Settings under a frame that a section header copies or returns to the shared settings.
 ---@class AUISharedScope
 ---@field paths string[] paths under the frame: a setting, or a branch ending in a dot
----@field exclude table<string, true>? paths under the frame left out: the section's switch, position and attachment
+---@field exclude table<string, true>? paths under the frame left out: the section's switch, position and attachment;
+---a path ending in a dot leaves out its whole branch
 
 ---The shared appearance on the Globals page, and the frame pages' section headers that copy a section from another
 ---frame or return it to the shared settings.
@@ -52,6 +53,7 @@ local Shared = {
 				["castbar.y"] = true,
 				["castbar.side"] = true,
 				["castbar.matchWidth"] = true,
+				["castbar.layout."] = true,
 			},
 		},
 		buffs = {
@@ -74,8 +76,10 @@ AUI.SettingsShared = Shared
 ---@param scope AUISharedScope
 ---@return boolean inside
 local function InScope(name, scope)
-	if scope.exclude and scope.exclude[name] then
-		return false
+	for excluded in pairs(scope.exclude or {}) do
+		if name == excluded or (excluded:sub(-1) == "." and name:sub(1, #excluded) == excluded) then
+			return false
+		end
 	end
 
 	for _, prefix in ipairs(scope.paths) do

@@ -1,37 +1,55 @@
 local AUI = select(2, ...)
 
 local L = AUI.L
+local Schema = AUI.Schema
 
+local WIDTH = 280
 local PAD = 10
 local ROW = 28
-local LABEL_WIDTH = 44
+local LABEL_WIDTH = 56
 local LABEL_GAP = 6
 local BOX_WIDTH = 56
 local BOX_HEIGHT = 20
 local COLUMN_GAP = 12
 local PICKER_HEIGHT = 26
+local MENU_LABEL_WIDTH = 74
+local MENU_GAP = 4
+local MATCH_WIDTH = 74
 local BUTTON_HEIGHT = 22
+local SECTION_GAP = 8
 local OFFSET = 10
 
-local WIDTH = PAD * 2 + (LABEL_WIDTH + LABEL_GAP + BOX_WIDTH) * 2 + COLUMN_GAP
-local HEIGHT = PAD * 2 + PICKER_HEIGHT + ROW * 2 + BUTTON_HEIGHT + 8
+local SIDES = { "LEFT", "RIGHT", "TOP", "BOTTOM" }
 
 ---@class AUIEditBox : EditBox
 ---@field label FontString
 ---@field field string the element's setting the box shows: "x", "y", "width" or "height"
 
+---@class AUIEditMenu : DropdownButton
+---@field label FontString?
+---@field OverrideText fun(self: AUIEditMenu, text: string) from the dropdown template's selection-text mixin
+
 ---@class AUIEditPanelFrame : Frame
----@field picker table the element picker dropdown
+---@field picker AUIEditMenu the element picker
 ---@field boxes AUIEditBox[]
+---@field target AUIEditMenu
+---@field side AUIEditMenu
+---@field links table<string, AUIEditMenu> the width and height links
+---@field matches table<string, AUIEditMenu> Match Now for width and height
+---@field attachRows Region[] shown while the attach part is open
+---@field expand Button
 ---@field settings Button
 ---@field id string? the element the panel shows
 
----The panel beside the selected mover: an element picker for movers that overlap, its position and size, and a
----button to its settings. A typed number applies on Enter only; Escape, leaving the box or an invalid number puts
----back the applied value.
+---The panel beside the selected mover: an element picker for movers that overlap, its position and size, an
+---expandable attach part, and a button to its settings. A typed number applies on Enter only; Escape, leaving the
+---box or an invalid number puts back the applied value.
 ---@class AUIEditPanel
 ---@field frame AUIEditPanelFrame?
-local Panel = {}
+---@field expanded boolean the attach part is open, for the session
+local Panel = {
+	expanded = false,
+}
 AUI.EditorPanel = Panel
 
 ---@param box AUIEditBox
@@ -42,11 +60,17 @@ local function Fill(box, value)
 	end
 end
 
+---@return AUIEditorElement? element the element the panel shows
+local function Shown()
+	local frame = Panel.frame
+
+	return frame and frame.id and AUI.EditorLayout:Find(frame.id) or nil
+end
+
 ---@param parent AUIEditPanelFrame
----@param label string
 ---@param field string
 ---@return AUIEditBox
-local function NumberBox(parent, label, field)
+local function NumberBox(parent, field)
 	---@type AUIEditBox
 	local box = CreateFrame("EditBox", nil, parent, "InputBoxTemplate")
 
@@ -76,9 +100,97 @@ local function NumberBox(parent, label, field)
 	box.label:SetWidth(LABEL_WIDTH)
 	box.label:SetJustifyH("RIGHT")
 	box.label:SetPoint("RIGHT", box, "LEFT", -LABEL_GAP, 0)
-	box.label:SetText(label)
 
 	return box
+end
+
+---@param parent Frame
+---@param label string?
+---@param width number
+---@param setup fun(root: table)
+---@return AUIEditMenu
+local function Menu(parent, label, width, setup)
+	---@type AUIEditMenu
+	local menu = CreateFrame("DropdownButton", nil, parent, "WowStyle1DropdownTemplate")
+
+	menu:SetWidth(width)
+	menu:SetupMenu(function(_, root)
+		setup(root)
+	end)
+
+	if label then
+		menu.label = parent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+		menu.label:SetWidth(MENU_LABEL_WIDTH)
+		menu.label:SetJustifyH("RIGHT")
+		menu.label:SetPoint("RIGHT", menu, "LEFT", -LABEL_GAP, 0)
+		menu.label:SetText(label)
+	end
+
+	return menu
+end
+
+---@param root table
+---@param element AUIEditorElement
+---@param none string the entry that ends the relationship
+---@param current fun(): string the related element's id, or "none"
+---@param choose fun(id: string?)
+local function TargetEntries(root, element, none, current, choose)
+	local Layout = AUI.EditorLayout
+
+	root:CreateRadio(none, function()
+		return current() == "none"
+	end, function()
+		choose(nil)
+	end)
+
+	for _, target in ipairs(Layout:Eligible(AUI.Profile.config, element)) do
+		root:CreateRadio(Layout:Label(target), function()
+			return current() == target.id
+		end, function()
+			choose(target.id)
+		end)
+	end
+end
+
+---@param frame AUIEditPanelFrame
+---@param dimension "width"|"height"
+---@param label string
+local function LinkMenus(frame, dimension, label)
+	local Layout = AUI.EditorLayout
+
+	frame.links[dimension] = Menu(frame, label, WIDTH - PAD * 2 - MENU_LABEL_WIDTH - LABEL_GAP - MENU_GAP - MATCH_WIDTH,
+		function(root)
+			local element = Shown()
+
+			if not element then
+				return
+			end
+
+			TargetEntries(root, element, L["Own"], function()
+				return AUI.Profile:Get(Layout:Path(element, "layout." .. dimension))
+			end, function(id)
+				AUI.Editor:Link(element.id, dimension, id)
+				Panel:Refresh()
+			end)
+		end)
+
+	frame.matches[dimension] = Menu(frame, nil, MATCH_WIDTH, function(root)
+		local element = Shown()
+
+		if not element then
+			return
+		end
+
+		for _, target in ipairs(Layout.ELEMENTS) do
+			if target ~= element then
+				root:CreateButton(Layout:Label(target), function()
+					AUI.Editor:MatchNow(element.id, dimension, target.id)
+					Panel:Refresh()
+				end)
+			end
+		end
+	end)
+	frame.matches[dimension]:SetPoint("LEFT", frame.links[dimension], "RIGHT", MENU_GAP, 0)
 end
 
 function Panel:Build()
@@ -86,10 +198,12 @@ function Panel:Build()
 		return
 	end
 
+	local Layout = AUI.EditorLayout
+
 	---@type AUIEditPanelFrame
 	local frame = CreateFrame("Frame", "AeonUIEditPanel", UIParent)
 
-	frame:SetSize(WIDTH, HEIGHT)
+	frame:SetWidth(WIDTH)
 	frame:SetFrameStrata("FULLSCREEN_DIALOG")
 	frame:SetClampedToScreen(true)
 	frame:EnableMouse(true)
@@ -97,41 +211,109 @@ function Panel:Build()
 
 	AUI.Editor:Skin(frame)
 
-	frame.picker = CreateFrame("DropdownButton", nil, frame, "WowStyle1DropdownTemplate")
-	frame.picker:SetPoint("TOPLEFT", PAD, -PAD)
-	frame.picker:SetPoint("TOPRIGHT", -PAD, -PAD)
-	frame.picker:SetupMenu(function(_, root)
+	frame.picker = Menu(frame, nil, WIDTH - PAD * 2, function(root)
 		for _, id in ipairs(AUI.Editor:ShownIDs()) do
-			root:CreateRadio(AUI.EditorLayout:Label(AUI.EditorLayout:Find(id) --[[@as AUIEditorElement]]), function()
+			root:CreateRadio(Layout:Label(Layout:Find(id) --[[@as AUIEditorElement]]), function()
 				return AUI.Editor.selected == id
 			end, function()
 				AUI.Editor:Select(id)
 			end)
 		end
 	end)
+	frame.picker:SetPoint("TOPLEFT", PAD, -PAD)
 
 	local column = PAD + LABEL_WIDTH + LABEL_GAP
 	local second = column + BOX_WIDTH + COLUMN_GAP + LABEL_WIDTH + LABEL_GAP
-	local top = -PAD - PICKER_HEIGHT - 8
+	local top = -PAD - PICKER_HEIGHT - SECTION_GAP
 
 	frame.boxes = {
-		NumberBox(frame, L["X"], "x"),
-		NumberBox(frame, L["Y"], "y"),
-		NumberBox(frame, L["Width"], "width"),
-		NumberBox(frame, L["Height"], "height"),
+		NumberBox(frame, "x"),
+		NumberBox(frame, "y"),
+		NumberBox(frame, "width"),
+		NumberBox(frame, "height"),
 	}
 
 	frame.boxes[1]:SetPoint("TOPLEFT", column, top)
 	frame.boxes[2]:SetPoint("TOPLEFT", second, top)
 	frame.boxes[3]:SetPoint("TOPLEFT", column, top - ROW)
 	frame.boxes[4]:SetPoint("TOPLEFT", second, top - ROW)
+	frame.boxes[3].label:SetText(L["Width"])
+	frame.boxes[4].label:SetText(L["Height"])
+
+	local menuLeft = PAD + MENU_LABEL_WIDTH + LABEL_GAP
+	local menuTop = top - ROW * 2 - SECTION_GAP
+
+	frame.target = Menu(frame, L["Attach To"], WIDTH - PAD - menuLeft, function(root)
+		local element = Shown()
+
+		if not element then
+			return
+		end
+
+		TargetEntries(root, element, NONE, function()
+			return AUI.Profile:Get(Layout:Path(element, "layout.attach.target"))
+		end, function(id)
+			AUI.Editor:Attach(element.id, id)
+			Panel:Refresh()
+		end)
+	end)
+	frame.target:SetPoint("TOPLEFT", menuLeft, menuTop)
+
+	frame.side = Menu(frame, L["Side"], WIDTH - PAD - menuLeft, function(root)
+		local element = Shown()
+
+		if not element then
+			return
+		end
+
+		local labels = { LEFT = L["Left"], RIGHT = L["Right"], TOP = L["Top"], BOTTOM = L["Bottom"] }
+
+		for _, side in ipairs(SIDES) do
+			root:CreateRadio(labels[side], function()
+				return AUI.Profile:Get(Layout:Path(element, "layout.attach.side")) == side
+			end, function()
+				local target = Layout:AttachTarget(AUI.Profile.config, element)
+
+				AUI.Editor:Attach(element.id, target and target.id or nil, side)
+				Panel:Refresh()
+			end)
+		end
+	end)
+	frame.side:SetPoint("TOPLEFT", menuLeft, menuTop - ROW)
+
+	frame.links, frame.matches = {}, {}
+	LinkMenus(frame, "width", L["Match Width"])
+	LinkMenus(frame, "height", L["Match Height"])
+	frame.links.width:SetPoint("TOPLEFT", menuLeft, menuTop - ROW * 2)
+	frame.links.height:SetPoint("TOPLEFT", menuLeft, menuTop - ROW * 3)
+
+	frame.attachRows = { frame.target, frame.side }
+
+	for _, menu in ipairs({ frame.target, frame.side, frame.links.width, frame.links.height }) do
+		frame.attachRows[#frame.attachRows + 1] = menu.label
+	end
+
+	for _, dimension in ipairs({ "width", "height" }) do
+		frame.attachRows[#frame.attachRows + 1] = frame.links[dimension]
+		frame.attachRows[#frame.attachRows + 1] = frame.matches[dimension]
+	end
+
+	local half = (WIDTH - PAD * 2 - MENU_GAP) / 2
+
+	frame.expand = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+	frame.expand:SetSize(half, BUTTON_HEIGHT)
+	frame.expand:SetPoint("BOTTOMLEFT", PAD, PAD)
+	frame.expand:SetScript("OnClick", function()
+		self.expanded = not self.expanded
+		self:Refresh()
+	end)
 
 	frame.settings = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
 	frame.settings:SetText(SETTINGS)
-	frame.settings:SetSize(WIDTH - PAD * 2, BUTTON_HEIGHT)
-	frame.settings:SetPoint("BOTTOM", 0, PAD)
+	frame.settings:SetSize(half, BUTTON_HEIGHT)
+	frame.settings:SetPoint("BOTTOMRIGHT", -PAD, PAD)
 	frame.settings:SetScript("OnClick", function()
-		local element = frame.id and AUI.EditorLayout:Find(frame.id)
+		local element = Shown()
 
 		if element then
 			AUI.Editor:OpenSettings(element)
@@ -139,6 +321,13 @@ function Panel:Build()
 	end)
 
 	self.frame = frame
+end
+
+---@return number height the panel's height with the attach part open or closed
+function Panel:Height()
+	local rows = self.expanded and 6 or 2
+
+	return PAD * 2 + PICKER_HEIGHT + SECTION_GAP + ROW * rows + (self.expanded and SECTION_GAP or 0) + BUTTON_HEIGHT
 end
 
 ---Places the panel under the selected mover, or above it near the bottom of the screen.
@@ -149,7 +338,7 @@ function Panel:Place(mover)
 
 	frame:ClearAllPoints()
 
-	if bottom - HEIGHT - OFFSET > 0 then
+	if bottom - frame:GetHeight() - OFFSET > 0 then
 		frame:SetPoint("TOP", mover, "BOTTOM", 0, -OFFSET)
 	else
 		frame:SetPoint("BOTTOM", mover, "TOP", 0, OFFSET)
@@ -167,16 +356,46 @@ function Panel:Refresh()
 
 	self:Build()
 
+	local Layout = AUI.EditorLayout
 	local frame = self.frame --[[@as AUIEditPanelFrame]]
 	local element = mover.element
+	local config = AUI.Profile.config
+	local attached = Layout:AttachTarget(config, element) ~= nil
 
 	frame.id = element.id
+	frame:SetHeight(self:Height())
 	frame.picker:GenerateMenu()
-	frame.picker:OverrideText(AUI.EditorLayout:Label(element))
+	frame.picker:OverrideText(Layout:Label(element))
+
+	frame.boxes[1].label:SetText(attached and L["X Offset"] or L["X"])
+	frame.boxes[2].label:SetText(attached and L["Y Offset"] or L["Y"])
 
 	for _, box in ipairs(frame.boxes) do
-		Fill(box, AUI.Profile:Get(AUI.EditorLayout:Path(element, box.field)))
+		local linked = (box.field == "width" or box.field == "height") and Layout:SizeTarget(config, element, box.field)
+
+		Fill(box, Schema:Read(config, Layout:FieldPath(config, element, box.field)))
+		box:SetEnabled(not linked)
+		box:SetAlpha(linked and 0.5 or 1)
+		box.label:SetAlpha(linked and 0.5 or 1)
 	end
+
+	for _, region in ipairs(frame.attachRows) do
+		region:SetShown(self.expanded)
+	end
+
+	if self.expanded then
+		frame.target:GenerateMenu()
+		frame.side:GenerateMenu()
+		frame.side:SetEnabled(attached)
+
+		for _, dimension in ipairs({ "width", "height" }) do
+			frame.links[dimension]:GenerateMenu()
+			frame.matches[dimension]:GenerateMenu()
+			frame.matches[dimension]:OverrideText(L["Match Now"])
+		end
+	end
+
+	frame.expand:SetText(self.expanded and L["Hide Attach"] or L["Attach"])
 
 	self:Place(mover)
 	frame:Show()

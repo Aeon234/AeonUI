@@ -26,8 +26,20 @@ local MAX_DEPTH = 32
 ---@field order string[] field paths in declaration order
 ---@field branches table<string, true> every path that is a table on the way to a field
 ---@field choices table<string, string[]> each choice list in display order
+---@field LAYOUT_ELEMENTS table<string, string> each placed element's settings path, ending in a dot, by element id
 local Schema = {
 	VERSION = 1,
+	LAYOUT_ELEMENTS = {
+		["unit.player"] = "frames.player.",
+		["unit.pet"] = "frames.pet.",
+		["unit.target"] = "frames.target.",
+		["unit.targettarget"] = "frames.targettarget.",
+		["unit.focus"] = "frames.focus.",
+		["boss.group"] = "frames.boss.",
+		["power.player"] = "frames.playerPower.",
+		["resource.player"] = "frames.classPower.",
+		["cast.player"] = "frames.player.castbar.",
+	},
 	textSlots = {
 		player = 4,
 		pet = 3,
@@ -85,6 +97,11 @@ local Schema = {
 		auraCorner = { "BOTTOMRIGHT", "BOTTOMLEFT", "TOPRIGHT", "TOPLEFT", "CENTER" },
 		healthMode = { "classReaction", "custom", "classic", "stops", "classFade" },
 		healthBackground = { "custom", "classReaction" },
+		layoutTarget = {
+			"none", "unit.player", "unit.pet", "unit.target", "unit.targettarget", "unit.focus", "boss.group",
+			"power.player", "resource.player", "cast.player",
+		},
+		layoutSide = { "LEFT", "RIGHT", "TOP", "BOTTOM" },
 	},
 }
 AUI.Schema = Schema
@@ -698,6 +715,20 @@ Boolean("frames.classPower.extraMana", true)
 Number("frames.classPower.extraManaHeight", 4, 2, 20, true)
 Fade("classPower", "idle")
 
+-- Where each element is attached and whose sizes it keeps: the layout editor's relationships.
+for _, id in ipairs(Schema.choices.layoutTarget) do
+	local base = Schema.LAYOUT_ELEMENTS[id]
+
+	if base then
+		Choice(base .. "layout.attach.target", "layoutTarget", "none")
+		Choice(base .. "layout.attach.side", "layoutSide", "BOTTOM")
+		Number(base .. "layout.attach.x", 0, -3000, 3000)
+		Number(base .. "layout.attach.y", 0, -3000, 3000)
+		Choice(base .. "layout.width", "layoutTarget", "none")
+		Choice(base .. "layout.height", "layoutTarget", "none")
+	end
+end
+
 ---@param path string
 ---@return AUISchemaField?
 function Schema:Field(path)
@@ -850,8 +881,74 @@ function Schema:Lookup(config, path)
 	return Lookup(config, path)
 end
 
+---@param config table
+---@param id string an element id
+---@return string[] targets the elements it depends on: where it is attached, and whose width and height it keeps
+function Schema:LayoutTargets(config, id)
+	local base = self.LAYOUT_ELEMENTS[id]
+	local targets = {}
+
+	if not base then
+		return targets
+	end
+
+	for _, name in ipairs({ "layout.attach.target", "layout.width", "layout.height" }) do
+		local target = self:Read(config, base .. name)
+
+		if target and target ~= "none" then
+			targets[#targets + 1] = target
+		end
+	end
+
+	return targets
+end
+
+---@param config table
+---@param from string an element id
+---@param to string an element id
+---@return boolean depends `from` relies on `to` through any chain of attachments and size links, or is it
+function Schema:DependsOn(config, from, to)
+	local seen = {}
+
+	local function Visit(id)
+		if id == to then
+			return true
+		end
+
+		if seen[id] then
+			return false
+		end
+
+		seen[id] = true
+
+		for _, target in ipairs(self:LayoutTargets(config, id)) do
+			if Visit(target) then
+				return true
+			end
+		end
+
+		return false
+	end
+
+	return Visit(from)
+end
+
+---@param config table
+---@return string? problem the first element whose attachments and size links lead back to it
+function Schema:LayoutLoop(config)
+	for _, id in ipairs(self.choices.layoutTarget) do
+		if self.LAYOUT_ELEMENTS[id] then
+			for _, target in ipairs(self:LayoutTargets(config, id)) do
+				if self:DependsOn(config, target, id) then
+					return ("%s is attached or linked to itself through %s"):format(id, target)
+				end
+			end
+		end
+	end
+end
+
 ---Checks a profile config: every field that is present fits its definition, every branch that is present is a table,
----and everything is plain data.
+---everything is plain data, and no element is attached or linked to itself through others.
 ---@param config any
 ---@return boolean ok
 ---@return string? problem the first problem found
@@ -882,6 +979,12 @@ function Schema:ValidateConfig(config)
 				return false, problem
 			end
 		end
+	end
+
+	local loop = self:LayoutLoop(config)
+
+	if loop then
+		return false, loop
 	end
 
 	return true
