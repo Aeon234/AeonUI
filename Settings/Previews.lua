@@ -632,9 +632,137 @@ local function Join(...)
 	return states
 end
 
+-- Each class's sample resource: its oUF power color, how many segments, and whether talents can charge them.
+local RESOURCES = {
+	DEATHKNIGHT = { power = "RUNES", count = 6 },
+	EVOKER = { power = "ESSENCE", count = 5 },
+	MAGE = { power = "ARCANE_CHARGES", count = 4 },
+	MONK = { power = "CHI", count = 5 },
+	PALADIN = { power = "HOLY_POWER", count = 5 },
+	WARLOCK = { power = "SOUL_SHARDS", count = 5 },
+}
+
+local COMBO_POINTS = { power = "COMBO_POINTS", count = 5, charged = true }
+
+local RESOURCE_STATES = {
+	{ label = STATE_FULL, filled = 1 },
+	{ label = L["Partial"], filled = 0.5 },
+	{ label = STATE_EMPTY, filled = 0 },
+	{ label = L["Charged"], filled = 1, charged = true },
+}
+
+---@return table resource the player's class resource for the preview; combo points for a class without one
+local function PlayerResource()
+	local _, class = UnitClass("player")
+
+	class = AUI:Readable(class)
+
+	return class and RESOURCES[class] or COMBO_POINTS
+end
+
+---@return table preview the Class Resource page's preview
+local function ClassPowerPreview()
+	local segments, count
+	---@type StatusBar
+	local extra
+
+	return {
+		states = Labels(RESOURCE_STATES),
+		Draw = function(parent, label, addPart)
+			local config = AUI.Profile.config
+			local settings = AUI.ClassPower:Resolve(config)
+			local state = FindState(RESOURCE_STATES, label)
+			local resource = PlayerResource()
+			local colors = AUI.oUF.colors.power
+			local color = colors[resource.power] or colors.MANA
+			local height = AUI.ClassPower:Height(settings)
+
+			if not segments then
+				local frame = CreateFrame("Frame", nil, parent)
+
+				segments = { frame = frame }
+				count = frame:CreateFontString(nil, "OVERLAY", "NumberFontNormal")
+				-- Listed with the unit samples, so a page change hides it like the others.
+				Previews.samples.classPower = { key = "classPower", slot = 1, frame = frame }
+
+				for index = 1, 10 do
+					segments[index] = AUI.ClassPower:CreateSegment(frame)
+				end
+
+				extra = AUI.ClassPower:CreateSegment(frame)
+			end
+
+			local frame = segments.frame
+			local pixel = AUI:Pixel(frame)
+
+			Previews:HideOthers("classPower", 1)
+
+			frame:SetParent(parent)
+			frame:ClearAllPoints()
+			frame:SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, -PAD)
+			frame:SetSize(settings.width, height)
+			frame:Show()
+
+			if settings.classColor then
+				color = PlayerClassColor() or color
+			end
+
+			local partialIndex = math.ceil(resource.count * state.filled)
+
+			for index = 1, 10 do
+				segments[index]:Hide()
+			end
+
+			for index, spot in ipairs(AUI.ClassPower:Segments(settings.width, resource.count, settings.spacing)) do
+				local segment = segments[index] --[[@as table]]
+				local value = 0
+
+				if state.filled == 1 or index < partialIndex then
+					value = 1
+				elseif index == partialIndex and state.filled > 0 then
+					value = 0.5
+				end
+
+				local charged = state.charged and resource.charged and (index == 2 or index == 4)
+				local shade = settings.darkenPartial and value > 0 and value < 1
+
+				AUI.ClassPower:PlaceSegment(segment, frame, spot.x, 0, spot.w, settings.height, settings, pixel)
+				segment:SetValue(value)
+				segment:SetStatusBarColor(AUI.ClassPower:Shade(charged and settings.chargedColor or color, shade))
+				segment.Text:SetText("")
+				segment:Show()
+				addPart(segment, index == 1 and "width" or "spacing")
+			end
+
+			extra:SetShown(settings.extraMana)
+
+			if settings.extraMana then
+				local mana = colors.MANA
+
+				AUI.ClassPower:PlaceSegment(extra, frame, 0, settings.height + AUI.ClassPower.GAP, settings.width,
+					settings.extraManaHeight, settings, pixel)
+				extra:SetValue(0.7)
+				extra:SetStatusBarColor(mana.r, mana.g, mana.b)
+				addPart(extra, "extraManaHeight")
+			end
+
+			count:SetFont(AUI.Media:Font(settings.font), settings.textSize, AUI.Media:FontFlags(settings.outline))
+			count:ClearAllPoints()
+			count:SetPoint("CENTER", frame, "TOPLEFT", settings.width / 2, -settings.height / 2)
+			count:SetText(settings.text and tostring(math.floor(resource.count * state.filled)) or "")
+
+			return settings.width + PAD * 2, height + PAD * 2
+		end,
+	}
+end
+
 ---@param pageID string
 ---@return table? preview the page's preview, or nil for a page without one
 function Previews:For(pageID)
+	if pageID == "classPower" then
+		return ClassPowerPreview()
+	end
+
 	if pageID == "player" or pageID == "target" or pageID == "focus" then
 		if pageID == "player" then
 			return Preview(pageID, Join(UNIT_STATES, OVERLAY_STATES, CAST_STATES, EMPOWER_STATES), "player")

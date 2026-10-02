@@ -14,6 +14,7 @@ local ALIASES = {
 	focus = "focus",
 	boss = "boss",
 	power = "playerPower",
+	resource = "classPower",
 	profiles = "profiles",
 }
 

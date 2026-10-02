@@ -18,5 +18,9 @@
 	<Script file="oUF\elements\tags.lua" />
 	<Script file="oUF\elements\castbar.lua" />
 	<Script file="oUF\elements\auras.lua" />
+	<Script file="oUF\elements\classpower.lua" />
+	<Script file="oUF\elements\runes.lua" />
+	<Script file="oUF\elements\stagger.lua" />
+	<Script file="oUF\elements\additionalpower.lua" />
 	<Script file="oUF\finalize.lua" />
 </Ui>

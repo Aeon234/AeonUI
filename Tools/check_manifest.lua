@@ -110,6 +110,10 @@ local ELEMENTS = {
 	{ pattern = "%.Castbar%s*=", file = "Libs/oUF/elements/castbar.lua" },
 	{ pattern = ":CreateAuras%(", file = "Libs/oUF/elements/auras.lua" },
 	{ pattern = ":Tag%(", file = "Libs/oUF/elements/tags.lua" },
+	{ pattern = "%.ClassPower%s*=", file = "Libs/oUF/elements/classpower.lua" },
+	{ pattern = "%.Runes%s*=", file = "Libs/oUF/elements/runes.lua" },
+	{ pattern = "%.Stagger%s*=", file = "Libs/oUF/elements/stagger.lua" },
+	{ pattern = "%.AdditionalPower%s*=", file = "Libs/oUF/elements/additionalpower.lua" },
 }
 
 for path in pairs(loaded) do

@@ -383,5 +383,8 @@ function Pages:UnitFramePages()
 			return UnitPage("boss", L["Show Boss Frames"])
 		end),
 		Page("playerPower", L["Player Power"], "frames.playerPower", PowerPage),
+		Page("classPower", L["Class Resource"], "frames.classPower", function()
+			return AUI.SettingsClassPower:Build()
+		end),
 	}
 end

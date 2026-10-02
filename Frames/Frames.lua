@@ -16,12 +16,13 @@ local SPECS = {
 	{ key = "focus", unit = "focus", name = "AeonUIFocus", style = "AeonUI" },
 	{ key = "boss", unit = "boss", name = "AeonUIBoss", style = "AeonUI", count = MAX_BOSS_FRAMES or 5 },
 	{ key = "playerPower", unit = "player", name = "AeonUIPlayerPower", style = "AeonUIPower" },
+	{ key = "classPower", unit = "player", name = "AeonUIClassPower", style = "AeonUIClassPower" },
 }
 
 -- Settings that change a secure frame, which waits for combat to end.
 local LAYOUT = {
 	enabled = true, width = true, height = true, x = true, y = true, power = true, growth = true, spacing = true,
-	castbar = true, buffs = true, debuffs = true,
+	castbar = true, buffs = true, debuffs = true, attach = true, extraMana = true, extraManaHeight = true,
 }
 
 ---Owns AeonUI's oUF frames: creates them, applies the active profile, and holds back changes to secure frames until
@@ -59,6 +60,7 @@ function Frames:Start()
 	AUI.Tags:Register()
 	oUF:RegisterStyle("AeonUI", UnitFrame.HealthStyle)
 	oUF:RegisterStyle("AeonUIPower", UnitFrame.PowerStyle)
+	oUF:RegisterStyle("AeonUIClassPower", AUI.ClassPower.Style)
 
 	for _, spec in ipairs(SPECS) do
 		local frames = {}

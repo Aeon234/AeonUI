@@ -167,8 +167,8 @@ AUI.Media = {
 }
 for _, file in ipairs({
 	"Core/Callbacks.lua", "Profile/Schema.lua", "Profile/Store.lua", "Profile/Codec.lua", "Profile/Profile.lua",
-	"Frames/Tags.lua", "Frames/Text.lua", "Frames/Overlays.lua", "Frames/CastBar.lua", "Frames/Auras.lua", "Frames/UnitFrame.lua",
-	"Settings/Note.lua", "Settings/Pages.lua", "Settings/TextSlots.lua", "Settings/Overlays.lua", "Settings/CastBar.lua", "Settings/Auras.lua",
+	"Frames/Tags.lua", "Frames/Text.lua", "Frames/Overlays.lua", "Frames/CastBar.lua", "Frames/Auras.lua", "Frames/ClassPower.lua", "Frames/UnitFrame.lua",
+	"Settings/Note.lua", "Settings/Pages.lua", "Settings/TextSlots.lua", "Settings/Overlays.lua", "Settings/CastBar.lua", "Settings/Auras.lua", "Settings/ClassPower.lua",
 	"Settings/Previews.lua",
 	"Settings/Profiles.lua", "Settings/Recovery.lua", "Settings/Settings.lua",
 }) do
@@ -268,14 +268,14 @@ local order = {}
 for _, page in ipairs(Settings:Categories()[1].pages) do
 	order[#order + 1] = page.id
 end
-Equal("unit frame page order", table.concat(order, ","), "globals,player,target,targettarget,focus,boss,playerPower")
+Equal("unit frame page order", table.concat(order, ","), "globals,player,target,targettarget,focus,boss,playerPower,classPower")
 Equal("Target of Target page", pages.targettarget.title, "Target of Target")
 Equal("Focus page", pages.focus.title, "Focus")
 Equal("preview on Focus", type(pages.focus.preview.Draw), "function")
 
 -- Every setting on every page reads and saves ----------------------------------------------------------------
 
-for _, id in ipairs({ "globals", "player", "target", "targettarget", "focus", "boss", "playerPower" }) do
+for _, id in ipairs({ "globals", "player", "target", "targettarget", "focus", "boss", "playerPower", "classPower" }) do
 	local elements = pages[id].Build()
 	local seen = {}
 
@@ -524,6 +524,20 @@ Equal("boss debuffs on the left", Find(pages.boss.Build(), "debuffAnchor").get()
 Equal("player buff clicks cancel", Find(pages.player.Build(), "buffClicks").description:find("cancels") ~= nil, true)
 Equal("other clicks pass through", Find(targetAuras, "buffClicks").description:find("cancels"), nil)
 
+-- Class Resource.
+local resource = pages.classPower.Build()
+Equal("Class Resource page", pages.classPower.title, "Class Resource")
+Equal("page switch", Find(resource, "enabled").pageSwitch, true)
+Equal("attached by default", Find(resource, "attach").get(), "power")
+Equal("position follows the power bar", Find(resource, "x").blocked() ~= nil, true)
+Find(resource, "attach").set("screen")
+Equal("position free on the screen", Find(resource, "x").blocked(), nil)
+Equal("extra mana height depends on it", Find(resource, "extraManaHeight").depends, "extraMana")
+Equal("rune countdowns off", Find(resource, "runeTimers").get(), false)
+Equal("class resource preview states", table.concat(pages.classPower.preview.states, ","), "Full,Partial,Empty,Charged")
+pages.classPower.Reset()
+Equal("class resource reset", Profile:Get("frames.classPower.attach"), "power")
+
 -- Page resets.
 pages.player.Reset()
 Equal("player reset", Profile:Get("frames.player.width"), 270)
@@ -620,6 +634,8 @@ Settings:Open("tot")
 Equal("tot opens Target of Target", window.opened, "targettarget")
 Settings:Open("boss")
 Equal("boss opens Bosses", window.opened, "boss")
+Settings:Open("resource")
+Equal("resource opens Class Resource", window.opened, "classPower")
 Settings:Open()
 Equal("no word opens the last page", window.opened, "<last>")
 local before = window.refreshed

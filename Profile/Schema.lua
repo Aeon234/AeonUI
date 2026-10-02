@@ -78,6 +78,7 @@ local Schema = {
 			"curse", "disease", "poison", "yours", "notYours", "classCanApply",
 		},
 		listCaster = { "anyone", "yours" },
+		classPowerAttach = { "power", "screen" },
 		auraSort = { "stable", "shortest", "yours", "blizzard", "importance", "name" },
 		auraCorner = { "BOTTOMRIGHT", "BOTTOMLEFT", "TOPRIGHT", "TOPLEFT", "CENTER" },
 	},
@@ -456,6 +457,25 @@ Geometry("playerPower", 360, 12, 4, 0, -184)
 TextFields("playerPower", 0, nil, {
 	{ content = "power", anchor = "CENTER", placement = "inside" },
 })
+
+-- The player's class resource, attached above the player power bar by default.
+Boolean("frames.classPower.enabled", true)
+Choice("frames.classPower.attach", "classPowerAttach", "power")
+Number("frames.classPower.width", 360, 40, 800, true)
+Number("frames.classPower.height", 10, 4, 40, true)
+Number("frames.classPower.spacing", 2, 0, 10, true)
+Number("frames.classPower.x", 0, -3000, 3000)
+Number("frames.classPower.y", -168, -3000, 3000)
+Boolean("frames.classPower.border", true)
+Boolean("frames.classPower.classColor", false)
+Color("frames.classPower.chargedColor", { r = 0.4, g = 0.8, b = 1 })
+Boolean("frames.classPower.darkenPartial", true)
+Boolean("frames.classPower.text", false)
+Number("frames.classPower.textSize", 10, 6, 32, true)
+Boolean("frames.classPower.runeTimers", false)
+Boolean("frames.classPower.hideOutOfCombat", false)
+Boolean("frames.classPower.extraMana", false)
+Number("frames.classPower.extraManaHeight", 4, 2, 20, true)
 
 ---@param path string
 ---@return AUISchemaField?
