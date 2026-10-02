@@ -151,6 +151,9 @@ end
 Choice("numbers.precision", "precision", "default")
 Number("numbers.percentDecimals", 0, 0, 1, true)
 
+-- How every AeonUI text renders.
+Boolean("text.slug", true)
+
 -- Health overlay colors, shared by every frame.
 Color("overlays.colors.absorb", { r = 0.502, g = 0.753, b = 1, a = 0.8 })
 Color("overlays.colors.healAbsorb", { r = 0.502, g = 0.251, b = 1, a = 1 })

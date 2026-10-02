@@ -538,6 +538,14 @@ Equal("class resource preview states", table.concat(pages.classPower.preview.sta
 pages.classPower.Reset()
 Equal("class resource reset", Profile:Get("frames.classPower.attach"), "power")
 
+-- Slug rendering.
+local slug = Find(pages.globals.Build(), "slug")
+Equal("Slug on by default", slug.get(), true)
+slug.set(false)
+Equal("Slug off saved", Profile:Get("text.slug"), false)
+pages.globals.Reset()
+Equal("globals reset restores Slug", Profile:Get("text.slug"), true)
+
 -- Page resets.
 pages.player.Reset()
 Equal("player reset", Profile:Get("frames.player.width"), 270)

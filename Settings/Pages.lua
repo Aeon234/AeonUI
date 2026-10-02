@@ -244,6 +244,12 @@ local function GlobalsPage()
 		),
 	}
 
+	Append(elements, {
+		Section("text", L["Text"]),
+		Row(Check("slug", L["Slug Rendering"], "text.slug", {
+			description = L["Draws every AeonUI text with the client's sharper Slug renderer, where the client has it."],
+		})),
+	})
 	Append(elements, AUI.SettingsOverlays:GlobalSection())
 
 	return elements
@@ -366,7 +372,7 @@ end
 ---@return table[] pages the Unit Frames category's pages, in order
 function Pages:UnitFramePages()
 	return {
-		Page("globals", L["Globals"], { "numbers", "overlays" }, GlobalsPage),
+		Page("globals", L["Globals"], { "numbers", "text", "overlays" }, GlobalsPage),
 		Page("player", PLAYER, "frames.player", function()
 			return UnitPage("player", L["Show Player Frame"])
 		end),

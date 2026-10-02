@@ -245,6 +245,12 @@ cvars.comboPointLocation = "2"
 
 local frame = Region()
 ClassPower.Style(frame, "player")
+Equal("no stagger without Blizzard's stagger bar", rawget(frame, "Stagger"), nil)
+
+MonkStaggerBar = Region()
+frame = Region()
+ClassPower.Style(frame, "player")
+Equal("stagger where the client has its bar", frame.Stagger ~= nil, true)
 Equal("frame key", frame.key, "classPower")
 Equal("no mouse", frame.last.EnableMouse[1], false)
 Equal("ten segments", #frame.ClassPower, 10)
@@ -365,5 +371,11 @@ Equal("target change refreshes", forced, 1)
 combo.current = secret
 element.Override(frame, "UNIT_POWER_FREQUENT", "player")
 Equal("hidden points hide the segments", element[1].shown, false)
+combo.current = 0
+element.Override(frame, "ClassPowerEnable", "player")
+Equal("shown when oUF enables combo points", element[1].shown, true)
+element.Override(frame, "ClassPowerDisable", "player")
+Equal("cleared when oUF turns the element off", element[1].shown, false)
+Equal("no segment left showing", element[5].shown, false)
 
 print(("check_classpower: %d checks passed"):format(checks))

@@ -55,6 +55,8 @@ local L = select(2, ...).L
 
 -- Globals page (Settings)
 -- L["Globals"] = "Globals"
+-- L["Slug Rendering"] = "Slug Rendering"
+-- L["Draws every AeonUI text with the client's sharper Slug renderer, where the client has it."] = "Draws every AeonUI text with the client's sharper Slug renderer, where the client has it."
 -- L["How large numbers are shortened, such as 588K or 588.4K."] = "How large numbers are shortened, such as 588K or 588.4K."
 
 -- Player, Target, Target of Target, Focus and Bosses pages (Settings)

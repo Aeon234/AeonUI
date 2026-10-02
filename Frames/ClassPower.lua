@@ -25,7 +25,7 @@ local DEFAULT_COUNT = 5
 ---@field settings table? the resolved settings from the last `ApplyAppearance`
 ---@field ClassPower table oUF's ClassPower segments
 ---@field Runes table oUF's Runes segments
----@field Stagger StatusBar
+---@field Stagger StatusBar? only where the client has Blizzard's stagger bar
 ---@field AdditionalPower StatusBar
 ---@field CountText FontString the resource count, when shown
 ---@field Ticker Frame updates the rune countdowns
@@ -226,14 +226,16 @@ function ClassPower:Recolor(frame, element, count, charged)
 	end
 end
 
----oUF's ClassPower update where combo points belong to the target.
+---oUF's ClassPower update where combo points belong to the target. oUF also runs it once as it turns the element off
+---for a class without the resource; that clears the segments.
 ---@param frame AUIClassPowerFrame
-local function TargetComboPoints(frame)
+---@param event string
+local function TargetComboPoints(frame, event)
 	local element = frame.ClassPower
 	local current = GetComboPoints("player", "target")
 	local maximum = UnitPowerMax("player", Enum.PowerType.ComboPoints)
 
-	if issecretvalue(current) or issecretvalue(maximum) then
+	if event == "ClassPowerDisable" or issecretvalue(current) or issecretvalue(maximum) then
 		for _, segment in ipairs(element) do
 			segment:Hide()
 		end
@@ -324,13 +326,17 @@ function ClassPower.Style(frame, unit)
 
 	frame.Runes = runes
 
-	local stagger = ClassPower:CreateSegment(frame)
+	-- oUF's Stagger element re-registers Blizzard's MonkStaggerBar whenever it disables, which it does for every class
+	-- but the Monk, so the element can only exist where that bar does.
+	if _G.MonkStaggerBar then
+		local stagger = ClassPower:CreateSegment(frame)
 
-	function stagger.PostUpdate(element, current)
-		element.Text:SetText(AbbreviateNumbers(current))
+		function stagger.PostUpdate(element, current)
+			element.Text:SetText(AbbreviateNumbers(current))
+		end
+
+		frame.Stagger = stagger
 	end
-
-	frame.Stagger = stagger
 
 	local extra = ClassPower:CreateSegment(frame)
 
@@ -420,7 +426,10 @@ function ClassPowerMixin:ApplyAppearance(config)
 
 	ClassPower:LayoutSegments(self, self.ClassPower, self.ClassPower.layoutCount or DEFAULT_COUNT)
 	ClassPower:LayoutSegments(self, self.Runes, RUNES)
-	ClassPower:PlaceSegment(self.Stagger, self, 0, 0, settings.width, settings.height, settings, pixel)
+	if self.Stagger then
+		ClassPower:PlaceSegment(self.Stagger, self, 0, 0, settings.width, settings.height, settings, pixel)
+	end
+
 	ClassPower:PlaceSegment(self.AdditionalPower, self, 0, settings.height + GAP, settings.width,
 		settings.extraManaHeight, settings, pixel)
 	ClassPower:Recolor(self, self.ClassPower, self.ClassPower.layoutCount or 0)
