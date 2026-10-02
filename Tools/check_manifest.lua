@@ -122,6 +122,7 @@ local ELEMENTS = {
 	{ pattern = "PvPIndicator", file = "Libs/oUF/elements/pvpindicator.lua" },
 	{ pattern = "ThreatIndicator", file = "Libs/oUF/elements/threatindicator.lua" },
 	{ pattern = "%.Totems%s*=", file = "Libs/oUF/elements/totems.lua" },
+	{ pattern = "%.Portrait%s*=", file = "Libs/oUF/elements/portrait.lua" },
 }
 
 for path in pairs(loaded) do

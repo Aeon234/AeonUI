@@ -43,7 +43,7 @@ local FRAME_KEYS = { "player", "pet", "target", "targettarget", "focus", "boss",
 ---@field SCOPES table<string, AUISharedScope> by section
 local Shared = {
 	SCOPES = {
-		appearance = { paths = { "bars.", "reverse" } },
+		appearance = { paths = { "bars.", "reverse", "portrait." } },
 		absorbsAndHeals = { paths = { "overlays." } },
 		castBar = {
 			paths = { "castbar." },

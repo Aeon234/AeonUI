@@ -322,6 +322,66 @@ local function AppearanceSection(key)
 	return Shared:Section("appearance", L["Appearance"], key, Shared.SCOPES.appearance, true)
 end
 
+local PORTRAIT_MODES = {
+	["2d"] = L["2D"],
+	["3d"] = L["3D"],
+	class = L["Class Icon"],
+}
+
+local PORTRAIT_STYLES = {
+	attached = L["Attached"],
+	detached = L["Detached"],
+}
+
+local SIDES = {
+	LEFT = L["Left"],
+	RIGHT = L["Right"],
+}
+
+---@param key string
+---@return table[] elements the frame page's Portrait section, or nothing for a frame without a portrait
+local function PortraitSection(key)
+	local base = "frames." .. key .. ".portrait."
+
+	if not Schema:Field(base .. "enabled") then
+		return {}
+	end
+
+	local sizeMin, sizeMax = Pages.Range(base .. "size")
+	local offsetMin, offsetMax = Pages.Range(base .. "x")
+	local function Detached()
+		if AUI.Profile:Get(base .. "style") ~= "detached" then
+			return L["Only for a detached portrait."]
+		end
+	end
+
+	return {
+		Section("portrait", L["Portrait"]),
+		Row(
+			Check("portrait", L["Show Portrait"], base .. "enabled"),
+			Choice("portraitMode", L["Mode"], base .. "mode", Pages.Options("portraitMode", PORTRAIT_MODES), {
+				depends = "portrait",
+				description = L["Class Icon shows a player's class; other units show their 2D portrait."],
+			})
+		),
+		Row(
+			Choice("portraitStyle", L["Placement"], base .. "style", Pages.Options("portraitStyle", PORTRAIT_STYLES), {
+				depends = "portrait",
+				description = L["Attached sits inside the frame at its side; Detached sits outside it."],
+			}),
+			Choice("portraitSide", L["Side"], base .. "side", Pages.Options("portraitSide", SIDES), { depends = "portrait" })
+		),
+		Row(Slider("portraitSize", L["Size"], base .. "size", sizeMin, sizeMax, {
+			depends = "portrait",
+			blocked = Detached,
+		})),
+		Row(
+			Slider("portraitX", L["X Offset"], base .. "x", offsetMin, offsetMax, { depends = "portrait", blocked = Detached }),
+			Slider("portraitY", L["Y Offset"], base .. "y", offsetMin, offsetMax, { depends = "portrait", blocked = Detached })
+		),
+	}
+end
+
 ---@param key string a frame with health
 ---@param switchLabel string
 ---@return table[] elements
@@ -352,6 +412,7 @@ local function UnitPage(key, switchLabel)
 		})
 	end
 	Append(elements, Shared:BarRows(base .. "bars."))
+	Append(elements, PortraitSection(key))
 	Append(elements, { Shared:Section("healthColors", L["Health Colors"], key, Shared.SCOPES.healthColors, true) })
 	Append(elements, Shared:HealthRows(base .. "health."))
 	Append(elements, AUI.SettingsOverlays:Sections(key))

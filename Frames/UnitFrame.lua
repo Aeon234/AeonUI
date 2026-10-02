@@ -17,6 +17,8 @@ local Schema = AUI.Schema
 ---@field Overlays AUIOverlayWidgets? the health overlays, on frames that have them
 ---@field CastBarWidgets AUICastBarWidgets? the cast bar, on frames that have one
 ---@field AuraDisplays table<string, AUIAuraWidgets>? the buff and debuff displays, on frames that have them
+---@field PortraitWidgets AUIPortraitWidgets? the portrait, on frames that can show one
+---@field portraitMode string? the portrait mode oUF's element was last enabled in
 ---@field key string the frame's key under `frames` in the profile
 ---@field slot integer? the frame's place in its group, for a group's frames
 ---@field Bar StatusBar the frame's one bar: oUF's Health or Power element
@@ -266,6 +268,10 @@ function UnitFrame.HealthStyle(frame, unit)
 		frame.CastBarWidgets = widgets
 	end
 
+	if Schema:Field("frames." .. frame.key .. ".portrait.enabled") then
+		frame.PortraitWidgets = AUI.Portrait:Create(frame)
+	end
+
 	if Schema:Field("frames." .. frame.key .. ".buffs.enabled") then
 		frame.AuraDisplays = {
 			buffs = AUI.Auras:Create(frame, "buffs"),
@@ -341,19 +347,12 @@ function UnitFrameMixin:ApplyLayout(config)
 	self:ClearAllPoints()
 	self:SetPoint("CENTER", UIParent, "CENTER", Schema:Read(config, base .. "x") + x, Schema:Read(config, base .. "y") + y)
 
-	self.Main:ClearAllPoints()
-	self.Main:SetPoint("TOPLEFT")
-	self.Main:SetPoint("TOPRIGHT")
-	self.Main:SetHeight(main)
+	self:PlaceBars(config)
 
 	local holder = self.PowerHolder
 
 	if holder then
 		if power > 0 then
-			holder:ClearAllPoints()
-			holder:SetPoint("TOPLEFT", self.Main, "BOTTOMLEFT")
-			holder:SetPoint("TOPRIGHT", self.Main, "BOTTOMRIGHT")
-			holder:SetHeight(power)
 			holder:Show()
 			self:EnableElement("Power")
 		else
@@ -393,11 +392,49 @@ function UnitFrameMixin:ApplyLayout(config)
 	end
 end
 
----Bar look, fill direction, overlays, cast bar, auras, indicators and text. None is protected, so this also runs in
----combat.
+---Places the main bar and the attached power bar under it, leaving room for an attached portrait. Not protected.
+---@param config table the active profile config
+function UnitFrameMixin:PlaceBars(config)
+	local main, power = UnitFrame:Heights(config, self.key)
+	local left, right = AUI.Portrait:Inset(config, self.key)
+	local look = UnitFrame:BarLook(config, self.key)
+	local pixel = AUI:Pixel(self)
+
+	-- An attached portrait shares its border with the bars.
+	if left > 0 then
+		left = left - look.border * pixel
+	end
+
+	if right > 0 then
+		right = right - look.border * pixel
+	end
+
+	self.Main:ClearAllPoints()
+	self.Main:SetPoint("TOPLEFT", left, 0)
+	self.Main:SetPoint("TOPRIGHT", -right, 0)
+	self.Main:SetHeight(main)
+
+	local holder = self.PowerHolder
+
+	if holder and power > 0 then
+		holder:ClearAllPoints()
+		holder:SetPoint("TOPLEFT", self.Main, "BOTTOMLEFT")
+		holder:SetPoint("TOPRIGHT", self.Main, "BOTTOMRIGHT")
+		holder:SetHeight(power)
+	end
+end
+
+---Bar look, fill direction, portrait, overlays, cast bar, auras, indicators and text. None is protected, so this also
+---runs in combat.
 ---@param config table the active profile config
 function UnitFrameMixin:ApplyAppearance(config)
 	local reverse = Schema:Read(config, "frames." .. self.key .. ".reverse")
+
+	self:PlaceBars(config)
+
+	if self.PortraitWidgets then
+		AUI.Portrait:Apply(self, config)
+	end
 
 	self:StyleBars(config)
 	self.Bar:SetReverseFill(reverse == true)

@@ -508,3 +508,16 @@ local L = select(2, ...).L
 -- L["Waiting to reconnect to %s."] = "Waiting to reconnect to %s."
 -- L["Reconnect %s to %s? It moves back against it."] = "Reconnect %s to %s? It moves back against it."
 -- L["%s waits to reconnect to %s. Open Edit Mode to reconnect or detach it."] = "%s waits to reconnect to %s. Open Edit Mode to reconnect or detach it."
+
+-- Portrait section (Settings)
+-- L["Portrait"] = "Portrait"
+-- L["Show Portrait"] = "Show Portrait"
+-- L["Mode"] = "Mode"
+-- L["2D"] = "2D"
+-- L["3D"] = "3D"
+-- L["Class Icon"] = "Class Icon"
+-- L["Attached"] = "Attached"
+-- L["Detached"] = "Detached"
+-- L["Only for a detached portrait."] = "Only for a detached portrait."
+-- L["Class Icon shows a player's class; other units show their 2D portrait."] = "Class Icon shows a player's class; other units show their 2D portrait."
+-- L["Attached sits inside the frame at its side; Detached sits outside it."] = "Attached sits inside the frame at its side; Detached sits outside it."

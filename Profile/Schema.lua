@@ -102,6 +102,9 @@ local Schema = {
 			"power.player", "resource.player", "cast.player", "levelbound.bars",
 		},
 		layoutSide = { "LEFT", "RIGHT", "TOP", "BOTTOM" },
+		portraitMode = { "2d", "3d", "class" },
+		portraitStyle = { "attached", "detached" },
+		portraitSide = { "LEFT", "RIGHT" },
 	},
 }
 AUI.Schema = Schema
@@ -413,6 +416,21 @@ local function HealthColors(key)
 	end
 end
 
+---A frame's portrait: off until enabled, attached inside the frame at a side, or detached outside it.
+---@param key string
+---@param side string "LEFT" or "RIGHT"
+local function Portrait(key, side)
+	local base = "frames." .. key .. ".portrait."
+
+	Boolean(base .. "enabled", false)
+	Choice(base .. "mode", "portraitMode", "2d")
+	Choice(base .. "style", "portraitStyle", "attached")
+	Choice(base .. "side", "portraitSide", side)
+	Number(base .. "size", 36, 8, 120, true)
+	Number(base .. "x", 0, -200, 200)
+	Number(base .. "y", 0, -200, 200)
+end
+
 ---An optional power bar attached under a frame's health.
 ---@param key string
 local function AttachedPower(key)
@@ -590,6 +608,7 @@ Boolean("frames.player.hideBlizzard", true)
 Boolean("frames.player.reverse", false)
 Bars("player", true, false)
 HealthColors("player")
+Portrait("player", "LEFT")
 Overlays("player")
 CastBar("player", { width = 386, x = 0, y = -254, icon = false, target = false })
 Auras("player", Buffs(false), { enabled = false, anchor = "belowLeft", growth = "right", limit = 10, filter = "all" })
@@ -614,6 +633,7 @@ Boolean("frames.target.hideBlizzard", true)
 Boolean("frames.target.reverse", true)
 Bars("target", true, true)
 HealthColors("target")
+Portrait("target", "RIGHT")
 AttachedPower("target")
 Overlays("target")
 CastBar("target", { width = 270, x = 0, y = 0, icon = true, target = true, side = "below" })
@@ -657,6 +677,7 @@ Boolean("frames.focus.hideBlizzard", true)
 Boolean("frames.focus.reverse", false)
 Bars("focus", true, true)
 HealthColors("focus")
+Portrait("focus", "RIGHT")
 AttachedPower("focus")
 Overlays("focus")
 CastBar("focus", { width = 200, x = 0, y = 0, icon = false, target = true, side = "above" })
@@ -676,6 +697,7 @@ Number("frames.boss.spacing", 14, 0, 100, true)
 Boolean("frames.boss.reverse", false)
 Bars("boss", true, true)
 HealthColors("boss")
+Portrait("boss", "RIGHT")
 AttachedPower("boss")
 Overlays("boss")
 CastBar("boss", { width = 200, x = 0, y = 0, icon = true, target = false, side = "below" })

@@ -344,7 +344,14 @@ function Text:Layout(config, key, count)
 		}
 	end
 
-	return slots, self:Widths(slots, Schema:Read(config, base .. ".width")), contexts
+	-- An attached portrait narrows the bar the text sits on.
+	local left, right = 0, 0
+
+	if AUI.Portrait then
+		left, right = AUI.Portrait:Inset(config, key)
+	end
+
+	return slots, self:Widths(slots, Schema:Read(config, base .. ".width") - left - right), contexts
 end
 
 ---Styles a slot's font string and places it on its bar.

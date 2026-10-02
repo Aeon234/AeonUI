@@ -174,7 +174,7 @@ AUI.Media = {
 }
 for _, file in ipairs({
 	"Core/Callbacks.lua", "Profile/Schema.lua", "Profile/Store.lua", "Profile/Codec.lua", "Profile/Profile.lua",
-	"Frames/Tags.lua", "Frames/Text.lua", "Frames/Overlays.lua", "Frames/HealthColor.lua", "Frames/CastBar.lua", "Frames/Auras.lua", "Frames/ClassPower.lua", "Frames/Indicators.lua", "Frames/Fading.lua", "Frames/UnitFrame.lua", "Frames/Frames.lua",
+	"Frames/Tags.lua", "Frames/Text.lua", "Frames/Overlays.lua", "Frames/HealthColor.lua", "Frames/Portrait.lua", "Frames/CastBar.lua", "Frames/Auras.lua", "Frames/ClassPower.lua", "Frames/Indicators.lua", "Frames/Fading.lua", "Frames/UnitFrame.lua", "Frames/Frames.lua",
 	"Settings/Note.lua", "Settings/Pages.lua", "Settings/Shared.lua", "Settings/TextSlots.lua", "Settings/Overlays.lua", "Settings/CastBar.lua", "Settings/Auras.lua", "Settings/ClassPower.lua", "Settings/Indicators.lua",
 	"Settings/Previews.lua",
 	"Settings/Profiles.lua", "Settings/Recovery.lua", "Settings/Settings.lua",
@@ -1036,6 +1036,58 @@ Equal("a chosen state", Editor:SampleState(player).label, "Damaged")
 Editor.states["unit.player"] = "Nothing"
 Equal("an unknown state falls back to the default", Editor:SampleState(player).label, "Full")
 Editor.states = {}
+Profile:Reset()
+
+-- Portraits ------------------------------------------------------------------------------------------------------
+
+local Portrait = AUI.Portrait
+Profile:Reset()
+Equal("portrait off by default", Portrait:Resolve(Profile.config, "player").enabled, false)
+Equal("player portrait on the left", Portrait:Resolve(Profile.config, "player").side, "LEFT")
+Equal("target portrait on the right", Portrait:Resolve(Profile.config, "target").side, "RIGHT")
+Equal("no portrait on target of target", Portrait:Resolve(Profile.config, "targettarget"), nil)
+Equal("no portrait on the pet", Portrait:Resolve(Profile.config, "pet"), nil)
+Equal("an off portrait takes no room", select(1, Portrait:Inset(Profile.config, "player")), 0)
+Profile:Set("frames.player.portrait.enabled", true)
+local insetLeft, insetRight = Portrait:Inset(Profile.config, "player")
+Equal("attached portrait takes the frame height on the left", insetLeft .. "," .. insetRight, "36,0")
+Profile:Set("frames.target.portrait.enabled", true)
+Profile:Set("frames.target.power.enabled", true)
+insetLeft, insetRight = Portrait:Inset(Profile.config, "target")
+Equal("attached portrait spans the power bar too, on the right", insetLeft .. "," .. insetRight, "0,42")
+Equal("attached size is the full height", Portrait:Size(Profile.config, "target", Portrait:Resolve(Profile.config, "target")),
+	42)
+Profile:Set("frames.player.portrait.style", "detached")
+Equal("a detached portrait takes no room", select(1, Portrait:Inset(Profile.config, "player")), 0)
+Equal("a detached portrait has its own size", Portrait:Size(Profile.config, "player", Portrait:Resolve(Profile.config,
+	"player")), 36)
+Profile:Set("frames.player.portrait.style", "attached")
+local _, narrowed = AUI.Text:Layout(Profile.config, "player", Schema.textSlots.player)
+Profile:Set("frames.player.portrait.enabled", false)
+local _, full = AUI.Text:Layout(Profile.config, "player", Schema.textSlots.player)
+Equal("an attached portrait narrows the text", full[1] - narrowed[1] > 0, true)
+local portraitPage = pages.player.Build()
+Equal("portrait size waits for detached", Find(portraitPage, "portraitSize").blocked(), "Only for a detached portrait.")
+Equal("portrait copies with the appearance", (function()
+	for _, path in ipairs(AUI.SettingsShared:Paths("player", AUI.SettingsShared.SCOPES.appearance)) do
+		if path == "frames.player.portrait.mode" then
+			return true
+		end
+	end
+
+	return false
+end)(), true)
+UnitIsPlayer = function()
+	return true
+end
+local classToken
+UnitClass = function()
+	return "Mage", classToken
+end
+classToken = "MAGE"
+Equal("class icon for a readable player class", Portrait:ClassAtlas("target"), "classicon-MAGE")
+classToken = nil
+Equal("no class icon without a class", Portrait:ClassAtlas("target"), nil)
 Profile:Reset()
 
 print = luaPrint

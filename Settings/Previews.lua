@@ -167,6 +167,10 @@ function Previews:NewSample(key, parent, slot)
 		sample.cast = AUI.CastBar:Create(frame)
 	end
 
+	if AUI.Portrait:Resolve(AUI.Profile.config, key) then
+		sample.portrait = AUI.Portrait:Create(frame)
+	end
+
 	return sample
 end
 
@@ -559,10 +563,21 @@ local function DrawSample(sample, key, config, state, addPart, editing)
 	local pixel = AUI:Pixel(sample.frame)
 	local reverse = Schema:Read(config, base .. "reverse") == true
 
+	local left, right = AUI.Portrait:Inset(config, key)
+	local look = AUI.UnitFrame:BarLook(config, key, key == "playerPower")
+
+	-- An attached portrait shares its border with the bars.
+	left = left > 0 and left - look.border * pixel or 0
+	right = right > 0 and right - look.border * pixel or 0
+
 	sample.main:ClearAllPoints()
-	sample.main:SetPoint("TOPLEFT")
-	sample.main:SetPoint("TOPRIGHT")
+	sample.main:SetPoint("TOPLEFT", left, 0)
+	sample.main:SetPoint("TOPRIGHT", -right, 0)
 	sample.main:SetHeight(main)
+
+	if sample.portrait then
+		AUI.Portrait:DrawSample(sample.portrait, config, key, sample.frame, pixel)
+	end
 	AUI.UnitFrame:StyleBar(bar, sample.background, sample.border,
 		AUI.UnitFrame:BarLook(config, key, key == "playerPower"), pixel)
 

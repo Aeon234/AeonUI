@@ -30,5 +30,6 @@
 	<Script file="oUF\elements\pvpindicator.lua" />
 	<Script file="oUF\elements\threatindicator.lua" />
 	<Script file="oUF\elements\totems.lua" />
+	<Script file="oUF\elements\portrait.lua" />
 	<Script file="oUF\finalize.lua" />
 </Ui>
