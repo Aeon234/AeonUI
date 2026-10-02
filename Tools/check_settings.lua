@@ -11,6 +11,7 @@ local root = (arg and arg[0] or ""):match("^(.-)[^/\\]*$") .. "../"
 
 UNKNOWN, NONE, NAME, LEVEL, HEALTH, CUSTOM = "Unknown", "None", "Name", "Level", "Health", "Custom"
 INTERRUPTED = "Interrupted"
+PET = "Pet"
 PLAYER, TARGET, COLOR, DELETE, RESET, DEAD, PLAYER_OFFLINE = "Player", "Target", "Color", "Delete", "Reset", "Dead",
 	"Offline"
 SlashCmdList = {}
@@ -167,7 +168,7 @@ AUI.Media = {
 }
 for _, file in ipairs({
 	"Core/Callbacks.lua", "Profile/Schema.lua", "Profile/Store.lua", "Profile/Codec.lua", "Profile/Profile.lua",
-	"Frames/Tags.lua", "Frames/Text.lua", "Frames/Overlays.lua", "Frames/CastBar.lua", "Frames/Auras.lua", "Frames/ClassPower.lua", "Frames/UnitFrame.lua",
+	"Frames/Tags.lua", "Frames/Text.lua", "Frames/Overlays.lua", "Frames/CastBar.lua", "Frames/Auras.lua", "Frames/ClassPower.lua", "Frames/UnitFrame.lua", "Frames/Frames.lua",
 	"Settings/Note.lua", "Settings/Pages.lua", "Settings/TextSlots.lua", "Settings/Overlays.lua", "Settings/CastBar.lua", "Settings/Auras.lua", "Settings/ClassPower.lua",
 	"Settings/Previews.lua",
 	"Settings/Profiles.lua", "Settings/Recovery.lua", "Settings/Settings.lua",
@@ -268,14 +269,14 @@ local order = {}
 for _, page in ipairs(Settings:Categories()[1].pages) do
 	order[#order + 1] = page.id
 end
-Equal("unit frame page order", table.concat(order, ","), "globals,player,target,targettarget,focus,boss,playerPower,classPower")
+Equal("unit frame page order", table.concat(order, ","), "globals,player,pet,target,targettarget,focus,boss,playerPower,classPower")
 Equal("Target of Target page", pages.targettarget.title, "Target of Target")
 Equal("Focus page", pages.focus.title, "Focus")
 Equal("preview on Focus", type(pages.focus.preview.Draw), "function")
 
 -- Every setting on every page reads and saves ----------------------------------------------------------------
 
-for _, id in ipairs({ "globals", "player", "target", "targettarget", "focus", "boss", "playerPower", "classPower" }) do
+for _, id in ipairs({ "globals", "player", "pet", "target", "targettarget", "focus", "boss", "playerPower", "classPower" }) do
 	local elements = pages[id].Build()
 	local seen = {}
 
@@ -407,7 +408,7 @@ pages.player.Reset()
 Equal("player reset restores overlays", Profile:Get("frames.player.overlays.absorb.position"), "attach")
 
 local power = pages.playerPower.Build()
-Equal("copy menu lists the other frames", #Options(Find(power, "copyText")), 5)
+Equal("copy menu lists the other frames", #Options(Find(power, "copyText")), 6)
 Find(power, "copyText").set("target")
 Equal("copied slot content", Profile:Get("frames.playerPower.text.slots.1.content"), "healthAndPercent")
 Equal("copied second slot", Profile:Get("frames.playerPower.text.slots.2.content"), "levelName")
@@ -545,6 +546,40 @@ Equal("Slug Outline label", outlines[5].text, "Slug Outline")
 Equal("frame text starts with Slug Outline", Profile:Get("frames.player.text.outline"), "SLUG_OUTLINE")
 Equal("cast bar text starts with Slug", Profile:Get("frames.player.castbar.outline"), "SLUG")
 
+-- Pet frame and Blizzard's frames.
+local pet = pages.pet.Build()
+Equal("Pet page", pages.pet.title, "Pet")
+Equal("pet switch", Find(pet, "enabled").label, "Show Pet Frame")
+Equal("pet text slots", #Options(Find(pet, "slot")), 3)
+Equal("pet name text", Options(Find(pet, "slot"))[1].text, "Text 1: Name")
+Equal("pet status line", Find(pet, "statusLine").get(), true)
+Equal("pet power bar off", Find(pet, "power").get(), false)
+Equal("pet preview shares the unit states", pages.pet.preview.stateKey, pages.targettarget.preview.stateKey)
+Equal("no auras on the pet", Find(pet, "buffEnabled"), nil)
+Equal("pet size", Profile:Get("frames.pet.width") .. "x" .. Profile:Get("frames.pet.height"), "120x24")
+for _, id in ipairs({ "player", "pet", "target", "focus", "boss" }) do
+	local built = pages[id].Build()
+	Equal(id .. " hides Blizzard's frame", Find(built, "hideBlizzard").get(), true)
+	Equal(id .. " hide asks for a reload", Find(built, "hideBlizzard").reload, true)
+	Equal(id .. " switch asks for a reload", Find(built, "enabled").reload, true)
+end
+Equal("no Blizzard switch on target of target", Find(pages.targettarget.Build(), "hideBlizzard"), nil)
+Equal("no reload on the power bar switch", Find(pages.playerPower.Build(), "enabled").reload, nil)
+
+local Frames = AUI.Frames
+Equal("player replaces Blizzard's", Frames:HidesBlizzard(Profile.config, "player"), true)
+Equal("boss replaces Blizzard's", Frames:HidesBlizzard(Profile.config, "boss"), true)
+Equal("power bar leaves Blizzard's alone", Frames:HidesBlizzard(Profile.config, "playerPower"), false)
+Equal("class resource leaves Blizzard's alone", Frames:HidesBlizzard(Profile.config, "classPower"), false)
+Equal("no key, no hiding", Frames:HidesBlizzard(Profile.config, nil), false)
+Profile:Set("frames.target.hideBlizzard", false)
+Equal("switch off keeps Blizzard's", Frames:HidesBlizzard(Profile.config, "target"), false)
+Profile:Set("frames.target.hideBlizzard", true)
+Profile:Set("frames.focus.enabled", false)
+Equal("hidden AeonUI frame keeps Blizzard's", Frames:HidesBlizzard(Profile.config, "focus"), false)
+Profile:Set("frames.focus.enabled", true)
+Equal("extra mana on by default", Profile:Get("frames.classPower.extraMana"), true)
+
 -- Page resets.
 pages.player.Reset()
 Equal("player reset", Profile:Get("frames.player.width"), 270)
@@ -641,6 +676,8 @@ Settings:Open("tot")
 Equal("tot opens Target of Target", window.opened, "targettarget")
 Settings:Open("boss")
 Equal("boss opens Bosses", window.opened, "boss")
+Settings:Open("pet")
+Equal("pet opens Pet", window.opened, "pet")
 Settings:Open("resource")
 Equal("resource opens Class Resource", window.opened, "classPower")
 Settings:Open()

@@ -659,6 +659,25 @@ PetCastingBarFrame = {
 CastBar:RestorePetCastBar()
 Equal("pet cast bar restored", table.concat(calls, ","), "nil,pet,UNIT_PET")
 
+-- Blizzard's player cast bar ------------------------------------------------------------------------------
+
+local rolesets = {}
+PlayerCastingBarFrame = {
+	SetRolesets = function(_, value)
+		rolesets[#rolesets + 1] = tostring(value)
+	end,
+}
+CastBar:BlockBlizzardCastBar(true)
+Equal("blocked in Edit Mode too", rolesets[1], "alwaysBlocked")
+CastBar:BlockBlizzardCastBar(true)
+Equal("blocked once", #rolesets, 1)
+CastBar:BlockBlizzardCastBar(false)
+Equal("block lifted", rolesets[2], "nil")
+PlayerCastingBarFrame = nil
+CastBar.blizzardBlocked = nil
+CastBar:BlockBlizzardCastBar(true)
+Equal("no Blizzard cast bar, nothing to block", CastBar.blizzardBlocked, nil)
+
 -- Preview sample ------------------------------------------------------------------------------------------
 
 widgets = CastBar:Create(Region())

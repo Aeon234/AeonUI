@@ -298,10 +298,15 @@ function UnitFrameMixin:ApplyLayout(config)
 
 			if self.key == "player" then
 				AUI.CastBar:RestorePetCastBar()
+				AUI.CastBar:BlockBlizzardCastBar(true)
 			end
 		else
 			self:DisableElement("Castbar")
 			cast.holder:Hide()
+
+			if self.key == "player" then
+				AUI.CastBar:BlockBlizzardCastBar(false)
+			end
 		end
 	end
 

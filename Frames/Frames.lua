@@ -11,6 +11,7 @@ local AUI = select(2, ...)
 ---@type AUIFrameSpec[]
 local SPECS = {
 	{ key = "player", unit = "player", name = "AeonUIPlayer", style = "AeonUI" },
+	{ key = "pet", unit = "pet", name = "AeonUIPet", style = "AeonUI" },
 	{ key = "target", unit = "target", name = "AeonUITarget", style = "AeonUI" },
 	{ key = "targettarget", unit = "targettarget", name = "AeonUITargetTarget", style = "AeonUI" },
 	{ key = "focus", unit = "focus", name = "AeonUIFocus", style = "AeonUI" },
@@ -53,9 +54,15 @@ function Frames:Start()
 	local oUF = AUI.oUF
 	local UnitFrame = AUI.UnitFrame
 
-	-- Blizzard's own frames stay: they parent the pet, class resource and target-of-target frames. oUF's Castbar on the
-	-- player still takes over Blizzard's player cast bar.
-	oUF.DisableBlizzard = function() end
+	-- oUF hides a unit's Blizzard frame as it spawns AeonUI's, and cannot show it again; AeonUI lets it only for frames
+	-- that are shown with Hide Blizzard's Frame on. The power and class resource frames, also for the player, never do.
+	local disable = oUF.DisableBlizzard
+
+	oUF.DisableBlizzard = function(object, unit)
+		if self:HidesBlizzard(AUI.Profile.config, UnitFrame.keys[unit]) then
+			disable(object, unit)
+		end
+	end
 
 	AUI.Tags:Register()
 	oUF:RegisterStyle("AeonUI", UnitFrame.HealthStyle)
@@ -90,6 +97,19 @@ function Frames:Start()
 	for _, spec in ipairs(SPECS) do
 		self:Apply(spec.key, true)
 	end
+end
+
+---@param config table
+---@param key string? the frame being spawned
+---@return boolean hide the frame replaces Blizzard's: it is shown and its Hide Blizzard's Frame setting is on
+function Frames:HidesBlizzard(config, key)
+	local base = "frames." .. tostring(key) .. "."
+
+	if not key or not AUI.Schema:Field(base .. "hideBlizzard") then
+		return false
+	end
+
+	return AUI.Schema:Read(config, base .. "enabled") == true and AUI.Schema:Read(config, base .. "hideBlizzard") == true
 end
 
 ---@param key string

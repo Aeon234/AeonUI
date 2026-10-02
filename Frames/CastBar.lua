@@ -75,6 +75,7 @@ local TIME_FORMATS = {
 ---@field GAP number space between an attached cast bar and its frame
 ---@field formatter table? the shared one-decimal time formatter, created on first use
 ---@field interrupt integer? the player's interrupt spell, nil when none is known
+---@field blizzardBlocked boolean? Blizzard's player cast bar is blocked
 ---@field live AUICastBarWidgets[] the live bars that show interrupt colors or the cooldown mark
 local CastBar = {
 	GAP = GAP,
@@ -1076,6 +1077,21 @@ function CastBar:ShowGlow(widgets, spellID)
 	if settings.glowStyle == "blizzard" then
 		widgets.glowPulse:Play()
 	end
+end
+
+---Blocks Blizzard's player cast bar, or lifts the block. oUF stops its events, but Edit Mode still shows it to be moved,
+---so while AeonUI's player cast bar is on it carries the client's `alwaysBlocked` roleset (it has none of its own).
+---`SetRolesets` is protected: call this only out of combat.
+---@param block boolean
+function CastBar:BlockBlizzardCastBar(block)
+	local blizzard = PlayerCastingBarFrame
+
+	if not blizzard or self.blizzardBlocked == block then
+		return
+	end
+
+	blizzard:SetRolesets(block and "alwaysBlocked" or nil)
+	self.blizzardBlocked = block
 end
 
 ---Turns Blizzard's pet cast bar back on after oUF stopped it with the player's: AeonUI shows no pet frame.

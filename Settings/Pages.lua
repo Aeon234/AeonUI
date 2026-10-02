@@ -267,9 +267,10 @@ end
 local function Layout(key, switchLabel)
 	local base = "frames." .. key .. "."
 	local halfWidth, halfHeight = ScreenHalf()
+	local hides = Schema:Field(base .. "hideBlizzard") ~= nil
 	local elements = {
 		Section("layout", L["Layout"]),
-		Row(Setting("toggle", "enabled", switchLabel, base .. "enabled", { pageSwitch = true })),
+		Row(Setting("toggle", "enabled", switchLabel, base .. "enabled", { pageSwitch = true, reload = hides or nil })),
 		Row(
 			Slider("width", L["Width"], base .. "width", Pages.Range(base .. "width")),
 			Slider("height", L["Height"], base .. "height", Pages.Range(base .. "height"))
@@ -279,6 +280,13 @@ local function Layout(key, switchLabel)
 			Slider("y", L["Y Offset"], base .. "y", -halfHeight, halfHeight)
 		),
 	}
+
+	if hides then
+		elements[#elements + 1] = Row(Check("hideBlizzard", L["Hide Blizzard's Frame"], base .. "hideBlizzard", {
+			reload = true,
+			description = L["Hides Blizzard's own frame for this unit while this one is shown. Takes effect after a reload."],
+		}))
+	end
 
 	if Schema:Field(base .. "growth") then
 		local spacingMin, spacingMax = Pages.Range(base .. "spacing")
@@ -372,6 +380,9 @@ function Pages:UnitFramePages()
 		Page("globals", L["Globals"], { "numbers", "overlays" }, GlobalsPage),
 		Page("player", PLAYER, "frames.player", function()
 			return UnitPage("player", L["Show Player Frame"])
+		end),
+		Page("pet", PET, "frames.pet", function()
+			return UnitPage("pet", L["Show Pet Frame"])
 		end),
 		Page("target", TARGET, "frames.target", function()
 			return UnitPage("target", L["Show Target Frame"])

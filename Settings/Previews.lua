@@ -217,19 +217,24 @@ function Previews:Values(key, state, slot)
 	}
 	local barColor
 
-	if key == "target" or key == "focus" or key == "boss" then
+	if key == "target" or key == "focus" or key == "boss" or key == "pet" then
 		values.name = L["Sample Target"]
 
 		if key == "focus" then
 			values.name = L["Sample Focus"]
 		elseif key == "boss" then
 			values.name = L["Sample Boss %d"]:format(slot or 1)
+		elseif key == "pet" then
+			values.name = L["Sample Pet"]
 		end
 
+		-- A pet is friendly; the other samples are hostile.
+		local reaction = colors.reaction[key == "pet" and 5 or 2]
+
 		values.level = 60
-		values.classColor = colors.reaction[2]
+		values.classColor = reaction
 		values.powerColor = colors.power.MANA
-		barColor = colors.reaction[2]
+		barColor = reaction
 	else
 		values.name = AUI:Readable(UnitName("player")) or PLAYER
 		values.level = AUI:Readable(UnitLevel("player")) or 60
@@ -775,7 +780,7 @@ function Previews:For(pageID)
 		return Preview(pageID, Join(UNIT_STATES, OVERLAY_STATES, CAST_STATES, KICK_STATES, GROUP_STATES), "group")
 	end
 
-	if pageID == "targettarget" then
+	if pageID == "targettarget" or pageID == "pet" then
 		return Preview(pageID, UNIT_STATES, "unit")
 	end
 

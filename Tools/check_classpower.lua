@@ -211,9 +211,10 @@ Equal("no count", settings.text, false)
 Equal("text size", settings.textSize, 10)
 Equal("no rune countdowns", settings.runeTimers, false)
 Equal("shown out of combat", settings.hideOutOfCombat, false)
-Equal("no extra mana", settings.extraMana, false)
+Equal("extra mana on", settings.extraMana, true)
 Equal("font from the power bar text", settings.font, "Expressway")
 
+settings.extraMana = false
 Equal("height without extra mana", ClassPower:Height(settings), 10)
 settings.extraMana = true
 Equal("height with extra mana", ClassPower:Height(settings), 16)
@@ -330,6 +331,7 @@ Equal("shown when the option is off", frame.alpha, 1)
 
 -- Layout.
 AeonUIPlayerPower = Region()
+AUI.Profile.config.frames.classPower.extraMana = false
 frame:ApplyLayout(config)
 Equal("frame size", frame.last.SetSize[1] .. "x" .. frame.last.SetSize[2], "360x10")
 Equal("on the power bar", frame.points[1][2], AeonUIPlayerPower)

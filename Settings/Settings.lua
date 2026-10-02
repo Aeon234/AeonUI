@@ -9,6 +9,7 @@ local FRAME_NAME = "AeonUISettings"
 local ALIASES = {
 	globals = "globals",
 	player = "player",
+	pet = "pet",
 	target = "target",
 	tot = "targettarget",
 	focus = "focus",

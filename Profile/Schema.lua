@@ -29,6 +29,7 @@ local Schema = {
 	VERSION = 1,
 	textSlots = {
 		player = 4,
+		pet = 3,
 		target = 4,
 		targettarget = 3,
 		focus = 4,
@@ -405,6 +406,7 @@ local NAME_ONLY = {
 }
 
 Geometry("player", 270, 36, 16, -330, -200)
+Boolean("frames.player.hideBlizzard", true)
 Boolean("frames.player.reverse", false)
 Overlays("player")
 CastBar("player", { width = 386, x = 0, y = -254, icon = false, target = false })
@@ -414,6 +416,7 @@ TextFields("player", 1, false, {
 })
 
 Geometry("target", 270, 36, 16, 330, -200)
+Boolean("frames.target.hideBlizzard", true)
 Boolean("frames.target.reverse", true)
 AttachedPower("target")
 Overlays("target")
@@ -425,12 +428,20 @@ TextFields("target", 1, false, {
 	{ content = "power", anchor = "BOTTOMLEFT", placement = "inside", x = 4, colorMode = "power" },
 })
 
+-- The pet frame, in the target-of-target style, 4 below the player frame and aligned with its left edge.
+Geometry("pet", 120, 24, 16, -405, -234)
+Boolean("frames.pet.hideBlizzard", true)
+Boolean("frames.pet.reverse", false)
+AttachedPower("pet")
+TextFields("pet", 0, true, NAME_ONLY)
+
 Geometry("targettarget", 120, 24, 16, 533, -206)
 Boolean("frames.targettarget.reverse", false)
 AttachedPower("targettarget")
 TextFields("targettarget", 0, true, NAME_ONLY)
 
 Geometry("focus", 200, 24, 16, -330, -140)
+Boolean("frames.focus.hideBlizzard", true)
 Boolean("frames.focus.reverse", false)
 AttachedPower("focus")
 Overlays("focus")
@@ -440,6 +451,7 @@ TextFields("focus", 0, true, NAME_ONLY)
 
 -- The boss frames: one group, the first slot at the position, the others following by growth and spacing.
 Geometry("boss", 200, 32, 16, 720, -120)
+Boolean("frames.boss.hideBlizzard", true)
 Choice("frames.boss.growth", "growth", "down")
 Number("frames.boss.spacing", 14, 0, 100, true)
 Boolean("frames.boss.reverse", false)
@@ -474,7 +486,7 @@ Boolean("frames.classPower.text", false)
 Number("frames.classPower.textSize", 10, 6, 32, true)
 Boolean("frames.classPower.runeTimers", false)
 Boolean("frames.classPower.hideOutOfCombat", false)
-Boolean("frames.classPower.extraMana", false)
+Boolean("frames.classPower.extraMana", true)
 Number("frames.classPower.extraManaHeight", 4, 2, 20, true)
 
 ---@param path string
