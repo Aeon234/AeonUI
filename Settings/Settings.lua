@@ -51,6 +51,12 @@ function Settings:Create()
 		title = AUI.title,
 		version = AUI.version,
 		contentWidth = 900,
+		onEditMode = function()
+			AUI.Editor:FromSettings()
+		end,
+		onClose = function()
+			AUI.Editor:OnSettingsHidden()
+		end,
 	})
 
 	self.window = window
@@ -93,6 +99,10 @@ function Settings:Open(page)
 	local window = self.window --[[@as table]]
 
 	window:Open(page and (ALIASES[page] or page) or nil)
+
+	if self:IsOpen() then
+		AUI.Editor:OnSettingsShown()
+	end
 end
 
 function Settings:Close()

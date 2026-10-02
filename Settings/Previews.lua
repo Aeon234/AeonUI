@@ -121,51 +121,65 @@ local function Labels(states)
 	return labels
 end
 
+-- The state the layout editor draws its samples in.
+Previews.EDIT_STATE = UNIT_STATES[1]
+
+---Creates a sample: a frame shaped like the live unit frame, with its bars, text, overlays and cast bar.
+---@param key string
+---@param parent Frame
+---@param slot integer the sample's place in its group; 1 for a single frame
+---@return table sample
+function Previews:NewSample(key, parent, slot)
+	local frame = CreateFrame("Frame", nil, parent)
+	local main = CreateFrame("Frame", nil, frame)
+	local bar, background, border = AUI.UnitFrame:CreateBar(main)
+
+	bar:SetMinMaxValues(0, 1)
+
+	local sample = {
+		key = key,
+		slot = slot,
+		frame = frame,
+		main = main,
+		bar = bar,
+		background = background,
+		border = border,
+		Bar = bar,
+	}
+
+	-- The text code works on anything shaped like a unit frame's text: slots, a Status Line, and its bar.
+	AUI.Text:Create(sample, bar, key)
+
+	if Schema:Field("frames." .. key .. ".power.enabled") then
+		local holder = CreateFrame("Frame", nil, frame)
+		local power, powerBackground, powerBorder = AUI.UnitFrame:CreateBar(holder)
+
+		power:SetMinMaxValues(0, 1)
+		sample.powerHolder, sample.power = holder, power
+		sample.powerBackground, sample.powerBorder = powerBackground, powerBorder
+	end
+
+	if AUI.Overlays:Resolve(AUI.Profile.config, key) then
+		sample.overlays = AUI.Overlays:Create(bar)
+	end
+
+	if AUI.CastBar:Resolve(AUI.Profile.config, key) then
+		sample.cast = AUI.CastBar:Create(frame)
+	end
+
+	return sample
+end
+
 ---@param key string
 ---@param parent Frame the preview panel's sample frame
 ---@param slot integer the sample's place in its group; 1 for a single frame
----@return table sample
+---@return table sample the page's sample, created on first use
 function Previews:Sample(key, parent, slot)
 	local id = key .. slot
 	local sample = self.samples[id]
 
 	if not sample then
-		local frame = CreateFrame("Frame", nil, parent)
-		local main = CreateFrame("Frame", nil, frame)
-		local bar, background, border = AUI.UnitFrame:CreateBar(main)
-
-		bar:SetMinMaxValues(0, 1)
-		sample = {
-			key = key,
-			slot = slot,
-			frame = frame,
-			main = main,
-			bar = bar,
-			background = background,
-			border = border,
-			Bar = bar,
-		}
-
-		-- The text code works on anything shaped like a unit frame's text: slots, a Status Line, and its bar.
-		AUI.Text:Create(sample, bar, key)
-
-		if Schema:Field("frames." .. key .. ".power.enabled") then
-			local holder = CreateFrame("Frame", nil, frame)
-			local power, powerBackground, powerBorder = AUI.UnitFrame:CreateBar(holder)
-
-			power:SetMinMaxValues(0, 1)
-			sample.powerHolder, sample.power = holder, power
-			sample.powerBackground, sample.powerBorder = powerBackground, powerBorder
-		end
-
-		if AUI.Overlays:Resolve(AUI.Profile.config, key) then
-			sample.overlays = AUI.Overlays:Create(bar)
-		end
-
-		if AUI.CastBar:Resolve(AUI.Profile.config, key) then
-			sample.cast = AUI.CastBar:Create(frame)
-		end
-
+		sample = self:NewSample(key, parent, slot)
 		self.samples[id] = sample
 	end
 
@@ -465,11 +479,12 @@ end
 ---screen stands on its own, and in the window's strata.
 ---@param config table
 ---@param key string
+---@param standalone boolean? leave out a bar that stands on its own, which the layout editor places separately
 ---@return table? settings nil when the frame has no cast bar or it is off
-function Previews:CastSettings(config, key)
+function Previews:CastSettings(config, key, standalone)
 	local settings = AUI.CastBar:Resolve(config, key)
 
-	if not settings or not settings.enabled then
+	if not settings or not settings.enabled or (standalone and not settings.attached) then
 		return nil
 	end
 
@@ -506,13 +521,37 @@ function Previews:CastSpace(config, key, width)
 	return 0, space, math.max(width, castWidth)
 end
 
+---Shows the sample cast for a state on cast bar widgets.
+---@param cast AUICastBarWidgets
+---@param state table
+function Previews:ShowCast(cast, state)
+	local sampleCast = state.cast or CAST
+
+	AUI.CastBar:ShowSample(cast, {
+		name = L["Sample Spell"],
+		icon = SAMPLE_ICON,
+		progress = sampleCast.progress,
+		remaining = sampleCast.remaining,
+		channel = sampleCast.channel,
+		locked = sampleCast.locked,
+		failed = sampleCast.failed,
+		stages = sampleCast.stages,
+		ticks = sampleCast.ticks,
+		mark = sampleCast.mark,
+		important = sampleCast.important,
+		target = AUI:Readable(UnitName("player")) or PLAYER,
+		targetColor = PlayerClassColor(),
+	})
+end
+
 ---Draws one sample in a state.
 ---@param sample table
 ---@param key string
 ---@param config table
 ---@param state table
 ---@param addPart fun(region: Region, settingID: string, ...)
-local function DrawSample(sample, key, config, state, addPart)
+---@param editing boolean? for the layout editor, which places a cast bar standing on its own separately
+local function DrawSample(sample, key, config, state, addPart, editing)
 	local base = "frames." .. key .. "."
 	local main, powerHeight = AUI.UnitFrame:Heights(config, key)
 	local values, barColor = Previews:Values(key, state, sample.slot)
@@ -571,25 +610,11 @@ local function DrawSample(sample, key, config, state, addPart)
 	addPart(bar, key == "playerPower" and "width" or "reverse")
 
 	local cast = sample.cast
-	local castSettings = cast and Previews:CastSettings(config, key)
+	local castSettings = cast and Previews:CastSettings(config, key, editing)
 
 	if cast and castSettings then
 		AUI.CastBar:Apply(cast, castSettings, sample.frame, sample.frame:GetWidth())
-		AUI.CastBar:ShowSample(cast, {
-			name = L["Sample Spell"],
-			icon = SAMPLE_ICON,
-			progress = (state.cast or CAST).progress,
-			remaining = (state.cast or CAST).remaining,
-			channel = (state.cast or CAST).channel,
-			locked = (state.cast or CAST).locked,
-			failed = (state.cast or CAST).failed,
-			stages = (state.cast or CAST).stages,
-			ticks = (state.cast or CAST).ticks,
-			mark = (state.cast or CAST).mark,
-			important = (state.cast or CAST).important,
-			target = AUI:Readable(UnitName("player")) or PLAYER,
-			targetColor = PlayerClassColor(),
-		})
+		Previews:ShowCast(cast, state)
 		addPart(cast.bar, "castEnabled")
 	elseif cast then
 		cast.bar:Hide()
@@ -647,6 +672,31 @@ local function DrawSample(sample, key, config, state, addPart)
 
 		AUI.Text:FitStatusLine(sample)
 	end
+end
+
+---Draws a sample for the layout editor, in the editor's state, with no settings parts.
+---@param sample table from `NewSample`
+---@param key string
+---@param config table
+function Previews:DrawEditSample(sample, key, config)
+	DrawSample(sample, key, config, self.EDIT_STATE, Ignore, true)
+end
+
+---Draws the player's cast bar for the layout editor, centered on `anchor`.
+---@param cast AUICastBarWidgets from `CastBar:Create`
+---@param config table
+---@param anchor Region
+function Previews:DrawEditCast(cast, config, anchor)
+	local settings = AUI.CastBar:Resolve(config, "player")
+
+	if not settings then
+		return
+	end
+
+	settings.x, settings.y, settings.strata = 0, 0, nil
+
+	AUI.CastBar:Apply(cast, settings, anchor, anchor:GetWidth())
+	self:ShowCast(cast, self.EDIT_STATE)
 end
 
 ---@param key string
@@ -760,98 +810,122 @@ local function PlayerResource()
 	return class and RESOURCES[class] or COMBO_POINTS
 end
 
+---Creates a class resource sample: its segments, extra mana bar and count, in a frame of its own.
+---@param parent Frame
+---@return table sample
+function Previews:NewClassPowerSample(parent)
+	local frame = CreateFrame("Frame", nil, parent)
+	local sample = { frame = frame, segments = {} }
+
+	sample.count = frame:CreateFontString(nil, "OVERLAY", "NumberFontNormal")
+
+	for index = 1, 10 do
+		sample.segments[index] = AUI.ClassPower:CreateSegment(frame)
+	end
+
+	sample.extra = AUI.ClassPower:CreateSegment(frame)
+
+	return sample
+end
+
+---Draws a class resource sample in a state, sizing its frame; the caller places the frame.
+---@param sample table from `NewClassPowerSample`
+---@param config table
+---@param state table
+---@param addPart fun(region: Region, settingID: string, ...)
+---@return number width
+---@return number height
+function Previews:DrawClassPower(sample, config, state, addPart)
+	local settings = AUI.ClassPower:Resolve(config)
+	local resource = PlayerResource()
+	local colors = AUI.oUF.colors.power
+	local color = colors[resource.power] or colors.MANA
+	local height = AUI.ClassPower:Height(settings)
+	local frame, segments, extra, count = sample.frame, sample.segments, sample.extra, sample.count
+	local pixel = AUI:Pixel(frame)
+
+	frame:SetSize(settings.width, height)
+	frame:Show()
+
+	if settings.classColor then
+		color = PlayerClassColor() or color
+	end
+
+	local partialIndex = math.ceil(resource.count * state.filled)
+
+	for index = 1, 10 do
+		segments[index]:Hide()
+	end
+
+	for index, spot in ipairs(AUI.ClassPower:Segments(settings.width, resource.count, settings.spacing)) do
+		local segment = segments[index] --[[@as table]]
+		local value = 0
+
+		if state.filled == 1 or index < partialIndex then
+			value = 1
+		elseif index == partialIndex and state.filled > 0 then
+			value = 0.5
+		end
+
+		local charged = state.charged and resource.charged and (index == 2 or index == 4)
+		local shade = settings.darkenPartial and value > 0 and value < 1
+
+		AUI.ClassPower:PlaceSegment(segment, frame, spot.x, 0, spot.w, settings.height, settings, pixel)
+		segment:SetValue(value)
+		segment:SetStatusBarColor(AUI.ClassPower:Shade(charged and settings.chargedColor or color, shade))
+		segment.Text:SetText("")
+		segment:Show()
+		addPart(segment, index == 1 and "width" or "spacing")
+	end
+
+	extra:SetShown(settings.extraMana)
+
+	if settings.extraMana then
+		local mana = colors.MANA
+
+		AUI.ClassPower:PlaceSegment(extra, frame, 0, settings.height + AUI.ClassPower.GAP, settings.width,
+			settings.extraManaHeight, settings, pixel)
+		extra:SetValue(0.7)
+		extra:SetStatusBarColor(mana.r, mana.g, mana.b)
+		addPart(extra, "extraManaHeight")
+	end
+
+	count:SetFont(AUI.Media:Font(settings.font), settings.textSize, AUI.Media:FontFlags(settings.outline))
+	count:ClearAllPoints()
+	count:SetPoint("CENTER", frame, "TOPLEFT", settings.width / 2, -settings.height / 2)
+	count:SetText(settings.text and tostring(math.floor(resource.count * state.filled)) or "")
+
+	return settings.width, height
+end
+
+-- The state the layout editor draws the class resource in.
+Previews.EDIT_RESOURCE_STATE = RESOURCE_STATES[1]
+
 ---@return table preview the Class Resource page's preview
 local function ClassPowerPreview()
-	local segments, count
-	---@type StatusBar
-	local extra
+	local sample
 
 	return {
 		states = Labels(RESOURCE_STATES),
 		Draw = function(parent, label, addPart)
-			local config = AUI.Profile.config
-			local settings = AUI.ClassPower:Resolve(config)
-			local state = FindState(RESOURCE_STATES, label)
-			local resource = PlayerResource()
-			local colors = AUI.oUF.colors.power
-			local color = colors[resource.power] or colors.MANA
-			local height = AUI.ClassPower:Height(settings)
-
-			if not segments then
-				local frame = CreateFrame("Frame", nil, parent)
-
-				segments = { frame = frame }
-				count = frame:CreateFontString(nil, "OVERLAY", "NumberFontNormal")
+			if not sample then
+				sample = Previews:NewClassPowerSample(parent)
 				-- Listed with the unit samples, so a page change hides it like the others.
-				Previews.samples.classPower = { key = "classPower", slot = 1, frame = frame }
-
-				for index = 1, 10 do
-					segments[index] = AUI.ClassPower:CreateSegment(frame)
-				end
-
-				extra = AUI.ClassPower:CreateSegment(frame)
+				Previews.samples.classPower = { key = "classPower", slot = 1, frame = sample.frame }
 			end
 
-			local frame = segments.frame
-			local pixel = AUI:Pixel(frame)
+			local frame = sample.frame
 
 			Previews:HideOthers("classPower", 1)
 
 			frame:SetParent(parent)
 			frame:ClearAllPoints()
 			frame:SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, -PAD)
-			frame:SetSize(settings.width, height)
-			frame:Show()
 
-			if settings.classColor then
-				color = PlayerClassColor() or color
-			end
+			local width, height = Previews:DrawClassPower(sample, AUI.Profile.config, FindState(RESOURCE_STATES, label),
+				addPart)
 
-			local partialIndex = math.ceil(resource.count * state.filled)
-
-			for index = 1, 10 do
-				segments[index]:Hide()
-			end
-
-			for index, spot in ipairs(AUI.ClassPower:Segments(settings.width, resource.count, settings.spacing)) do
-				local segment = segments[index] --[[@as table]]
-				local value = 0
-
-				if state.filled == 1 or index < partialIndex then
-					value = 1
-				elseif index == partialIndex and state.filled > 0 then
-					value = 0.5
-				end
-
-				local charged = state.charged and resource.charged and (index == 2 or index == 4)
-				local shade = settings.darkenPartial and value > 0 and value < 1
-
-				AUI.ClassPower:PlaceSegment(segment, frame, spot.x, 0, spot.w, settings.height, settings, pixel)
-				segment:SetValue(value)
-				segment:SetStatusBarColor(AUI.ClassPower:Shade(charged and settings.chargedColor or color, shade))
-				segment.Text:SetText("")
-				segment:Show()
-				addPart(segment, index == 1 and "width" or "spacing")
-			end
-
-			extra:SetShown(settings.extraMana)
-
-			if settings.extraMana then
-				local mana = colors.MANA
-
-				AUI.ClassPower:PlaceSegment(extra, frame, 0, settings.height + AUI.ClassPower.GAP, settings.width,
-					settings.extraManaHeight, settings, pixel)
-				extra:SetValue(0.7)
-				extra:SetStatusBarColor(mana.r, mana.g, mana.b)
-				addPart(extra, "extraManaHeight")
-			end
-
-			count:SetFont(AUI.Media:Font(settings.font), settings.textSize, AUI.Media:FontFlags(settings.outline))
-			count:ClearAllPoints()
-			count:SetPoint("CENTER", frame, "TOPLEFT", settings.width / 2, -settings.height / 2)
-			count:SetText(settings.text and tostring(math.floor(resource.count * state.filled)) or "")
-
-			return settings.width + PAD * 2, height + PAD * 2
+			return width + PAD * 2, height + PAD * 2
 		end,
 	}
 end

@@ -345,6 +345,114 @@ function Profile:Set(path, value)
 	return true
 end
 
+---Changes several settings of the active profile as one change.
+---@param values table<string, any> values by path
+---@return boolean ok
+---@return string? problem
+function Profile:SetPaths(values)
+	if not self:CanEdit() then
+		return false, "the active profile cannot be edited"
+	end
+
+	for path, value in pairs(values) do
+		local ok, problem = Schema:CheckValue(path, value)
+
+		if not ok then
+			return false, problem
+		end
+	end
+
+	local id = self.activeID --[[@as string]]
+
+	return self:Commit(function(candidate)
+		local config = candidate.profilesByID[id].config
+
+		for path, value in pairs(values) do
+			Schema:Write(config, path, AUI:CopyTable(value))
+		end
+	end)
+end
+
+---@class AUIProfileSnapshot
+---@field id string the profile the copy was taken from
+---@field config table
+
+---@return AUIProfileSnapshot? snapshot a copy of the active profile's settings, or nil when it cannot be edited
+function Profile:Snapshot()
+	if not self:CanEdit() then
+		return nil
+	end
+
+	return { id = self.activeID --[[@as string]], config = AUI:CopyTable(self.config) }
+end
+
+---@param a any
+---@param b any
+---@return boolean equal the same plain value, tables compared by content
+local function Same(a, b)
+	if type(a) ~= "table" or type(b) ~= "table" then
+		return a == b
+	end
+
+	for key, value in pairs(a) do
+		if not Same(value, b[key]) then
+			return false
+		end
+	end
+
+	for key in pairs(b) do
+		if a[key] == nil then
+			return false
+		end
+	end
+
+	return true
+end
+
+---@param snapshot AUIProfileSnapshot
+---@return boolean changed the snapshot's profile no longer holds the copied settings
+function Profile:Changed(snapshot)
+	local record = self.root and self.root.profilesByID[snapshot.id]
+
+	return record ~= nil and not Same(record.config, snapshot.config)
+end
+
+---Puts a snapshot's settings back into its profile, when that profile still exists.
+---@param snapshot AUIProfileSnapshot
+---@return boolean ok
+---@return string? problem
+function Profile:Restore(snapshot)
+	return self:Commit(function(candidate)
+		local record = candidate.profilesByID[snapshot.id]
+
+		if record then
+			record.config = AUI:CopyTable(snapshot.config)
+		end
+	end)
+end
+
+---@param key string
+---@param default any
+---@return any value a personal editor preference, which profiles do not hold
+function Profile:EditorPreference(key, default)
+	local value = self.root and self.root.editorPreferences[key]
+
+	if value == nil then
+		return default
+	end
+
+	return value
+end
+
+---@param key string
+---@param value any plain data
+---@return boolean ok
+function Profile:SetEditorPreference(key, value)
+	return (self:Commit(function(candidate)
+		candidate.editorPreferences[key] = value
+	end, true))
+end
+
 ---@param candidate AUIStoreRoot
 ---@param id string
 ---@return AUIProfileRecord? record the profile, unless it is missing or quarantined

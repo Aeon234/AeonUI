@@ -134,5 +134,17 @@ SlashCmdList.AEONUI = function(message)
 		return
 	end
 
+	if command == "edit" then
+		if AUI.failed then
+			AUI:Warn(AUI.L["AeonUI is off for this session, so its settings can't open."])
+
+			return
+		end
+
+		AUI.Editor:Enter()
+
+		return
+	end
+
 	AUI:OpenSettings(command ~= "" and command or nil)
 end

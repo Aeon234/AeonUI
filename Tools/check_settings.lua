@@ -15,6 +15,8 @@ PET = "Pet"
 PLAYER, TARGET, COLOR, DELETE, RESET, DEAD, PLAYER_OFFLINE = "Player", "Target", "Color", "Delete", "Reset", "Dead",
 	"Offline"
 SlashCmdList = {}
+StaticPopupDialogs = {}
+SAVE, CONTINUE, OFF, SETTINGS, HUD_EDIT_MODE_MENU = "Save", "Continue", "Off", "Settings", "Edit Mode"
 C_AddOns = {
 	GetAddOnMetadata = function() end,
 }
@@ -176,6 +178,7 @@ for _, file in ipairs({
 	"Settings/Note.lua", "Settings/Pages.lua", "Settings/Shared.lua", "Settings/TextSlots.lua", "Settings/Overlays.lua", "Settings/CastBar.lua", "Settings/Auras.lua", "Settings/ClassPower.lua", "Settings/Indicators.lua",
 	"Settings/Previews.lua",
 	"Settings/Profiles.lua", "Settings/Recovery.lua", "Settings/Settings.lua",
+	"Editor/Layout.lua", "Editor/Mover.lua", "Editor/Panel.lua", "Editor/Editor.lua",
 }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
@@ -759,6 +762,71 @@ Profile:Set("frames.player.width", 280)
 Equal("a single setting does not rebuild the page", window.refreshed, before)
 Profile:Reset()
 Equal("a whole-profile change rebuilds the page", window.refreshed, before + 1)
+
+-- Layout editor geometry ------------------------------------------------------------------------------------------
+
+local Layout = AUI.EditorLayout
+Profile:Reset()
+local config = Profile.config
+local player = Layout:Find("unit.player") --[[@as table]]
+Equal("element found", player.key, "player")
+Equal("unknown element", Layout:Find("unit.nothing"), nil)
+Equal("player label", Layout:Label(player), "Player")
+Equal("cast label", Layout:Label(Layout:Find("cast.player") --[[@as table]]), "Player Cast Bar")
+Equal("position path", Layout:Path(player, "x"), "frames.player.x")
+Equal("cast path", Layout:Path(Layout:Find("cast.player") --[[@as table]], "y"), "frames.player.castbar.y")
+local left, bottom, width, height = Layout:Rect(config, player, 1920, 1080)
+Equal("player rect left", left, 960 - 330 - 135)
+Equal("player rect bottom", bottom, 540 - 200 - 18)
+Equal("player rect size", width .. "x" .. height, "270x36")
+Profile:Set("frames.target.power.enabled", true)
+local _, _, _, targetHeight = Layout:Rect(Profile.config, Layout:Find("unit.target") --[[@as table]], 1920, 1080)
+Equal("an attached power bar adds to the height", targetHeight, 36 + 6)
+Profile:Set("frames.target.power.enabled", false)
+local boss = Layout:Find("boss.group") --[[@as table]]
+local bossWidth, bossHeight, shiftX, shiftY = Layout:Size(Profile.config, boss)
+local castExtent = AUI.CastBar:Extent(Profile.config, "boss")
+Equal("boss group spans every slot", bossHeight, 32 * 5 + (castExtent + 14) * 4)
+Equal("boss group width", bossWidth, 200)
+Equal("boss group centered below the first slot", shiftY, -(bossHeight - 32) / 2)
+Equal("boss group no sideways shift", shiftX, 0)
+Equal("class resource placed on the power bar is not a mover",
+	Layout:Shown(Profile.config, Layout:Find("resource.player") --[[@as table]]), false)
+Profile:Set("frames.classPower.attach", "screen")
+Equal("class resource on the screen is a mover",
+	Layout:Shown(Profile.config, Layout:Find("resource.player") --[[@as table]]), true)
+Profile:Set("frames.player.castbar.enabled", false)
+Equal("a cast bar that is off is not a mover", Layout:Shown(Profile.config, Layout:Find("cast.player") --[[@as table]]),
+	false)
+Profile:Set("frames.focus.enabled", false)
+Equal("a frame that is off is not a mover", Layout:Shown(Profile.config, Layout:Find("unit.focus") --[[@as table]]), false)
+local moved = Layout:Moved(Profile.config, player, 10.5, -4)
+Equal("moved x", moved["frames.player.x"], -330 + 10.5)
+Equal("moved y", moved["frames.player.y"], -204)
+local lines = Layout:Lines({ { 100, 200, 50, 20 } }, 1920, 1080)
+Equal("lines: screen center first", lines.x[1], 960)
+Equal("lines: edges and centers", #lines.x .. "," .. #lines.y, "4,4")
+local snappedLeft, snappedBottom, guideX, guideY = Layout:Snap(146, 300, 40, 10, lines, 8)
+Equal("snap: left edge meets the right edge", snappedLeft, 150)
+Equal("snap: guide", guideX, 150)
+Equal("snap: nothing near vertically", snappedBottom .. "," .. tostring(guideY), "300,nil")
+snappedLeft = Layout:Snap(940, 0, 40, 10, lines, 8)
+Equal("snap: center to the screen center", snappedLeft, 940)
+snappedLeft = Layout:Snap(500, 0, 40, 10, lines, 8)
+Equal("snap: too far does not move", snappedLeft, 500)
+Equal("clamp", Layout:Clamp(-5, 0, 10) .. "," .. Layout:Clamp(15, 0, 10), "0,10")
+Profile:Reset()
+
+-- Editor session --------------------------------------------------------------------------------------------------
+
+local Editor = AUI.Editor
+Equal("editor starts inactive", Editor.active, false)
+Editor:OnSettingsShown()
+Equal("settings outside a session leave the editor alone", Editor.hidden, false)
+Equal("snap preference defaults on", Profile:EditorPreference("snap", true), true)
+Equal("a preference saves", Profile:SetEditorPreference("grid", "DIMMED"), true)
+Equal("a preference reads back", Profile:EditorPreference("grid", "BRIGHT"), "DIMMED")
+Equal("a preference stays out of the profile", Profile.config.grid, nil)
 
 print = luaPrint
 io.stdout:write(("check_settings: %d checks passed\n"):format(checks))

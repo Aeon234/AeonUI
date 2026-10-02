@@ -432,4 +432,24 @@ end)
 Equal("an error inside a change is contained", okCommit, false)
 Equal("an error inside a change publishes nothing", Serialize(AeonUIDB), before)
 
+-- Editor session helpers ------------------------------------------------------------------------------------------
+
+Load(Valid())
+local snapshot = Profile:Snapshot()
+Equal("snapshot names the profile", snapshot and snapshot.id, Store.DEFAULT_ID)
+Equal("a fresh snapshot is unchanged", Profile:Changed(snapshot), false)
+Equal("several settings in one change", (Profile:SetPaths({ ["frames.player.x"] = 12.5, ["frames.player.y"] = -40 })),
+	true)
+Equal("first path saved", Profile:Get("frames.player.x"), 12.5)
+Equal("second path saved", Profile:Get("frames.player.y"), -40)
+Equal("a change shows", Profile:Changed(snapshot), true)
+Refused("a bad value refuses every path", Profile:SetPaths({ ["frames.player.x"] = 0, ["frames.player.width"] = 1 }))
+Equal("nothing saved from a refused change", Profile:Get("frames.player.x"), 12.5)
+Equal("restore", (Profile:Restore(snapshot)), true)
+Equal("restored value", Profile:Get("frames.player.x"), -330)
+Equal("restored is unchanged", Profile:Changed(snapshot), false)
+Equal("a preference saves quietly", Profile:SetEditorPreference("snap", false), true)
+Equal("a preference reads back", Profile:EditorPreference("snap", true), false)
+Equal("a preference does not change the profile", Profile:Changed(snapshot), false)
+
 io.stdout:write(("check_profile: %d checks passed\n"):format(checks))

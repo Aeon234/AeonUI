@@ -19,6 +19,7 @@ Profile\Profile.xml
 Media\Media.xml
 Frames\Frames.xml
 Settings\Settings.xml
+Editor\Editor.xml
 
 #@do-not-package@
 Dev\Dev.lua
