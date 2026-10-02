@@ -7,6 +7,27 @@ local Pages = AUI.SettingsPages
 local Section, Row, Choice, Slider, Check, Color, Setting = Pages.Section, Pages.Row, Pages.Choice, Pages.Slider,
 	Pages.Check, Pages.Color, Pages.Setting
 
+-- Health color modes.
+local HEALTH_MODES = {
+	classReaction = L["Class / Reaction"],
+	custom = CUSTOM,
+	classic = L["Classic"],
+	stops = L["Custom Stops"],
+	classFade = L["Class Fade"],
+}
+
+local HEALTH_BACKGROUNDS = {
+	custom = L["Bar Background"],
+	classReaction = L["Class / Reaction"],
+}
+
+-- Reaction colors and the Blizzard reaction level each one shows until set.
+local REACTIONS = {
+	{ name = "hostile", label = FACTION_STANDING_LABEL2, level = 2 },
+	{ name = "neutral", label = FACTION_STANDING_LABEL4, level = 4 },
+	{ name = "friendly", label = FACTION_STANDING_LABEL5, level = 5 },
+}
+
 -- The frame pages, in the order Copy From lists them.
 local FRAME_KEYS = { "player", "pet", "target", "targettarget", "focus", "boss", "playerPower" }
 
@@ -41,6 +62,7 @@ local Shared = {
 			paths = { "debuffs." },
 			exclude = { ["debuffs.enabled"] = true, ["debuffs.anchor"] = true, ["debuffs.x"] = true, ["debuffs.y"] = true },
 		},
+		healthColors = { paths = { "health." } },
 		indicators = { paths = { "indicators.", "totems.", "highlight", "tooltip." } },
 		text = { paths = { "text." } },
 		numbers = { paths = { "numbers." } },
@@ -278,7 +300,138 @@ function Shared:BarRows(base)
 	}
 end
 
----@return table[] elements the Globals page's shared appearance: Bars, Text, Cast Bars and Auras
+---The health color rows of a frame page's Health Colors section, or of the Globals page's.
+---@param base string `health.` or a frame's `frames.<key>.health.`
+---@return table[] elements
+function Shared:HealthRows(base)
+	---@param modes table<string, true> the fill modes that use the setting
+	---@param reason string
+	---@return fun(): string? blocked
+	local function Unless(modes, reason)
+		return function()
+			if AUI.Profile:Get(base .. "dark") then
+				return L["Dark Mode sets the fill."]
+			end
+
+			if not modes[AUI.Profile:Get(base .. "mode")] then
+				return reason
+			end
+		end
+	end
+
+	local stopsReason = L["Only with Custom Stops or Class Fade."]
+
+	return {
+		Row(
+			Choice("healthMode", L["Health Color"], base .. "mode", Pages.Options("healthMode", HEALTH_MODES), {
+				description = L["Classic and Custom Stops follow the unit's health; Class Fade starts from the class or reaction color at full health."],
+				blocked = function()
+					if AUI.Profile:Get(base .. "dark") then
+						return L["Dark Mode sets the fill."]
+					end
+				end,
+			}),
+			Color("healthCustom", L["Custom Color"], base .. "color", {
+				blocked = Unless({ custom = true }, L["Only with the Custom health color."]),
+			})
+		),
+		Row(
+			Color("healthFull", L["Full Health Color"], base .. "stops.full", {
+				blocked = Unless({ stops = true }, L["Only with Custom Stops."]),
+			}),
+			Color("healthHalf", L["Half Health Color"], base .. "stops.half", {
+				blocked = Unless({ stops = true, classFade = true }, stopsReason),
+			})
+		),
+		Row(
+			Color("healthEmpty", L["Empty Health Color"], base .. "stops.empty", {
+				blocked = Unless({ stops = true, classFade = true }, stopsReason),
+			}),
+			Slider("healthFillAlpha", L["Fill Opacity"], base .. "fillAlpha", 0, 100, { format = "percent", step = 5 })
+		),
+		Row(
+			Check("healthGradient", L["Gradient"], base .. "gradient", {
+				description = L["Blends the fill toward the end color. A restricted unit's health color stays solid."],
+			}),
+			Choice("healthGradientDirection", L["Gradient Direction"], base .. "gradientDirection",
+				Pages.Options("orientation", AUI.SettingsCastBar.ORIENTATIONS), { depends = "healthGradient" })
+		),
+		Row(
+			Color("healthGradientColor", L["Gradient End Color"], base .. "gradientColor", {
+				depends = "healthGradient",
+				hasOpacity = true,
+			}),
+			Choice("healthBackground", L["Background Color"], base .. "background",
+				Pages.Options("healthBackground", HEALTH_BACKGROUNDS), {
+					description = L["Class / Reaction uses the unit's color at the bar background's opacity."],
+				})
+		),
+		Row(
+			Check("healthDead", L["Dead Background"], base .. "deadBackground", {
+				description = L["Colors the background while the unit is dead or a ghost."],
+			}),
+			Color("healthDeadColor", L["Dead Background Color"], base .. "deadColor", {
+				depends = "healthDead",
+				hasOpacity = true,
+			})
+		),
+		Row(
+			Check("healthDark", L["Dark Mode"], base .. "dark", {
+				description = L["A dark fill over a lighter background, whatever the health color."],
+			}),
+			Color("healthDarkFill", L["Dark Fill"], base .. "darkFill", { depends = "healthDark", hasOpacity = true })
+		),
+		Row(Color("healthDarkBackground", L["Dark Background"], base .. "darkBackground", {
+			depends = "healthDark",
+			hasOpacity = true,
+		})),
+	}
+end
+
+---@return table[] elements the Globals page's Health Colors section, with the game-state and reaction colors
+local function GlobalHealthSection()
+	local elements = { Section("healthColors", L["Health Colors"]) }
+
+	for _, element in ipairs(Shared:HealthRows("health.")) do
+		elements[#elements + 1] = element
+	end
+
+	elements[#elements + 1] = Row(
+		Check("healthTapped", L["Tapped"], "health.tapped", {
+			description = L["Grays the health of a unit someone else has tapped."],
+		}),
+		Color("healthTappedColor", L["Tapped Color"], "health.tappedColor", { depends = "healthTapped" })
+	)
+	elements[#elements + 1] = Row(
+		Check("healthDisconnected", L["Disconnected"], "health.disconnected", {
+			description = L["Grays the health of a disconnected player."],
+		}),
+		Color("healthDisconnectedColor", L["Disconnected Color"], "health.disconnectedColor",
+			{ depends = "healthDisconnected" })
+	)
+
+	local swatches = {}
+
+	for _, reaction in ipairs(REACTIONS) do
+		local path = "health.reaction." .. reaction.name
+
+		swatches[#swatches + 1] = Color("reaction" .. reaction.name, reaction.label, path, {
+			description = L["Until set, Blizzard's color for this reaction."],
+			get = function()
+				local color = AUI.Profile:Get(path) or AUI.oUF.colors.reaction[reaction.level]
+
+				return { r = color.r, g = color.g, b = color.b }
+			end,
+		})
+	end
+
+	elements[#elements + 1] = Row(swatches[1], swatches[2])
+	elements[#elements + 1] = Row(swatches[3])
+
+	return elements
+end
+
+---@return table[] elements the Globals page's shared appearance: Bars, Health Colors, Text, Cast Bars and Auras
 function Shared:GlobalSections()
 	local elements = { Section("bars", L["Bars"]) }
 
@@ -287,6 +440,10 @@ function Shared:GlobalSections()
 	end
 
 	for _, element in ipairs(self:BarRows("bars.")) do
+		elements[#elements + 1] = element
+	end
+
+	for _, element in ipairs(GlobalHealthSection()) do
 		elements[#elements + 1] = element
 	end
 

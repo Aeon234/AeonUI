@@ -56,7 +56,7 @@ end
 function UnitFrame:CreateBar(frame)
 	local background = frame:CreateTexture(nil, "BACKGROUND")
 
-	background:SetAllPoints()
+	background:SetColorTexture(1, 1, 1, 1)
 
 	local bar = CreateFrame("StatusBar", nil, frame)
 
@@ -97,7 +97,7 @@ function UnitFrame:StyleBar(bar, background, border, look, pixel)
 	local fill, edge = look.background, look.borderColor
 
 	AUI.Media:SetBarTexture(bar, look.texture)
-	background:SetColorTexture(fill.r, fill.g, fill.b, fill.a or 1)
+	background:SetVertexColor(fill.r, fill.g, fill.b, fill.a or 1)
 
 	for _, texture in ipairs(border) do
 		texture:SetColorTexture(edge.r, edge.g, edge.b, edge.a or 1)
@@ -105,6 +105,24 @@ function UnitFrame:StyleBar(bar, background, border, look, pixel)
 	end
 
 	self:LayoutBorder(border, bar, look.border * pixel)
+end
+
+---Places a bar's background over the part its fill leaves empty, so a translucent fill shows its own color.
+---@param bar StatusBar
+---@param background Texture
+---@param reverse boolean the bar fills from right to left
+function UnitFrame:AnchorBackground(bar, background, reverse)
+	local fill = bar:GetStatusBarTexture()
+
+	background:ClearAllPoints()
+
+	if reverse then
+		background:SetPoint("TOPLEFT", bar, "TOPLEFT")
+		background:SetPoint("BOTTOMRIGHT", fill, "BOTTOMLEFT")
+	else
+		background:SetPoint("TOPLEFT", fill, "TOPRIGHT")
+		background:SetPoint("BOTTOMRIGHT", bar, "BOTTOMRIGHT")
+	end
 end
 
 ---Places a border's edges inside a bar's edges.
@@ -208,6 +226,7 @@ function UnitFrame.HealthStyle(frame, unit)
 	health.colorClass = true
 	health.colorReaction = true
 	health.colorHealth = true
+	health.UpdateColor = AUI.HealthColor.UpdateColor
 	frame.Health = health
 
 	if Schema:Field("frames." .. frame.key .. ".overlays.absorb.enabled") then
@@ -382,11 +401,19 @@ function UnitFrameMixin:ApplyAppearance(config)
 
 	self:StyleBars(config)
 	self.Bar:SetReverseFill(reverse == true)
+	UnitFrame:AnchorBackground(self.Bar, self.Background, reverse == true)
 
 	local power = self.Power
 
-	if self.PowerHolder and power then
+	if self.PowerHolder and power and self.PowerBackground then
 		power:SetReverseFill(reverse == true)
+		UnitFrame:AnchorBackground(power, self.PowerBackground, reverse == true)
+	end
+
+	local healthColors = self.Health and AUI.HealthColor:Resolve(config, self.key)
+
+	if healthColors then
+		AUI.HealthColor:Apply(self, healthColors)
 	end
 
 	local overlays = self.Overlays

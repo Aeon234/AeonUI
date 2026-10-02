@@ -619,23 +619,15 @@ function Profile:Decode(text)
 		return nil, L["This profile string was made by a newer version of AeonUI."]
 	end
 
-	local config = payload.profile
-	local usable = type(version) == "number" and version >= 1 and version == math.floor(version)
-		and type(payload.name) == "string" and type(config) == "table"
-
-	if usable and version < Schema.VERSION then
-		usable = Schema:Upgrade(config, version)
-	end
-
-	if not usable or not Schema:ValidateConfig(config) then
+	if version ~= Schema.VERSION or type(payload.name) ~= "string" or not Schema:ValidateConfig(payload.profile) then
 		return nil, L["This profile string holds settings AeonUI can't use."]
 	end
 
 	return {
 		name = payload.name,
 		version = version,
-		config = config,
-		dormant = Schema:CountDormant(config),
+		config = payload.profile,
+		dormant = Schema:CountDormant(payload.profile),
 	}
 end
 

@@ -159,7 +159,11 @@ AUI.L = setmetatable({}, { __index = function(_, key)
 	return key
 end })
 AUI.can = { surnames = false }
-AUI.oUF = { colors = { class = {}, reaction = {}, power = {} } }
+AUI.oUF = { colors = { class = {}, reaction = {}, power = {}, health = { r = 0.2, g = 0.8, b = 0.1 } } }
+for level = 1, 8 do
+	AUI.oUF.colors.reaction[level] = level <= 3 and { r = 0.8, g = 0.3, b = 0.2 } or level == 4 and { r = 0.9, g = 0.7, b = 0 }
+		or { r = 0, g = 0.6, b = 0.1 }
+end
 AUI.Media = {
 	FLAT = "flat",
 	STRIPED = "AeonUI Thin Stripes",
@@ -168,7 +172,7 @@ AUI.Media = {
 }
 for _, file in ipairs({
 	"Core/Callbacks.lua", "Profile/Schema.lua", "Profile/Store.lua", "Profile/Codec.lua", "Profile/Profile.lua",
-	"Frames/Tags.lua", "Frames/Text.lua", "Frames/Overlays.lua", "Frames/CastBar.lua", "Frames/Auras.lua", "Frames/ClassPower.lua", "Frames/Indicators.lua", "Frames/Fading.lua", "Frames/UnitFrame.lua", "Frames/Frames.lua",
+	"Frames/Tags.lua", "Frames/Text.lua", "Frames/Overlays.lua", "Frames/HealthColor.lua", "Frames/CastBar.lua", "Frames/Auras.lua", "Frames/ClassPower.lua", "Frames/Indicators.lua", "Frames/Fading.lua", "Frames/UnitFrame.lua", "Frames/Frames.lua",
 	"Settings/Note.lua", "Settings/Pages.lua", "Settings/Shared.lua", "Settings/TextSlots.lua", "Settings/Overlays.lua", "Settings/CastBar.lua", "Settings/Auras.lua", "Settings/ClassPower.lua", "Settings/Indicators.lua",
 	"Settings/Previews.lua",
 	"Settings/Profiles.lua", "Settings/Recovery.lua", "Settings/Settings.lua",

@@ -311,6 +311,8 @@ local function UnitPage(key, switchLabel)
 		})
 	end
 	Append(elements, Shared:BarRows(base .. "bars."))
+	Append(elements, { Shared:Section("healthColors", L["Health Colors"], key, Shared.SCOPES.healthColors, true) })
+	Append(elements, Shared:HealthRows(base .. "health."))
 	Append(elements, AUI.SettingsOverlays:Sections(key))
 	Append(elements, AUI.SettingsCastBar:Sections(key))
 	Append(elements, AUI.SettingsAuras:Sections(key))

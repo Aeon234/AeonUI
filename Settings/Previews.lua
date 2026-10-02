@@ -542,6 +542,7 @@ local function DrawSample(sample, key, config, state, addPart)
 			AUI.UnitFrame:StyleBar(power, sample.powerBackground, sample.powerBorder,
 				AUI.UnitFrame:BarLook(config, key, true), pixel)
 			power:SetReverseFill(reverse)
+			AUI.UnitFrame:AnchorBackground(power, sample.powerBackground, reverse)
 			power:SetValue(values.status and 0 or values.powerPercent / 100)
 			power:SetStatusBarColor(color.r, color.g, color.b)
 			addPart(power, "powerHeight")
@@ -549,8 +550,24 @@ local function DrawSample(sample, key, config, state, addPart)
 	end
 
 	bar:SetReverseFill(reverse)
+	AUI.UnitFrame:AnchorBackground(bar, sample.background, reverse)
 	bar:SetValue(key == "playerPower" and values.powerPercent / 100 or values.percent / 100)
-	bar:SetStatusBarColor(barColor.r, barColor.g, barColor.b)
+
+	local healthColors = AUI.HealthColor:Resolve(config, key)
+
+	if healthColors then
+		local hostile = key == "target" or key == "focus" or key == "boss"
+		local fill, backdrop = AUI.HealthColor:Sample(healthColors, {
+			connected = not state.offline,
+			tapDenied = false,
+			classColor = not hostile and key ~= "pet" and values.classColor or nil,
+			reaction = key == "pet" and 5 or 2,
+		}, values.percent / 100, state.status == DEAD)
+
+		AUI.HealthColor:Paint(bar, sample.background, healthColors, fill, backdrop)
+	else
+		bar:SetStatusBarColor(barColor.r, barColor.g, barColor.b)
+	end
 	addPart(bar, key == "playerPower" and "width" or "reverse")
 
 	local cast = sample.cast

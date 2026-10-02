@@ -37,7 +37,7 @@ local Schema = AUI.Schema
 ---@field MAX_PROFILES integer
 ---@field migrations table<integer, fun(root: table)> step from the keyed version to the next
 local Store = {
-	SCHEMA = 2,
+	SCHEMA = 1,
 	DEFAULT_ID = "p00000001",
 	DEFAULT_NAME = "Default",
 	NAME_MAX_LETTERS = 32,
@@ -45,16 +45,6 @@ local Store = {
 	migrations = {},
 }
 AUI.Store = Store
-
--- Schema 2: each profile config moves to profile schema version 2, where a frame follows the shared appearance.
-Store.migrations[1] = function(root)
-	for _, record in pairs(type(root.profilesByID) == "table" and root.profilesByID or {}) do
-		if type(record) == "table" and record.schemaVersion == 1 and type(record.config) == "table" then
-			Schema.upgrades[1](record.config)
-			record.schemaVersion = 2
-		end
-	end
-end
 
 local ID_PATTERN = "^p%d%d%d%d%d%d%d%d$"
 local ID_FORMAT = "p%08d"

@@ -273,15 +273,6 @@ Refused("a bad setting", {
 	profile = { frames = { player = { width = 1 } } },
 }, UNUSABLE)
 Refused("schema 0", { addon = "AeonUI", version = 0, name = "N", profile = {} }, UNUSABLE)
-local upgraded = Profile:Decode(Wrap({
-	addon = "AeonUI",
-	version = 1,
-	name = "Old",
-	profile = { frames = { player = { text = { font = "Expressway", size = 15 } } } },
-}))
-Equal("a schema 1 string decodes", upgraded ~= nil, true)
-Equal("a schema 1 default becomes Shared", upgraded and upgraded.config.frames.player.text.font, nil)
-Equal("a schema 1 custom value stays", upgraded and upgraded.config.frames.player.text.size, 15)
 local _, why = Profile:Decode("AUI!9!" .. body)
 Equal("a newer format reason", why, NEWER)
 

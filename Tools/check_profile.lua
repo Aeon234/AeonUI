@@ -241,32 +241,6 @@ failing.schemaVersion = schemaBefore
 ExpectRecovery("a failing migration", failing)
 Store.SCHEMA, Store.migrations = schemaBefore, migrationsBefore
 
--- Schema 1 to 2: frame values equal to the version 1 defaults become Shared; others stay Custom.
-local version1 = Valid()
-local record1 = version1.profilesByID[Store.DEFAULT_ID]
-local frames1 = record1.config.frames
-version1.schemaVersion, record1.schemaVersion = 1, 1
-frames1.player.text = { font = "Expressway", size = 12, outline = "SLUG_OUTLINE", color = { r = 1, g = 1, b = 1 } }
-frames1.target.text = { font = "Expressway", size = 16, outline = "SLUG_OUTLINE", color = { r = 1, g = 0, b = 0 } }
-frames1.player.castbar = { texture = "flat", border = 2, background = { r = 1, g = 1, b = 1, a = 0.5 }, width = 386 }
-frames1.target.buffs = { swipe = true, countSize = 20, size = 22 }
-Load(version1)
-local config2 = AeonUIDB.profilesByID[Store.DEFAULT_ID].config
-Equal("upgrade: store migrated", AeonUIDB.schemaVersion, Store.SCHEMA)
-Equal("upgrade: profile migrated", AeonUIDB.profilesByID[Store.DEFAULT_ID].schemaVersion, Schema.VERSION)
-Equal("upgrade: default font becomes Shared", Schema:Lookup(config2, "frames.player.text.font"), nil)
-Equal("upgrade: default color becomes Shared", Schema:Lookup(config2, "frames.player.text.color"), nil)
-Equal("upgrade: a changed size stays Custom", Schema:Lookup(config2, "frames.target.text.size"), 16)
-Equal("upgrade: a changed color stays Custom", Schema:Lookup(config2, "frames.target.text.color").g, 0)
-Equal("upgrade: default cast texture becomes Shared", Schema:Lookup(config2, "frames.player.castbar.texture"), nil)
-Equal("upgrade: default cast background becomes Shared", Schema:Lookup(config2, "frames.player.castbar.background"),
-	nil)
-Equal("upgrade: a changed cast border stays Custom", Schema:Lookup(config2, "frames.player.castbar.border"), 2)
-Equal("upgrade: a frame-only setting stays", Schema:Lookup(config2, "frames.player.castbar.width"), 386)
-Equal("upgrade: default swipe becomes Shared", Schema:Lookup(config2, "frames.target.buffs.swipe"), nil)
-Equal("upgrade: a changed stack size stays Custom", Schema:Lookup(config2, "frames.target.buffs.countSize"), 20)
-Equal("upgrade: a Shared value reads the shared one", Profile:Get("frames.player.text.size"), 12)
-
 -- Shared settings --------------------------------------------------------------------------------------------
 
 Load(Valid())
