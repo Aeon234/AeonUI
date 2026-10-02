@@ -1,4 +1,5 @@
--- Dropdown: one choice from a list on Blizzard's menu, with font, texture and sound picker variants.
+-- Dropdown: one choice from a list on Blizzard's menu, with font, texture and sound picker variants, or several
+-- choices at once as checkboxes.
 local ADDON_NAME, ns = ...
 local AS = ns.AeonSettings
 local L = AS.L
@@ -64,6 +65,8 @@ end
 ---@field Motion Frame holds the dropdown button and the play button; the shake moves it
 ---@field options AeonSettingsChoice[]|fun(): AeonSettingsChoice[]
 ---@field picker "font" | "texture" | "sound" | nil
+---@field multi boolean? several choices at once: the value is a set, `{ [value] = true }`
+---@field summary (fun(count: integer): string)? the closed button's text for a multi-select, by how many are chosen
 ---@field saved any
 AeonUISettings_DropdownMixin = CreateFromMixins(AS.ControlMixin)
 
@@ -78,6 +81,9 @@ function AeonUISettings_DropdownMixin:OnLoad()
 		self:BuildMenu(root)
 	end)
 	dropdown:SetSelectionText(function(selections)
+		if self.multi then
+			return self:SummaryText()
+		end
 		if #selections == 0 and self.saved ~= nil then
 			return tostring(self.saved)
 		end
@@ -189,16 +195,25 @@ function AeonUISettings_DropdownMixin:BuildMenu(root)
 	end
 end
 
----Adds one choice as a radio entry.
+---Adds one choice as a radio entry, or as a checkbox in a multi-select, which keeps the menu open.
 ---@param root table root menu description
 ---@param choice AeonSettingsChoice
 ---@param share number widest the entry's text may be
 function AeonUISettings_DropdownMixin:AddChoice(root, choice, share)
-	local entry = root:CreateRadio(choice.text, function(data)
-		return data.value == self.saved
-	end, function(data)
-		self:Choose(data.value)
-	end, choice)
+	local entry
+	if self.multi then
+		entry = root:CreateCheckbox(choice.text, function(data)
+			return type(self.saved) == "table" and self.saved[data.value] == true
+		end, function(data)
+			self:Toggle(data.value)
+		end, choice)
+	else
+		entry = root:CreateRadio(choice.text, function(data)
+			return data.value == self.saved
+		end, function(data)
+			self:Choose(data.value)
+		end, choice)
+	end
 
 	entry:AddInitializer(function(button)
 		local text = button.fontString
@@ -232,11 +247,49 @@ function AeonUISettings_DropdownMixin:AddChoice(root, choice, share)
 	end
 end
 
----Scrolls an open scrolling list so the saved choice sits in the middle.
+---Asks the owner to save the multi-select's set with one choice added or taken out.
+---@param value any
+function AeonUISettings_DropdownMixin:Toggle(value)
+	local set = {}
+	if type(self.saved) == "table" then
+		for chosen, on in pairs(self.saved) do
+			set[chosen] = on == true or nil
+		end
+	end
+	set[value] = not set[value] or nil
+
+	self:Choose(set)
+end
+
+---@return integer count the multi-select's chosen choices
+function AeonUISettings_DropdownMixin:ChosenCount()
+	local count = 0
+	if type(self.saved) == "table" then
+		for _, on in pairs(self.saved) do
+			if on == true then
+				count = count + 1
+			end
+		end
+	end
+
+	return count
+end
+
+---@return string text the multi-select's closed button text: the setting's summary, or the count
+function AeonUISettings_DropdownMixin:SummaryText()
+	local count = self:ChosenCount()
+	if self.summary then
+		return AS:CallHost(tostring(count), self.summary, count)
+	end
+
+	return tostring(count)
+end
+
+---Scrolls an open scrolling list so the saved choice sits in the middle; a multi-select stays at its top.
 ---@param menu table?
 function AeonUISettings_DropdownMixin:CenterSelection(menu)
 	local scrollBox = menu and menu.ScrollBox
-	if not scrollBox or not scrollBox:IsShown() or not scrollBox:HasScrollableExtent() then
+	if self.multi or not scrollBox or not scrollBox:IsShown() or not scrollBox:HasScrollableExtent() then
 		return
 	end
 
@@ -280,9 +333,25 @@ function AeonUISettings_DropdownMixin:CloseConfirmation()
 	self.confirmToken = nil
 end
 
+---A multi-select's set is saved when it chooses the same choices.
 ---@param value any
 ---@return boolean
 function AeonUISettings_DropdownMixin:IsSaved(value)
+	if self.multi and type(value) == "table" and type(self.saved) == "table" then
+		for chosen, on in pairs(value) do
+			if on == true and self.saved[chosen] ~= true then
+				return false
+			end
+		end
+		for chosen, on in pairs(self.saved) do
+			if on == true and value[chosen] ~= true then
+				return false
+			end
+		end
+
+		return true
+	end
+
 	return value == self.saved
 end
 
@@ -326,11 +395,14 @@ end
 ---`confirm(value)`, when set, returns a question to ask before saving that choice (nil: save without asking);
 ---`verb` names the question's accept button.
 ---`width` narrows a dropdown that needs less than the value-control width (a header dropdown); "fit" sizes it to
----its longest choice.
----@param setting { options: AeonSettingsChoice[]|fun(): AeonSettingsChoice[], picker: string?, placeholder: string?, confirm: (fun(value: any): string?)?, verb: string?, width: number|"fit"? }
+---its longest choice. `multi` lists the choices as checkboxes and saves a set, `{ [value] = true }`, after each
+---click; `summary(count)` gives the closed button's text, otherwise the count.
+---@param setting { options: AeonSettingsChoice[]|fun(): AeonSettingsChoice[], picker: string?, placeholder: string?, confirm: (fun(value: any): string?)?, verb: string?, width: number|"fit"?, multi: boolean?, summary: (fun(count: integer): string)? }
 function AeonUISettings_DropdownMixin:Configure(setting)
 	self:CloseConfirmation()
 	self.options = setting.options or {}
+	self.multi = setting.multi == true
+	self.summary = setting.summary
 	self.picker = setting.picker
 	self.confirm = setting.confirm
 	self.confirmVerb = setting.verb

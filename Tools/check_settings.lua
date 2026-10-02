@@ -637,10 +637,28 @@ Equal("debuffs section", Find(targetAuras, "debuffEnabled").get(), true)
 Equal("buff filters", #Options(Find(targetAuras, "buffFilter")), 13)
 Equal("debuff filters", #Options(Find(targetAuras, "debuffFilter")), 17)
 Equal("filter labels", Options(Find(targetAuras, "debuffFilter"))[6].text, "Crowd Control")
-Equal("hide checkbox", Find(targetAuras, "debuffHidecrowdControl").label, "Hide Crowd Control")
-Equal("buff hide categories", Find(targetAuras, "buffHidecrowdControl"), nil)
-Find(targetAuras, "debuffHideboss").set(true)
+local debuffHide = Find(targetAuras, "debuffHide")
+local hideTexts = {}
+for _, option in ipairs(debuffHide.options) do
+	hideTexts[option.value] = option.text
+end
+Equal("hide is a multi-select", debuffHide.multi, true)
+Equal("hide option label", hideTexts.crowdControl, "Crowd Control")
+Equal("hide searches each category", debuffHide.searchText:find("Hide Crowd Control", 1, true) ~= nil, true)
+local buffHideValues = {}
+for _, option in ipairs(Find(targetAuras, "buffHide").options) do
+	buffHideValues[option.value] = true
+end
+Equal("buff hide categories", buffHideValues.crowdControl, nil)
+Equal("hide none summary", debuffHide.summary(0), "None")
+Equal("hide count summary", debuffHide.summary(3), "3 Hidden")
+Equal("hide starts empty", next(debuffHide.get()), nil)
+Equal("hide set saves", debuffHide.set({ boss = true, crowdControl = true }) ~= false, true)
 Equal("hide saved", Profile:Get("frames.target.debuffs.hide.boss"), true)
+Equal("hide saved second", Profile:Get("frames.target.debuffs.hide.crowdControl"), true)
+Equal("hide reads back", debuffHide.get().boss, true)
+debuffHide.set({ boss = true })
+Equal("hide cleared", Profile:Get("frames.target.debuffs.hide.crowdControl"), false)
 local include = Find(targetAuras, "debuffInclude")
 Equal("spell list control", include.control, "text")
 Equal("spell list may be empty", include.get(), "")

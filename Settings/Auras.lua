@@ -180,16 +180,47 @@ local function Display(key, kind)
 		Slider(id .. "Y", L["Y Offset"], base .. "y", offsetMin, offsetMax, On())
 	)
 	local hides = Schema.choices[kind == "buffs" and "buffHide" or "debuffHide"]
+	local hideOptions, hideSearch = {}, {}
 
-	for index = 1, #hides, 2 do
-		local first, second = hides[index], hides[index + 1]
-		local function Hide(name)
-			return Check(id .. "Hide" .. name, L["Hide %s"]:format(CATEGORIES[name]), base .. "hide." .. name, On())
-		end
-
-		Add(Hide(first), second and Hide(second) or nil)
+	for index, name in ipairs(hides) do
+		hideOptions[index] = { value = name, text = CATEGORIES[name] }
+		hideSearch[index] = L["Hide %s"]:format(CATEGORIES[name])
 	end
-	Add(Check(id .. "Duration", L["Show Duration"], base .. "duration", On()))
+
+	-- One switch per category, saved as one set: each category's `hide.<name>` is true while it is in the set.
+	Add(
+		Pages.Merge({
+			id = id .. "Hide",
+			control = "dropdown",
+			label = L["Hide Categories"],
+			description = L["Auras in the chosen categories never show here, whatever the filter."],
+			multi = true,
+			options = hideOptions,
+			searchText = table.concat(hideSearch, " "),
+			summary = function(count)
+				return count == 0 and NONE or L["%d Hidden"]:format(count)
+			end,
+			get = function()
+				local set = {}
+
+				for _, name in ipairs(hides) do
+					if AUI.Profile:Get(base .. "hide." .. name) then
+						set[name] = true
+					end
+				end
+
+				return set
+			end,
+			set = function(value)
+				for _, name in ipairs(hides) do
+					if not AUI.Profile:Set(base .. "hide." .. name, value[name] == true) then
+						return false
+					end
+				end
+			end,
+		}, On()),
+		Check(id .. "Duration", L["Show Duration"], base .. "duration", On())
+	)
 
 	elements[#elements + 1] = Pages.Details(kind, kind == "buffs" and L["Buffs"] or L["Debuffs"])
 
