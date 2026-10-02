@@ -114,6 +114,14 @@ local ELEMENTS = {
 	{ pattern = "%.Runes%s*=", file = "Libs/oUF/elements/runes.lua" },
 	{ pattern = "%.Stagger%s*=", file = "Libs/oUF/elements/stagger.lua" },
 	{ pattern = "%.AdditionalPower%s*=", file = "Libs/oUF/elements/additionalpower.lua" },
+	{ pattern = "RaidTargetIndicator", file = "Libs/oUF/elements/raidtargetindicator.lua" },
+	{ pattern = "RestingIndicator", file = "Libs/oUF/elements/restingindicator.lua" },
+	{ pattern = "CombatIndicator", file = "Libs/oUF/elements/combatindicator.lua" },
+	{ pattern = "LeaderIndicator", file = "Libs/oUF/elements/leaderindicator.lua" },
+	{ pattern = "AssistantIndicator", file = "Libs/oUF/elements/assistantindicator.lua" },
+	{ pattern = "PvPIndicator", file = "Libs/oUF/elements/pvpindicator.lua" },
+	{ pattern = "ThreatIndicator", file = "Libs/oUF/elements/threatindicator.lua" },
+	{ pattern = "%.Totems%s*=", file = "Libs/oUF/elements/totems.lua" },
 }
 
 for path in pairs(loaded) do

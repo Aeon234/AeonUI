@@ -168,8 +168,8 @@ AUI.Media = {
 }
 for _, file in ipairs({
 	"Core/Callbacks.lua", "Profile/Schema.lua", "Profile/Store.lua", "Profile/Codec.lua", "Profile/Profile.lua",
-	"Frames/Tags.lua", "Frames/Text.lua", "Frames/Overlays.lua", "Frames/CastBar.lua", "Frames/Auras.lua", "Frames/ClassPower.lua", "Frames/UnitFrame.lua", "Frames/Frames.lua",
-	"Settings/Note.lua", "Settings/Pages.lua", "Settings/TextSlots.lua", "Settings/Overlays.lua", "Settings/CastBar.lua", "Settings/Auras.lua", "Settings/ClassPower.lua",
+	"Frames/Tags.lua", "Frames/Text.lua", "Frames/Overlays.lua", "Frames/CastBar.lua", "Frames/Auras.lua", "Frames/ClassPower.lua", "Frames/Indicators.lua", "Frames/Fading.lua", "Frames/UnitFrame.lua", "Frames/Frames.lua",
+	"Settings/Note.lua", "Settings/Pages.lua", "Settings/TextSlots.lua", "Settings/Overlays.lua", "Settings/CastBar.lua", "Settings/Auras.lua", "Settings/ClassPower.lua", "Settings/Indicators.lua",
 	"Settings/Previews.lua",
 	"Settings/Profiles.lua", "Settings/Recovery.lua", "Settings/Settings.lua",
 }) do
@@ -579,6 +579,28 @@ Profile:Set("frames.focus.enabled", false)
 Equal("hidden AeonUI frame keeps Blizzard's", Frames:HidesBlizzard(Profile.config, "focus"), false)
 Profile:Set("frames.focus.enabled", true)
 Equal("extra mana on by default", Profile:Get("frames.classPower.extraMana"), true)
+
+-- Indicators and fading.
+local playerPage = pages.player.Build()
+Equal("raid marker row", Find(playerPage, "raid").get(), true)
+Equal("raid size depends on it", Find(playerPage, "raidSize").depends, "raid")
+Equal("indicator anchors", #Options(Find(playerPage, "raidAnchor")), 9)
+Equal("resting row", Find(playerPage, "resting").get(), true)
+Equal("combat off", Find(playerPage, "combat").get(), false)
+Equal("threat row", Find(playerPage, "threat").get(), true)
+Equal("totems row", Find(playerPage, "totems").get(), true)
+Equal("player idle fade", Find(playerPage, "idleFade").get(), true)
+Equal("no range fade on the player", Find(playerPage, "rangeFade"), nil)
+local targetPage = pages.target.Build()
+Equal("classification row", Find(targetPage, "classification").get(), false)
+Equal("highlight row", Find(targetPage, "highlight").get(), true)
+Equal("target range fade", Find(targetPage, "rangeFade").get(), true)
+Equal("range fade amount", Find(targetPage, "rangeAlpha").get(), 50)
+Equal("no totems on target", Find(targetPage, "totems"), nil)
+Equal("focus has both fades", Find(pages.focus.Build(), "idleFade") ~= nil and Find(pages.focus.Build(), "rangeFade") ~= nil, true)
+Equal("bosses have no fade", Find(pages.boss.Build(), "idleFade"), nil)
+Equal("power bar idle fade", Find(pages.playerPower.Build(), "idleFade").get(), true)
+Equal("class resource idle fade", Find(pages.classPower.Build(), "idleFade").get(), true)
 
 -- Page resets.
 pages.player.Reset()

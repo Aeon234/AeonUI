@@ -6,6 +6,8 @@
 	<Script file="CastBar.lua" />
 	<Script file="Auras.lua" />
 	<Script file="ClassPower.lua" />
+	<Script file="Indicators.lua" />
+	<Script file="Fading.lua" />
 	<Script file="UnitFrame.lua" />
 	<Script file="Frames.lua" />
 </Ui>

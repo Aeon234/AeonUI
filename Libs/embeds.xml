@@ -22,5 +22,13 @@
 	<Script file="oUF\elements\runes.lua" />
 	<Script file="oUF\elements\stagger.lua" />
 	<Script file="oUF\elements\additionalpower.lua" />
+	<Script file="oUF\elements\raidtargetindicator.lua" />
+	<Script file="oUF\elements\restingindicator.lua" />
+	<Script file="oUF\elements\combatindicator.lua" />
+	<Script file="oUF\elements\leaderindicator.lua" />
+	<Script file="oUF\elements\assistantindicator.lua" />
+	<Script file="oUF\elements\pvpindicator.lua" />
+	<Script file="oUF\elements\threatindicator.lua" />
+	<Script file="oUF\elements\totems.lua" />
 	<Script file="oUF\finalize.lua" />
 </Ui>

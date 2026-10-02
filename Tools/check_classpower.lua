@@ -1,6 +1,6 @@
 -- Checks Frames/ClassPower.lua outside the game: class resource settings and their defaults, segment widths, the
 -- frame's height with extra mana, colors for charged and filling segments, target combo points, rune countdowns,
--- combat hiding, and where the frame sits.
+-- and where the frame sits.
 -- Run from any directory with Lua 5.1: lua Tools/check_classpower.lua
 -- oUF's elements are not loaded; the checks call the callbacks AeonUI gives them as oUF would.
 
@@ -167,6 +167,13 @@ AUI.Media = {
 }
 AUI.oUF = { colors = { class = { ROGUE = { r = 1, g = 0.96, b = 0.41 } } } }
 AUI.UnitFrame = { keys = {}, LayoutBorder = function() end }
+local faded = {}
+AUI.Fading = {
+	started = true,
+	Update = function(_, frame)
+		faded[#faded + 1] = frame
+	end,
+}
 
 function AUI:Pixel()
 	return 1
@@ -317,17 +324,10 @@ frame.Runes:PostUpdate()
 Near("recharging rune darker", frame.Runes[1].last.SetStatusBarColor[2], 0.6)
 Equal("ready rune full", frame.Runes[2].last.SetStatusBarColor[2], 1)
 
--- Combat hiding.
-frame.settings.hideOutOfCombat = true
-frame:UpdateCombatAlpha(false)
-Equal("hidden out of combat", frame.alpha, 0)
-frame.events.PLAYER_REGEN_DISABLED()
-Equal("shown in combat", frame.alpha, 1)
-frame.events.PLAYER_REGEN_ENABLED()
-Equal("hidden again", frame.alpha, 0)
-frame.settings.hideOutOfCombat = false
-frame:UpdateCombatAlpha(false)
-Equal("shown when the option is off", frame.alpha, 1)
+-- Opacity belongs to fading.
+local before = #faded
+frame:ApplyAppearance(config)
+Equal("appearance hands opacity to fading", faded[before + 1], frame)
 
 -- Layout.
 AeonUIPlayerPower = Region()

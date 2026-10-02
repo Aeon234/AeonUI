@@ -13,6 +13,8 @@ local AUI = select(2, ...)
 ---@class AUICastData
 ---@field channels table<integer, AUIChannelTicks> the player's channeled spells, by spell ID
 ---@field interrupts table<string, integer[]> each class's interrupts, by class file name; later entries win
+---@field harmful table<string, integer[]> each class's spells for measuring range to an enemy; the first known wins
+---@field helpful table<string, integer[]> each class's heals for measuring range to a friend; the first known wins
 local CastData = {
 	channels = {
 		-- Priest
@@ -63,6 +65,29 @@ local CastData = {
 		-- Felhunter Spell Lock (and its command-demon forms), Felguard Axe Toss, Observer Optical Blast
 		WARLOCK = { 19244, 19647, 119910, 132409, 89766, 115781 },
 		WARRIOR = { 72, 1671, 1672, 6552, 6554 }, -- Shield Bash and Pummel ranks
+	},
+	harmful = {
+		DEATHKNIGHT = { 47541, 49576 }, -- Death Coil, Death Grip
+		DEMONHUNTER = { 185123, 204021 }, -- Throw Glaive, Fiery Brand
+		DRUID = { 8921, 5176 }, -- Moonfire, Wrath
+		EVOKER = { 361469, 362969 }, -- Living Flame, Azure Strike
+		HUNTER = { 75, 3044 }, -- Auto Shot, Arcane Shot
+		MAGE = { 116, 133, 2139 }, -- Frostbolt, Fireball, Counterspell
+		MONK = { 117952, 115546 }, -- Crackling Jade Lightning, Provoke
+		PALADIN = { 20271, 62124, 853 }, -- Judgment, Hand of Reckoning, Hammer of Justice
+		PRIEST = { 589, 585 }, -- Shadow Word: Pain, Smite
+		ROGUE = { 185763, 36554, 2094, 2764 }, -- Pistol Shot, Shadowstep, Blind, Throw
+		SHAMAN = { 188196, 403, 370 }, -- Lightning Bolt (both), Purge
+		WARLOCK = { 686, 172, 348 }, -- Shadow Bolt, Corruption, Immolate
+		WARRIOR = { 355, 100 }, -- Taunt, Charge
+	},
+	helpful = {
+		DRUID = { 8936, 5185 }, -- Regrowth, Healing Touch
+		EVOKER = { 361469 }, -- Living Flame
+		MONK = { 116670 }, -- Vivify
+		PALADIN = { 19750, 635 }, -- Flash of Light, Holy Light
+		PRIEST = { 2061, 2050, 2054 }, -- Flash Heal, Lesser Heal, Heal
+		SHAMAN = { 8004, 331 }, -- Healing Surge, Healing Wave
 	},
 }
 AUI.CastData = CastData

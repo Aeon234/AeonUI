@@ -333,6 +333,8 @@ local function UnitPage(key, switchLabel)
 	Append(elements, AUI.SettingsOverlays:Sections(key))
 	Append(elements, AUI.SettingsCastBar:Sections(key))
 	Append(elements, AUI.SettingsAuras:Sections(key))
+	Append(elements, AUI.SettingsIndicators:Sections(key))
+	Append(elements, AUI.SettingsIndicators:FadingSection(key))
 	Append(elements, AUI.SettingsText:Sections(key))
 	Append(elements, {
 		Section("numbers", L["Numbers"]),
@@ -352,6 +354,7 @@ local function PowerPage()
 	local elements = Layout("playerPower", L["Show Player Power Bar"])
 
 	Append(elements, AUI.SettingsText:Sections("playerPower"))
+	Append(elements, AUI.SettingsIndicators:FadingSection("playerPower"))
 
 	return elements
 end

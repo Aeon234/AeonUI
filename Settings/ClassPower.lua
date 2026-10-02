@@ -88,6 +88,16 @@ function ClassPower:Build()
 		}))),
 		Section("visibility", L["Visibility"]),
 		Row(Check("hideOutOfCombat", L["Hide Out of Combat"], BASE .. "hideOutOfCombat", On())),
+		Section("fading", L["Fading"]),
+		Row(
+			Check("idleFade", L["Idle Fade"], BASE .. "fade.idle.enabled", On({
+				description = L["Fades the frame while you are out of combat, have no target and are not casting."],
+			})),
+			Slider("idleAlpha", L["Idle Fade Opacity"], BASE .. "fade.idle.alpha", 0, 100, On({
+				depends = "idleFade",
+				format = "percent",
+			}))
+		),
 		Section("extraMana", L["Extra Mana"]),
 		Row(
 			Check("extraMana", L["Show Extra Mana"], BASE .. "extraMana", On({

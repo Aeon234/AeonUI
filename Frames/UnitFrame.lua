@@ -222,6 +222,7 @@ function UnitFrame.HealthStyle(frame, unit)
 	frame:RegisterForClicks("AnyUp")
 	frame:SetScript("OnEnter", frame.OnEnter)
 	frame:SetScript("OnLeave", UnitFrame_OnLeave)
+	AUI.Indicators:Create(frame)
 end
 
 ---The style for the central power bar: power only, and it does not take the mouse.
@@ -369,5 +370,6 @@ function UnitFrameMixin:ApplyAppearance(config)
 		end
 	end
 
+	AUI.Indicators:Apply(self, config)
 	AUI.Text:Apply(self, self.key, config)
 end

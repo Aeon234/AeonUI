@@ -87,6 +87,10 @@ local Text = {
 }
 AUI.SettingsText = Text
 
+-- Shared with the indicator settings, which place things the same way.
+Text.ANCHORS = ANCHORS
+Text.PLACEMENTS = PLACEMENTS
+
 ---@param key string
 ---@return string title the frame's page title
 function Text:FrameTitle(key)

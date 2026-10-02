@@ -400,6 +400,36 @@ local function Buffs(enabled)
 	return { enabled = enabled, anchor = "aboveLeft", growth = "right", limit = 4, filter = "all" }
 end
 
+---One indicator on a frame: shown, size, and where it sits (an anchor and placement as for text, then offsets).
+---@param key string
+---@param name string
+---@param enabled boolean
+---@param size number
+---@param anchor string
+---@param placement string
+---@param x number?
+---@param y number?
+local function Indicator(key, name, enabled, size, anchor, placement, x, y)
+	local base = "frames." .. key .. ".indicators." .. name .. "."
+
+	Boolean(base .. "enabled", enabled)
+	Number(base .. "size", size, 6, 64, true)
+	Choice(base .. "anchor", "anchor", anchor)
+	Choice(base .. "placement", "placement", placement)
+	Number(base .. "x", x or 0, -200, 200)
+	Number(base .. "y", y or 0, -200, 200)
+end
+
+---A frame's fade: on, and the opacity it fades to in percent.
+---@param key string
+---@param kind "range"|"idle"
+local function Fade(key, kind)
+	local base = "frames." .. key .. ".fade." .. kind .. "."
+
+	Boolean(base .. "enabled", true)
+	Number(base .. "alpha", 50, 0, 100, true)
+end
+
 -- The compact frames' default text: the name, left-aligned inside health.
 local NAME_ONLY = {
 	{ content = "name", anchor = "LEFT", placement = "inside", x = 4 },
@@ -411,6 +441,17 @@ Boolean("frames.player.reverse", false)
 Overlays("player")
 CastBar("player", { width = 386, x = 0, y = -254, icon = false, target = false })
 Auras("player", Buffs(false), { enabled = false, anchor = "belowLeft", growth = "right", limit = 10, filter = "all" })
+Indicator("player", "raid", true, 18, "CENTER", "inside")
+Indicator("player", "resting", true, 9, "TOPLEFT", "inside", 3, -2)
+Indicator("player", "combat", false, 16, "BOTTOMLEFT", "inside")
+Indicator("player", "leader", true, 16, "TOPLEFT", "edge")
+Indicator("player", "pvp", false, 24, "TOPRIGHT", "outside")
+Boolean("frames.player.indicators.threat.enabled", true)
+Number("frames.player.indicators.threat.size", 2, 1, 6, true)
+Boolean("frames.player.totems.enabled", true)
+Number("frames.player.totems.size", 22, 10, 60, true)
+Number("frames.player.totems.spacing", 2, 0, 20, true)
+Fade("player", "idle")
 TextFields("player", 1, false, {
 	{ content = "healthAndPercent", anchor = "TOPRIGHT", placement = "edge", x = -4 },
 })
@@ -422,6 +463,12 @@ AttachedPower("target")
 Overlays("target")
 CastBar("target", { width = 270, x = 0, y = 0, icon = true, target = true, side = "below" })
 Auras("target", Buffs(true), { enabled = true, anchor = "belowLeft", growth = "right", limit = 20, filter = "all" })
+Indicator("target", "raid", true, 18, "CENTER", "inside")
+Indicator("target", "leader", true, 16, "TOPLEFT", "edge")
+Indicator("target", "pvp", false, 24, "TOPRIGHT", "outside")
+Indicator("target", "classification", false, 20, "TOPRIGHT", "edge", 10)
+Fade("target", "range")
+Boolean("frames.target.highlight", true)
 TextFields("target", 1, false, {
 	{ content = "healthAndPercent", anchor = "TOPLEFT", placement = "edge", x = 4 },
 	{ content = "levelName", separator = "space", anchor = "TOPRIGHT", placement = "edge", x = -4, colorMode = "class" },
@@ -434,11 +481,14 @@ Boolean("frames.pet.hideBlizzard", true)
 Boolean("frames.pet.reverse", false)
 AttachedPower("pet")
 TextFields("pet", 0, true, NAME_ONLY)
+Indicator("pet", "raid", true, 14, "RIGHT", "outside", 2)
+Fade("pet", "idle")
 
 Geometry("targettarget", 120, 24, 16, 533, -206)
 Boolean("frames.targettarget.reverse", false)
 AttachedPower("targettarget")
 TextFields("targettarget", 0, true, NAME_ONLY)
+Indicator("targettarget", "raid", true, 14, "RIGHT", "outside", 2)
 
 Geometry("focus", 200, 24, 16, -330, -140)
 Boolean("frames.focus.hideBlizzard", true)
@@ -447,6 +497,10 @@ AttachedPower("focus")
 Overlays("focus")
 CastBar("focus", { width = 200, x = 0, y = 0, icon = false, target = true, side = "above" })
 Auras("focus", Buffs(false), { enabled = true, anchor = "belowLeft", growth = "right", limit = 10, filter = "own" })
+Indicator("focus", "raid", true, 14, "RIGHT", "outside", 2)
+Fade("focus", "range")
+Fade("focus", "idle")
+Boolean("frames.focus.highlight", true)
 TextFields("focus", 0, true, NAME_ONLY)
 
 -- The boss frames: one group, the first slot at the position, the others following by growth and spacing.
@@ -459,6 +513,7 @@ AttachedPower("boss")
 Overlays("boss")
 CastBar("boss", { width = 200, x = 0, y = 0, icon = true, target = false, side = "below" })
 Auras("boss", Buffs(false), { enabled = true, anchor = "left", growth = "left", limit = 10, filter = "own" })
+Indicator("boss", "raid", true, 18, "CENTER", "inside")
 TextFields("boss", 2, nil, {
 	{ content = "name", anchor = "TOPLEFT", placement = "inside", x = 4 },
 	{ content = "healthPercent", anchor = "TOPRIGHT", placement = "inside", x = -4 },
@@ -469,6 +524,7 @@ Geometry("playerPower", 360, 12, 4, 0, -184)
 TextFields("playerPower", 0, nil, {
 	{ content = "power", anchor = "CENTER", placement = "inside" },
 })
+Fade("playerPower", "idle")
 
 -- The player's class resource, attached above the player power bar by default.
 Boolean("frames.classPower.enabled", true)
@@ -488,6 +544,7 @@ Boolean("frames.classPower.runeTimers", false)
 Boolean("frames.classPower.hideOutOfCombat", false)
 Boolean("frames.classPower.extraMana", true)
 Number("frames.classPower.extraManaHeight", 4, 2, 20, true)
+Fade("classPower", "idle")
 
 ---@param path string
 ---@return AUISchemaField?

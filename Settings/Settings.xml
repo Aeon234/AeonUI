@@ -7,6 +7,7 @@
 	<Script file="CastBar.lua" />
 	<Script file="Auras.lua" />
 	<Script file="ClassPower.lua" />
+	<Script file="Indicators.lua" />
 	<Script file="Previews.lua" />
 	<Script file="Profiles.lua" />
 	<Script file="Recovery.lua" />

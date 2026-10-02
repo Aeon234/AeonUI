@@ -351,12 +351,6 @@ function ClassPower.Style(frame, unit)
 		ClassPower:UpdateRuneTimers(frame)
 	end)
 
-	frame:RegisterEvent("PLAYER_REGEN_DISABLED", function()
-		frame:UpdateCombatAlpha(true)
-	end, true)
-	frame:RegisterEvent("PLAYER_REGEN_ENABLED", function()
-		frame:UpdateCombatAlpha(false)
-	end, true)
 end
 
 ---@param frame AUIClassPowerFrame
@@ -379,12 +373,6 @@ function ClassPower:UpdateRuneTimers(frame)
 	end
 end
 
----@param inCombat boolean
-function ClassPowerMixin:UpdateCombatAlpha(inCombat)
-	local settings = self.settings
-
-	self:SetAlpha((settings and settings.hideOutOfCombat and not inCombat) and 0 or 1)
-end
 
 ---Size, position, the extra mana bar and whether the frame shows. These touch a secure frame, so they run only out of
 ---combat.
@@ -439,7 +427,11 @@ function ClassPowerMixin:ApplyAppearance(config)
 	self.CountText:SetPoint("CENTER", self, "TOPLEFT", settings.width / 2, -settings.height / 2)
 	self.CountText:SetShown(settings.text)
 	self.Ticker:SetShown(settings.runeTimers)
-	self:UpdateCombatAlpha(InCombatLockdown())
+
+	-- Hide Out of Combat is part of the frame's opacity, which fading owns.
+	if AUI.Fading.started then
+		AUI.Fading:Update(self)
+	end
 end
 
 ---Places every segment's border at the current scale.

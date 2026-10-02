@@ -65,6 +65,7 @@ function Frames:Start()
 	end
 
 	AUI.Tags:Register()
+	AUI.Indicators:Register()
 	oUF:RegisterStyle("AeonUI", UnitFrame.HealthStyle)
 	oUF:RegisterStyle("AeonUIPower", UnitFrame.PowerStyle)
 	oUF:RegisterStyle("AeonUIClassPower", AUI.ClassPower.Style)
@@ -90,6 +91,7 @@ function Frames:Start()
 	self.started = true
 
 	AUI.CastBar:Start()
+	AUI.Fading:Start()
 	AUI.Callbacks:Register("Profile", self, self.OnProfileChanged)
 	AUI.Events:Register("PLAYER_REGEN_ENABLED", self, self.OnCombatEnded)
 	AUI.Events:Register("UI_SCALE_CHANGED", self, self.OnScaleChanged)

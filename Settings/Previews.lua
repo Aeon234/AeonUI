@@ -260,6 +260,70 @@ end
 
 local function Ignore() end
 
+-- Sample indicators: how each is drawn. The raid marker is the skull.
+local INDICATOR_ART = {
+	raid = { texture = "Interface\\TargetingFrame\\UI-RaidTargetingIcons", coords = { 0.75, 1, 0.25, 0.5 } },
+	combat = { atlas = "UI-HUD-UnitFrame-Player-CombatIcon" },
+	leader = { atlas = "UI-HUD-UnitFrame-Player-Group-LeaderIcon" },
+	pvp = { atlas = "UI-HUD-UnitFrame-Player-PVP-AllianceIcon" },
+}
+
+---Draws a sample's enabled indicators where the live frame would show them.
+---@param sample table
+---@param key string
+---@param config table
+---@param addPart fun(region: Region, settingID: string, ...)
+local function DrawIndicators(sample, key, config, addPart)
+	sample.indicators = sample.indicators or {}
+
+	for _, name in ipairs({ "raid", "resting", "combat", "leader", "pvp", "classification" }) do
+		local settings = AUI.Indicators:Resolve(config, key, name)
+		local region = sample.indicators[name]
+
+		if settings and not region then
+			if name == "resting" then
+				region = sample.main:CreateFontString(nil, "OVERLAY", "NumberFontNormal")
+				region:SetText("ZZZ")
+			else
+				region = sample.main:CreateTexture(nil, "OVERLAY", nil, 7)
+
+				local art = INDICATOR_ART[name]
+
+				if art and art.atlas then
+					region:SetAtlas(art.atlas)
+				elseif art then
+					region:SetTexture(art.texture)
+					region:SetTexCoord(unpack(art.coords))
+				else
+					region:SetTexture(AUI.Indicators.CLASSIFICATIONS.rareelite)
+				end
+			end
+
+			sample.indicators[name] = region
+		end
+
+		if region then
+			region:SetShown(settings ~= nil and settings.enabled)
+		end
+
+		if settings and settings.enabled then
+			local point, relative = AUI.Text:Points(settings.anchor, settings.placement)
+
+			region:ClearAllPoints()
+			region:SetPoint(point, sample.main, relative, settings.x, settings.y)
+
+			if name == "resting" then
+				region:SetFont(AUI.Media:Font(Schema:Read(config, "frames." .. key .. ".text.font")), settings.size,
+					AUI.Media:FontFlags(Schema:Read(config, "frames." .. key .. ".text.outline")))
+			else
+				region:SetSize(settings.size, settings.size)
+			end
+
+			addPart(region, name)
+		end
+	end
+end
+
 -- Where each sample icon's corner sits, as a rectangle against the frame's top left (y up).
 local CORNER_RECTS = {
 	BOTTOMLEFT = { 0, 1, 0, 1 },
@@ -506,6 +570,8 @@ local function DrawSample(sample, key, config, state, addPart)
 	if Schema:Field("frames." .. key .. ".buffs.enabled") then
 		DrawAuras(sample, key, config, addPart)
 	end
+
+	DrawIndicators(sample, key, config, addPart)
 
 	local settings = sample.overlays and AUI.Overlays:Resolve(config, key)
 
