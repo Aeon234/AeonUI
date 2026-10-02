@@ -86,6 +86,10 @@ function Frames:Start()
 		end
 
 		self.objects[spec.key] = frames
+
+		if spec.style == "AeonUI" then
+			self:RegisterClickCasting(frames)
+		end
 	end
 
 	self.started = true
@@ -98,6 +102,17 @@ function Frames:Start()
 
 	for _, spec in ipairs(SPECS) do
 		self:Apply(spec.key, true)
+	end
+end
+
+---Lists clickable frames in `ClickCastFrames`, the table click-casting addons such as Clique read; creates it when no
+---addon has yet.
+---@param frames table[]
+function Frames:RegisterClickCasting(frames)
+	ClickCastFrames = ClickCastFrames or {}
+
+	for _, frame in ipairs(frames) do
+		ClickCastFrames[frame] = true
 	end
 end
 

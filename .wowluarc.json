@@ -5,8 +5,8 @@
   "flavors": ["retail"],
 
   "globals": {
-    "read": ["LibStub", "SlashCmdList", "StaticPopupDialogs", "UISpecialFrames"],
-    "write": ["AeonUI*", "SLASH_AEONUI*", "SlashCmdList"]
+    "read": ["LibStub", "SlashCmdList", "StaticPopupDialogs", "UISpecialFrames", "ClickCastFrames"],
+    "write": ["AeonUI*", "SLASH_AEONUI*", "SlashCmdList", "ClickCastFrames"]
   },
 
   "diagnostics": {

@@ -238,9 +238,23 @@ function UnitFrame.PowerStyle(frame, unit)
 	frame:EnableMouse(false)
 end
 
----Shows Blizzard's unit tooltip. Its update reads `self.unit`, which oUF does not keep; oUF's current unit
----(`__unit`, which follows vehicles) is copied there first.
+---Shows Blizzard's unit tooltip, unless the frame's Tooltip setting is off or Hide Tooltip in Combat applies. Its
+---update reads `self.unit`, which oUF does not keep; oUF's current unit (`__unit`, which follows vehicles) is copied
+---there first.
 function UnitFrameMixin:OnEnter()
+	local config = AUI.Profile.config
+	local base = "frames." .. self.key .. ".tooltip."
+
+	if Schema:Field(base .. "enabled") then
+		if not Schema:Read(config, base .. "enabled") then
+			return
+		end
+
+		if Schema:Read(config, base .. "hideInCombat") and InCombatLockdown() then
+			return
+		end
+	end
+
 	self.unit = self.__unit
 	UnitFrame_OnEnter(self)
 end

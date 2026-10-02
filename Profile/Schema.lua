@@ -420,6 +420,13 @@ local function Indicator(key, name, enabled, size, anchor, placement, x, y)
 	Number(base .. "y", y or 0, -200, 200)
 end
 
+---A clickable frame's tooltip settings.
+---@param key string
+local function Tooltip(key)
+	Boolean("frames." .. key .. ".tooltip.enabled", true)
+	Boolean("frames." .. key .. ".tooltip.hideInCombat", false)
+end
+
 ---A frame's fade: on, and the opacity it fades to in percent.
 ---@param key string
 ---@param kind "range"|"idle"
@@ -452,6 +459,7 @@ Boolean("frames.player.totems.enabled", true)
 Number("frames.player.totems.size", 22, 10, 60, true)
 Number("frames.player.totems.spacing", 2, 0, 20, true)
 Fade("player", "idle")
+Tooltip("player")
 TextFields("player", 1, false, {
 	{ content = "healthAndPercent", anchor = "TOPRIGHT", placement = "edge", x = -4 },
 })
@@ -468,6 +476,7 @@ Indicator("target", "leader", true, 16, "TOPLEFT", "edge")
 Indicator("target", "pvp", false, 24, "TOPRIGHT", "outside")
 Indicator("target", "classification", false, 20, "TOPRIGHT", "edge", 10)
 Fade("target", "range")
+Tooltip("target")
 Boolean("frames.target.highlight", true)
 TextFields("target", 1, false, {
 	{ content = "healthAndPercent", anchor = "TOPLEFT", placement = "edge", x = 4 },
@@ -483,12 +492,14 @@ AttachedPower("pet")
 TextFields("pet", 0, true, NAME_ONLY)
 Indicator("pet", "raid", true, 14, "RIGHT", "outside", 2)
 Fade("pet", "idle")
+Tooltip("pet")
 
 Geometry("targettarget", 120, 24, 16, 533, -206)
 Boolean("frames.targettarget.reverse", false)
 AttachedPower("targettarget")
 TextFields("targettarget", 0, true, NAME_ONLY)
 Indicator("targettarget", "raid", true, 14, "RIGHT", "outside", 2)
+Tooltip("targettarget")
 
 Geometry("focus", 200, 24, 16, -330, -140)
 Boolean("frames.focus.hideBlizzard", true)
@@ -500,6 +511,7 @@ Auras("focus", Buffs(false), { enabled = true, anchor = "belowLeft", growth = "r
 Indicator("focus", "raid", true, 14, "RIGHT", "outside", 2)
 Fade("focus", "range")
 Fade("focus", "idle")
+Tooltip("focus")
 Boolean("frames.focus.highlight", true)
 TextFields("focus", 0, true, NAME_ONLY)
 
@@ -514,6 +526,7 @@ Overlays("boss")
 CastBar("boss", { width = 200, x = 0, y = 0, icon = true, target = false, side = "below" })
 Auras("boss", Buffs(false), { enabled = true, anchor = "left", growth = "left", limit = 10, filter = "own" })
 Indicator("boss", "raid", true, 18, "CENTER", "inside")
+Tooltip("boss")
 TextFields("boss", 2, nil, {
 	{ content = "name", anchor = "TOPLEFT", placement = "inside", x = 4 },
 	{ content = "healthPercent", anchor = "TOPRIGHT", placement = "inside", x = -4 },

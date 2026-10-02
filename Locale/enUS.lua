@@ -418,6 +418,9 @@ L["Your totems and similar summons, under the frame's right end."] =
 L["Totem Size"] = "Totem Size"
 L["Totem Spacing"] = "Totem Spacing"
 L["Mouseover Highlight"] = "Mouseover Highlight"
+L["Tooltip"] = "Tooltip"
+L["Shows the unit's tooltip while the mouse is over the frame."] = "Shows the unit's tooltip while the mouse is over the frame."
+L["Hide Tooltip in Combat"] = "Hide Tooltip in Combat"
 L["Turns the frame's border white while the mouse is over it."] =
 	"Turns the frame's border white while the mouse is over it."
 L["Fading"] = "Fading"

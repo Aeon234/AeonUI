@@ -96,6 +96,15 @@ function Indicators:Sections(key)
 
 	table.insert(elements, 1, Section("indicators", L["Indicators"]))
 
+	if Schema:Field(base .. "tooltip.enabled") then
+		Add(
+			Check("tooltip", L["Tooltip"], base .. "tooltip.enabled", {
+				description = L["Shows the unit's tooltip while the mouse is over the frame."],
+			}),
+			Check("tooltipCombat", L["Hide Tooltip in Combat"], base .. "tooltip.hideInCombat", { depends = "tooltip" })
+		)
+	end
+
 	return elements
 end
 

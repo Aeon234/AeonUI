@@ -602,6 +602,23 @@ Equal("bosses have no fade", Find(pages.boss.Build(), "idleFade"), nil)
 Equal("power bar idle fade", Find(pages.playerPower.Build(), "idleFade").get(), true)
 Equal("class resource idle fade", Find(pages.classPower.Build(), "idleFade").get(), true)
 
+-- Tooltips and click-casting.
+for _, id in ipairs({ "player", "pet", "target", "targettarget", "focus", "boss" }) do
+	local built = pages[id].Build()
+	Equal(id .. " tooltip on", Find(built, "tooltip").get(), true)
+	Equal(id .. " tooltip in combat", Find(built, "tooltipCombat").get(), false)
+end
+Equal("no tooltip on the power bar", Find(pages.playerPower.Build(), "tooltip"), nil)
+ClickCastFrames = nil
+local clickFrames = { {}, {} }
+AUI.Frames:RegisterClickCasting(clickFrames)
+Equal("click-cast table created", ClickCastFrames[clickFrames[2]], true)
+local existing = { kept = true }
+ClickCastFrames = existing
+AUI.Frames:RegisterClickCasting({ clickFrames[1] })
+Equal("another addon's table kept", ClickCastFrames, existing)
+Equal("added to it", existing[clickFrames[1]], true)
+
 -- Page resets.
 pages.player.Reset()
 Equal("player reset", Profile:Get("frames.player.width"), 270)
