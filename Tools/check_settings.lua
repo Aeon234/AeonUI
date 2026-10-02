@@ -10,6 +10,7 @@ local root = (arg and arg[0] or ""):match("^(.-)[^/\\]*$") .. "../"
 -- Environment ---------------------------------------------------------------------------------------------
 
 UNKNOWN, NONE, NAME, LEVEL, HEALTH, CUSTOM = "Unknown", "None", "Name", "Level", "Health", "Custom"
+CLASS, MANA, RAGE = "Class", "Mana", "Rage"
 INTERRUPTED = "Interrupted"
 PET = "Pet"
 PLAYER, TARGET, COLOR, DELETE, RESET, DEAD, PLAYER_OFFLINE = "Player", "Target", "Color", "Delete", "Reset", "Dead",
@@ -161,7 +162,14 @@ AUI.L = setmetatable({}, { __index = function(_, key)
 	return key
 end })
 AUI.can = { surnames = false }
-AUI.oUF = { colors = { class = {}, reaction = {}, power = {}, health = { r = 0.2, g = 0.8, b = 0.1 } } }
+AUI.oUF = {
+	colors = {
+		class = {},
+		reaction = {},
+		power = { MANA = { r = 0, g = 0, b = 1 }, RAGE = { r = 1, g = 0, b = 0 } },
+		health = { r = 0.2, g = 0.8, b = 0.1 },
+	},
+}
 for level = 1, 8 do
 	AUI.oUF.colors.reaction[level] = level <= 3 and { r = 0.8, g = 0.3, b = 0.2 } or level == 4 and { r = 0.9, g = 0.7, b = 0 }
 		or { r = 0, g = 0.6, b = 0.1 }
@@ -174,7 +182,7 @@ AUI.Media = {
 }
 for _, file in ipairs({
 	"Core/Callbacks.lua", "Profile/Schema.lua", "Profile/Store.lua", "Profile/Codec.lua", "Profile/Profile.lua",
-	"Frames/Tags.lua", "Frames/Text.lua", "Frames/Overlays.lua", "Frames/HealthColor.lua", "Frames/Portrait.lua", "Frames/CastBar.lua", "Frames/Auras.lua", "Frames/ClassPower.lua", "Frames/Indicators.lua", "Frames/Fading.lua", "Frames/UnitFrame.lua", "Frames/Frames.lua",
+	"Frames/Tags.lua", "Frames/Text.lua", "Frames/Overlays.lua", "Frames/HealthColor.lua", "Frames/PowerColor.lua", "Frames/Portrait.lua", "Frames/CastBar.lua", "Frames/Auras.lua", "Frames/ClassPower.lua", "Frames/Indicators.lua", "Frames/Fading.lua", "Frames/UnitFrame.lua", "Frames/Frames.lua",
 	"Settings/Note.lua", "Settings/Pages.lua", "Settings/Shared.lua", "Settings/TextSlots.lua", "Settings/Overlays.lua", "Settings/CastBar.lua", "Settings/Auras.lua", "Settings/ClassPower.lua", "Settings/Indicators.lua",
 	"Settings/Previews.lua",
 	"Settings/Profiles.lua", "Settings/Recovery.lua", "Settings/Settings.lua",
@@ -1088,6 +1096,70 @@ classToken = "MAGE"
 Equal("class icon for a readable player class", Portrait:ClassAtlas("target"), "classicon-MAGE")
 classToken = nil
 Equal("no class icon without a class", Portrait:ClassAtlas("target"), nil)
+Profile:Reset()
+
+-- Power colors ----------------------------------------------------------------------------------------------------
+
+local PowerColor = AUI.PowerColor
+Profile:Reset()
+local powerSettings = PowerColor:Resolve(Profile.config, "target") --[[@as table]]
+Equal("power mode defaults to power type", powerSettings.mode, "type")
+Equal("no power colors on the player frame, which has no power bar", PowerColor:Resolve(Profile.config, "player"), nil)
+Equal("the player power bar has power colors", PowerColor:Resolve(Profile.config, "playerPower") ~= nil, true)
+Equal("a frame follows the shared power mode", Schema:Field("frames.boss.powerColors.mode").shared, "powerColors.mode")
+local mana = AUI.oUF.colors.power.MANA
+local classBlue = { r = 0.25, g = 0.78, b = 0.92 }
+Equal("power type keeps oUF's color", PowerColor:Fill(powerSettings, mana, classBlue), mana)
+powerSettings.mode = "class"
+Equal("class mode takes the class color", PowerColor:Fill(powerSettings, mana, classBlue), classBlue)
+Equal("class mode without a class keeps the power color", PowerColor:Fill(powerSettings, mana, nil), mana)
+powerSettings.mode = "custom"
+Equal("custom mode", PowerColor:Fill(powerSettings, mana, classBlue), powerSettings.color)
+Equal("background follows the bar background", PowerColor:Background(powerSettings, mana).r, 0.067)
+powerSettings.background = "power"
+powerSettings.barBackground = { r = 0, g = 0, b = 0, a = 0.3 }
+local powerBackdrop = PowerColor:Background(powerSettings, mana)
+Equal("power-colored background", powerBackdrop.b .. "," .. powerBackdrop.a, "1,0.3")
+local palette = { MANA = { r = 0, g = 0, b = 1 }, RAGE = { r = 1, g = 0, b = 0 } }
+Profile:Set("powerColors.palette.MANA", { r = 0.5, g = 0.5, b = 1 })
+PowerColor:ApplyPalette(palette, Profile.config)
+Equal("a set palette color replaces the entry", palette.MANA.r, 0.5)
+Equal("an unset entry keeps its own color", palette.RAGE.r, 1)
+Profile:Set("powerColors.palette.MANA", nil)
+PowerColor:ApplyPalette(palette, Profile.config)
+Equal("clearing restores the original color", palette.MANA.r, 0)
+Equal("Globals lists the power types the client has", Find(pages.globals.Build(), "powerMANA").label, "Mana")
+Equal("and leaves out those it lacks", Find(pages.globals.Build(), "powerFURY"), nil)
+Equal("frame page power section", type(Find(pages.target.Build(), "powerColorsCopyFrom")), "table")
+Equal("no power section without a power bar", Find(pages.player.Build(), "powerMode"), nil)
+Equal("the player power page has one", type(Find(pages.playerPower.Build(), "powerMode")), "table")
+
+-- The live recolor.
+local painted = {}
+local powerBar = {
+	__owner = {
+		powerColors = PowerColor:Resolve(Profile.config, "target"),
+		powerBackground = {
+			SetVertexColor = function(_, r)
+				painted.background = r
+			end,
+		},
+	},
+	GetStatusBarTexture = function()
+		return { SetAlpha = function(_, alpha)
+			painted.alpha = alpha
+		end, SetGradient = function() end }
+	end,
+	SetStatusBarColor = function(_, r, g, b)
+		painted.fill = { r, g, b }
+	end,
+}
+PowerColor.PostUpdateColor(powerBar, "target", AUI.oUF.colors.power.RAGE)
+Equal("live: oUF's color painted", painted.fill[1], 1)
+Equal("live: full opacity", painted.alpha, 1)
+Equal("live: background tinted", painted.background, 0.067)
+PowerColor.PostUpdateColor(powerBar, "target", nil, 0.2, 0.3, 0.4)
+Equal("live: an alternate color painted", painted.fill[1], 0.2)
 Profile:Reset()
 
 print = luaPrint

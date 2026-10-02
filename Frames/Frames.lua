@@ -64,6 +64,7 @@ function Frames:Start()
 		end
 	end
 
+	AUI.PowerColor:ApplyPalette(oUF.colors.power, AUI.Profile.config)
 	AUI.Tags:Register()
 	AUI.Indicators:Register()
 	oUF:RegisterStyle("AeonUI", UnitFrame.HealthStyle)
@@ -150,6 +151,7 @@ end
 
 ---@param path string? the changed setting, or nil when the whole profile may differ
 function Frames:OnProfileChanged(path)
+	AUI.PowerColor:ApplyPalette(AUI.oUF.colors.power, AUI.Profile.config)
 	if not path then
 		for _, spec in ipairs(SPECS) do
 			self:Apply(spec.key, true)

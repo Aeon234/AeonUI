@@ -28,6 +28,17 @@ local REACTIONS = {
 	{ name = "friendly", label = FACTION_STANDING_LABEL5, level = 5 },
 }
 
+local POWER_MODES = {
+	type = L["Power Type"],
+	class = CLASS,
+	custom = CUSTOM,
+}
+
+local POWER_BACKGROUNDS = {
+	custom = L["Bar Background"],
+	power = L["Power Color"],
+}
+
 -- The frame pages, in the order Copy From lists them.
 local FRAME_KEYS = { "player", "pet", "target", "targettarget", "focus", "boss", "playerPower" }
 
@@ -65,6 +76,7 @@ local Shared = {
 			exclude = { ["debuffs.enabled"] = true, ["debuffs.anchor"] = true, ["debuffs.x"] = true, ["debuffs.y"] = true },
 		},
 		healthColors = { paths = { "health." } },
+		powerColors = { paths = { "powerColors." } },
 		indicators = { paths = { "indicators.", "totems.", "highlight", "tooltip." } },
 		text = { paths = { "text." } },
 		numbers = { paths = { "numbers." } },
@@ -392,6 +404,74 @@ function Shared:HealthRows(base)
 	}
 end
 
+---The power color rows of a frame page's Power Colors section, or of the Globals page's.
+---@param base string `powerColors.` or a frame's `frames.<key>.powerColors.`
+---@return table[] elements
+function Shared:PowerRows(base)
+	return {
+		Row(
+			Choice("powerMode", L["Power Color"], base .. "mode", Pages.Options("powerMode", POWER_MODES), {
+				description = L["Class colors a player's power bar by class; other units keep their power type's color."],
+			}),
+			Color("powerCustom", L["Custom Color"], base .. "color", {
+				blocked = function()
+					if AUI.Profile:Get(base .. "mode") ~= "custom" then
+						return L["Only with the Custom power color."]
+					end
+				end,
+			})
+		),
+		Row(
+			Check("powerGradient", L["Gradient"], base .. "gradient"),
+			Choice("powerGradientDirection", L["Gradient Direction"], base .. "gradientDirection",
+				Pages.Options("orientation", AUI.SettingsCastBar.ORIENTATIONS), { depends = "powerGradient" })
+		),
+		Row(
+			Color("powerGradientColor", L["Gradient End Color"], base .. "gradientColor", {
+				depends = "powerGradient",
+				hasOpacity = true,
+			}),
+			Choice("powerBackground", L["Background Color"], base .. "background",
+				Pages.Options("powerBackground", POWER_BACKGROUNDS), {
+					description = L["Power Color uses the bar's color at the bar background's opacity."],
+				})
+		),
+		Row(Slider("powerFillAlpha", L["Fill Opacity"], base .. "fillAlpha", 0, 100, { format = "percent", step = 5 })),
+	}
+end
+
+---@return table[] elements the Globals page's Power Colors section, with a color for each power type the client has
+local function GlobalPowerSection()
+	local elements = { Section("powerColors", L["Power Colors"]) }
+
+	for _, element in ipairs(Shared:PowerRows("powerColors.")) do
+		elements[#elements + 1] = element
+	end
+
+	local swatches = {}
+
+	for _, token in ipairs(AUI.Schema.choices.powerTokens) do
+		if AUI.oUF.colors.power[token] then
+			local path = "powerColors.palette." .. token
+
+			swatches[#swatches + 1] = Color("power" .. token, _G[token] or token, path, {
+				description = L["Until set, Blizzard's color for this power type."],
+				get = function()
+					local color = AUI.Profile:Get(path) or AUI.PowerColor.blizzard[token] or AUI.oUF.colors.power[token]
+
+					return { r = color.r, g = color.g, b = color.b }
+				end,
+			})
+		end
+	end
+
+	for index = 1, #swatches, 2 do
+		elements[#elements + 1] = Row(swatches[index], swatches[index + 1])
+	end
+
+	return elements
+end
+
 ---@return table[] elements the Globals page's Health Colors section, with the game-state and reaction colors
 local function GlobalHealthSection()
 	local elements = { Section("healthColors", L["Health Colors"]) }
@@ -448,6 +528,10 @@ function Shared:GlobalSections()
 	end
 
 	for _, element in ipairs(GlobalHealthSection()) do
+		elements[#elements + 1] = element
+	end
+
+	for _, element in ipairs(GlobalPowerSection()) do
 		elements[#elements + 1] = element
 	end
 

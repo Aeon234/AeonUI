@@ -255,6 +255,7 @@ function UnitFrame.HealthStyle(frame, unit)
 
 		power.colorPower = true
 		power.frequentUpdates = true
+		power.PostUpdateColor = AUI.PowerColor.PostUpdateColor
 		frame.Power = power
 		frame.PowerHolder = holder
 		frame.PowerBackground = background
@@ -293,6 +294,7 @@ function UnitFrame.PowerStyle(frame, unit)
 
 	power.colorPower = true
 	power.frequentUpdates = true
+	power.PostUpdateColor = AUI.PowerColor.PostUpdateColor
 	frame.Power = power
 
 	frame:EnableMouse(false)
@@ -451,6 +453,12 @@ function UnitFrameMixin:ApplyAppearance(config)
 
 	if healthColors then
 		AUI.HealthColor:Apply(self, healthColors)
+	end
+
+	local powerColors = self.Power and AUI.PowerColor:Resolve(config, self.key)
+
+	if powerColors then
+		AUI.PowerColor:Apply(self, powerColors, self.PowerHolder and self.PowerBackground or self.Background)
 	end
 
 	local overlays = self.Overlays

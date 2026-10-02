@@ -548,6 +548,28 @@ function Previews:ShowCast(cast, state)
 	})
 end
 
+---Colors a sample power bar as the live one would be: the power type's color in its frame's mode.
+---@param bar StatusBar
+---@param background Texture
+---@param config table
+---@param key string
+---@param color table the sample's power type color
+---@param values AUITextSample
+function Previews:PaintPower(bar, background, config, key, color, values)
+	local settings = AUI.PowerColor:Resolve(config, key)
+
+	if not settings then
+		bar:SetStatusBarColor(color.r, color.g, color.b)
+
+		return
+	end
+
+	local player = key == "player" or key == "playerPower" or key == "targettarget"
+	local fill = AUI.PowerColor:Fill(settings, color, player and values.classColor or nil)
+
+	AUI.HealthColor:Paint(bar, background, settings, fill, AUI.PowerColor:Background(settings, fill))
+end
+
 ---Draws one sample in a state.
 ---@param sample table
 ---@param key string
@@ -598,7 +620,7 @@ local function DrawSample(sample, key, config, state, addPart, editing)
 			power:SetReverseFill(reverse)
 			AUI.UnitFrame:AnchorBackground(power, sample.powerBackground, reverse)
 			power:SetValue(values.status and 0 or values.powerPercent / 100)
-			power:SetStatusBarColor(color.r, color.g, color.b)
+			Previews:PaintPower(power, sample.powerBackground, config, key, color, values)
 			addPart(power, "powerHeight")
 		end
 	end
@@ -609,7 +631,9 @@ local function DrawSample(sample, key, config, state, addPart, editing)
 
 	local healthColors = AUI.HealthColor:Resolve(config, key)
 
-	if healthColors then
+	if key == "playerPower" then
+		Previews:PaintPower(bar, sample.background, config, key, barColor, values)
+	elseif healthColors then
 		local hostile = key == "target" or key == "focus" or key == "boss"
 		local fill, backdrop = AUI.HealthColor:Sample(healthColors, {
 			connected = not state.offline,

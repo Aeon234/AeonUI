@@ -105,6 +105,11 @@ local Schema = {
 		portraitMode = { "2d", "3d", "class" },
 		portraitStyle = { "attached", "detached" },
 		portraitSide = { "LEFT", "RIGHT" },
+		powerMode = { "type", "class", "custom" },
+		powerBackground = { "custom", "power" },
+		powerTokens = {
+			"MANA", "RAGE", "ENERGY", "FOCUS", "RUNIC_POWER", "LUNAR_POWER", "MAELSTROM", "INSANITY", "FURY", "PAIN",
+		},
 	},
 }
 AUI.Schema = Schema
@@ -273,6 +278,22 @@ Color("health.reaction.hostile", nil)
 Color("health.reaction.neutral", nil)
 Color("health.reaction.friendly", nil)
 
+-- The power color look, as paths under a frame's `powerColors.`.
+local POWER_LOOK = { "mode", "color", "gradient", "gradientDirection", "gradientColor", "background", "fillAlpha" }
+
+Choice("powerColors.mode", "powerMode", "type")
+Color("powerColors.color", { r = 0.2, g = 0.6, b = 1 })
+Boolean("powerColors.gradient", false)
+Choice("powerColors.gradientDirection", "orientation", "HORIZONTAL")
+Color("powerColors.gradientColor", { r = 0.1, g = 0.1, b = 0.1, a = 1 })
+Choice("powerColors.background", "powerBackground", "custom")
+Number("powerColors.fillAlpha", 100, 0, 100, true)
+
+-- Each power type's color, on Globals only; one left unset keeps Blizzard's.
+for _, token in ipairs(Schema.choices.powerTokens) do
+	Color("powerColors.palette." .. token, nil)
+end
+
 String("overlays.textures.absorb", "flat", 64)
 String("overlays.textures.healAbsorb", "flat", 64)
 String("overlays.textures.healPrediction", "flat", 64)
@@ -289,6 +310,7 @@ Color("overlays.colors.healPrediction", { r = 0.251, g = 1, b = 0.251, a = 1 })
 Schema.CASTBAR_LOOK = CASTBAR_LOOK
 Schema.AURA_LOOK = AURA_LOOK
 Schema.HEALTH_LOOK = HEALTH_LOOK
+Schema.POWER_LOOK = POWER_LOOK
 
 -- Frames -----------------------------------------------------------------------------------------------------
 
@@ -413,6 +435,14 @@ end
 local function HealthColors(key)
 	for _, name in ipairs(HEALTH_LOOK) do
 		Inherit("frames." .. key .. ".health." .. name, "health." .. name)
+	end
+end
+
+---A frame's power bar colors, following the shared ones.
+---@param key string
+local function PowerColors(key)
+	for _, name in ipairs(POWER_LOOK) do
+		Inherit("frames." .. key .. ".powerColors." .. name, "powerColors." .. name)
 	end
 end
 
@@ -632,6 +662,7 @@ Geometry("target", 270, 36, 16, 330, -200)
 Boolean("frames.target.hideBlizzard", true)
 Boolean("frames.target.reverse", true)
 Bars("target", true, true)
+PowerColors("target")
 HealthColors("target")
 Portrait("target", "RIGHT")
 AttachedPower("target")
@@ -656,6 +687,7 @@ Geometry("pet", 120, 24, 16, -405, -234)
 Boolean("frames.pet.hideBlizzard", true)
 Boolean("frames.pet.reverse", false)
 Bars("pet", true, true)
+PowerColors("pet")
 HealthColors("pet")
 AttachedPower("pet")
 TextFields("pet", 0, true, NAME_ONLY)
@@ -666,6 +698,7 @@ Tooltip("pet")
 Geometry("targettarget", 120, 24, 16, 533, -206)
 Boolean("frames.targettarget.reverse", false)
 Bars("targettarget", true, true)
+PowerColors("targettarget")
 HealthColors("targettarget")
 AttachedPower("targettarget")
 TextFields("targettarget", 0, true, NAME_ONLY)
@@ -676,6 +709,7 @@ Geometry("focus", 200, 24, 16, -330, -140)
 Boolean("frames.focus.hideBlizzard", true)
 Boolean("frames.focus.reverse", false)
 Bars("focus", true, true)
+PowerColors("focus")
 HealthColors("focus")
 Portrait("focus", "RIGHT")
 AttachedPower("focus")
@@ -696,6 +730,7 @@ Choice("frames.boss.growth", "growth", "down")
 Number("frames.boss.spacing", 14, 0, 100, true)
 Boolean("frames.boss.reverse", false)
 Bars("boss", true, true)
+PowerColors("boss")
 HealthColors("boss")
 Portrait("boss", "RIGHT")
 AttachedPower("boss")
@@ -712,6 +747,7 @@ TextFields("boss", 2, nil, {
 
 Geometry("playerPower", 360, 12, 4, 0, -184)
 Bars("playerPower", false, true)
+PowerColors("playerPower")
 TextFields("playerPower", 0, nil, {
 	{ content = "power", anchor = "CENTER", placement = "inside" },
 })

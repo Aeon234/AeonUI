@@ -521,3 +521,12 @@ local L = select(2, ...).L
 -- L["Only for a detached portrait."] = "Only for a detached portrait."
 -- L["Class Icon shows a player's class; other units show their 2D portrait."] = "Class Icon shows a player's class; other units show their 2D portrait."
 -- L["Attached sits inside the frame at its side; Detached sits outside it."] = "Attached sits inside the frame at its side; Detached sits outside it."
+
+-- Power Colors sections (Settings)
+-- L["Power Colors"] = "Power Colors"
+-- L["Power Color"] = "Power Color"
+-- L["Power Type"] = "Power Type"
+-- L["Only with the Custom power color."] = "Only with the Custom power color."
+-- L["Class colors a player's power bar by class; other units keep their power type's color."] = "Class colors a player's power bar by class; other units keep their power type's color."
+-- L["Power Color uses the bar's color at the bar background's opacity."] = "Power Color uses the bar's color at the bar background's opacity."
+-- L["Until set, Blizzard's color for this power type."] = "Until set, Blizzard's color for this power type."

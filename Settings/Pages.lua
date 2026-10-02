@@ -339,6 +339,23 @@ local SIDES = {
 }
 
 ---@param key string
+---@return table[] elements the frame page's Power Colors section, or nothing for a frame without a power bar
+local function PowerSection(key)
+	local Shared = AUI.SettingsShared
+	local base = "frames." .. key .. ".powerColors."
+
+	if not Schema:Field(base .. "mode") then
+		return {}
+	end
+
+	local elements = { Shared:Section("powerColors", L["Power Colors"], key, Shared.SCOPES.powerColors, true) }
+
+	Append(elements, Shared:PowerRows(base))
+
+	return elements
+end
+
+---@param key string
 ---@return table[] elements the frame page's Portrait section, or nothing for a frame without a portrait
 local function PortraitSection(key)
 	local base = "frames." .. key .. ".portrait."
@@ -415,6 +432,7 @@ local function UnitPage(key, switchLabel)
 	Append(elements, PortraitSection(key))
 	Append(elements, { Shared:Section("healthColors", L["Health Colors"], key, Shared.SCOPES.healthColors, true) })
 	Append(elements, Shared:HealthRows(base .. "health."))
+	Append(elements, PowerSection(key))
 	Append(elements, AUI.SettingsOverlays:Sections(key))
 	Append(elements, AUI.SettingsCastBar:Sections(key))
 	Append(elements, AUI.SettingsAuras:Sections(key))
@@ -435,6 +453,7 @@ local function PowerPage()
 
 	elements[#elements + 1] = AppearanceSection("playerPower")
 	Append(elements, AUI.SettingsShared:BarRows("frames.playerPower.bars."))
+	Append(elements, PowerSection("playerPower"))
 	Append(elements, AUI.SettingsText:Sections("playerPower"))
 	Append(elements, AUI.SettingsIndicators:FadingSection("playerPower"))
 

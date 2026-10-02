@@ -3,6 +3,7 @@
 	<Script file="Text.lua" />
 	<Script file="Overlays.lua" />
 	<Script file="HealthColor.lua" />
+	<Script file="PowerColor.lua" />
 	<Script file="Portrait.lua" />
 	<Script file="CastData.lua" />
 	<Script file="CastBar.lua" />
