@@ -22,6 +22,12 @@ L["%s reset to defaults."] = "%s: ripristinati i valori predefiniti."
 L['Search results for "%s"'] = 'Risultati della ricerca per "%s"'
 L["No settings match."] = "Nessuna impostazione corrispondente."
 
+-- Row.lua
+L["Shared"] = "Condiviso"
+L["Custom"] = "Personalizzato"
+L["Use Shared"] = "Usa condiviso"
+L["Removes this value so the setting follows the shared one again."] = "Rimuove questo valore così l'impostazione torna a seguire quella condivisa."
+
 -- Preview.lua
 L["Preview"] = "Anteprima"
 L["Click part of the preview to find its setting"] = "Clicca una parte dell'anteprima per trovarne l'impostazione"

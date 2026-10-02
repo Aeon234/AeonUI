@@ -6,22 +6,11 @@ local Pages = AUI.SettingsPages
 
 local Section, Row, Choice, Slider, Setting = Pages.Section, Pages.Row, Pages.Choice, Pages.Slider, Pages.Setting
 
--- Every setting a slot holds, as copied between slots.
-local SLOT_FIELDS = {
-	"content", "separator", "anchor", "placement", "x", "y", "width", "colorMode", "font", "size", "outline", "color",
-}
-
 -- The slot settings that override the frame's text style.
 local STYLE_FIELDS = { "font", "size", "outline", "color" }
 
--- The frame-level text settings copied with Copy Text From, besides the slots.
-local TEXT_FIELDS = { "font", "size", "outline", "color", "nameFormat" }
-
 -- Contents that join two values, and so offer a separator.
 local COMBINED = { healthAndPercent = true, levelName = true }
-
--- The frames that hold text, in the order Copy Text From and Apply to All Frames list them.
-local FRAME_KEYS = { "player", "pet", "target", "targettarget", "focus", "boss", "playerPower" }
 
 local CONTENTS = {
 	none = NONE,
@@ -146,59 +135,6 @@ local function SlotPath(key, index)
 	return ("frames.%s.text.slots.%d."):format(key, index)
 end
 
----The settings that copy one slot onto another.
----@param map table<string, string>
----@param fromKey string
----@param fromIndex integer
----@param toKey string
----@param toIndex integer
-local function AddSlot(map, fromKey, fromIndex, toKey, toIndex)
-	local from, to = SlotPath(fromKey, fromIndex), SlotPath(toKey, toIndex)
-
-	for _, field in ipairs(SLOT_FIELDS) do
-		map[to .. field] = from .. field
-	end
-end
-
----Copies one frame's text onto another: the text style and every slot both frames have.
----@param fromKey string
----@param toKey string
----@return boolean ok
-function Text:CopyFrame(fromKey, toKey)
-	local map = {}
-	local from, to = "frames." .. fromKey .. ".text.", "frames." .. toKey .. ".text."
-
-	for _, field in ipairs(TEXT_FIELDS) do
-		map[to .. field] = from .. field
-	end
-
-	if AUI.Profile:Get(from .. "status") <= Schema.textSlots[toKey] then
-		map[to .. "status"] = from .. "status"
-	end
-
-	for index = 1, math.min(Schema.textSlots[fromKey], Schema.textSlots[toKey]) do
-		AddSlot(map, fromKey, index, toKey, index)
-	end
-
-	return (AUI.Profile:CopyPaths(map))
-end
-
----Copies one slot onto the same slot of every other frame that has it.
----@param key string
----@param index integer
----@return boolean ok
-function Text:ApplyToAll(key, index)
-	local map = {}
-
-	for _, other in ipairs(FRAME_KEYS) do
-		if other ~= key and Schema.textSlots[other] >= index then
-			AddSlot(map, key, index, other, index)
-		end
-	end
-
-	return (AUI.Profile:CopyPaths(map))
-end
-
 ---@param key string
 ---@return table[] options one per slot, labeled with its content
 local function SlotOptions(key)
@@ -223,8 +159,9 @@ local function TextSection(key)
 		status[#status + 1] = { value = index, text = L["Text %d"]:format(index) }
 	end
 
+	local Shared = AUI.SettingsShared
 	local elements = {
-		Section("text", L["Text"]),
+		Shared:Section("text", L["Text"], key, Shared.SCOPES.text, true),
 		Row(
 			Setting("dropdown", "font", L["Font"], base .. "font", { picker = "font", options = {} }),
 			Slider("size", L["Size"], base .. "size", Pages.Range(base .. "size"))
@@ -312,36 +249,6 @@ local function SlotsSection(key)
 		end,
 	}
 
-	local copyOptions = {}
-
-	for _, other in ipairs(FRAME_KEYS) do
-		if other ~= key then
-			copyOptions[#copyOptions + 1] = { value = other, text = Text:FrameTitle(other) }
-		end
-	end
-
-	local copyMenu = {
-		id = "copyText",
-		control = "dropdown",
-		label = L["Copy Text From"],
-		placeholder = L["Copy Text From"],
-		verb = L["Copy"],
-		width = "fit",
-		rebuild = true,
-		options = copyOptions,
-		confirm = function(from)
-			return L["Replace this frame's text with the text of %s?"]:format(Text:FrameTitle(from))
-		end,
-		get = function()
-			return nil
-		end,
-		set = function(from)
-			if not Text:CopyFrame(from, key) then
-				return false
-			end
-		end,
-	}
-
 	local contentSetting = Choice("content", L["Content"], path .. "content", Pages.Options("content", CONTENTS), {
 		rebuild = true,
 	})
@@ -350,7 +257,7 @@ local function SlotsSection(key)
 	})
 
 	local elements = {
-		Section("textSlots", L["Text Slots"], { action = useStyle, menu = copyMenu }),
+		Section("textSlots", L["Text Slots"], { action = useStyle }),
 		Row(Setting("dropdown", "slot", L["Slot"], path .. "content", {
 			rebuild = true,
 			options = function()
@@ -406,18 +313,6 @@ local function SlotsSection(key)
 	else
 		elements[#elements + 1] = Row(outline)
 	end
-
-	elements[#elements + 1] = Row({
-		id = "applyToAll",
-		control = "action",
-		label = L["Apply to All Frames"],
-		verb = L["Apply"],
-		description = L["Copy this slot's settings to the same slot on every other frame."],
-		confirm = L["Copy the settings of Text %d to the same slot on every other frame?"]:format(index),
-		set = function()
-			return Text:ApplyToAll(key, index)
-		end,
-	})
 
 	return elements
 end

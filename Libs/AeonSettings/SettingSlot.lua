@@ -78,6 +78,35 @@ function Slot:Request(value)
 	window:SettingSaved(pageID, setting, ok, control)
 end
 
+---Returns nil when the setting does not inherit; otherwise whether it holds its own value rather than the
+---shared one.
+---@return boolean?
+function Slot:Custom()
+	local inherit = self.setting and self.setting.inherit
+	if not inherit then
+		return nil
+	end
+
+	return AS:CallHost(false, inherit.custom) == true
+end
+
+---Removes the setting's own value so it follows the shared one again, then draws the value it now shows. The
+---window is told as after a save; `ok` is false when `clear` raised an error.
+function Slot:UseShared()
+	local setting, control, window, pageID = self.setting, self.control, self.window, self.pageID
+	if not setting or not setting.inherit or not control or not window or not pageID then
+		return
+	end
+
+	local ok = AS:CallHost(false, setting.inherit.clear, window)
+
+	if self.setting == setting and self.control == control and setting.get then
+		control:SetChecked(AS:CallHost(nil, setting.get))
+	end
+
+	window:SettingSaved(pageID, setting, ok, control)
+end
+
 ---Releases the control and forgets the setting.
 function Slot:Release()
 	if self.control then

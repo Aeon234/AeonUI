@@ -22,6 +22,12 @@ L["%s reset to defaults."] = "%s을(를) 기본값으로 초기화했습니다."
 L['Search results for "%s"'] = '"%s" 검색 결과'
 L["No settings match."] = "일치하는 설정이 없습니다."
 
+-- Row.lua
+L["Shared"] = "공유"
+L["Custom"] = "사용자 지정"
+L["Use Shared"] = "공유 값 사용"
+L["Removes this value so the setting follows the shared one again."] = "이 값을 제거하여 설정이 다시 공유 값을 따르게 합니다."
+
 -- Preview.lua
 L["Preview"] = "미리보기"
 L["Click part of the preview to find its setting"] = "미리보기의 일부를 클릭하면 해당 설정을 찾습니다"

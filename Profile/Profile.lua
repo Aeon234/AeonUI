@@ -304,6 +304,12 @@ function Profile:Get(path)
 	return AUI:CopyTable(Schema:Read(self.config, path))
 end
 
+---@param path string
+---@return boolean custom the setting follows a shared one and the active profile holds its own value
+function Profile:IsCustom(path)
+	return Schema:IsCustom(self.config, path)
+end
+
 ---Changes one setting of the active profile.
 ---@param path string
 ---@param value any
@@ -320,7 +326,16 @@ function Profile:Set(path, value)
 		return false, problem
 	end
 
-	if Schema:Read(self.config, path) == value then
+	local field = Schema:Field(path)
+	local current
+
+	if field and field.shared then
+		current = Schema:Lookup(self.config, path)
+	else
+		current = Schema:Read(self.config, path)
+	end
+
+	if current == value then
 		return true
 	end
 
@@ -604,15 +619,23 @@ function Profile:Decode(text)
 		return nil, L["This profile string was made by a newer version of AeonUI."]
 	end
 
-	if version ~= Schema.VERSION or type(payload.name) ~= "string" or not Schema:ValidateConfig(payload.profile) then
+	local config = payload.profile
+	local usable = type(version) == "number" and version >= 1 and version == math.floor(version)
+		and type(payload.name) == "string" and type(config) == "table"
+
+	if usable and version < Schema.VERSION then
+		usable = Schema:Upgrade(config, version)
+	end
+
+	if not usable or not Schema:ValidateConfig(config) then
 		return nil, L["This profile string holds settings AeonUI can't use."]
 	end
 
 	return {
 		name = payload.name,
 		version = version,
-		config = payload.profile,
-		dormant = Schema:CountDormant(payload.profile),
+		config = config,
+		dormant = Schema:CountDormant(config),
 	}
 end
 

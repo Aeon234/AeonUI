@@ -94,7 +94,9 @@ function Indicators:Sections(key)
 		return {}
 	end
 
-	table.insert(elements, 1, Section("indicators", L["Indicators"]))
+	local Shared = AUI.SettingsShared
+
+	table.insert(elements, 1, Shared:Section("indicators", L["Indicators"], key, Shared.SCOPES.indicators, true))
 
 	if Schema:Field(base .. "tooltip.enabled") then
 		Add(

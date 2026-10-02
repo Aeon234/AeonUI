@@ -4,8 +4,7 @@ local L = AUI.L
 local Schema = AUI.Schema
 local Pages = AUI.SettingsPages
 
-local Section, Row, Choice, Slider, Check, Setting = Pages.Section, Pages.Row, Pages.Choice, Pages.Slider, Pages.Check,
-	Pages.Setting
+local Row, Choice, Slider, Check, Setting = Pages.Row, Pages.Choice, Pages.Slider, Pages.Check, Pages.Setting
 
 local ANCHORS = {
 	aboveLeft = L["Above Left"],
@@ -78,7 +77,9 @@ local CORNERS = {
 
 ---The Buffs and Debuffs sections of the player, target, focus and boss pages.
 ---@class AUISettingsAuras
-local Auras = {}
+local Auras = {
+	CORNERS = CORNERS,
+}
 AUI.SettingsAuras = Auras
 
 ---@param key string
@@ -109,7 +110,9 @@ local function Display(key, kind)
 
 	local filterList = kind == "buffs" and "buffFilter" or "debuffFilter"
 
-	elements[1] = Section(kind, kind == "buffs" and L["Buffs"] or L["Debuffs"])
+	local Shared = AUI.SettingsShared
+
+	elements[1] = Shared:Section(kind, kind == "buffs" and L["Buffs"] or L["Debuffs"], key, Shared.SCOPES[kind], true)
 
 	Add(
 		Check(show, kind == "buffs" and L["Show Buffs"] or L["Show Debuffs"], base .. "enabled"),

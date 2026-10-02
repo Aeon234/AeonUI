@@ -1,6 +1,7 @@
 -- Setting row: one or two settings, each a label on the left and its control on the right.
 local _, ns = ...
 local AS = ns.AeonSettings
+local L = AS.L
 local tokens = AS.tokens
 
 local SURFACE_INSET = 2 -- bands stay inside the surface's bronze border
@@ -44,6 +45,12 @@ end
 ---@field reload boolean? changing it takes effect after a reload
 ---@field rebuild boolean? saving it may change other settings, so the page is rebuilt after a save
 ---@field searchText string? extra text matched by search
+---@field inherit AeonSettingsInherit? the setting follows a shared value until it holds its own
+
+---A setting that inherits shows a Shared or Custom tag and, when Custom, a Use Shared button.
+---@class AeonSettingsInherit
+---@field custom fun(): boolean whether the setting holds its own value; `get` returns the value shown either way
+---@field clear fun(window: table) removes the setting's own value
 
 -- Half -----------------------------------------------------------------------------------------------------
 
@@ -55,6 +62,8 @@ end
 ---@field outline Frame
 ---@field controls table<string, table>
 ---@field slot AeonSettingsSettingSlot
+---@field tag FontString Shared or Custom, for a setting that inherits
+---@field useShared Button shown while an inheriting setting is Custom
 local Half = {}
 Half.__index = Half
 
@@ -66,6 +75,34 @@ local function CreateHalf(frame)
 	half.outline = AS:CreateOutline(frame, tokens.color.flash)
 	half.outline:SetAllPoints()
 	half.slot = AS:CreateSettingSlot(half.label)
+
+	half.tag = frame:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+	AS:SetFont(half.tag, "body", tokens.font.tagSize)
+	half.tag:Hide()
+
+	local button = CreateFrame("Button", nil, frame)
+	button:SetSize(tokens.size.useShared, tokens.size.useShared)
+	button:SetMotionScriptsWhileDisabled(true)
+	button.Icon = button:CreateTexture(nil, "ARTWORK")
+	button.Icon:SetAllPoints()
+	button.Icon:SetAtlas("common-icon-undo")
+	button:SetScript("OnClick", function()
+		PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
+		half.slot:UseShared()
+	end)
+	button:SetScript("OnEnter", function()
+		button.Icon:SetVertexColor(unpack(tokens.color.flash))
+		AS.Tooltip:Show(button, {
+			{ L["Use Shared"], tokens.color.text },
+			{ L["Removes this value so the setting follows the shared one again."], tokens.color.text },
+		})
+	end)
+	button:SetScript("OnLeave", function()
+		button.Icon:SetVertexColor(1, 1, 1)
+		AS.Tooltip:Hide(button)
+	end)
+	button:Hide()
+	half.useShared = button
 
 	return half
 end
@@ -104,14 +141,58 @@ function Half:Bind(setting, pageID, window)
 	text:ClearAllPoints()
 	text:SetJustifyH("LEFT")
 	text:SetPoint("LEFT", self.frame, "LEFT", tokens.space.rowInset, 0)
-	text:SetPoint("RIGHT", control, "LEFT", -tokens.space.labelToControl, 0)
+	if setting.inherit then
+		text:SetPoint("RIGHT", self.tag, "LEFT", -tokens.space.gap, 0)
+	else
+		text:SetPoint("RIGHT", control, "LEFT", -tokens.space.labelToControl, 0)
+	end
 
 	self.slot:Bind(setting, pageID, window, control)
+	self:RefreshInherit()
+end
+
+---Shows an inheriting setting's Shared or Custom tag, and the Use Shared button while Custom, both dimmed
+---with the control.
+function Half:RefreshInherit()
+	local custom, control = self.slot:Custom(), self.slot.control
+	local tag, button = self.tag, self.useShared
+
+	tag:SetShown(custom ~= nil)
+	button:SetShown(custom == true)
+	if custom == nil or not control then
+		return
+	end
+
+	local enabled = control.enabled ~= false
+	tag:SetText(custom and L["Custom"] or L["Shared"])
+	tag:SetTextColor(unpack(custom and tokens.color.notice or tokens.color.neutral))
+	tag:SetAlpha(enabled and 1 or tokens.alpha.inactive)
+	button:SetEnabled(enabled)
+	button.Icon:SetDesaturated(not enabled)
+	button.Icon:SetAlpha(enabled and 1 or tokens.alpha.inactive)
+
+	tag:ClearAllPoints()
+	if custom then
+		button:ClearAllPoints()
+		button:SetPoint("RIGHT", control, "LEFT", -tokens.space.labelToControl, 0)
+		tag:SetPoint("RIGHT", button, "LEFT", -tokens.space.tagGap, 0)
+	else
+		tag:SetPoint("RIGHT", control, "LEFT", -tokens.space.labelToControl, 0)
+	end
+end
+
+---Re-applies the active state, then the inheritance tag.
+function Half:Refresh()
+	self.slot:RefreshState()
+	self:RefreshInherit()
 end
 
 function Half:Release()
 	AS.Tooltip:Hide(self.label.hover)
+	AS.Tooltip:Hide(self.useShared)
 	AS:HideOutline(self.outline)
+	self.tag:Hide()
+	self.useShared:Hide()
 	self.slot:Release()
 end
 
@@ -161,7 +242,7 @@ end
 
 function AeonUISettings_SettingRowMixin:RefreshState()
 	for _, half in ipairs(self.halves) do
-		half.slot:RefreshState()
+		half:Refresh()
 	end
 end
 

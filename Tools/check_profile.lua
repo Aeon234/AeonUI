@@ -215,38 +215,88 @@ Refused("store reset outside recovery", Profile:ResetStore())
 
 -- Migration -----------------------------------------------------------------------------------------------
 
-local migrationsBefore = Store.migrations
-Store.SCHEMA = 2
+local schemaBefore, migrationsBefore = Store.SCHEMA, Store.migrations
+Store.SCHEMA = schemaBefore + 1
 Store.migrations = {
-	[1] = function(data)
+	[schemaBefore] = function(data)
 		data.migrated = true
 	end,
 }
 local old = Valid()
-old.schemaVersion = 1
+old.schemaVersion = schemaBefore
 Load(old)
 Equal("migration publishes", saves, 1)
 Equal("migrated store is normal", Profile.mode, "normal")
-Equal("migrated schema", AeonUIDB.schemaVersion, 2)
+Equal("migrated schema", AeonUIDB.schemaVersion, schemaBefore + 1)
 Equal("migration step ran", AeonUIDB.migrated, true)
-Equal("migration keeps a backup of the original", AeonUIDB.migrationBackup.schemaVersion, 1)
-Equal("migration leaves the original table alone", old.schemaVersion, 1)
+Equal("migration keeps a backup of the original", AeonUIDB.migrationBackup.schemaVersion, schemaBefore)
+Equal("migration leaves the original table alone", old.schemaVersion, schemaBefore)
 Store.migrations = {
-	[1] = function()
+	[schemaBefore] = function()
 		error("step failed")
 	end,
 }
 local failing = Valid()
-failing.schemaVersion = 1
+failing.schemaVersion = schemaBefore
 ExpectRecovery("a failing migration", failing)
-Store.SCHEMA, Store.migrations = 1, migrationsBefore
+Store.SCHEMA, Store.migrations = schemaBefore, migrationsBefore
+
+-- Schema 1 to 2: frame values equal to the version 1 defaults become Shared; others stay Custom.
+local version1 = Valid()
+local record1 = version1.profilesByID[Store.DEFAULT_ID]
+local frames1 = record1.config.frames
+version1.schemaVersion, record1.schemaVersion = 1, 1
+frames1.player.text = { font = "Expressway", size = 12, outline = "SLUG_OUTLINE", color = { r = 1, g = 1, b = 1 } }
+frames1.target.text = { font = "Expressway", size = 16, outline = "SLUG_OUTLINE", color = { r = 1, g = 0, b = 0 } }
+frames1.player.castbar = { texture = "flat", border = 2, background = { r = 1, g = 1, b = 1, a = 0.5 }, width = 386 }
+frames1.target.buffs = { swipe = true, countSize = 20, size = 22 }
+Load(version1)
+local config2 = AeonUIDB.profilesByID[Store.DEFAULT_ID].config
+Equal("upgrade: store migrated", AeonUIDB.schemaVersion, Store.SCHEMA)
+Equal("upgrade: profile migrated", AeonUIDB.profilesByID[Store.DEFAULT_ID].schemaVersion, Schema.VERSION)
+Equal("upgrade: default font becomes Shared", Schema:Lookup(config2, "frames.player.text.font"), nil)
+Equal("upgrade: default color becomes Shared", Schema:Lookup(config2, "frames.player.text.color"), nil)
+Equal("upgrade: a changed size stays Custom", Schema:Lookup(config2, "frames.target.text.size"), 16)
+Equal("upgrade: a changed color stays Custom", Schema:Lookup(config2, "frames.target.text.color").g, 0)
+Equal("upgrade: default cast texture becomes Shared", Schema:Lookup(config2, "frames.player.castbar.texture"), nil)
+Equal("upgrade: default cast background becomes Shared", Schema:Lookup(config2, "frames.player.castbar.background"),
+	nil)
+Equal("upgrade: a changed cast border stays Custom", Schema:Lookup(config2, "frames.player.castbar.border"), 2)
+Equal("upgrade: a frame-only setting stays", Schema:Lookup(config2, "frames.player.castbar.width"), 386)
+Equal("upgrade: default swipe becomes Shared", Schema:Lookup(config2, "frames.target.buffs.swipe"), nil)
+Equal("upgrade: a changed stack size stays Custom", Schema:Lookup(config2, "frames.target.buffs.countSize"), 20)
+Equal("upgrade: a Shared value reads the shared one", Profile:Get("frames.player.text.size"), 12)
+
+-- Shared settings --------------------------------------------------------------------------------------------
+
+Load(Valid())
+Equal("shared: a frame reads the shared value", Profile:Get("frames.focus.text.font"), "Expressway")
+Equal("shared: follows a change to the shared value", (Profile:Set("text.font", "Friz Quadrata TT")), true)
+Equal("shared: the frame follows", Profile:Get("frames.focus.text.font"), "Friz Quadrata TT")
+Equal("shared: not custom", Profile:IsCustom("frames.focus.text.font"), false)
+Equal("shared: a value equal to the shared one is saved as the frame's own",
+	(Profile:Set("frames.focus.text.font", "Friz Quadrata TT")), true)
+Equal("shared: now custom", Profile:IsCustom("frames.focus.text.font"), true)
+Equal("shared: custom ignores the shared value", (Profile:Set("text.font", "Expressway")) and
+	Profile:Get("frames.focus.text.font"), "Friz Quadrata TT")
+Equal("shared: clearing", (Profile:Set("frames.focus.text.font", nil)), true)
+Equal("shared: follows again", Profile:Get("frames.focus.text.font"), "Expressway")
+Equal("shared: a shared setting itself is never custom", Profile:IsCustom("text.font"), false)
+Equal("shared: bounds follow the shared field", (Profile:Set("frames.focus.bars.border", 9)), false)
+Equal("shared: a frame resets to Shared", (Profile:Set("frames.player.bars.border", 3)) and
+	(Profile:Reset("frames.player")) and Profile:IsCustom("frames.player.bars.border"), false)
+Equal("shared: defaults hold no frame appearance", Schema:Defaults().frames.player.text.font, nil)
 
 -- Quarantine ----------------------------------------------------------------------------------------------
 
 local mixed = Valid()
-mixed.profilesByID.p00000002 = { name = "Broken", schemaVersion = 1, config = { frames = { player = { width = "x" } } } }
-mixed.profilesByID.p00000003 = { name = "DEFAULT", schemaVersion = 1, config = {} }
-mixed.profilesByID.p00000004 = { name = "Later", schemaVersion = 2, config = {} }
+mixed.profilesByID.p00000002 = {
+	name = "Broken",
+	schemaVersion = Schema.VERSION,
+	config = { frames = { player = { width = "x" } } },
+}
+mixed.profilesByID.p00000003 = { name = "DEFAULT", schemaVersion = Schema.VERSION, config = {} }
+mixed.profilesByID.p00000004 = { name = "Later", schemaVersion = Schema.VERSION + 1, config = {} }
 mixed.nextID = 5
 local brokenBefore = Serialize(mixed.profilesByID.p00000002)
 Load(mixed)
@@ -265,7 +315,7 @@ Refused("a name a quarantined profile holds", Profile:Create("broken"))
 -- Fallback when the active profile cannot be used.
 local fallback = Valid()
 fallback.profilesByID[Store.DEFAULT_ID].config.frames.player.width = 400
-fallback.profilesByID.p00000002 = { name = "Mine", schemaVersion = 1, config = { frames = { target = 5 } } }
+fallback.profilesByID.p00000002 = { name = "Mine", schemaVersion = Schema.VERSION, config = { frames = { target = 5 } } }
 fallback.charactersByID["Player-1"].activeProfileID = "p00000002"
 fallback.charactersByID["Player-1"].specAssignments = { [62] = "p00000002" }
 fallback.nextID = 3
@@ -355,7 +405,7 @@ Equal("full reset clears every dormant setting", AeonUIDB.profilesByID[copied].c
 
 -- Delete remaps every reference.
 local multi = Valid("Player-1")
-multi.profilesByID.p00000002 = { name = "Alt", schemaVersion = 1, config = {} }
+multi.profilesByID.p00000002 = { name = "Alt", schemaVersion = Schema.VERSION, config = {} }
 multi.charactersByID["Player-2"] = { activeProfileID = "p00000002", specAssignments = { [250] = "p00000002" } }
 multi.charactersByID["Player-1"].activeProfileID = "p00000002"
 multi.nextID = 3
@@ -377,7 +427,7 @@ Equal("a quarantined profile can be deleted", (Profile:Delete("p00000002", Store
 
 -- IDs continue past the highest in use even when nextID lags.
 local lagging = Valid()
-lagging.profilesByID.p00000007 = { name = "Seven", schemaVersion = 1, config = {} }
+lagging.profilesByID.p00000007 = { name = "Seven", schemaVersion = Schema.VERSION, config = {} }
 Load(lagging)
 ok, id = Profile:Create("Eight")
 Equal("IDs never reuse one in use", id, "p00000008")

@@ -158,7 +158,7 @@ function Frames:OnProfileChanged(path)
 		return
 	end
 
-	if path:match("^numbers%.") then
+	if not path:match("^frames%.") then
 		for _, spec in ipairs(SPECS) do
 			self:Apply(spec.key, false)
 		end
@@ -187,10 +187,6 @@ end
 
 function Frames:OnScaleChanged()
 	for _, spec in ipairs(SPECS) do
-		for _, frame in ipairs(self.objects[spec.key]) do
-			frame:UpdateBorder()
-		end
-
 		self:Apply(spec.key, false)
 	end
 end

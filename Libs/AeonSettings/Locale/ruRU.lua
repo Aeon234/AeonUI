@@ -22,6 +22,12 @@ L["%s reset to defaults."] = "«%s»: восстановлены значени�
 L['Search results for "%s"'] = 'Результаты поиска по запросу «%s»'
 L["No settings match."] = "Подходящих настроек нет."
 
+-- Row.lua
+L["Shared"] = "Общее"
+L["Custom"] = "Своё"
+L["Use Shared"] = "Использовать общее"
+L["Removes this value so the setting follows the shared one again."] = "Удаляет это значение, чтобы настройка снова следовала общей."
+
 -- Preview.lua
 L["Preview"] = "Предпросмотр"
 L["Click part of the preview to find its setting"] = "Щелкните часть предпросмотра, чтобы найти ее настройку"

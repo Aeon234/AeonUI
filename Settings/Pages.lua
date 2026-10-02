@@ -3,9 +3,6 @@ local AUI = select(2, ...)
 local L = AUI.L
 local Schema = AUI.Schema
 
--- The choice that clears a frame's own number setting so it follows the Globals page.
-local GLOBAL = "__global"
-
 ---Setting builders bound to the profile owner, and the unit-frame pages built from them.
 ---@class AUISettingsPages
 local Pages = {}
@@ -24,7 +21,8 @@ end
 
 local Merge = Pages.Merge
 
----A setting that reads and writes one profile path. A refused write reports the library's own message.
+---A setting that reads and writes one profile path. A refused write reports the library's own message. A frame setting
+---that follows a shared one shows whether it is Shared or Custom, and Use Shared clears its own value.
 ---@param control string
 ---@param id string
 ---@param label string
@@ -32,10 +30,28 @@ local Merge = Pages.Merge
 ---@param fields table?
 ---@return table setting
 function Pages.Setting(control, id, label, path, fields)
+	local field = Schema:Field(path)
+	local inherit
+
+	if field and field.shared then
+		inherit = {
+			custom = function()
+				return AUI.Profile:IsCustom(path)
+			end,
+			clear = function()
+				if not AUI.Profile:Set(path, nil) then
+					return false
+				end
+			end,
+		}
+	end
+
 	return Merge({
 		id = id,
 		control = control,
 		label = label,
+		path = path,
+		inherit = inherit,
 		get = function()
 			return AUI.Profile:Get(path)
 		end,
@@ -177,56 +193,6 @@ local DECIMALS = {
 	{ value = 1, text = "100.0%" },
 }
 
--- Numbers ---------------------------------------------------------------------------------------------------
-
----@param value any
----@return string
-local function DecimalsLabel(value)
-	return value == 1 and DECIMALS[2].text or DECIMALS[1].text
-end
-
----A frame's override of a Globals number setting: "Global (value)" first, then the choices.
----@param id string
----@param label string
----@param path string the frame's own path
----@param globalPath string the Globals path it follows
----@param options table[] the choices
----@param describe fun(value: any): string the label of a value
----@return table setting
-local function Override(id, label, path, globalPath, options, describe)
-	return Setting("dropdown", id, label, path, {
-		options = function()
-			local list = { { value = GLOBAL, text = L["Global (%s)"]:format(describe(AUI.Profile:Get(globalPath))) } }
-
-			for _, option in ipairs(options) do
-				list[#list + 1] = option
-			end
-
-			return list
-		end,
-		get = function()
-			local own = AUI.Profile:Get(path)
-
-			if own == nil then
-				return GLOBAL
-			end
-
-			return own
-		end,
-		set = function(value)
-			if not AUI.Profile:Set(path, value ~= GLOBAL and value or nil) then
-				return false
-			end
-		end,
-	})
-end
-
----@param precision string
----@return string
-local function PrecisionLabel(precision)
-	return PRECISIONS[precision] or precision
-end
-
 ---@param elements table[]
 ---@param more table[]
 local function Append(elements, more)
@@ -235,18 +201,23 @@ local function Append(elements, more)
 	end
 end
 
+---The Numbers rows: on Globals, or a frame's own, which follow Globals.
+---@param base string `numbers.` or a frame's `frames.<key>.numbers.`
+---@return table element
+local function NumberRow(base)
+	return Row(
+		Choice("precision", L["Abbreviation"], base .. "precision", Pages.Options("precision", PRECISIONS), {
+			description = L["How large numbers are shortened, such as 588K or 588.4K."],
+		}),
+		Choice("percentDecimals", L["Percent Decimals"], base .. "percentDecimals", DECIMALS)
+	)
+end
+
 ---@return table[] elements
 local function GlobalsPage()
-	local elements = {
-		Section("numbers", L["Numbers"]),
-		Row(
-			Choice("precision", L["Abbreviation"], "numbers.precision", Pages.Options("precision", PRECISIONS), {
-				description = L["How large numbers are shortened, such as 588K or 588.4K."],
-			}),
-			Choice("percentDecimals", L["Percent Decimals"], "numbers.percentDecimals", DECIMALS)
-		),
-	}
+	local elements = AUI.SettingsShared:GlobalSections()
 
+	Append(elements, { Section("numbers", L["Numbers"]), NumberRow("numbers.") })
 	Append(elements, AUI.SettingsOverlays:GlobalSection())
 
 	return elements
@@ -302,15 +273,24 @@ local function Layout(key, switchLabel)
 	return elements
 end
 
+---@param key string
+---@return table element the Appearance section's header
+local function AppearanceSection(key)
+	local Shared = AUI.SettingsShared
+
+	return Shared:Section("appearance", L["Appearance"], key, Shared.SCOPES.appearance, true)
+end
+
 ---@param key string a frame with health
 ---@param switchLabel string
 ---@return table[] elements
 local function UnitPage(key, switchLabel)
 	local base = "frames." .. key .. "."
+	local Shared = AUI.SettingsShared
 	local elements = Layout(key, switchLabel)
 
 	Append(elements, {
-		Section("health", HEALTH),
+		AppearanceSection(key),
 		Row(Check("reverse", L["Reverse Fill"], base .. "reverse", {
 			description = L["Fill the bar from right to left."],
 		})),
@@ -330,6 +310,7 @@ local function UnitPage(key, switchLabel)
 			),
 		})
 	end
+	Append(elements, Shared:BarRows(base .. "bars."))
 	Append(elements, AUI.SettingsOverlays:Sections(key))
 	Append(elements, AUI.SettingsCastBar:Sections(key))
 	Append(elements, AUI.SettingsAuras:Sections(key))
@@ -337,13 +318,8 @@ local function UnitPage(key, switchLabel)
 	Append(elements, AUI.SettingsIndicators:FadingSection(key))
 	Append(elements, AUI.SettingsText:Sections(key))
 	Append(elements, {
-		Section("numbers", L["Numbers"]),
-		Row(
-			Override("precision", L["Abbreviation"], base .. "numbers.precision", "numbers.precision",
-				Pages.Options("precision", PRECISIONS), PrecisionLabel),
-			Override("percentDecimals", L["Percent Decimals"], base .. "numbers.percentDecimals", "numbers.percentDecimals",
-				DECIMALS, DecimalsLabel)
-		),
+		Shared:Section("numbers", L["Numbers"], key, Shared.SCOPES.numbers, false),
+		NumberRow(base .. "numbers."),
 	})
 
 	return elements
@@ -353,10 +329,43 @@ end
 local function PowerPage()
 	local elements = Layout("playerPower", L["Show Player Power Bar"])
 
+	elements[#elements + 1] = AppearanceSection("playerPower")
+	Append(elements, AUI.SettingsShared:BarRows("frames.playerPower.bars."))
 	Append(elements, AUI.SettingsText:Sections("playerPower"))
 	Append(elements, AUI.SettingsIndicators:FadingSection("playerPower"))
 
 	return elements
+end
+
+-- The frame pages' builders, by frame key.
+local FRAME_PAGES = {
+	player = function()
+		return UnitPage("player", L["Show Player Frame"])
+	end,
+	pet = function()
+		return UnitPage("pet", L["Show Pet Frame"])
+	end,
+	target = function()
+		return UnitPage("target", L["Show Target Frame"])
+	end,
+	targettarget = function()
+		return UnitPage("targettarget", L["Show Target of Target Frame"])
+	end,
+	focus = function()
+		return UnitPage("focus", L["Show Focus Frame"])
+	end,
+	boss = function()
+		return UnitPage("boss", L["Show Boss Frames"])
+	end,
+	playerPower = PowerPage,
+}
+
+---@param key string a frame with a page of its own
+---@return table[] elements the frame's page, as built now
+function Pages:BuildFrame(key)
+	local build = assert(FRAME_PAGES[key], key)
+
+	return build()
 end
 
 ---A page whose Defaults button resets one profile scope.
@@ -380,26 +389,14 @@ end
 ---@return table[] pages the Unit Frames category's pages, in order
 function Pages:UnitFramePages()
 	return {
-		Page("globals", L["Globals"], { "numbers", "overlays" }, GlobalsPage),
-		Page("player", PLAYER, "frames.player", function()
-			return UnitPage("player", L["Show Player Frame"])
-		end),
-		Page("pet", PET, "frames.pet", function()
-			return UnitPage("pet", L["Show Pet Frame"])
-		end),
-		Page("target", TARGET, "frames.target", function()
-			return UnitPage("target", L["Show Target Frame"])
-		end),
-		Page("targettarget", L["Target of Target"], "frames.targettarget", function()
-			return UnitPage("targettarget", L["Show Target of Target Frame"])
-		end),
-		Page("focus", L["Focus"], "frames.focus", function()
-			return UnitPage("focus", L["Show Focus Frame"])
-		end),
-		Page("boss", L["Bosses"], "frames.boss", function()
-			return UnitPage("boss", L["Show Boss Frames"])
-		end),
-		Page("playerPower", L["Player Power"], "frames.playerPower", PowerPage),
+		Page("globals", L["Globals"], { "bars", "text", "castbar", "auras", "numbers", "overlays" }, GlobalsPage),
+		Page("player", PLAYER, "frames.player", FRAME_PAGES.player),
+		Page("pet", PET, "frames.pet", FRAME_PAGES.pet),
+		Page("target", TARGET, "frames.target", FRAME_PAGES.target),
+		Page("targettarget", L["Target of Target"], "frames.targettarget", FRAME_PAGES.targettarget),
+		Page("focus", L["Focus"], "frames.focus", FRAME_PAGES.focus),
+		Page("boss", L["Bosses"], "frames.boss", FRAME_PAGES.boss),
+		Page("playerPower", L["Player Power"], "frames.playerPower", FRAME_PAGES.playerPower),
 		Page("classPower", L["Class Resource"], "frames.classPower", function()
 			return AUI.SettingsClassPower:Build()
 		end),

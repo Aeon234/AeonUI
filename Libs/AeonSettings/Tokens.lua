@@ -25,6 +25,7 @@ AS.tokens = {
 	font = {
 		bodySize = 14,
 		headerSize = 18,
+		tagSize = 12,
 		shadowOffset = { 1, -1 },
 	},
 	space = {
@@ -41,6 +42,7 @@ AS.tokens = {
 		labelToControl = 12,
 		sliderToBox = 8,
 		speakerGap = 4,
+		tagGap = 4,
 	},
 	size = {
 		row = 36,
@@ -55,6 +57,7 @@ AS.tokens = {
 		sectionHeader = 28,
 		speaker = 24,
 		speakerIcon = 20,
+		useShared = 16,
 	},
 	motion = {
 		slide = 0.20,

@@ -15,6 +15,7 @@ local MAX_DEPTH = 32
 ---@field maxLength integer? the longest string accepted
 ---@field allowEmpty boolean? a string may be empty
 ---@field optional boolean? absence is meaningful: the setting follows a shared one
+---@field shared string? the setting an optional field reads while it holds no value of its own
 
 ---Every setting a profile can hold. A profile's config is validated against these fields; keys outside them are
 ---dormant data from another version and are kept as they are, provided they are plain data.
@@ -25,8 +26,9 @@ local MAX_DEPTH = 32
 ---@field order string[] field paths in declaration order
 ---@field branches table<string, true> every path that is a table on the way to a field
 ---@field choices table<string, string[]> each choice list in display order
+---@field upgrades table<integer, fun(config: table)> step from the keyed version to the next
 local Schema = {
-	VERSION = 1,
+	VERSION = 2,
 	textSlots = {
 		player = 4,
 		pet = 3,
@@ -83,6 +85,7 @@ local Schema = {
 		auraSort = { "stable", "shortest", "yours", "blizzard", "importance", "name" },
 		auraCorner = { "BOTTOMRIGHT", "BOTTOMLEFT", "TOPRIGHT", "TOPLEFT", "CENTER" },
 	},
+	upgrades = {},
 }
 AUI.Schema = Schema
 
@@ -148,7 +151,82 @@ local function Color(path, default)
 	Field(path, { kind = "color", default = default, optional = default == nil })
 end
 
--- How numbers are shown on every frame; each frame can override these below.
+---A frame setting that follows a shared one until it holds its own value: optional, with the shared field's kind
+---and bounds.
+---@param path string
+---@param shared string the shared field, declared first
+local function Inherit(path, shared)
+	local source = assert(Schema.fields[shared], shared)
+
+	Field(path, {
+		kind = source.kind,
+		min = source.min,
+		max = source.max,
+		integer = source.integer,
+		options = source.options,
+		maxLength = source.maxLength,
+		allowEmpty = source.allowEmpty,
+		optional = true,
+		shared = shared,
+	})
+end
+
+-- Shared appearance ------------------------------------------------------------------------------------------
+-- Every frame follows these until it holds its own value.
+
+String("bars.texture", "flat", 64)
+String("bars.powerTexture", "flat", 64)
+Color("bars.background", { r = 0.067, g = 0.067, b = 0.067, a = 1 })
+Number("bars.border", 1, 0, 4, true)
+Color("bars.borderColor", { r = 0, g = 0, b = 0, a = 1 })
+
+String("text.font", "Expressway", 64)
+Number("text.size", 12, 6, 48, true)
+Choice("text.outline", "outline", "SLUG_OUTLINE")
+Color("text.color", { r = 1, g = 1, b = 1 })
+
+-- The cast bar look, as paths under a frame's `castbar.`.
+local CASTBAR_LOOK = {
+	"texture", "color", "gradient", "gradientColor", "gradientDirection", "classColor", "background", "border", "spark",
+	"smooth", "outline", "shadow", "notInterruptible", "interrupted", "name.size", "name.color", "time.size",
+	"time.color", "target.size",
+}
+
+String("castbar.texture", "flat", 64)
+Color("castbar.color", { r = 1, g = 0.71, b = 0.192 })
+Boolean("castbar.gradient", true)
+Color("castbar.gradientColor", { r = 1, g = 0.682, b = 0.224 })
+Choice("castbar.gradientDirection", "orientation", "HORIZONTAL")
+Boolean("castbar.classColor", false)
+Color("castbar.background", { r = 1, g = 1, b = 1, a = 0.5 })
+Number("castbar.border", 1, 0, 4, true)
+Boolean("castbar.spark", true)
+Boolean("castbar.smooth", true)
+Choice("castbar.outline", "outline", "SLUG")
+Boolean("castbar.shadow", true)
+Color("castbar.notInterruptible", { r = 0.8, g = 0.1, b = 0.1 })
+Color("castbar.interrupted", { r = 0.8, g = 0.1, b = 0.1 })
+Number("castbar.name.size", 14, 6, 48, true)
+Color("castbar.name.color", { r = 1, g = 1, b = 1 })
+Number("castbar.time.size", 14, 6, 48, true)
+Color("castbar.time.color", { r = 1, g = 1, b = 1 })
+Number("castbar.target.size", 14, 6, 48, true)
+
+-- The aura look, as paths under a frame's `buffs.` and `debuffs.`.
+local AURA_LOOK = { "swipe", "border", "duration", "durationSize", "countCorner", "countSize" }
+
+Boolean("auras.swipe", true)
+Boolean("auras.border", true)
+Boolean("auras.duration", false)
+Number("auras.durationSize", 10, 6, 32, true)
+Choice("auras.countCorner", "auraCorner", "BOTTOMRIGHT")
+Number("auras.countSize", 14, 6, 32, true)
+
+String("overlays.textures.absorb", "flat", 64)
+String("overlays.textures.healAbsorb", "flat", 64)
+String("overlays.textures.healPrediction", "flat", 64)
+
+-- How numbers are shown on every frame.
 Choice("numbers.precision", "precision", "default")
 Number("numbers.percentDecimals", 0, 0, 1, true)
 
@@ -156,6 +234,11 @@ Number("numbers.percentDecimals", 0, 0, 1, true)
 Color("overlays.colors.absorb", { r = 0.502, g = 0.753, b = 1, a = 0.8 })
 Color("overlays.colors.healAbsorb", { r = 0.502, g = 0.251, b = 1, a = 1 })
 Color("overlays.colors.healPrediction", { r = 0.251, g = 1, b = 0.251, a = 1 })
+
+Schema.CASTBAR_LOOK = CASTBAR_LOOK
+Schema.AURA_LOOK = AURA_LOOK
+
+-- Frames -----------------------------------------------------------------------------------------------------
 
 ---@class AUITextSlotDefault
 ---@field content string
@@ -197,13 +280,13 @@ local function TextFields(key, status, statusLine, slots)
 	local text = base .. "text."
 	local count = Schema.textSlots[key]
 
-	Choice(base .. "numbers.precision", "precision", nil)
-	Number(base .. "numbers.percentDecimals", nil, 0, 1, true)
+	Inherit(base .. "numbers.precision", "numbers.precision")
+	Inherit(base .. "numbers.percentDecimals", "numbers.percentDecimals")
 
-	String(text .. "font", "Expressway", 64)
-	Number(text .. "size", 12, 6, 48, true)
-	Choice(text .. "outline", "outline", "SLUG_OUTLINE")
-	Color(text .. "color", { r = 1, g = 1, b = 1 })
+	for _, name in ipairs({ "font", "size", "outline", "color" }) do
+		Inherit(text .. name, "text." .. name)
+	end
+
 	Number(text .. "status", status, 0, count, true)
 	Choice(text .. "nameFormat", "nameFormat", "first")
 
@@ -232,6 +315,26 @@ local function Geometry(key, width, height, minHeight, x, y)
 	Number(base .. "y", y, -3000, 3000)
 end
 
+---A frame's bar look, following the shared one.
+---@param key string
+---@param health boolean the frame has a health bar
+---@param power boolean the frame has a power bar, its own or attached
+local function Bars(key, health, power)
+	local base = "frames." .. key .. ".bars."
+
+	if health then
+		Inherit(base .. "texture", "bars.texture")
+	end
+
+	if power then
+		Inherit(base .. "powerTexture", "bars.powerTexture")
+	end
+
+	Inherit(base .. "background", "bars.background")
+	Inherit(base .. "border", "bars.border")
+	Inherit(base .. "borderColor", "bars.borderColor")
+end
+
 ---The health overlays of a frame: shields, heal absorbs and heal prediction.
 ---@param key string
 local function Overlays(key)
@@ -244,7 +347,7 @@ local function Overlays(key)
 		Choice(path .. "position", "overlayPosition", "attach")
 		Number(path .. "height", 4, 1, 40, true)
 		Boolean(path .. "matchHeight", true)
-		String(path .. "texture", "flat", 64)
+		Inherit(path .. "texture", "overlays.textures." .. kind)
 	end
 
 	Choice(base .. "absorb.overshield", "overshield", "always")
@@ -265,7 +368,6 @@ end
 ---@param defaults table `width`, `x`, `y`, `icon`, `target` (show the cast target), and `side` for an attached bar
 local function CastBar(key, defaults)
 	local base = "frames." .. key .. ".castbar."
-	local white = { r = 1, g = 1, b = 1 }
 
 	Boolean(base .. "enabled", true)
 	Number(base .. "width", defaults.width, 40, 800, true)
@@ -280,38 +382,24 @@ local function CastBar(key, defaults)
 
 	Choice(base .. "strata", "strata", "MEDIUM")
 	Boolean(base .. "alwaysShow", false)
-	String(base .. "texture", "flat", 64)
-	Color(base .. "color", { r = 1, g = 0.71, b = 0.192 })
-	Boolean(base .. "gradient", true)
-	Color(base .. "gradientColor", { r = 1, g = 0.682, b = 0.224 })
-	Choice(base .. "gradientDirection", "orientation", "HORIZONTAL")
-	Boolean(base .. "classColor", false)
-	Color(base .. "background", { r = 1, g = 1, b = 1, a = 0.5 })
-	Number(base .. "border", 1, 0, 4, true)
-	Boolean(base .. "spark", true)
+
+	for _, name in ipairs(CASTBAR_LOOK) do
+		Inherit(base .. name, "castbar." .. name)
+	end
+
 	Boolean(base .. "reverse", false)
-	Boolean(base .. "smooth", true)
 	Boolean(base .. "icon", defaults.icon)
 	Choice(base .. "iconSide", "iconSide", "LEFT")
 	Boolean(base .. "name.enabled", true)
-	Number(base .. "name.size", 14, 6, 48, true)
-	Color(base .. "name.color", white)
 	Number(base .. "name.x", 0, -200, 200)
 	Number(base .. "name.y", 0, -200, 200)
 	Number(base .. "name.maxLength", 0, 0, 60, true)
 	Boolean(base .. "time.enabled", true)
-	Number(base .. "time.size", 14, 6, 48, true)
-	Color(base .. "time.color", white)
 	Number(base .. "time.x", 0, -200, 200)
 	Number(base .. "time.y", 0, -200, 200)
 	Choice(base .. "time.format", "timeFormat", "remaining")
-	Choice(base .. "outline", "outline", "SLUG")
-	Boolean(base .. "shadow", true)
-	Color(base .. "notInterruptible", { r = 0.8, g = 0.1, b = 0.1 })
-	Color(base .. "interrupted", { r = 0.8, g = 0.1, b = 0.1 })
 	Number(base .. "holdTime", 0.6, 0, 3)
 	Boolean(base .. "target.enabled", defaults.target)
-	Number(base .. "target.size", 14, 6, 48, true)
 	Number(base .. "target.x", 0, -200, 200)
 	Number(base .. "target.y", 0, -200, 200)
 
@@ -375,16 +463,14 @@ local function AuraDisplay(key, kind, defaults)
 	Boolean(base .. "reverse", false)
 	Boolean(base .. "clicks", false)
 	Boolean(base .. "tooltips", true)
-	Boolean(base .. "duration", false)
-	Number(base .. "durationSize", 10, 6, 32, true)
 	Number(base .. "durationX", 0, -40, 40)
 	Number(base .. "durationY", 0, -40, 40)
-	Choice(base .. "countCorner", "auraCorner", "BOTTOMRIGHT")
-	Number(base .. "countSize", 14, 6, 32, true)
 	Number(base .. "countX", -1, -40, 40)
 	Number(base .. "countY", 0, -40, 40)
-	Boolean(base .. "swipe", true)
-	Boolean(base .. "border", true)
+
+	for _, name in ipairs(AURA_LOOK) do
+		Inherit(base .. name, "auras." .. name)
+	end
 end
 
 ---@param key string
@@ -445,6 +531,7 @@ local NAME_ONLY = {
 Geometry("player", 270, 36, 16, -330, -200)
 Boolean("frames.player.hideBlizzard", true)
 Boolean("frames.player.reverse", false)
+Bars("player", true, false)
 Overlays("player")
 CastBar("player", { width = 386, x = 0, y = -254, icon = false, target = false })
 Auras("player", Buffs(false), { enabled = false, anchor = "belowLeft", growth = "right", limit = 10, filter = "all" })
@@ -467,6 +554,7 @@ TextFields("player", 1, false, {
 Geometry("target", 270, 36, 16, 330, -200)
 Boolean("frames.target.hideBlizzard", true)
 Boolean("frames.target.reverse", true)
+Bars("target", true, true)
 AttachedPower("target")
 Overlays("target")
 CastBar("target", { width = 270, x = 0, y = 0, icon = true, target = true, side = "below" })
@@ -488,6 +576,7 @@ TextFields("target", 1, false, {
 Geometry("pet", 120, 24, 16, -405, -234)
 Boolean("frames.pet.hideBlizzard", true)
 Boolean("frames.pet.reverse", false)
+Bars("pet", true, true)
 AttachedPower("pet")
 TextFields("pet", 0, true, NAME_ONLY)
 Indicator("pet", "raid", true, 14, "RIGHT", "outside", 2)
@@ -496,6 +585,7 @@ Tooltip("pet")
 
 Geometry("targettarget", 120, 24, 16, 533, -206)
 Boolean("frames.targettarget.reverse", false)
+Bars("targettarget", true, true)
 AttachedPower("targettarget")
 TextFields("targettarget", 0, true, NAME_ONLY)
 Indicator("targettarget", "raid", true, 14, "RIGHT", "outside", 2)
@@ -504,6 +594,7 @@ Tooltip("targettarget")
 Geometry("focus", 200, 24, 16, -330, -140)
 Boolean("frames.focus.hideBlizzard", true)
 Boolean("frames.focus.reverse", false)
+Bars("focus", true, true)
 AttachedPower("focus")
 Overlays("focus")
 CastBar("focus", { width = 200, x = 0, y = 0, icon = false, target = true, side = "above" })
@@ -521,6 +612,7 @@ Boolean("frames.boss.hideBlizzard", true)
 Choice("frames.boss.growth", "growth", "down")
 Number("frames.boss.spacing", 14, 0, 100, true)
 Boolean("frames.boss.reverse", false)
+Bars("boss", true, true)
 AttachedPower("boss")
 Overlays("boss")
 CastBar("boss", { width = 200, x = 0, y = 0, icon = true, target = false, side = "below" })
@@ -534,6 +626,7 @@ TextFields("boss", 2, nil, {
 })
 
 Geometry("playerPower", 360, 12, 4, 0, -184)
+Bars("playerPower", false, true)
 TextFields("playerPower", 0, nil, {
 	{ content = "power", anchor = "CENTER", placement = "inside" },
 })
@@ -758,10 +851,23 @@ function Schema:Read(config, path)
 	if value == nil then
 		local field = self.fields[path]
 
+		if field and field.shared then
+			return self:Read(config, field.shared)
+		end
+
 		return field and field.default
 	end
 
 	return value
+end
+
+---@param config table
+---@param path string
+---@return boolean custom the setting follows a shared one and holds its own value
+function Schema:IsCustom(config, path)
+	local field = self.fields[path]
+
+	return field ~= nil and field.shared ~= nil and Lookup(config, path) ~= nil
 end
 
 ---Writes a value at a path, creating the tables on the way.
@@ -802,6 +908,105 @@ function Schema:Clear(config, path)
 	if type(parent) == "table" then
 		parent[key or path] = nil
 	end
+end
+
+---@param a any
+---@param b any
+---@return boolean equal the same plain value, tables compared by content
+local function SameValue(a, b)
+	if type(a) ~= "table" or type(b) ~= "table" then
+		return a == b
+	end
+
+	for key, value in pairs(a) do
+		if not SameValue(value, b[key]) then
+			return false
+		end
+	end
+
+	for key in pairs(b) do
+		if a[key] == nil then
+			return false
+		end
+	end
+
+	return true
+end
+
+-- Version 1 stored every frame's appearance; version 2 lets a frame follow the shared appearance. Each frame value
+-- equal to its version 1 default is removed so the frame follows the shared one. Keyed by the path under a frame.
+local V1_DEFAULTS = {
+	["text.font"] = "Expressway",
+	["text.size"] = 12,
+	["text.outline"] = "SLUG_OUTLINE",
+	["text.color"] = { r = 1, g = 1, b = 1 },
+	["castbar.texture"] = "flat",
+	["castbar.color"] = { r = 1, g = 0.71, b = 0.192 },
+	["castbar.gradient"] = true,
+	["castbar.gradientColor"] = { r = 1, g = 0.682, b = 0.224 },
+	["castbar.gradientDirection"] = "HORIZONTAL",
+	["castbar.classColor"] = false,
+	["castbar.background"] = { r = 1, g = 1, b = 1, a = 0.5 },
+	["castbar.border"] = 1,
+	["castbar.spark"] = true,
+	["castbar.smooth"] = true,
+	["castbar.outline"] = "SLUG",
+	["castbar.shadow"] = true,
+	["castbar.notInterruptible"] = { r = 0.8, g = 0.1, b = 0.1 },
+	["castbar.interrupted"] = { r = 0.8, g = 0.1, b = 0.1 },
+	["castbar.name.size"] = 14,
+	["castbar.name.color"] = { r = 1, g = 1, b = 1 },
+	["castbar.time.size"] = 14,
+	["castbar.time.color"] = { r = 1, g = 1, b = 1 },
+	["castbar.target.size"] = 14,
+	["overlays.absorb.texture"] = "flat",
+	["overlays.healAbsorb.texture"] = "flat",
+	["overlays.healPrediction.texture"] = "flat",
+}
+
+for _, kind in ipairs({ "buffs", "debuffs" }) do
+	V1_DEFAULTS[kind .. ".swipe"] = true
+	V1_DEFAULTS[kind .. ".border"] = true
+	V1_DEFAULTS[kind .. ".duration"] = false
+	V1_DEFAULTS[kind .. ".durationSize"] = 10
+	V1_DEFAULTS[kind .. ".countCorner"] = "BOTTOMRIGHT"
+	V1_DEFAULTS[kind .. ".countSize"] = 14
+end
+
+Schema.upgrades[1] = function(config)
+	if type(config.frames) ~= "table" then
+		return
+	end
+
+	for key in pairs(config.frames) do
+		for path, default in pairs(V1_DEFAULTS) do
+			local full = ("frames.%s.%s"):format(tostring(key), path)
+
+			if SameValue(Lookup(config, full), default) then
+				Schema:Clear(config, full)
+			end
+		end
+	end
+end
+
+---Brings a config from an older schema version to this one, in place, one step at a time.
+---@param config table
+---@param version integer the config's schema version
+---@return boolean ok
+---@return string? problem
+function Schema:Upgrade(config, version)
+	while version < self.VERSION do
+		local step = self.upgrades[version]
+
+		if not step then
+			return false, ("there is no upgrade from profile schema %d"):format(version)
+		end
+
+		step(config)
+		version = version + 1
+	end
+
+	return true
 end
 
 ---@param config table

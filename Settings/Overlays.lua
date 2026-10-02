@@ -87,7 +87,10 @@ function Overlays:Sections(key)
 	end
 
 	local absorb, healAbsorb, prediction = base .. "absorb.", base .. "healAbsorb.", base .. "healPrediction."
-	local elements = { Section("absorbsAndHeals", L["Absorbs and Heals"]) }
+	local Shared = AUI.SettingsShared
+	local elements = {
+		Shared:Section("absorbsAndHeals", L["Absorbs and Heals"], key, Shared.SCOPES.absorbsAndHeals, false),
+	}
 
 	local function Append(list)
 		for _, element in ipairs(list) do
@@ -137,10 +140,18 @@ function Overlays:Sections(key)
 	return elements
 end
 
----@return table[] elements the Globals page's Absorbs and Heals colors
+---@return table[] elements the Globals page's Absorbs and Heals textures and colors
 function Overlays:GlobalSection()
+	local texture = { picker = "texture", options = Pages.TEXTURES }
+
 	return {
 		Section("absorbsAndHeals", L["Absorbs and Heals"]),
+		Row(
+			Pages.Setting("dropdown", "absorbTexture", L["Absorb Texture"], "overlays.textures.absorb", texture),
+			Pages.Setting("dropdown", "healAbsorbTexture", L["Heal Absorb Texture"], "overlays.textures.healAbsorb", texture)
+		),
+		Row(Pages.Setting("dropdown", "healPredictionTexture", L["Heal Prediction Texture"],
+			"overlays.textures.healPrediction", texture)),
 		Row(
 			Pages.Color("absorbColor", L["Absorb Color"], "overlays.colors.absorb", { hasOpacity = true }),
 			Pages.Color("healAbsorbColor", L["Heal Absorb Color"], "overlays.colors.healAbsorb", { hasOpacity = true })

@@ -4,8 +4,7 @@ local L = AUI.L
 local Schema = AUI.Schema
 local Pages = AUI.SettingsPages
 
-local Section, Row, Choice, Slider, Check, Color = Pages.Section, Pages.Row, Pages.Choice, Pages.Slider, Pages.Check,
-	Pages.Color
+local Row, Choice, Slider, Check, Color = Pages.Row, Pages.Choice, Pages.Slider, Pages.Check, Pages.Color
 
 -- Offsets an attached bar takes from its frame, beyond the fixed gap.
 local ATTACHED_OFFSET = 200
@@ -47,7 +46,9 @@ local TIME_FORMATS = {
 
 ---The Cast Bar section of the player, target, focus and boss pages.
 ---@class AUISettingsCastBar
-local CastBar = {}
+local CastBar = {
+	ORIENTATIONS = ORIENTATIONS,
+}
 AUI.SettingsCastBar = CastBar
 
 ---@param key string a frame with a cast bar
@@ -82,8 +83,9 @@ function CastBar:Sections(key)
 	local borderMin, borderMax = Pages.Range(base .. "border")
 	local holdMin, holdMax = Pages.Range(base .. "holdTime")
 
+	local Shared = AUI.SettingsShared
 	local elements = {
-		Section("castBar", L["Cast Bar"]),
+		Shared:Section("castBar", L["Cast Bar"], key, Shared.SCOPES.castBar, true),
 		Row(
 			Check("castEnabled", L["Show Cast Bar"], base .. "enabled", {
 				description = attached and nil or L["Replaces Blizzard's player cast bar while shown."],

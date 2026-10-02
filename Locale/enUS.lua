@@ -70,11 +70,31 @@ L["Slug Outline"] = "Slug Outline"
 L["Slug Thick Outline"] = "Slug Thick Outline"
 L["Power"] = "Power"
 L["Player Power"] = "Player Power"
+L["Appearance"] = "Appearance"
 
 -- Globals page (Settings)
 L["Globals"] = "Globals"
 L["How large numbers are shortened, such as 588K or 588.4K."] =
 	"How large numbers are shortened, such as 588K or 588.4K."
+
+-- Shared appearance and section headers (Settings)
+L["Bars"] = "Bars"
+L["Health Texture"] = "Health Texture"
+L["Power Texture"] = "Power Texture"
+L["Border Color"] = "Border Color"
+L["Cast Bars"] = "Cast Bars"
+L["Auras"] = "Auras"
+L["Aura Borders"] = "Aura Borders"
+L["The stealable glow on buffs and the dispel type border on debuffs."] =
+	"The stealable glow on buffs and the dispel type border on debuffs."
+L["Use Shared"] = "Use Shared"
+L["Return %s to the shared settings?"] = "Return %s to the shared settings?"
+L["This section follows the shared settings."] = "This section follows the shared settings."
+L["Copy From"] = "Copy From"
+L["Copy"] = "Copy"
+L["Replace this frame's %s settings with those of %s?"] = "Replace this frame's %s settings with those of %s?"
+L["Copied %s from %s."] = "Copied %s from %s."
+L["Not copied, as %s has no place for them: %s."] = "Not copied, as %s has no place for them: %s."
 
 -- Player, Target, Target of Target, Focus and Bosses pages (Settings)
 L["Show Player Frame"] = "Show Player Frame"
@@ -101,7 +121,6 @@ L["A power bar under health. It adds to the frame's height."] =
 L["Power Bar Height"] = "Power Bar Height"
 L["Reverse Fill"] = "Reverse Fill"
 L["Fill the bar from right to left."] = "Fill the bar from right to left."
-L["Global (%s)"] = "Global (%s)"
 
 -- Player Power page (Settings)
 L["Show Player Power Bar"] = "Show Player Power Bar"
@@ -114,7 +133,6 @@ L["Player Power Bar"] = "Player Power Bar"
 L["Screen"] = "Screen"
 L["Above the player power bar, or anywhere on the screen."] = "Above the player power bar, or anywhere on the screen."
 L["Follows the player power bar."] = "Follows the player power bar."
-L["Appearance"] = "Appearance"
 L["Segment Borders"] = "Segment Borders"
 L["Charged Color"] = "Charged Color"
 L["Combo points charged by a talent or effect."] = "Combo points charged by a talent or effect."
@@ -148,9 +166,6 @@ L["Full Name"] = "Full Name"
 L["Text Slots"] = "Text Slots"
 L["Use Text Style"] = "Use Text Style"
 L["This slot uses the frame's text style."] = "This slot uses the frame's text style."
-L["Copy Text From"] = "Copy Text From"
-L["Copy"] = "Copy"
-L["Replace this frame's text with the text of %s?"] = "Replace this frame's text with the text of %s?"
 L["Slot"] = "Slot"
 L["Text %d: %s"] = "Text %d: %s"
 L["Content"] = "Content"
@@ -181,12 +196,6 @@ L["Color Mode"] = "Color Mode"
 L["Class / Reaction"] = "Class / Reaction"
 L["Level Difficulty"] = "Level Difficulty"
 L["Custom for this slot."] = "Custom for this slot."
-L["Apply to All Frames"] = "Apply to All Frames"
-L["Apply"] = "Apply"
-L["Copy this slot's settings to the same slot on every other frame."] =
-	"Copy this slot's settings to the same slot on every other frame."
-L["Copy the settings of Text %d to the same slot on every other frame?"] =
-	"Copy the settings of Text %d to the same slot on every other frame?"
 
 -- Absorbs and Heals sections (Settings)
 L["Absorbs and Heals"] = "Absorbs and Heals"

@@ -251,7 +251,8 @@ local function Wrap(fields)
 	return Codec:Encode(Codec.PREFIX, fields)
 end
 
-local valid = { addon = "AeonUI", version = 1, name = "N", profile = {} }
+local VERSION = AUI.Schema.VERSION
+local valid = { addon = "AeonUI", version = VERSION, name = "N", profile = {} }
 Equal("a minimal profile decodes", Profile:Decode(Wrap(valid)) ~= nil, true)
 local function Refused(name, fields, expected)
 	local result, why = Profile:Decode(Wrap(fields))
@@ -261,12 +262,26 @@ end
 local NOT_OURS = "This is not an AeonUI profile string, or it was cut short."
 local NEWER = "This profile string was made by a newer version of AeonUI."
 local UNUSABLE = "This profile string holds settings AeonUI can't use."
-Refused("another addon's payload", { addon = "Levelbound", version = 1, name = "N", profile = {} }, NOT_OURS)
-Refused("a newer profile schema", { addon = "AeonUI", version = 2, name = "N", profile = {} }, NEWER)
-Refused("no name", { addon = "AeonUI", version = 1, profile = {} }, UNUSABLE)
-Refused("no profile", { addon = "AeonUI", version = 1, name = "N" }, UNUSABLE)
-Refused("a bad setting", { addon = "AeonUI", version = 1, name = "N", profile = { frames = { player = { width = 1 } } } },
-	UNUSABLE)
+Refused("another addon's payload", { addon = "Levelbound", version = VERSION, name = "N", profile = {} }, NOT_OURS)
+Refused("a newer profile schema", { addon = "AeonUI", version = VERSION + 1, name = "N", profile = {} }, NEWER)
+Refused("no name", { addon = "AeonUI", version = VERSION, profile = {} }, UNUSABLE)
+Refused("no profile", { addon = "AeonUI", version = VERSION, name = "N" }, UNUSABLE)
+Refused("a bad setting", {
+	addon = "AeonUI",
+	version = VERSION,
+	name = "N",
+	profile = { frames = { player = { width = 1 } } },
+}, UNUSABLE)
+Refused("schema 0", { addon = "AeonUI", version = 0, name = "N", profile = {} }, UNUSABLE)
+local upgraded = Profile:Decode(Wrap({
+	addon = "AeonUI",
+	version = 1,
+	name = "Old",
+	profile = { frames = { player = { text = { font = "Expressway", size = 15 } } } },
+}))
+Equal("a schema 1 string decodes", upgraded ~= nil, true)
+Equal("a schema 1 default becomes Shared", upgraded and upgraded.config.frames.player.text.font, nil)
+Equal("a schema 1 custom value stays", upgraded and upgraded.config.frames.player.text.size, 15)
 local _, why = Profile:Decode("AUI!9!" .. body)
 Equal("a newer format reason", why, NEWER)
 

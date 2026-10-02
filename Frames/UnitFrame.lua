@@ -2,9 +2,6 @@ local AUI = select(2, ...)
 
 local Schema = AUI.Schema
 
--- The frame's background behind the bar's fill.
-local BACKGROUND = 0.067
-
 ---Behavior shared by AeonUI's oUF frames, mixed into each.
 ---@class AUIUnitFrame : Button
 ---@field unit string?
@@ -15,6 +12,7 @@ local BACKGROUND = 0.067
 ---@field DisableElement fun(self: AUIUnitFrame, name: string) oUF: deactivate an element
 ---@field Main Frame the holder of the main bar, at the top of the frame
 ---@field PowerHolder Frame? the attached power bar's holder, on frames that have one
+---@field PowerBackground Texture?
 ---@field PowerBorder Texture[]?
 ---@field Overlays AUIOverlayWidgets? the health overlays, on frames that have them
 ---@field CastBarWidgets AUICastBarWidgets? the cast bar, on frames that have one
@@ -38,22 +36,19 @@ local UnitFrame = {
 AUI.UnitFrame = UnitFrame
 
 ---@param parent Frame
----@return Texture[] edges top, bottom, left and right, each one physical pixel
+---@return Texture[] edges top, bottom, left and right
 local function Border(parent)
 	local edges = {}
 
 	for index = 1, 4 do
-		local edge = parent:CreateTexture(nil, "OVERLAY", nil, 7)
-
-		edge:SetColorTexture(0, 0, 0, 1)
-		edges[index] = edge
+		edges[index] = parent:CreateTexture(nil, "OVERLAY", nil, 7)
 	end
 
 	return edges
 end
 
----Gives a frame the look every AeonUI bar shares: a background, one flat bar filling the frame, and a border.
----Used by the live frames and the settings previews alike.
+---Creates the parts every AeonUI bar has: a background, one bar filling the frame, and a border. `StyleBar` gives
+---them their look. Used by the live frames and the settings previews alike.
 ---@param frame Frame
 ---@return StatusBar bar
 ---@return Texture background
@@ -62,15 +57,54 @@ function UnitFrame:CreateBar(frame)
 	local background = frame:CreateTexture(nil, "BACKGROUND")
 
 	background:SetAllPoints()
-	background:SetColorTexture(BACKGROUND, BACKGROUND, BACKGROUND, 1)
 
 	local bar = CreateFrame("StatusBar", nil, frame)
 
 	bar:SetAllPoints()
-	bar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
-	bar:GetStatusBarTexture():SetColorTexture(1, 1, 1, 1)
 
 	return bar, background, Border(bar)
+end
+
+---@class AUIBarLook
+---@field texture string a bar texture choice
+---@field background table the background color
+---@field border number the border size in physical pixels; 0 hides it
+---@field borderColor table
+
+---A frame's bar look, its own values or the shared ones.
+---@param config table
+---@param key string
+---@param power boolean? the look of the frame's power bar
+---@return AUIBarLook look
+function UnitFrame:BarLook(config, key, power)
+	local base = "frames." .. key .. ".bars."
+
+	return {
+		texture = Schema:Read(config, base .. (power and "powerTexture" or "texture")),
+		background = Schema:Read(config, base .. "background"),
+		border = Schema:Read(config, base .. "border"),
+		borderColor = Schema:Read(config, base .. "borderColor"),
+	}
+end
+
+---Applies a bar look to the parts `CreateBar` made.
+---@param bar StatusBar
+---@param background Texture
+---@param border Texture[]
+---@param look AUIBarLook
+---@param pixel number one physical pixel in the bar's units
+function UnitFrame:StyleBar(bar, background, border, look, pixel)
+	local fill, edge = look.background, look.borderColor
+
+	AUI.Media:SetBarTexture(bar, look.texture)
+	background:SetColorTexture(fill.r, fill.g, fill.b, fill.a or 1)
+
+	for _, texture in ipairs(border) do
+		texture:SetColorTexture(edge.r, edge.g, edge.b, edge.a or 1)
+		texture:SetShown(look.border > 0)
+	end
+
+	self:LayoutBorder(border, bar, look.border * pixel)
 end
 
 ---Places a border's edges inside a bar's edges.
@@ -196,12 +230,13 @@ function UnitFrame.HealthStyle(frame, unit)
 
 	if Schema:Field("frames." .. frame.key .. ".power.enabled") then
 		local holder = CreateFrame("Frame", nil, frame)
-		local power, _, border = UnitFrame:CreateBar(holder)
+		local power, background, border = UnitFrame:CreateBar(holder)
 
 		power.colorPower = true
 		power.frequentUpdates = true
 		frame.Power = power
 		frame.PowerHolder = holder
+		frame.PowerBackground = background
 		frame.PowerBorder = border
 	end
 
@@ -259,16 +294,19 @@ function UnitFrameMixin:OnEnter()
 	UnitFrame_OnEnter(self)
 end
 
----Places the one-pixel borders inside the bars' edges at the current scale.
-function UnitFrameMixin:UpdateBorder()
+---Gives the bars their look at the current scale: texture, background and border. The central power bar's one bar is
+---a power bar.
+---@param config table the active profile config
+function UnitFrameMixin:StyleBars(config)
 	local pixel = AUI:Pixel(self)
+	local look = UnitFrame:BarLook(config, self.key, self.key == "playerPower")
 
-	UnitFrame:LayoutBorder(self.Border, self.Bar, pixel)
+	UnitFrame:StyleBar(self.Bar, self.Background, self.Border, look, pixel)
 
-	local power, border = self.Power, self.PowerBorder
+	local power = self.Power
 
-	if power and border then
-		UnitFrame:LayoutBorder(border, power, pixel)
+	if self.PowerHolder and power and self.PowerBackground and self.PowerBorder then
+		UnitFrame:StyleBar(power, self.PowerBackground, self.PowerBorder, UnitFrame:BarLook(config, self.key, true), pixel)
 	end
 end
 
@@ -334,15 +372,15 @@ function UnitFrameMixin:ApplyLayout(config)
 	else
 		self:Disable()
 	end
-
-	self:UpdateBorder()
 end
 
----Fill direction and text. Neither is protected, so this also runs in combat.
+---Bar look, fill direction, overlays, cast bar, auras, indicators and text. None is protected, so this also runs in
+---combat.
 ---@param config table the active profile config
 function UnitFrameMixin:ApplyAppearance(config)
 	local reverse = Schema:Read(config, "frames." .. self.key .. ".reverse")
 
+	self:StyleBars(config)
 	self.Bar:SetReverseFill(reverse == true)
 
 	local power = self.Power
@@ -359,10 +397,6 @@ function UnitFrameMixin:ApplyAppearance(config)
 		local health = self.Health --[[@as table]]
 
 		AUI.Overlays:Apply(overlays, settings, reverse == true, health)
-
-		if self:IsVisible() then
-			health:ForceUpdate()
-		end
 	end
 
 	local cast = self.CastBarWidgets
@@ -386,4 +420,13 @@ function UnitFrameMixin:ApplyAppearance(config)
 
 	AUI.Indicators:Apply(self, config)
 	AUI.Text:Apply(self, self.key, config)
+
+	-- Redraws the bars and overlays with the new settings, in the colors oUF gives them.
+	for _, element in pairs({ health = self.Health, power = power }) do
+		local update = (element --[[@as table]]).ForceUpdate
+
+		if update and element:IsVisible() then
+			update(element)
+		end
+	end
 end

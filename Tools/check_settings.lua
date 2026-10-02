@@ -169,7 +169,7 @@ AUI.Media = {
 for _, file in ipairs({
 	"Core/Callbacks.lua", "Profile/Schema.lua", "Profile/Store.lua", "Profile/Codec.lua", "Profile/Profile.lua",
 	"Frames/Tags.lua", "Frames/Text.lua", "Frames/Overlays.lua", "Frames/CastBar.lua", "Frames/Auras.lua", "Frames/ClassPower.lua", "Frames/Indicators.lua", "Frames/Fading.lua", "Frames/UnitFrame.lua", "Frames/Frames.lua",
-	"Settings/Note.lua", "Settings/Pages.lua", "Settings/TextSlots.lua", "Settings/Overlays.lua", "Settings/CastBar.lua", "Settings/Auras.lua", "Settings/ClassPower.lua", "Settings/Indicators.lua",
+	"Settings/Note.lua", "Settings/Pages.lua", "Settings/Shared.lua", "Settings/TextSlots.lua", "Settings/Overlays.lua", "Settings/CastBar.lua", "Settings/Auras.lua", "Settings/ClassPower.lua", "Settings/Indicators.lua",
 	"Settings/Previews.lua",
 	"Settings/Profiles.lua", "Settings/Recovery.lua", "Settings/Settings.lua",
 }) do
@@ -284,7 +284,7 @@ for _, id in ipairs({ "globals", "player", "pet", "target", "targettarget", "foc
 		Equal(id .. "." .. setting.id .. " is unique", seen[setting.id], nil)
 		seen[setting.id] = true
 
-		if setting.control ~= "action" and setting.id ~= "copyText" then
+		if setting.control ~= "action" and not setting.id:match("CopyFrom$") then
 			local value = setting.get()
 			local result = setting.set(value)
 			Equal(id .. "." .. setting.id .. " saves its own value", result ~= false, true)
@@ -302,18 +302,29 @@ Find(player, "width").set(300)
 Equal("width saved", Profile:Get("frames.player.width"), 300)
 Equal("an out-of-range value is refused", Find(player, "width").set(9000), false)
 
--- Number overrides.
+-- Settings that follow the shared ones: Shared until the frame holds its own value; Use Shared clears it.
+Profile:Reset("frames.player")
+player = pages.player.Build()
 local precision = Find(player, "precision")
-Equal("override follows Globals at first", precision.get(), "__global")
-Equal("global entry names the value", Options(precision)[1].text, "Global (Blizzard Default)")
+Equal("number setting shows the Globals value", precision.get(), "default")
+Equal("number setting inherits", type(precision.inherit), "table")
+Equal("Shared at first", precision.inherit.custom(), false)
 precision.set("decimal")
-Equal("override saved", Profile:Get("frames.player.numbers.precision"), "decimal")
-precision.set("__global")
-Equal("Global clears the override", Profile:Get("frames.player.numbers.precision"), nil)
-local decimals = Find(player, "percentDecimals")
-pages.globals.Build()
+Equal("own value saved", Profile:Get("frames.player.numbers.precision"), "decimal")
+Equal("Custom after a change", precision.inherit.custom(), true)
+precision.inherit.clear()
+Equal("Use Shared clears the own value", Profile:IsCustom("frames.player.numbers.precision"), false)
 Find(pages.globals.Build(), "percentDecimals").set(1)
-Equal("global entry shows the Globals value", Options(decimals)[1].text, "Global (100.0%)")
+Equal("a Shared setting shows the Globals value", Find(player, "percentDecimals").get(), 1)
+Equal("a frame-only setting does not inherit", Find(player, "width").inherit, nil)
+Equal("a Globals setting does not inherit", Find(pages.globals.Build(), "percentDecimals").inherit, nil)
+Equal("bar texture inherits", type(Find(player, "bartexture").inherit), "table")
+Equal("player has no power texture", Find(player, "barpowerTexture"), nil)
+Equal("target has a power texture", type(Find(pages.target.Build(), "barpowerTexture").inherit), "table")
+Equal("cast bar look inherits", type(Find(player, "castColor").inherit), "table")
+Equal("cast bar position does not", Find(player, "castX").inherit, nil)
+Find(pages.globals.Build(), "castColor").set({ r = 0, g = 1, b = 0 })
+Equal("a frame follows a shared change", Find(player, "castColor").get().g, 1)
 
 -- Text slots.
 Equal("slot width is a percentage", Find(player, "slotWidth").format, "percent")
@@ -407,22 +418,40 @@ Equal("globals reset restores colors", Profile:Get("overlays.colors.absorb").a, 
 pages.player.Reset()
 Equal("player reset restores overlays", Profile:Get("frames.player.overlays.absorb.position"), "attach")
 
+-- Copy From and Use Shared on section headers.
 local power = pages.playerPower.Build()
-Equal("copy menu lists the other frames", #Options(Find(power, "copyText")), 6)
-Find(power, "copyText").set("target")
+Equal("text copy menu lists the other frames", #Options(Find(power, "textCopyFrom")), 6)
+Find(power, "textCopyFrom").set("target")
 Equal("copied slot content", Profile:Get("frames.playerPower.text.slots.1.content"), "healthAndPercent")
 Equal("copied second slot", Profile:Get("frames.playerPower.text.slots.2.content"), "levelName")
 Equal("copied status", Profile:Get("frames.playerPower.text.status"), 1)
-AUI.SettingsText:Choose("target", 3)
-local target = pages.target.Build()
-Find(target, "applyToAll").set()
-Equal("slot 3 applied to the player", Profile:Get("frames.player.text.slots.3.content"), "power")
-Equal("slot 3 applied to target of target", Profile:Get("frames.targettarget.text.slots.3.content"), "power")
-Equal("slot 3 applied to focus", Profile:Get("frames.focus.text.slots.3.content"), "power")
-Equal("frames without slot 3 untouched", Schema:Field("frames.playerPower.text.slots.3.content"), nil)
+Equal("a copy is reported", warnings[#warnings - 1]:find("Copied Text from Target.", 1, true) ~= nil, true)
+Equal("slots the frame lacks are named", warnings[#warnings]:find("Text 3", 1, true) ~= nil, true)
 Profile:Set("frames.target.text.status", 4)
-Find(pages.playerPower.Build(), "copyText").set("target")
+Find(pages.playerPower.Build(), "textCopyFrom").set("target")
 Equal("a status the frame cannot hold is not copied", Profile:Get("frames.playerPower.text.status"), 1)
+Equal("the status is named", warnings[#warnings]:find("Status Text In", 1, true) ~= nil, true)
+
+Profile:Reset({ "frames.player.castbar", "frames.target.castbar" })
+Profile:Set("frames.target.castbar.border", 3)
+Profile:Set("frames.player.castbar.color", { r = 0, g = 0, b = 1 })
+Profile:Set("frames.target.castbar.x", 40)
+Find(pages.player.Build(), "castBarCopyFrom").set("target")
+Equal("copy: a Custom value", Profile:Get("frames.player.castbar.border"), 3)
+Equal("copy: a Shared state", Profile:IsCustom("frames.player.castbar.color"), false)
+Equal("copy: position stays", Profile:Get("frames.player.castbar.x"), 0)
+Equal("copy: what the player lacks is named", warnings[#warnings]:find("Interrupt Ready", 1, true) ~= nil, true)
+Equal("copy menu lists only frames with the section", #Options(Find(pages.player.Build(), "castBarCopyFrom")), 3)
+local useShared = Find(pages.player.Build(), "castBarUseShared")
+Equal("Use Shared active while Custom", useShared.blocked(), nil)
+Equal("Use Shared runs", useShared.set(), true)
+Equal("Use Shared clears the section", Profile:IsCustom("frames.player.castbar.border"), false)
+Equal("Use Shared keeps settings outside the shared look", Profile:Get("frames.target.castbar.x"), 40)
+Equal("Use Shared is blocked once Shared", useShared.blocked() ~= nil, true)
+Equal("indicators copy but hold nothing shared", Find(pages.player.Build(), "indicatorsUseShared"), nil)
+Equal("indicators copy", type(Find(pages.player.Build(), "indicatorsCopyFrom")), "table")
+Equal("overlays only return to Shared", Find(pages.player.Build(), "absorbsAndHealsCopyFrom"), nil)
+Profile:Reset({ "frames.player", "frames.target.castbar", "frames.playerPower" })
 
 -- Bosses.
 local bosses = pages.boss.Build()

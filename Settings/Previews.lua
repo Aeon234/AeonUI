@@ -132,20 +132,30 @@ function Previews:Sample(key, parent, slot)
 	if not sample then
 		local frame = CreateFrame("Frame", nil, parent)
 		local main = CreateFrame("Frame", nil, frame)
-		local bar, _, border = AUI.UnitFrame:CreateBar(main)
+		local bar, background, border = AUI.UnitFrame:CreateBar(main)
 
 		bar:SetMinMaxValues(0, 1)
-		sample = { key = key, slot = slot, frame = frame, main = main, bar = bar, border = border, Bar = bar }
+		sample = {
+			key = key,
+			slot = slot,
+			frame = frame,
+			main = main,
+			bar = bar,
+			background = background,
+			border = border,
+			Bar = bar,
+		}
 
 		-- The text code works on anything shaped like a unit frame's text: slots, a Status Line, and its bar.
 		AUI.Text:Create(sample, bar, key)
 
 		if Schema:Field("frames." .. key .. ".power.enabled") then
 			local holder = CreateFrame("Frame", nil, frame)
-			local power, _, powerBorder = AUI.UnitFrame:CreateBar(holder)
+			local power, powerBackground, powerBorder = AUI.UnitFrame:CreateBar(holder)
 
 			power:SetMinMaxValues(0, 1)
-			sample.powerHolder, sample.power, sample.powerBorder = holder, power, powerBorder
+			sample.powerHolder, sample.power = holder, power
+			sample.powerBackground, sample.powerBorder = powerBackground, powerBorder
 		end
 
 		if AUI.Overlays:Resolve(AUI.Profile.config, key) then
@@ -514,7 +524,8 @@ local function DrawSample(sample, key, config, state, addPart)
 	sample.main:SetPoint("TOPLEFT")
 	sample.main:SetPoint("TOPRIGHT")
 	sample.main:SetHeight(main)
-	AUI.UnitFrame:LayoutBorder(sample.border, bar, pixel)
+	AUI.UnitFrame:StyleBar(bar, sample.background, sample.border,
+		AUI.UnitFrame:BarLook(config, key, key == "playerPower"), pixel)
 
 	if sample.powerHolder then
 		local holder, power = sample.powerHolder, sample.power
@@ -528,7 +539,8 @@ local function DrawSample(sample, key, config, state, addPart)
 			holder:SetPoint("TOPLEFT", sample.main, "BOTTOMLEFT")
 			holder:SetPoint("TOPRIGHT", sample.main, "BOTTOMRIGHT")
 			holder:SetHeight(powerHeight)
-			AUI.UnitFrame:LayoutBorder(sample.powerBorder, power, pixel)
+			AUI.UnitFrame:StyleBar(power, sample.powerBackground, sample.powerBorder,
+				AUI.UnitFrame:BarLook(config, key, true), pixel)
 			power:SetReverseFill(reverse)
 			power:SetValue(values.status and 0 or values.powerPercent / 100)
 			power:SetStatusBarColor(color.r, color.g, color.b)

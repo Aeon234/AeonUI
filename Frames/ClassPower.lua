@@ -433,10 +433,3 @@ function ClassPowerMixin:ApplyAppearance(config)
 		AUI.Fading:Update(self)
 	end
 end
-
----Places every segment's border at the current scale.
-function ClassPowerMixin:UpdateBorder()
-	if self.settings then
-		self:ApplyAppearance(AUI.Profile.config)
-	end
-end

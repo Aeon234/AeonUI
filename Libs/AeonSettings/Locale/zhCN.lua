@@ -22,6 +22,12 @@ L["%s reset to defaults."] = "%s已重置为默认设置。"
 L['Search results for "%s"'] = '“%s”的搜索结果'
 L["No settings match."] = "没有匹配的设置。"
 
+-- Row.lua
+L["Shared"] = "共享"
+L["Custom"] = "自定义"
+L["Use Shared"] = "使用共享"
+L["Removes this value so the setting follows the shared one again."] = "移除此值，使该设置重新跟随共享设置。"
+
 -- Preview.lua
 L["Preview"] = "预览"
 L["Click part of the preview to find its setting"] = "点击预览中的部分以找到对应设置"
