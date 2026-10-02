@@ -44,8 +44,12 @@ local function Region()
 		return Region()
 	end
 
-	function region:CreateFontString()
-		return Region()
+	function region:CreateFontString(_, _, template)
+		local font = Region()
+
+		font.template = template
+
+		return font
 	end
 
 	function region:SetPoint(...)
@@ -330,6 +334,8 @@ Equal("no countdown numbers", button.Cooldown.last.SetHideCountdownNumbers[1], t
 Equal("cooldown bound", button.last.SetDurationCooldown[1], button.Cooldown)
 Equal("icon bound", button.last.SetIcon[1], button.Icon)
 Equal("stack bound", button.last.SetApplicationCount[1], button.Count)
+Equal("stack has a font before it is bound", button.Count.template, "NumberFontNormal")
+Equal("duration has a font before it is bound", button.Time.template, "NumberFontNormal")
 Equal("duration bound", button.last.SetDurationText[1], button.Time)
 Equal("dispel border", button.last.AddDispelTypeTexture[2].showWhenHarmful, true)
 Equal("dispel colors", button.last.AddDispelTypeTexture[2].customDispelColorMap, frame.colors.dispel)

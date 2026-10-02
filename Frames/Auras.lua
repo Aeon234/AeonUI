@@ -243,9 +243,18 @@ function Auras:CreateButton(widgets, button)
 	text:SetAllPoints()
 	text:SetFrameLevel(cooldown:GetFrameLevel() + 1)
 
-	button.Count = text:CreateFontString(nil, "OVERLAY")
+	-- The client writes into these as soon as they are bound, so they need a font first.
+	button.Count = text:CreateFontString(nil, "OVERLAY", "NumberFontNormal")
+	button.Time = text:CreateFontString(nil, "OVERLAY", "NumberFontNormal")
+
+	local settings = widgets.settings
+
+	if settings then
+		Font(button.Count, settings, settings.countSize)
+		Font(button.Time, settings, settings.durationSize)
+	end
+
 	button:SetApplicationCount(button.Count, {})
-	button.Time = text:CreateFontString(nil, "OVERLAY")
 	button:SetDurationText(button.Time, {})
 
 	local border = button:CreateTexture(nil, "OVERLAY")

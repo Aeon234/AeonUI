@@ -377,8 +377,9 @@ function CastBar:Create(parent)
 
 	strip:SetAllPoints(bar)
 
-	local text = bar:CreateFontString(nil, "OVERLAY")
-	local time = bar:CreateFontString(nil, "OVERLAY")
+	-- oUF and the client can write text before `Apply` styles it, so every font string starts from a template font.
+	local text = bar:CreateFontString(nil, "OVERLAY", "NumberFontNormal")
+	local time = bar:CreateFontString(nil, "OVERLAY", "NumberFontNormal")
 
 	text:SetWordWrap(false)
 	time:SetWordWrap(false)
@@ -393,19 +394,19 @@ function CastBar:Create(parent)
 		time = time,
 		spark = bar:CreateTexture(nil, "OVERLAY", nil, -1),
 		safeZone = bar:CreateTexture(nil, "ARTWORK", nil, 3),
-		latency = bar:CreateFontString(nil, "OVERLAY"),
+		latency = bar:CreateFontString(nil, "OVERLAY", "NumberFontNormal"),
 		ready = Cover(bar, 1),
 		onCooldown = Cover(bar, 1),
 		locked = Cover(bar, 2),
 		failed = Cover(bar, 3),
 		ticks = {},
-		target = bar:CreateFontString(nil, "OVERLAY"),
+		target = bar:CreateFontString(nil, "OVERLAY", "NumberFontNormal"),
 		glowLines = {},
 		glowPhase = 0,
 		zones = zones,
 		strip = strip,
 		stages = {},
-		stageLabel = bar:CreateFontString(nil, "OVERLAY"),
+		stageLabel = bar:CreateFontString(nil, "OVERLAY", "NumberFontNormal"),
 		ticker = CreateFrame("Frame", nil, bar),
 	}
 
