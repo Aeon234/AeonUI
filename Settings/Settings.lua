@@ -49,6 +49,7 @@ function Settings:Create()
 		name = FRAME_NAME,
 		title = AUI.title,
 		version = AUI.version,
+		contentWidth = 900,
 	})
 
 	self.window = window
