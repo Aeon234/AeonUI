@@ -33,6 +33,11 @@ local ICON_SIDES = {
 	RIGHT = L["Right"],
 }
 
+local GLOW_STYLES = {
+	pixel = L["Pixel Lines"],
+	blizzard = L["Blizzard"],
+}
+
 local TIME_FORMATS = {
 	remaining = L["Remaining"],
 	elapsed = L["Elapsed"],
@@ -198,6 +203,68 @@ function CastBar:Sections(key)
 		description = L["How long Interrupted or Failed stays on the bar, in seconds."],
 	})))
 
+	Add(
+		Check("castTarget", L["Show Cast Target"], base .. "target.enabled", On({
+			description = L["The name of the cast's target, in its class color, when the game shows it."],
+		})),
+		Slider("castTargetSize", L["Cast Target Size"], base .. "target.size", sizeMin, sizeMax,
+			On({ depends = "castTarget" }))
+	)
+	Add(
+		Slider("castTargetX", L["Cast Target X"], base .. "target.x", -ATTACHED_OFFSET, ATTACHED_OFFSET,
+			On({ depends = "castTarget" })),
+		Slider("castTargetY", L["Cast Target Y"], base .. "target.y", -ATTACHED_OFFSET, ATTACHED_OFFSET,
+			On({ depends = "castTarget" }))
+	)
+
+	if Schema:Field(base .. "interruptReady") then
+		local linesMin, linesMax = Pages.Range(base .. "glowLines")
+		local thickMin, thickMax = Pages.Range(base .. "glowThickness")
+		local speedMin, speedMax = Pages.Range(base .. "glowSpeed")
+
+		Add(
+			Check("castReady", L["Interrupt Ready"], base .. "interruptReady", On({
+				description = L["Colors the bar while your interrupt is ready and the cast can be interrupted."],
+			})),
+			Color("castReadyColor", L["Interrupt Ready Color"], base .. "readyColor", On({ depends = "castReady" }))
+		)
+		Add(
+			Check("castOnCooldown", L["Interrupt On Cooldown"], base .. "interruptCooldown", On({
+				description = L["Colors the bar while your interrupt is on cooldown."],
+			})),
+			Color("castOnCooldownColor", L["Interrupt On Cooldown Color"], base .. "cooldownColor",
+				On({ depends = "castOnCooldown" }))
+		)
+		Add(
+			Check("castKickMark", L["Cooldown Mark"], base .. "kickMark", On({
+				description = L["Marks where your interrupt comes off cooldown during the cast."],
+			})),
+			Check("castKickWindow", L["Interrupt Window"], base .. "kickWindow", On({
+				description = L["Shades the part of the cast after your interrupt is ready."],
+			}))
+		)
+		Add(Color("castWindowColor", L["Interrupt Window Color"], base .. "windowColor", On({
+			depends = "castKickWindow",
+			hasOpacity = true,
+		})))
+		Add(
+			Check("castGlow", L["Important Spell Glow"], base .. "glow", On({
+				description = L["A glow around the bar while the spell is one the game marks important."],
+			})),
+			Choice("castGlowStyle", L["Glow Style"], base .. "glowStyle", Pages.Options("glowStyle", GLOW_STYLES),
+				On({ depends = "castGlow" }))
+		)
+		Add(
+			Color("castGlowColor", L["Glow Color"], base .. "glowColor", On({ depends = "castGlow" })),
+			Slider("castGlowLines", L["Glow Lines"], base .. "glowLines", linesMin, linesMax, On({ depends = "castGlow" }))
+		)
+		Add(
+			Slider("castGlowThickness", L["Glow Thickness"], base .. "glowThickness", thickMin, thickMax,
+				On({ depends = "castGlow" })),
+			Slider("castGlowSpeed", L["Glow Speed"], base .. "glowSpeed", speedMin, speedMax, On({ depends = "castGlow" }))
+		)
+	end
+
 	if Schema:Field(base .. "latency") then
 		Add(
 			Check("castLatency", L["Show Latency"], base .. "latency", On({
@@ -217,6 +284,17 @@ function CastBar:Sections(key)
 				description = L["Shows the stage reached, and Hold at full charge, in place of the time."],
 			}))
 		)
+
+		Add(
+			Check("castTicks", L["Channel Ticks"], base .. "ticks", On({
+				description = L["Marks where each tick of a channeled spell lands."],
+			})),
+			Color("castTickColor", L["Tick Color"], base .. "tickColor", On({ depends = "castTicks", hasOpacity = true }))
+		)
+		Add(Check("castLastTick", L["Last Tick"], base .. "lastTick", On({
+			depends = "castTicks",
+			description = L["Marks the final tick in white."],
+		})))
 
 		for index = 1, 4, 2 do
 			Add(

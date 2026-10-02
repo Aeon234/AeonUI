@@ -57,6 +57,7 @@ local Schema = {
 		orientation = { "HORIZONTAL", "VERTICAL" },
 		iconSide = { "LEFT", "RIGHT" },
 		timeFormat = { "remaining", "elapsed", "remainingTotal", "elapsedTotal" },
+		glowStyle = { "pixel", "blizzard" },
 	},
 }
 AUI.Schema = Schema
@@ -231,7 +232,7 @@ end
 
 ---A frame's cast bar. The player's stands alone at a screen position; the others attach to their frame.
 ---@param key string
----@param defaults table `width`, `x`, `y`, `icon`, and `side` for an attached bar
+---@param defaults table `width`, `x`, `y`, `icon`, `target` (show the cast target), and `side` for an attached bar
 local function CastBar(key, defaults)
 	local base = "frames." .. key .. ".castbar."
 	local white = { r = 1, g = 1, b = 1 }
@@ -279,6 +280,26 @@ local function CastBar(key, defaults)
 	Color(base .. "notInterruptible", { r = 0.8, g = 0.1, b = 0.1 })
 	Color(base .. "interrupted", { r = 0.8, g = 0.1, b = 0.1 })
 	Number(base .. "holdTime", 0.6, 0, 3)
+	Boolean(base .. "target.enabled", defaults.target)
+	Number(base .. "target.size", 14, 6, 48, true)
+	Number(base .. "target.x", 0, -200, 200)
+	Number(base .. "target.y", 0, -200, 200)
+
+	if defaults.side then
+		Boolean(base .. "interruptReady", true)
+		Color(base .. "readyColor", { r = 0.92, g = 0.35, b = 0.2 })
+		Boolean(base .. "interruptCooldown", false)
+		Color(base .. "cooldownColor", { r = 0.8, g = 0.8, b = 0.8 })
+		Boolean(base .. "kickMark", true)
+		Boolean(base .. "kickWindow", false)
+		Color(base .. "windowColor", { r = 0.318, g = 0.82, b = 0.357, a = 0.6 })
+		Boolean(base .. "glow", false)
+		Choice(base .. "glowStyle", "glowStyle", "pixel")
+		Color(base .. "glowColor", { r = 1, g = 0.2, b = 0.2 })
+		Number(base .. "glowLines", 8, 1, 20, true)
+		Number(base .. "glowThickness", 2, 1, 6, true)
+		Number(base .. "glowSpeed", 4, 1, 10, true)
+	end
 
 	if key == "player" then
 		Boolean(base .. "latency", true)
@@ -290,6 +311,9 @@ local function CastBar(key, defaults)
 		Color(base .. "stage.3", { r = 1, g = 0.447, b = 0.11 })
 		Color(base .. "stage.4", { r = 1, g = 0.71, b = 0.192 })
 		Boolean(base .. "stageLabel", false)
+		Boolean(base .. "ticks", true)
+		Color(base .. "tickColor", { r = 0, g = 0, b = 0, a = 0.7 })
+		Boolean(base .. "lastTick", false)
 	end
 end
 
@@ -301,7 +325,7 @@ local NAME_ONLY = {
 Geometry("player", 270, 36, 16, -330, -200)
 Boolean("frames.player.reverse", false)
 Overlays("player")
-CastBar("player", { width = 386, x = 0, y = -254, icon = false })
+CastBar("player", { width = 386, x = 0, y = -254, icon = false, target = false })
 TextFields("player", 1, false, {
 	{ content = "healthAndPercent", anchor = "TOPRIGHT", placement = "edge", x = -4 },
 })
@@ -310,7 +334,7 @@ Geometry("target", 270, 36, 16, 330, -200)
 Boolean("frames.target.reverse", true)
 AttachedPower("target")
 Overlays("target")
-CastBar("target", { width = 270, x = 0, y = 0, icon = true, side = "below" })
+CastBar("target", { width = 270, x = 0, y = 0, icon = true, target = true, side = "below" })
 TextFields("target", 1, false, {
 	{ content = "healthAndPercent", anchor = "TOPLEFT", placement = "edge", x = 4 },
 	{ content = "levelName", separator = "space", anchor = "TOPRIGHT", placement = "edge", x = -4, colorMode = "class" },
@@ -326,7 +350,7 @@ Geometry("focus", 200, 24, 16, -330, -140)
 Boolean("frames.focus.reverse", false)
 AttachedPower("focus")
 Overlays("focus")
-CastBar("focus", { width = 200, x = 0, y = 0, icon = false, side = "above" })
+CastBar("focus", { width = 200, x = 0, y = 0, icon = false, target = true, side = "above" })
 TextFields("focus", 0, true, NAME_ONLY)
 
 -- The boss frames: one group, the first slot at the position, the others following by growth and spacing.
@@ -336,7 +360,7 @@ Number("frames.boss.spacing", 14, 0, 100, true)
 Boolean("frames.boss.reverse", false)
 AttachedPower("boss")
 Overlays("boss")
-CastBar("boss", { width = 200, x = 0, y = 0, icon = true, side = "below" })
+CastBar("boss", { width = 200, x = 0, y = 0, icon = true, target = false, side = "below" })
 TextFields("boss", 2, nil, {
 	{ content = "name", anchor = "TOPLEFT", placement = "inside", x = 4 },
 	{ content = "healthPercent", anchor = "TOPRIGHT", placement = "inside", x = -4 },

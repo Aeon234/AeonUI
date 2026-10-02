@@ -80,6 +80,7 @@ function Frames:Start()
 
 	self.started = true
 
+	AUI.CastBar:Start()
 	AUI.Callbacks:Register("Profile", self, self.OnProfileChanged)
 	AUI.Events:Register("PLAYER_REGEN_ENABLED", self, self.OnCombatEnded)
 	AUI.Events:Register("UI_SCALE_CHANGED", self, self.OnScaleChanged)

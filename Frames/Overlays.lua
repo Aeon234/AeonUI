@@ -156,30 +156,26 @@ local function Place(overlay, bar, edge, option, backward, reversed)
 	local height = option.matchHeight and bar:GetHeight() or option.height
 	local position = option.position
 
+	-- An attached bar is as wide as the health bar, so its values scale like health, and starts from the edge;
+	-- the edge's top is the bar's top.
 	if position == "attach" then
 		local point, relative, reverseFill = Overlays:AttachPoints(backward, reversed)
 
-		if option.matchHeight then
-			overlay:SetPoint("TOP", bar, "TOP")
-			overlay:SetPoint("BOTTOM", bar, "BOTTOM")
-			overlay:SetPoint(point, edge, relative)
-		else
-			overlay:SetPoint("TOP" .. point, edge, "TOP" .. relative)
-			overlay:SetHeight(height)
-		end
-
+		overlay:SetPoint("TOP" .. point, edge, "TOP" .. relative)
+		overlay:SetSize(bar:GetWidth(), height)
 		overlay:SetReverseFill(reverseFill)
 
 		return
 	end
 
-	local side = FROM_RIGHT[position] and "RIGHT" or "LEFT"
-
+	-- A strip spans the health bar's width along one edge, or its middle.
 	if option.matchHeight then
-		overlay:SetPoint("TOP" .. side, bar, "TOP" .. side)
-		overlay:SetPoint("BOTTOM" .. side, bar, "BOTTOM" .. side)
+		overlay:SetAllPoints(bar)
 	else
-		overlay:SetPoint(position, bar, position)
+		local edgeSide = position:match("^(TOP)") or position:match("^(BOTTOM)") or ""
+
+		overlay:SetPoint(edgeSide .. "LEFT", bar, edgeSide .. "LEFT")
+		overlay:SetPoint(edgeSide .. "RIGHT", bar, edgeSide .. "RIGHT")
 		overlay:SetHeight(height)
 	end
 
@@ -240,9 +236,8 @@ function Overlays:Apply(widgets, settings, reversed, health)
 	local glow = widgets.glow
 
 	glow:ClearAllPoints()
-	glow:SetPoint("TOP", bar)
-	glow:SetPoint("BOTTOM", bar)
-	glow:SetPoint("CENTER", fill, reversed and "LEFT" or "RIGHT")
+	glow:SetPoint("TOP", fill, reversed and "TOPLEFT" or "TOPRIGHT")
+	glow:SetPoint("BOTTOM", fill, reversed and "BOTTOMLEFT" or "BOTTOMRIGHT")
 	glow:SetWidth(GLOW_WIDTH)
 	glow:SetShown(attached and absorb.glow == true)
 

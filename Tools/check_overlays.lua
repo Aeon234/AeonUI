@@ -47,6 +47,10 @@ local function Region()
 		return self.value
 	end
 
+	function region:GetWidth()
+		return 200
+	end
+
 	function region:GetHeight()
 		return self.height
 	end
@@ -210,10 +214,12 @@ Equal("overshield inside its clip", widgets.overshield.parent, widgets.overshiel
 Overlays:Apply(widgets, settings, false, health)
 Equal("absorb texture", widgets.absorb.texture, "flat")
 Equal("absorb color alpha", widgets.absorb.last.SetStatusBarColor[4], 0.8)
-Equal("heal prediction starts at the health edge", widgets.healing.points[3][2], fill)
-Equal("shields start where heal prediction ends", widgets.absorb.points[3][2], widgets.healing:GetStatusBarTexture())
-Equal("shield grows right", Points(widgets.absorb), "TOP>TOP,BOTTOM>BOTTOM,LEFT>RIGHT")
-Equal("heal absorb grows back over health", Points(widgets.healAbsorb), "TOP>TOP,BOTTOM>BOTTOM,RIGHT>RIGHT")
+Equal("heal prediction starts at the health edge", widgets.healing.points[1][2], fill)
+Equal("shields start where heal prediction ends", widgets.absorb.points[1][2], widgets.healing:GetStatusBarTexture())
+Equal("shield grows right", Points(widgets.absorb), "TOPLEFT>TOPRIGHT")
+Equal("attached bars are as wide as health", widgets.absorb.last.SetSize[1], 200)
+Equal("matching health height", widgets.absorb.last.SetSize[2], 20)
+Equal("heal absorb grows back over health", Points(widgets.healAbsorb), "TOPRIGHT>TOPRIGHT")
 Equal("backing hidden at 0", widgets.backing.shown, false)
 Equal("overshield shown", widgets.overshieldClip.shown, true)
 Equal("overshield fills from the shield's edge", widgets.overshield.last.SetReverseFill[1], true)
@@ -232,18 +238,19 @@ Equal("overheal raises the overflow", calculator.overflow, 1.2)
 Equal("backing shown above 0", widgets.backing.shown, true)
 Equal("backing opacity", widgets.backing.last.SetStatusBarColor[4], 0.4)
 Equal("glow on", widgets.glow.shown, true)
-Equal("glow on the health edge", widgets.glow.points[3][2], fill)
+Equal("glow on the health edge", widgets.glow.points[1][2], fill)
+Equal("glow centered on the edge", widgets.glow.points[1][1] .. ">" .. widgets.glow.points[1][3], "TOP>TOPRIGHT")
 Equal("overshield from the left", widgets.overshield.last.SetReverseFill[1], false)
 
 Overlays:Apply(widgets, settings, true, health)
 Equal("reversed: overshield from the left of a right-to-left bar", widgets.overshield.last.SetReverseFill[1], true)
-Equal("reversed: shield grows left", Points(widgets.absorb), "TOP>TOP,BOTTOM>BOTTOM,RIGHT>LEFT")
-Equal("reversed: glow on the fill's left edge", widgets.glow.points[3][3], "LEFT")
+Equal("reversed: shield grows left", Points(widgets.absorb), "TOPRIGHT>TOPLEFT")
+Equal("reversed: glow on the fill's left edge", widgets.glow.points[1][3], "TOPLEFT")
 
 settings.healPrediction.enabled = false
 Overlays:Apply(widgets, settings, false, health)
 Equal("hidden heal prediction", widgets.healing.shown, false)
-Equal("shields start at the health edge without heal prediction", widgets.absorb.points[3][2], fill)
+Equal("shields start at the health edge without heal prediction", widgets.absorb.points[1][2], fill)
 Equal("no marker without heal prediction", widgets.marker.shown, false)
 
 settings.absorb.overshield = "never"
@@ -255,7 +262,7 @@ settings.absorb.position = "BOTTOMRIGHT"
 settings.absorb.matchHeight = false
 settings.absorb.height = 6
 Overlays:Apply(widgets, settings, false, health)
-Equal("corner strip", Points(widgets.absorb), "BOTTOMRIGHT>BOTTOMRIGHT")
+Equal("corner strip spans the bottom", Points(widgets.absorb), "BOTTOMLEFT>BOTTOMLEFT,BOTTOMRIGHT>BOTTOMRIGHT")
 Equal("corner strip height", widgets.absorb.last.SetHeight[1], 6)
 Equal("corner strip fills from its side", widgets.absorb.last.SetReverseFill[1], true)
 Equal("no overshield while detached", widgets.overshieldClip.shown, false)
@@ -264,7 +271,11 @@ Equal("no glow while detached", widgets.glow.shown, false)
 settings.absorb.position = "LEFT"
 settings.absorb.matchHeight = true
 Overlays:Apply(widgets, settings, false, health)
-Equal("side strip matching height", Points(widgets.absorb), "TOPLEFT>TOPLEFT,BOTTOMLEFT>BOTTOMLEFT")
+Equal("side strip matching height covers the bar", widgets.absorb.last.SetAllPoints[1], bar)
+settings.absorb.matchHeight = false
+Overlays:Apply(widgets, settings, false, health)
+Equal("middle strip spans the bar", Points(widgets.absorb), "LEFT>LEFT,RIGHT>RIGHT")
+settings.absorb.matchHeight = true
 Equal("left strip fills right", widgets.absorb.last.SetReverseFill[1], false)
 
 settings.absorb.position = "attach"
@@ -272,7 +283,7 @@ settings.absorb.matchHeight = false
 settings.absorb.height = 5
 Overlays:Apply(widgets, settings, false, nil)
 Equal("attached strip at the top", Points(widgets.absorb), "TOPLEFT>TOPRIGHT")
-Equal("attached strip height", widgets.absorb.last.SetHeight[1], 5)
+Equal("attached strip height", widgets.absorb.last.SetSize[2], 5)
 
 -- Update --------------------------------------------------------------------------------------------------
 

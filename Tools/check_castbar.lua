@@ -1,6 +1,7 @@
 -- Checks Frames/CastBar.lua outside the game: cast bar settings and their defaults, size and position for the
 -- player's bar and attached bars, the space kept for the time, empowered stage parts, spell name shortening, what
--- each setting shows and hides, the time formats handed to the client, and oUF's callbacks.
+-- each setting shows and hides, the time formats handed to the client, oUF's callbacks, channel ticks, the
+-- interrupt lookup, colors and cooldown mark, the cast target and the important-spell glow.
 -- Run from any directory with Lua 5.1: lua Tools/check_castbar.lua
 -- Frames are stand-ins that record the last call of each method; drawing is not exercised here.
 
@@ -16,6 +17,7 @@ C_AddOns = {
 Enum = {
 	DurationTextBindingProperty = { RemainingDuration = 0, ElapsedDuration = 2, TotalDuration = 4 },
 	StatusBarInterpolation = { Immediate = 0, ExponentialEaseOut = 1 },
+	SpellBookSpellBank = { Player = 0, Pet = 1 },
 }
 UIParent = {}
 
@@ -39,9 +41,88 @@ function GetNetStats()
 	return 0, 0, 0, 48
 end
 
+local playerClass = "MAGE"
+
 function UnitClass()
-	return "Mage", "MAGE"
+	return "Mage", playerClass
 end
+
+-- Spells the character knows, by bank.
+local known = { [0] = {}, [1] = {} }
+C_SpellBook = {
+	IsSpellKnownOrInSpellBook = function(spellID, bank)
+		return known[bank or 0][spellID] == true
+	end,
+}
+
+---A duration object stand-in.
+local function Duration(total, elapsed)
+	return {
+		GetTotalDuration = function()
+			return total
+		end,
+		GetElapsedDuration = function()
+			return elapsed
+		end,
+		GetRemainingDuration = function()
+			return total - elapsed
+		end,
+		IsZero = function()
+			return total == elapsed
+		end,
+	}
+end
+
+local cooldown, castDuration, channelDuration = nil, nil, nil
+local important = false
+C_Spell = {
+	GetSpellCooldownDuration = function()
+		return cooldown
+	end,
+	IsSpellImportant = function()
+		return important
+	end,
+}
+
+function UnitCastingDuration()
+	return castDuration
+end
+
+function UnitChannelDuration()
+	return channelDuration
+end
+
+local channelInfo = {}
+
+function UnitChannelInfo()
+	return unpack(channelInfo)
+end
+
+local spellTarget = {}
+
+function UnitShouldDisplaySpellTargetName()
+	return spellTarget.shown == true
+end
+
+function UnitSpellTargetName()
+	return spellTarget.name
+end
+
+function UnitSpellTargetClass()
+	return spellTarget.class
+end
+
+C_ClassColor = {
+	GetClassColor = function(class)
+		if class == "PRIEST" then
+			return {
+				GetRGB = function()
+					return 1, 1, 1
+				end,
+			}
+		end
+	end,
+}
 
 local formatters = 0
 C_StringUtil = {
@@ -163,6 +244,33 @@ local function Region()
 		return Region()
 	end
 
+	function region:CreateAnimationGroup()
+		local group = Region()
+
+		function group:CreateAnimation()
+			return Region()
+		end
+
+		function group:Play()
+			self.playing = true
+		end
+
+		function group:Stop()
+			self.playing = false
+		end
+
+		return group
+	end
+
+	function region:SetAlphaFromBoolean(flag, shown, hidden)
+		self.last.SetAlphaFromBoolean = { flag, shown, hidden }
+		self.alpha = flag and shown or hidden
+	end
+
+	function region:GetHeight()
+		return 16
+	end
+
 	function region:GetParent()
 		return self.parent
 	end
@@ -219,7 +327,17 @@ function AUI:Pixel()
 	return 1
 end
 
+local registered = {}
+AUI.Events = {
+	Register = function(_, event, owner, handler)
+		registered[event] = function(...)
+			handler(owner, event, ...)
+		end
+	end,
+}
+
 assert(loadfile(root .. "Profile/Schema.lua"))("AeonUI", AUI)
+assert(loadfile(root .. "Frames/CastData.lua"))("AeonUI", AUI)
 assert(loadfile(root .. "Frames/CastBar.lua"))("AeonUI", AUI)
 
 local CastBar, Schema = AUI.CastBar, AUI.Schema
@@ -439,8 +557,8 @@ Near("first part", widgets.stages[1].width, 30)
 Near("last part runs to the end", widgets.stages[4].width, 20)
 Equal("first part gray", widgets.stages[1].last.SetVertexColor[1], 0.506)
 Equal("third part orange", widgets.stages[3].last.SetVertexColor[3], 0.11)
-Equal("reversed parts start from the right", widgets.stages[2].points[3][1], "RIGHT")
-Near("second part starts after the first", widgets.stages[2].points[3][4], -30)
+Equal("reversed parts start from the right", widgets.stages[2].points[1][1], "TOPRIGHT")
+Near("second part starts after the first", widgets.stages[2].points[1][4], -30)
 CastBar:PlaceStages(widgets, CastBar:Boundaries({ 0.2, 0.2, 0.2, 0.2, 0.1 }), 100)
 Equal("parts are added as needed", #widgets.stages, 6)
 Equal("later parts take the last color", widgets.stages[6].last.SetVertexColor[1], 1)
@@ -559,5 +677,226 @@ CastBar:ShowSample(widgets, { name = "Sample Spell", progress = 0.6, remaining =
 Equal("sample not interruptible", widgets.locked.alpha, 1)
 CastBar:ShowSample(widgets, { name = "Sample Spell", progress = 0.6, remaining = 1, stages = { 0.3, 0.25, 0.25 } })
 Equal("sample stage colors", widgets.zones.shown, true)
+
+-- Channel ticks ------------------------------------------------------------------------------------------
+
+local function Fractions(data, duration, talent)
+	local list = {}
+	for index, fraction in ipairs(CastBar:TickFractions(data, duration, talent)) do
+		list[index] = ("%.2f"):format(fraction)
+	end
+
+	return table.concat(list, ",")
+end
+
+Equal("tick count", Fractions({ ticks = 4 }), "0.25,0.50,0.75")
+Equal("one tick has no marks", Fractions({ ticks = 1 }), "")
+Equal("talent count", Fractions({ ticks = 3, talent = 1, talentTicks = 4 }, nil, true), "0.25,0.50,0.75")
+Equal("talent unknown", Fractions({ ticks = 3, talent = 1, talentTicks = 4 }, nil, false), "0.33,0.67")
+Equal("interval", Fractions({ interval = 1 }, 4), "0.25,0.50,0.75")
+Equal("interval with a partial tick", Fractions({ interval = 1 }, 3.5), "0.29,0.57,0.86")
+Equal("interval without a length", Fractions({ interval = 1 }), "")
+Equal("draining channel: first tick from the right", CastBar:TickOffset(0.25, 100, false), 75)
+Equal("reversed channel: from the left", CastBar:TickOffset(0.25, 100, true), 25)
+Equal("tick data loaded", AUI.CastData.channels[15407].ticks, 6)
+
+frame = {}
+widgets = CastBar:Create(Region())
+CastBar:Attach(frame, widgets)
+player = CastBar:Resolve(config, "player")
+Equal("ticks on by default", player.ticks, true)
+Equal("tick color", player.tickColor.a, 0.7)
+Equal("last tick off", player.lastTick, false)
+CastBar:Apply(widgets, player, UIParent, 270)
+widgets.bar.width = 200
+widgets.bar:PostCastStart("player", 15407, false, "Mind Flay")
+Equal("five marks for six ticks", #widgets.ticks, 5)
+Near("first mark", widgets.ticks[1].points[1][4], (1 - 1 / 6) * 200)
+Equal("marks span the height", widgets.ticks[1].points[2][1], "BOTTOMLEFT")
+Equal("tick color applied", widgets.ticks[1].last.SetColorTexture[4], 0.7)
+player.lastTick = true
+widgets.bar:PostCastStart("player", 15407, false, "Mind Flay")
+Equal("last tick white", widgets.ticks[5].last.SetColorTexture[1], 1)
+widgets.bar:PostCastStart("player", 133, false, "Fireball")
+Equal("no ticks for an unlisted spell", widgets.ticks[1].shown, false)
+widgets.bar:PostCastStart("player", secret, false, "Mind Flay")
+Equal("no ticks for a hidden spell", widgets.ticks[1].shown, false)
+channelInfo = { "Soothing Mist", "", 0, 1000, 5000 }
+widgets.bar:PostCastStart("player", 115175, false, "Soothing Mist")
+Equal("interval ticks from the channel's length", widgets.ticks[3].shown, true)
+Equal("interval ticks stop before the end", widgets.ticks[4].shown, false)
+channelInfo = { "Soothing Mist", "", 0, secret, secret }
+widgets.bar:PostCastStart("player", 115175, false, "Soothing Mist")
+Equal("no interval ticks from a hidden length", widgets.ticks[1].shown, false)
+widgets.bar:PostCastStart("player", 15407, false, "Mind Flay")
+widgets.bar:PostCastFail("player", 1)
+Equal("feedback hides ticks", widgets.ticks[1].shown, false)
+
+-- Interrupt -----------------------------------------------------------------------------------------------
+
+CastBar:FindInterrupt()
+Equal("no interrupt known", CastBar.interrupt, nil)
+known[0][2139] = true
+CastBar:Start()
+Equal("player's interrupt", CastBar.interrupt, 2139)
+playerClass = "WARLOCK"
+known[0][19647] = true
+known[1][89766] = true
+registered.SPELLS_CHANGED()
+Equal("a pet's interrupt first", CastBar.interrupt, 89766)
+known[1][89766] = nil
+registered.UNIT_PET("player")
+Equal("pet change", CastBar.interrupt, 19647)
+playerClass = "MAGE"
+registered.PLAYER_SPECIALIZATION_CHANGED()
+Equal("back to the mage", CastBar.interrupt, 2139)
+
+local targetFrame = { key = "target" }
+widgets = CastBar:Create(anchor)
+CastBar:Attach(targetFrame, widgets)
+Equal("attached bars are watched", CastBar.live[#CastBar.live], widgets)
+target = CastBar:Resolve(config, "target")
+Equal("ready on", target.interruptReady, true)
+Equal("ready color", target.readyColor.r, 0.92)
+Equal("cooldown color off", target.interruptCooldown, false)
+Equal("mark on", target.kickMark, true)
+Equal("window off", target.kickWindow, false)
+Equal("window color", target.windowColor.g, 0.82)
+Equal("no ticks off the player", target.ticks, nil)
+CastBar:Apply(widgets, target, anchor, 270)
+
+cooldown, castDuration = Duration(0, 0), Duration(2, 0.5)
+widgets.bar.shown = true
+widgets.bar:PostCastStart("target", 1, false, "Shadow Bolt")
+Equal("ready color shown", widgets.ready.shown, true)
+Equal("ready while off cooldown", widgets.ready.alpha, 1)
+Equal("cooldown color hidden", widgets.onCooldown.shown, false)
+Equal("mark hidden while ready", widgets.mark.alpha, 0)
+Equal("kick frame shown", widgets.kick.shown, true)
+Equal("positioner at the elapsed time", widgets.positioner.value, 0.5)
+Equal("positioner range", widgets.positioner.maximum, 2)
+
+cooldown = Duration(8, 7.2)
+registered.SPELL_UPDATE_COOLDOWN()
+Equal("ready hidden on cooldown", widgets.ready.alpha, 0)
+Near("marker at the remaining cooldown", widgets.marker.value, 0.8)
+Equal("mark shown on cooldown", widgets.mark.alpha, 1)
+Equal("marker starts at the positioner's edge",
+	widgets.marker.points[1][1] .. ">" .. widgets.marker.points[1][3], "LEFT>RIGHT")
+Equal("mark at the marker's edge", widgets.mark.points[1][3], "TOPRIGHT")
+Equal("window runs to the end", widgets.window.points[2][1], "BOTTOMRIGHT")
+
+castDuration, channelDuration = nil, Duration(3, 1)
+widgets.bar:PostCastStart("target", 1, false, "Drain Life")
+Equal("channel: from the right", widgets.positioner.reverse, true)
+Equal("channel: marker grows left", widgets.marker.points[1][1] .. ">" .. widgets.marker.points[1][3], "RIGHT>LEFT")
+
+widgets.bar:PostCastStart("target", 1, secret, "Shadow Bolt")
+Equal("mark follows the hidden interruptible flag", widgets.kick.last.SetAlphaFromBoolean[1], secret)
+widgets.bar:PostCastInterruptible("target", 1, true)
+Equal("mark hidden once not interruptible", widgets.kick.alpha, 0)
+
+target.interruptCooldown, target.interruptReady = true, false
+widgets.bar:PostCastStart("target", 1, false, "Shadow Bolt")
+Equal("cooldown color shown", widgets.onCooldown.shown, true)
+Equal("cooldown color while on cooldown", widgets.onCooldown.alpha, 1)
+Equal("ready color off", widgets.ready.shown, false)
+
+cooldown = nil
+widgets.bar:PostCastStart("target", 1, false, "Shadow Bolt")
+Equal("no colors without a cooldown", widgets.onCooldown.shown, false)
+Equal("no mark without a cooldown", widgets.kick.shown, false)
+CastBar.interrupt = nil
+cooldown = Duration(8, 7)
+widgets.bar:PostCastStart("target", 1, false, "Shadow Bolt")
+Equal("no colors without an interrupt", widgets.onCooldown.shown, false)
+CastBar.interrupt = 2139
+
+-- Cast target ---------------------------------------------------------------------------------------------
+
+Equal("target shown on target", target.target.enabled, true)
+Equal("not on the player", CastBar:Resolve(config, "player").target.enabled, false)
+Equal("not on bosses", CastBar:Resolve(config, "boss").target.enabled, false)
+Equal("focus shows it", CastBar:Resolve(config, "focus").target.enabled, true)
+Equal("target space", CastBar:TargetReserve(target, 200), 70)
+target.name.enabled, target.time.enabled = true, true
+CastBar:Apply(widgets, target, anchor, 270)
+Equal("name stops before the target", widgets.text.points[2][4], -(39 + math.floor(254 * 0.35)))
+spellTarget = { shown = true, name = "Alex", class = "PRIEST" }
+widgets.bar:PostCastStart("target", 1, false, "Shadow Bolt")
+Equal("target name", widgets.target.text, "Alex")
+Equal("target class color", widgets.target.last.SetTextColor[1], 1)
+Equal("target shown", widgets.target.shown, true)
+spellTarget = { shown = true, name = secret, class = secret }
+widgets.bar:PostCastStart("target", 1, false, "Shadow Bolt")
+Equal("hidden target name passed on", widgets.target.text, secret)
+spellTarget = { shown = false }
+widgets.bar:PostCastStart("target", 1, false, "Shadow Bolt")
+Equal("target hidden when the game says so", widgets.target.shown, false)
+
+-- Important glow ------------------------------------------------------------------------------------------
+
+Equal("glow off", target.glow, false)
+Equal("pixel style", target.glowStyle, "pixel")
+Equal("glow lines", target.glowLines, 8)
+widgets.bar:PostCastStart("target", 1, false, "Shadow Bolt")
+Equal("no glow while off", widgets.glow.shown, false)
+target.glow = true
+CastBar:Apply(widgets, target, anchor, 270)
+Equal("pixel lines made", #widgets.glowLines, 8)
+Equal("blizzard art hidden", widgets.glowArt.shown, false)
+important = secret
+widgets.bar:PostCastStart("target", 1, false, "Shadow Bolt")
+Equal("glow shown", widgets.glow.shown, true)
+Equal("glow follows the important flag", widgets.glow.last.SetAlphaFromBoolean[1], secret)
+widgets.glow.width = 104
+CastBar:StepGlow(widgets, 1)
+Near("lines travel", widgets.glowPhase, 0.2)
+Equal("lines placed", widgets.glowLines[1].last.SetSize ~= nil, true)
+target.glowStyle = "blizzard"
+CastBar:Apply(widgets, target, anchor, 270)
+Equal("blizzard art", widgets.glowArt.last.SetAtlas[1], "ui-hud-nameplates-importantcast")
+Equal("lines hidden for the blizzard style", widgets.glowLines[1].shown, false)
+widgets.bar:PostCastStart("target", 1, false, "Shadow Bolt")
+Equal("pulse plays", widgets.glowPulse.playing, true)
+widgets.bar:PostCastFail("target", 1)
+Equal("feedback hides the glow", widgets.glow.shown, false)
+
+local lines = CastBar:GlowLines(100, 100, 4, 0, 2)
+Equal("first line on top", lines[1].x .. "," .. lines[1].y .. "," .. lines[1].w .. "," .. lines[1].h, "0,0,50,2")
+Equal("second line on the right", lines[2].x .. "," .. lines[2].y .. "," .. lines[2].w .. "," .. lines[2].h, "98,0,2,50")
+Equal("third line on the bottom", lines[3].x .. "," .. lines[3].y .. "," .. lines[3].w .. "," .. lines[3].h, "50,98,50,2")
+Equal("fourth line on the left", lines[4].x .. "," .. lines[4].y .. "," .. lines[4].w .. "," .. lines[4].h, "0,50,2,50")
+lines = CastBar:GlowLines(100, 100, 4, 0.5, 2)
+Equal("half way round: first line on the bottom", lines[1].y, 98)
+lines = CastBar:GlowLines(100, 100, 4, 0.9, 2)
+Equal("a line stops at its corner", lines[1].h, 40)
+
+-- Samples -------------------------------------------------------------------------------------------------
+
+target.glow = false
+target.interruptReady = false
+CastBar:Apply(widgets, target, anchor, 270)
+CastBar:ShowSample(widgets, { name = "Sample Spell", progress = 0.25, remaining = 1.5, mark = 0.4, target = "Alex" })
+Equal("sample ready color off", widgets.ready.shown, false)
+Equal("sample mark", widgets.kick.shown, true)
+Near("sample marker", widgets.marker.value, 0.15)
+Equal("sample target", widgets.target.text, "Alex")
+target.interruptReady = true
+CastBar:Apply(widgets, target, anchor, 270)
+CastBar:ShowSample(widgets, { name = "Sample Spell", progress = 0.25, remaining = 1.5, mark = 0.4 })
+Equal("sample ready color shown", widgets.ready.shown, true)
+target.glow = true
+CastBar:Apply(widgets, target, anchor, 270)
+CastBar:ShowSample(widgets, { name = "Sample Spell", progress = 0.6, remaining = 1, important = true })
+Equal("sample glow", widgets.glow.shown, true)
+Equal("sample without a mark", widgets.kick.shown, false)
+
+widgets = CastBar:Create(Region())
+player = CastBar:Resolve(config, "player")
+CastBar:Apply(widgets, player, UIParent, 270)
+widgets.bar.width = 100
+CastBar:ShowSample(widgets, { name = "Sample Spell", progress = 0.6, remaining = 1.8, channel = true, ticks = 5 })
+Equal("sample ticks", #widgets.ticks, 4)
 
 print(("check_castbar: %d checks passed"):format(checks))

@@ -5,6 +5,7 @@ local Codec = AUI.Codec
 
 ---@class AUIDev
 ---@field bossTest boolean? the boss frames show the player
+---@field channelLog boolean? each channel the player starts is printed
 local Dev = {}
 AUI.Dev = Dev
 
@@ -159,6 +160,42 @@ function Dev:Bosses()
 	AUI:Print("boss test mode %s.", self.bossTest and "on: the boss frames show the player" or "off")
 end
 
+---Prints a channel the player started: its spell ID, name and length, and whether the tick list has it.
+function Dev:OnChannel(_, unit)
+	if unit ~= "player" then
+		return
+	end
+
+	local name, _, _, start, finish, _, _, spellID = UnitChannelInfo("player")
+
+	if issecretvalue(name) or issecretvalue(spellID) or issecretvalue(start) or issecretvalue(finish) then
+		AUI:Print("channel: hidden by the client.")
+
+		return
+	end
+
+	if not name then
+		return
+	end
+
+	local listed = AUI.CastData.channels[spellID] and "listed" or "not listed"
+
+	AUI:Print("channel: %s, spell %d, %.2f s, %s", name, spellID, (finish - start) / 1000, listed)
+end
+
+---Turns the channel log on or off.
+function Dev:Channels()
+	self.channelLog = not self.channelLog
+
+	if self.channelLog then
+		AUI.Events:Register("UNIT_SPELLCAST_CHANNEL_START", self, self.OnChannel)
+	else
+		AUI.Events:Unregister("UNIT_SPELLCAST_CHANNEL_START", self)
+	end
+
+	AUI:Print("channel log %s.", self.channelLog and "on: start a channel" or "off")
+end
+
 ---@param command string
 function Dev:Command(command)
 	if command == "codec" then
@@ -173,5 +210,11 @@ function Dev:Command(command)
 		return
 	end
 
-	AUI:Print("dev commands: codec, boss")
+	if command == "channel" then
+		self:Channels()
+
+		return
+	end
+
+	AUI:Print("dev commands: codec, boss, channel")
 end

@@ -45,9 +45,15 @@ local CAST = { progress = 0.6, remaining = 1.2 }
 
 local CAST_STATES = {
 	{ label = L["Casting"], fill = 1, cast = CAST },
-	{ label = L["Channeling"], fill = 1, cast = { progress = 0.6, remaining = 1.8, channel = true } },
+	{ label = L["Channeling"], fill = 1, cast = { progress = 0.6, remaining = 1.8, channel = true, ticks = 5 } },
 	{ label = L["Not Interruptible"], fill = 1, cast = { progress = 0.6, remaining = 1.2, locked = true } },
 	{ label = INTERRUPTED, fill = 1, cast = { progress = 1, remaining = 0, failed = INTERRUPTED } },
+}
+
+-- Attached cast bars add your interrupt's colors and cooldown mark, and the important-spell glow.
+local KICK_STATES = {
+	{ label = L["Interrupt Ready"], fill = 1, cast = { progress = 0.25, remaining = 1.5, mark = 0.4 } },
+	{ label = L["Important"], fill = 1, cast = { progress = 0.6, remaining = 1.2, important = true } },
 }
 
 -- The player's cast bar adds an empowered cast with three stages and the hold after them.
@@ -335,6 +341,11 @@ local function DrawSample(sample, key, config, state, addPart)
 			locked = (state.cast or CAST).locked,
 			failed = (state.cast or CAST).failed,
 			stages = (state.cast or CAST).stages,
+			ticks = (state.cast or CAST).ticks,
+			mark = (state.cast or CAST).mark,
+			important = (state.cast or CAST).important,
+			target = AUI:Readable(UnitName("player")) or PLAYER,
+			targetColor = PlayerClassColor(),
 		})
 		addPart(cast.bar, "castEnabled")
 	elseif cast then
@@ -476,11 +487,11 @@ function Previews:For(pageID)
 			return Preview(pageID, Join(UNIT_STATES, OVERLAY_STATES, CAST_STATES, EMPOWER_STATES), "player")
 		end
 
-		return Preview(pageID, Join(UNIT_STATES, OVERLAY_STATES, CAST_STATES), "overlays")
+		return Preview(pageID, Join(UNIT_STATES, OVERLAY_STATES, CAST_STATES, KICK_STATES), "overlays")
 	end
 
 	if pageID == "boss" then
-		return Preview(pageID, Join(UNIT_STATES, OVERLAY_STATES, CAST_STATES, GROUP_STATES), "group")
+		return Preview(pageID, Join(UNIT_STATES, OVERLAY_STATES, CAST_STATES, KICK_STATES, GROUP_STATES), "group")
 	end
 
 	if pageID == "targettarget" then

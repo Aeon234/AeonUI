@@ -14,6 +14,14 @@ local STAGE_COLORS = 4
 -- Space reserved for the time, in multiples of its font size: "12.3", or "12.3 / 45.6".
 local TIME_WIDTH, TIME_TOTAL_WIDTH = 2.5, 5.5
 
+-- The cast target's share of the bar's width, at its right end before the time.
+local TARGET_SHARE = 0.35
+
+local GLOW_ATLAS = "ui-hud-nameplates-importantcast"
+
+-- Pixel Lines glow: how far round the bar the lines travel per second at speed 1, as a share of its perimeter.
+local GLOW_STEP = 0.05
+
 -- Duration-text components for each time format.
 local TIME_FORMATS = {
 	remaining = { "{}", "RemainingDuration" },
@@ -42,6 +50,22 @@ local TIME_FORMATS = {
 ---@field stages Texture[]
 ---@field stageLabel FontString
 ---@field ticker Frame updates the stage label while the bar shows
+---@field ticks Texture[] the player's channel tick marks
+---@field ready Texture covers the fill while your interrupt is ready
+---@field onCooldown Texture covers the fill while your interrupt is on cooldown
+---@field kick Frame clips the cooldown mark and interrupt window to the bar
+---@field positioner StatusBar filled to the cast's elapsed time; the marker starts at its edge
+---@field marker StatusBar filled to the interrupt's remaining cooldown; the mark sits at its edge
+---@field mark Texture where the interrupt comes off cooldown
+---@field window Texture the part of the cast after the mark
+---@field target FontString the cast's target
+---@field glow Frame the important-spell glow around the bar
+---@field glowArt Texture the Blizzard style
+---@field glowPulse AnimationGroup
+---@field glowLines Texture[] the Pixel Lines style
+---@field glowPhase number
+---@field unit string? the unit of the cast being shown
+---@field notInterruptible boolean? the cast's flag, possibly secret
 ---@field settings table? the resolved settings from the last `Apply`
 ---@field boundaries number[]? the empowered stage boundaries of the current cast, as shares of the bar
 ---@field stagesPlaced boolean? stage colors were placed for the cast being started
@@ -50,8 +74,11 @@ local TIME_FORMATS = {
 ---@class AUICastBar
 ---@field GAP number space between an attached cast bar and its frame
 ---@field formatter table? the shared one-decimal time formatter, created on first use
+---@field interrupt integer? the player's interrupt spell, nil when none is known
+---@field live AUICastBarWidgets[] the live bars that show interrupt colors or the cooldown mark
 local CastBar = {
 	GAP = GAP,
+	live = {},
 }
 AUI.CastBar = CastBar
 
@@ -196,6 +223,104 @@ function CastBar:Shorten(name, maxLength)
 	return name:sub(1, cut) .. "…"
 end
 
+---@param settings table
+---@param barWidth number the bar's width, icon excluded
+---@return number width the cast target's width; 0 while it is off
+function CastBar:TargetReserve(settings, barWidth)
+	if not (settings.target and settings.target.enabled) then
+		return 0
+	end
+
+	return math.floor(barWidth * TARGET_SHARE)
+end
+
+---Where a channel's ticks fall, as shares of the channel's time; the last tick, at the channel's end, is left out.
+---@param data AUIChannelTicks
+---@param duration number? the channel's length in seconds, needed for an interval
+---@param talentKnown boolean? the data's talent is known
+---@return number[] fractions
+function CastBar:TickFractions(data, duration, talentKnown)
+	local fractions = {}
+
+	if data.interval then
+		if not duration or duration <= 0 then
+			return fractions
+		end
+
+		local count = math.floor(duration / data.interval + 0.001)
+
+		for tick = 1, count do
+			local fraction = tick * data.interval / duration
+
+			if fraction < 0.999 then
+				fractions[#fractions + 1] = fraction
+			end
+		end
+
+		return fractions
+	end
+
+	local ticks = talentKnown and data.talentTicks or data.ticks or 0
+
+	for tick = 1, ticks - 1 do
+		fractions[tick] = tick / ticks
+	end
+
+	return fractions
+end
+
+---@param fraction number how much of the channel has passed
+---@param width number
+---@param reversed boolean the bar fills right to left
+---@return number x the tick's distance from the bar's left edge on a draining channel
+function CastBar:TickOffset(fraction, width, reversed)
+	if reversed then
+		return fraction * width
+	end
+
+	return (1 - fraction) * width
+end
+
+---The Pixel Lines glow: evenly spaced lines running clockwise round a rectangle, each kept to the side it starts on.
+---@param width number
+---@param height number
+---@param count integer
+---@param phase number 0 to 1, how far round the lines have travelled
+---@param thickness number
+---@return table[] lines `x`, `y` (down from the top left), `w` and `h`
+function CastBar:GlowLines(width, height, count, phase, thickness)
+	local perimeter = 2 * (width + height)
+	local length = perimeter / count / 2
+	local lines = {}
+
+	for index = 1, count do
+		local start = ((phase + (index - 1) / count) % 1) * perimeter
+		local line
+
+		if start < width then
+			line = { x = start, y = 0, w = math.min(length, width - start), h = thickness }
+		elseif start < width + height then
+			local along = start - width
+
+			line = { x = width - thickness, y = along, w = thickness, h = math.min(length, height - along) }
+		elseif start < 2 * width + height then
+			local along = start - width - height
+			local w = math.min(length, width - along)
+
+			line = { x = width - along - w, y = height - thickness, w = w, h = thickness }
+		else
+			local along = start - 2 * width - height
+			local h = math.min(length, height - along)
+
+			line = { x = 0, y = height - along - h, w = thickness, h = h }
+		end
+
+		lines[index] = line
+	end
+
+	return lines
+end
+
 -- Widgets -------------------------------------------------------------------------------------------------
 
 ---@param parent Frame
@@ -269,14 +394,74 @@ function CastBar:Create(parent)
 		spark = bar:CreateTexture(nil, "OVERLAY", nil, -1),
 		safeZone = bar:CreateTexture(nil, "ARTWORK", nil, 3),
 		latency = bar:CreateFontString(nil, "OVERLAY"),
-		locked = Cover(bar, 1),
-		failed = Cover(bar, 2),
+		ready = Cover(bar, 1),
+		onCooldown = Cover(bar, 1),
+		locked = Cover(bar, 2),
+		failed = Cover(bar, 3),
+		ticks = {},
+		target = bar:CreateFontString(nil, "OVERLAY"),
+		glowLines = {},
+		glowPhase = 0,
 		zones = zones,
 		strip = strip,
 		stages = {},
 		stageLabel = bar:CreateFontString(nil, "OVERLAY"),
 		ticker = CreateFrame("Frame", nil, bar),
 	}
+
+	-- The cooldown mark: two invisible timed bars placed end to end, so the mark lands at elapsed plus remaining
+	-- cooldown without any time handled in Lua.
+	local kick = CreateFrame("Frame", nil, bar)
+
+	kick:SetAllPoints(bar)
+	kick:SetClipsChildren(true)
+	kick:Hide()
+
+	local positioner = CreateFrame("StatusBar", nil, kick)
+	local marker = CreateFrame("StatusBar", nil, kick)
+
+	for _, timed in ipairs({ positioner, marker }) do
+		AUI.Media:SetBarTexture(timed, AUI.Media.FLAT)
+		timed:SetStatusBarColor(1, 1, 1, 0)
+	end
+
+	positioner:SetAllPoints(bar)
+	widgets.kick, widgets.positioner, widgets.marker = kick, positioner, marker
+	widgets.window = kick:CreateTexture(nil, "ARTWORK")
+	widgets.mark = kick:CreateTexture(nil, "OVERLAY")
+	widgets.mark:SetColorTexture(1, 1, 1, 1)
+	widgets.window:SetColorTexture(1, 1, 1, 1)
+	widgets.target:SetWordWrap(false)
+	widgets.target:SetJustifyH("RIGHT")
+
+	local glow = CreateFrame("Frame", nil, bar)
+
+	glow:SetPoint("TOPLEFT", holder, "TOPLEFT", -2, 2)
+	glow:SetPoint("BOTTOMRIGHT", holder, "BOTTOMRIGHT", 2, -2)
+	glow:SetFrameLevel(bar:GetFrameLevel() + 5)
+	glow:Hide()
+	widgets.glow = glow
+	widgets.glowArt = glow:CreateTexture(nil, "OVERLAY")
+	widgets.glowArt:SetAllPoints()
+	widgets.glowArt:SetBlendMode("ADD")
+
+	local pulse = widgets.glowArt:CreateAnimationGroup()
+	local rise, fall = pulse:CreateAnimation("Alpha"), pulse:CreateAnimation("Alpha")
+
+	pulse:SetLooping("REPEAT")
+	rise:SetFromAlpha(0)
+	rise:SetToAlpha(1)
+	rise:SetDuration(1)
+	rise:SetOrder(1)
+	fall:SetFromAlpha(1)
+	fall:SetToAlpha(0)
+	fall:SetDuration(1)
+	fall:SetOrder(2)
+	widgets.glowPulse = pulse
+
+	glow:SetScript("OnUpdate", function(_, elapsed)
+		CastBar:StepGlow(widgets, elapsed)
+	end)
 
 	widgets.spark:SetTexture(SPARK_TEXTURE)
 	widgets.spark:SetBlendMode("ADD")
@@ -384,6 +569,7 @@ function CastBar:Apply(widgets, settings, anchor, frameWidth)
 
 	-- The icon is a square at one end, inside the width.
 	local iconRight = settings.iconSide == "RIGHT"
+	local barWidth = width - (settings.icon and height or 0)
 
 	bar:ClearAllPoints()
 	icon:ClearAllPoints()
@@ -424,7 +610,8 @@ function CastBar:Apply(widgets, settings, anchor, frameWidth)
 	StyleText(widgets.latency, settings, math.max(settings.time.size - 4, 6), settings.time.color)
 	name:ClearAllPoints()
 	name:SetPoint("LEFT", bar, "LEFT", settings.name.x, settings.name.y)
-	name:SetPoint("RIGHT", bar, "RIGHT", -self:TimeReserve(settings), settings.name.y)
+	name:SetPoint("RIGHT", bar, "RIGHT", -(self:TimeReserve(settings) + self:TargetReserve(settings, barWidth)),
+		settings.name.y)
 	name:SetJustifyH("LEFT")
 	name:SetShown(settings.name.enabled)
 	time:ClearAllPoints()
@@ -446,6 +633,108 @@ function CastBar:Apply(widgets, settings, anchor, frameWidth)
 
 	widgets.safeZone:SetShown(latency == true)
 	widgets.latency:SetShown(latency == true and settings.latencyText == true)
+
+	for _, tick in ipairs(widgets.ticks) do
+		tick:Hide()
+	end
+
+	local target = widgets.target
+	local targetWidth = self:TargetReserve(settings, barWidth)
+
+	target:Hide()
+
+	if targetWidth > 0 then
+		StyleText(target, settings, settings.target.size, { r = 1, g = 1, b = 1 })
+		target:ClearAllPoints()
+		target:SetPoint("RIGHT", bar, "RIGHT", settings.target.x - self:TimeReserve(settings), settings.target.y)
+		target:SetWidth(targetWidth)
+	end
+
+	local ready, cooldown = settings.readyColor, settings.cooldownColor
+
+	widgets.ready:SetAllPoints(bar:GetStatusBarTexture())
+	widgets.onCooldown:SetAllPoints(bar:GetStatusBarTexture())
+	widgets.ready:Hide()
+	widgets.onCooldown:Hide()
+	widgets.kick:Hide()
+
+	if ready then
+		widgets.ready:SetColorTexture(ready.r, ready.g, ready.b, 1)
+		widgets.onCooldown:SetColorTexture(cooldown.r, cooldown.g, cooldown.b, 1)
+		widgets.marker:SetSize(barWidth, height)
+		widgets.mark:SetWidth(pixel)
+
+		local window = settings.windowColor
+
+		widgets.window:SetVertexColor(window.r, window.g, window.b, window.a or 1)
+	end
+
+	self:ApplyGlow(widgets, settings)
+end
+
+---Sets up the important-spell glow in its style; it stays hidden until a cast shows it.
+---@param widgets AUICastBarWidgets
+---@param settings table
+function CastBar:ApplyGlow(widgets, settings)
+	local glow = widgets.glow
+
+	glow:Hide()
+	widgets.glowPulse:Stop()
+
+	if not settings.glow then
+		return
+	end
+
+	local color, art = settings.glowColor, widgets.glowArt
+	local pixel = settings.glowStyle == "pixel"
+
+	art:SetShown(not pixel)
+
+	if not pixel then
+		art:SetAtlas(GLOW_ATLAS)
+		art:SetVertexColor(color.r, color.g, color.b, 1)
+	end
+
+	for index = 1, math.max(settings.glowLines, #widgets.glowLines) do
+		local line = widgets.glowLines[index]
+
+		if not line and index <= settings.glowLines then
+			line = glow:CreateTexture(nil, "OVERLAY")
+			widgets.glowLines[index] = line
+		end
+
+		if line then
+			line:SetColorTexture(color.r, color.g, color.b, 1)
+			line:SetShown(pixel and index <= settings.glowLines)
+		end
+	end
+end
+
+---Moves the Pixel Lines glow on by one frame.
+---@param widgets AUICastBarWidgets
+---@param elapsed number seconds since the last frame
+function CastBar:StepGlow(widgets, elapsed)
+	local settings = widgets.settings
+
+	if not settings or settings.glowStyle ~= "pixel" then
+		return
+	end
+
+	local glow = widgets.glow
+	local pixel = AUI:Pixel(glow)
+
+	widgets.glowPhase = (widgets.glowPhase + elapsed * settings.glowSpeed * GLOW_STEP) % 1
+
+	local lines = self:GlowLines(glow:GetWidth(), glow:GetHeight(), settings.glowLines, widgets.glowPhase,
+		settings.glowThickness * pixel)
+
+	for index, spot in ipairs(lines) do
+		local line = widgets.glowLines[index]
+
+		line:ClearAllPoints()
+		line:SetPoint("TOPLEFT", glow, "TOPLEFT", spot.x, -spot.y)
+		line:SetSize(spot.w, spot.h)
+	end
 end
 
 ---@return table formatter a one-decimal seconds formatter
@@ -522,9 +811,8 @@ function CastBar:PlaceStages(widgets, boundaries, width)
 				local color = settings.stage[tostring(math.min(index, STAGE_COLORS))]
 
 				stage:SetVertexColor(color.r, color.g, color.b, 1)
-				stage:SetPoint("TOP", widgets.strip)
-				stage:SetPoint("BOTTOM", widgets.strip)
-				stage:SetPoint(side, widgets.strip, side, direction * width * start, 0)
+				stage:SetPoint("TOP" .. side, widgets.strip, "TOP" .. side, direction * width * start, 0)
+				stage:SetPoint("BOTTOM" .. side, widgets.strip, "BOTTOM" .. side, direction * width * start, 0)
 				stage:SetWidth(width * (finish - start))
 				start = finish
 			end
@@ -555,6 +843,240 @@ local function CastColor(widgets, unit)
 	return settings.color
 end
 
+---Finds the player's interrupt: a pet's first, then the player's own; within each, the last known in the list.
+function CastBar:FindInterrupt()
+	local _, class = UnitClass("player")
+	local spells = class and AUI.CastData.interrupts[class] or {}
+	local pet, own
+
+	for _, spellID in ipairs(spells) do
+		if C_SpellBook.IsSpellKnownOrInSpellBook(spellID, Enum.SpellBookSpellBank.Pet) then
+			pet = spellID
+		elseif C_SpellBook.IsSpellKnownOrInSpellBook(spellID) then
+			own = spellID
+		end
+	end
+
+	self.interrupt = pet or own
+end
+
+---Watches what the interrupt colors and cooldown mark depend on: the spells known, and cooldowns.
+function CastBar:Start()
+	self:FindInterrupt()
+	AUI.Events:Register("SPELLS_CHANGED", self, self.FindInterrupt)
+	AUI.Events:Register("PLAYER_SPECIALIZATION_CHANGED", self, self.FindInterrupt)
+	AUI.Events:Register("UNIT_PET", self, function(_, _, unit)
+		if unit == "player" then
+			self:FindInterrupt()
+		end
+	end)
+	AUI.Events:Register("SPELL_UPDATE_COOLDOWN", self, self.OnCooldown)
+end
+
+function CastBar:OnCooldown()
+	for _, widgets in ipairs(self.live) do
+		if widgets.bar:IsShown() and widgets.unit then
+			self:RefreshInterrupt(widgets)
+		end
+	end
+end
+
+---@param region Region
+---@param flag boolean? possibly secret
+---@param shown number alpha when the flag is true
+---@param hidden number alpha when it is false
+local function AlphaFrom(region, flag, shown, hidden)
+	if not issecretvalue(flag) and flag == nil then
+		region:SetAlpha(hidden)
+	else
+		region:SetAlphaFromBoolean(flag --[[@as boolean]], shown, hidden)
+	end
+end
+
+---Places the cooldown mark: the positioner fills to the cast's elapsed time from the cast's starting edge, and the
+---marker, starting at its edge, fills to the interrupt's remaining cooldown.
+---@param widgets AUICastBarWidgets
+---@param channel boolean the cast drains rather than fills
+function CastBar:PlaceMark(widgets, channel)
+	local reversed = widgets.bar:GetReverseFill()
+	local fromRight = channel ~= reversed
+	local near, far = fromRight and "RIGHT" or "LEFT", fromRight and "LEFT" or "RIGHT"
+	local positioner, marker, mark, window = widgets.positioner, widgets.marker, widgets.mark, widgets.window
+
+	positioner:SetReverseFill(fromRight)
+	marker:SetReverseFill(fromRight)
+	marker:ClearAllPoints()
+	marker:SetPoint(near, positioner:GetStatusBarTexture(), far)
+	mark:ClearAllPoints()
+	mark:SetPoint("TOP", marker:GetStatusBarTexture(), "TOP" .. far)
+	mark:SetPoint("BOTTOM", marker:GetStatusBarTexture(), "BOTTOM" .. far)
+	window:ClearAllPoints()
+	window:SetPoint("TOP" .. near, marker:GetStatusBarTexture(), "TOP" .. far)
+	window:SetPoint("BOTTOM" .. far, widgets.bar, "BOTTOM" .. far)
+end
+
+---Shows the interrupt colors and cooldown mark for the cast on a live bar, from the interrupt's cooldown duration.
+---@param widgets AUICastBarWidgets
+function CastBar:RefreshInterrupt(widgets)
+	local settings = widgets.settings --[[@as table]]
+	local colors = settings.interruptReady or settings.interruptCooldown
+	local marks = settings.kickMark or settings.kickWindow
+	local cooldown = self.interrupt and (colors or marks) and C_Spell.GetSpellCooldownDuration(self.interrupt)
+
+	if not cooldown then
+		widgets.ready:Hide()
+		widgets.onCooldown:Hide()
+		widgets.kick:Hide()
+
+		return
+	end
+
+	local ready = cooldown:IsZero()
+
+	widgets.ready:SetShown(settings.interruptReady == true)
+	widgets.ready:SetAlphaFromBoolean(ready, 1, 0)
+	widgets.onCooldown:SetShown(settings.interruptCooldown == true)
+	widgets.onCooldown:SetAlphaFromBoolean(ready, 0, 1)
+
+	local unit = widgets.unit --[[@as string]]
+	local cast, channel = UnitCastingDuration(unit), false
+
+	if not cast then
+		cast, channel = UnitChannelDuration(unit), true
+	end
+
+	if not marks or not cast then
+		widgets.kick:Hide()
+
+		return
+	end
+
+	local total = cast:GetTotalDuration()
+
+	widgets.positioner:SetMinMaxValues(0, total)
+	widgets.positioner:SetValue(cast:GetElapsedDuration())
+	widgets.marker:SetMinMaxValues(0, total)
+	widgets.marker:SetValue(cooldown:GetRemainingDuration())
+	self:PlaceMark(widgets, channel)
+	widgets.mark:SetShown(settings.kickMark == true)
+	widgets.mark:SetAlphaFromBoolean(ready, 0, 1)
+	widgets.window:SetShown(settings.kickWindow == true)
+	widgets.kick:Show()
+	AlphaFrom(widgets.kick, widgets.notInterruptible, 0, 1)
+end
+
+---Places the player's channel ticks for a channel in the tick list.
+---@param widgets AUICastBarWidgets
+---@param spellID number? possibly secret
+function CastBar:PlaceTicks(widgets, spellID)
+	local settings = widgets.settings --[[@as table]]
+
+	for _, tick in ipairs(widgets.ticks) do
+		tick:Hide()
+	end
+
+	if not settings.ticks or issecretvalue(spellID) or not spellID then
+		return
+	end
+
+	local data = AUI.CastData.channels[spellID]
+
+	if not data then
+		return
+	end
+
+	local duration
+
+	if data.interval then
+		local start, finish = select(4, UnitChannelInfo("player"))
+
+		if issecretvalue(start) or issecretvalue(finish) or not start then
+			return
+		end
+
+		duration = (finish - start) / 1000
+	end
+
+	local known = data.talent ~= nil and C_SpellBook.IsSpellKnownOrInSpellBook(data.talent)
+
+	self:ShowTicks(widgets, self:TickFractions(data, duration, known))
+end
+
+---@param widgets AUICastBarWidgets
+---@param fractions number[]
+function CastBar:ShowTicks(widgets, fractions)
+	local settings = widgets.settings --[[@as table]]
+	local bar = widgets.bar
+	local width, pixel = bar:GetWidth(), AUI:Pixel(bar)
+	local color = settings.tickColor
+
+	for index, fraction in ipairs(fractions) do
+		local tick = widgets.ticks[index]
+
+		if not tick then
+			tick = bar:CreateTexture(nil, "OVERLAY", nil, -2)
+			widgets.ticks[index] = tick
+		end
+
+		local last = index == #fractions and settings.lastTick
+
+		tick:SetColorTexture(last and 1 or color.r, last and 1 or color.g, last and 1 or color.b, last and 1 or color.a or 1)
+		local x = self:TickOffset(fraction, width, bar:GetReverseFill())
+
+		tick:ClearAllPoints()
+		tick:SetPoint("TOPLEFT", bar, "TOPLEFT", x, 0)
+		tick:SetPoint("BOTTOMLEFT", bar, "BOTTOMLEFT", x, 0)
+		tick:SetWidth(pixel)
+		tick:Show()
+	end
+end
+
+---Shows the cast's target, class-colored, when the client says to show it.
+---@param widgets AUICastBarWidgets
+---@param unit string
+function CastBar:ShowTarget(widgets, unit)
+	local settings, target = widgets.settings --[[@as table]], widgets.target
+
+	if not (settings.target and settings.target.enabled and UnitShouldDisplaySpellTargetName(unit)) then
+		target:Hide()
+
+		return
+	end
+
+	local class = UnitSpellTargetClass(unit)
+	local color = (issecretvalue(class) or class ~= nil) and C_ClassColor.GetClassColor(class)
+
+	target:SetText(UnitSpellTargetName(unit))
+
+	if color then
+		target:SetTextColor(color:GetRGB())
+	else
+		target:SetTextColor(1, 1, 1)
+	end
+
+	target:Show()
+end
+
+---Shows the important-spell glow while the cast's spell is one the client marks important.
+---@param widgets AUICastBarWidgets
+---@param spellID number? possibly secret
+function CastBar:ShowGlow(widgets, spellID)
+	local settings = widgets.settings --[[@as table]]
+
+	if not settings.glow or (not issecretvalue(spellID) and spellID == nil) then
+		widgets.glow:Hide()
+
+		return
+	end
+
+	widgets.glow:Show()
+	widgets.glow:SetAlphaFromBoolean(C_Spell.IsSpellImportant(spellID --[[@as number]]), 1, 0)
+
+	if settings.glowStyle == "blizzard" then
+		widgets.glowPulse:Play()
+	end
+end
+
 ---Turns Blizzard's pet cast bar back on after oUF stopped it with the player's: AeonUI shows no pet frame.
 function CastBar:RestorePetCastBar()
 	local pet = PetCastingBarFrame
@@ -583,14 +1105,20 @@ function CastBar:Attach(frame, widgets)
 	bar.Time.binding = C_DurationUtil.CreateDurationTextBinding()
 	self:SetTimeFormat(bar.Time.binding, "remaining")
 
-	function bar.PostCastStart(element, unit, _, notInterruptible, name)
+	function bar.PostCastStart(element, unit, spellID, notInterruptible, name)
 		local settings = widgets.settings
 
 		if not settings then
 			return
 		end
 
+		widgets.unit = unit
+		widgets.notInterruptible = notInterruptible
 		widgets.failed:Hide()
+		CastBar:PlaceTicks(widgets, spellID)
+		CastBar:RefreshInterrupt(widgets)
+		CastBar:ShowTarget(widgets, unit)
+		CastBar:ShowGlow(widgets, spellID)
 		widgets.locked:SetAlphaFromBoolean(notInterruptible, 1, 0)
 		widgets.time:SetShown(settings.time.enabled)
 		widgets.zones:SetShown(widgets.stagesPlaced == true and settings.empowerColors == true)
@@ -598,7 +1126,7 @@ function CastBar:Attach(frame, widgets)
 		widgets.stagesPlaced = nil
 		Fill(widgets, CastColor(widgets, unit), settings.classColor)
 
-		if settings.name.maxLength > 0 and name and not issecretvalue(name) then
+		if settings.name.maxLength > 0 and not issecretvalue(name) and name then
 			element.Text:SetText(CastBar:Shorten(name, settings.name.maxLength))
 		end
 
@@ -608,7 +1136,9 @@ function CastBar:Attach(frame, widgets)
 	end
 
 	function bar.PostCastInterruptible(_, _, _, notInterruptible)
+		widgets.notInterruptible = notInterruptible
 		widgets.locked:SetAlphaFromBoolean(notInterruptible, 1, 0)
+		AlphaFrom(widgets.kick, notInterruptible, 0, 1)
 	end
 
 	local function Feedback()
@@ -617,6 +1147,15 @@ function CastBar:Attach(frame, widgets)
 		widgets.time:Hide()
 		widgets.zones:Hide()
 		widgets.stageLabel:Hide()
+		widgets.ready:Hide()
+		widgets.onCooldown:Hide()
+		widgets.kick:Hide()
+		widgets.glow:Hide()
+		widgets.target:Hide()
+
+		for _, tick in ipairs(widgets.ticks) do
+			tick:Hide()
+		end
 	end
 
 	bar.PostCastFail = Feedback
@@ -653,6 +1192,10 @@ function CastBar:Attach(frame, widgets)
 	end)
 
 	frame.Castbar = bar
+
+	if frame.key ~= "player" then
+		self.live[#self.live + 1] = widgets
+	end
 end
 
 ---Applies the element options oUF reads: hold time, smoothing and the time format.
@@ -674,7 +1217,9 @@ end
 
 ---Shows a sample cast, for the settings preview.
 ---@param widgets AUICastBarWidgets
----@param sample table `progress` 0 to 1, `channel`, `locked`, `failed`, `stages` (each stage's share), `name`, `icon`
+---@param sample table `progress` 0 to 1, `channel`, `locked`, `failed`, `stages` (each stage's share), `name`,
+---`icon`, `ticks` (a tick count), `mark` (where the interrupt comes off cooldown, 0 to 1), `important`, `target` and
+---`targetColor`
 function CastBar:ShowSample(widgets, sample)
 	local settings = widgets.settings --[[@as table]]
 	local bar = widgets.bar
@@ -709,13 +1254,60 @@ function CastBar:ShowSample(widgets, sample)
 		end
 	end
 
+	for _, tick in ipairs(widgets.ticks) do
+		tick:Hide()
+	end
+
+	if sample.ticks and settings.ticks then
+		self:ShowTicks(widgets, self:TickFractions({ ticks = sample.ticks }))
+	end
+
+	local mark = sample.mark and not sample.failed
+
+	widgets.ready:SetShown(mark and settings.interruptReady == true)
+	widgets.ready:SetAlpha(1)
+	widgets.onCooldown:Hide()
+	widgets.kick:SetShown(mark and (settings.kickMark or settings.kickWindow) == true)
+
+	if mark then
+		widgets.positioner:SetMinMaxValues(0, 1)
+		widgets.positioner:SetValue(sample.progress)
+		widgets.marker:SetMinMaxValues(0, 1)
+		widgets.marker:SetValue(math.max(sample.mark - sample.progress, 0))
+		self:PlaceMark(widgets, sample.channel == true)
+		widgets.mark:SetShown(settings.kickMark == true)
+		widgets.mark:SetAlpha(1)
+		widgets.window:SetShown(settings.kickWindow == true)
+		widgets.kick:SetAlpha(1)
+	end
+
+	local target = widgets.target
+	local showTarget = sample.target and settings.target and settings.target.enabled and not sample.failed
+
+	target:SetShown(showTarget == true)
+
+	if showTarget then
+		local color = sample.targetColor or { r = 1, g = 1, b = 1 }
+
+		target:SetText(sample.target)
+		target:SetTextColor(color.r, color.g, color.b)
+	end
+
+	widgets.glow:SetShown(sample.important == true and settings.glow == true)
+	widgets.glow:SetAlpha(1)
+
+	if widgets.glow:IsShown() and settings.glowStyle == "blizzard" then
+		widgets.glowPulse:Play()
+	end
+
 	if widgets.safeZone:IsShown() then
 		local safe = widgets.safeZone
 
+		local side = (sample.channel ~= settings.reverse) and "LEFT" or "RIGHT"
+
 		safe:ClearAllPoints()
-		safe:SetPoint("TOP")
-		safe:SetPoint("BOTTOM")
-		safe:SetPoint((sample.channel ~= settings.reverse) and "LEFT" or "RIGHT")
+		safe:SetPoint("TOP" .. side)
+		safe:SetPoint("BOTTOM" .. side)
 		safe:SetWidth(width * 0.08)
 		widgets.latency:SetText("48 ms")
 	end
