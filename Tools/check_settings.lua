@@ -182,7 +182,7 @@ AUI.Media = {
 }
 for _, file in ipairs({
 	"Core/Callbacks.lua", "Profile/Schema.lua", "Profile/Store.lua", "Profile/Codec.lua", "Profile/Profile.lua",
-	"Frames/Tags.lua", "Frames/Text.lua", "Frames/Overlays.lua", "Frames/HealthColor.lua", "Frames/PowerColor.lua", "Frames/Portrait.lua", "Frames/CastBar.lua", "Frames/Auras.lua", "Frames/ClassPower.lua", "Frames/Indicators.lua", "Frames/Fading.lua", "Frames/UnitFrame.lua", "Frames/Frames.lua",
+	"Frames/Tags.lua", "Frames/Text.lua", "Frames/Overlays.lua", "Frames/HealthColor.lua", "Frames/PowerColor.lua", "Frames/Portrait.lua", "Frames/CastBar.lua", "Frames/AuraCategories.lua", "Frames/Auras.lua", "Frames/ClassPower.lua", "Frames/Indicators.lua", "Frames/Fading.lua", "Frames/UnitFrame.lua", "Frames/Frames.lua",
 	"Settings/Note.lua", "Settings/Pages.lua", "Settings/Shared.lua", "Settings/TextSlots.lua", "Settings/Overlays.lua", "Settings/CastBar.lua", "Settings/Auras.lua", "Settings/ClassPower.lua", "Settings/Indicators.lua",
 	"Settings/Previews.lua",
 	"Settings/Profiles.lua", "Settings/Recovery.lua", "Settings/Settings.lua",

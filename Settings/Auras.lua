@@ -47,11 +47,26 @@ local FILTERS = {
 	importantOwn = L["Important and Yours"],
 	hasDuration = L["Has Duration"],
 	tracked = L["Tracked Spells"],
+	categories = L["Categories"],
 }
 
 for value, label in pairs(CATEGORIES) do
 	FILTERS[value] = FILTERS[value] or label
 end
+
+local BUFF_CATEGORIES = {
+	defensives = L["Defensives"],
+	activeMitigation = L["Active Mitigation"],
+	raidCooldowns = L["Raid Cooldowns"],
+	externals = L["Externals"],
+	coreHealing = L["Core Healing"],
+	lesserHealing = L["Lesser Healing"],
+	support = L["Support"],
+	offensive = L["Offensive Cooldowns"],
+	movement = L["Movement"],
+	utility = L["Utility"],
+	consumables = L["Consumables"],
+}
 
 local CASTERS = {
 	anyone = L["Anyone's"],
@@ -114,10 +129,41 @@ local function Display(key, kind)
 
 	elements[1] = Shared:Section(kind, kind == "buffs" and L["Buffs"] or L["Debuffs"], key, Shared.SCOPES[kind], true)
 
+	local categorized = Schema:Field(base .. "categories.defensives") ~= nil
+	local filters = {}
+
+	-- Curated categories exist only for the player's buffs.
+	for _, option in ipairs(Pages.Options(filterList, FILTERS)) do
+		if option.value ~= "categories" or categorized then
+			filters[#filters + 1] = option
+		end
+	end
+
 	Add(
 		Check(show, kind == "buffs" and L["Show Buffs"] or L["Show Debuffs"], base .. "enabled"),
-		Choice(id .. "Filter", L["Filter"], base .. "filter", Pages.Options(filterList, FILTERS), On())
+		Choice(id .. "Filter", L["Filter"], base .. "filter", filters, On())
 	)
+
+	if categorized then
+		local switches = {}
+		local function Categorized()
+			if AUI.Profile:Get(base .. "filter") ~= "categories" then
+				return L["Only with the Categories filter."]
+			end
+		end
+
+		for _, category in ipairs(AUI.AuraCategories:Available()) do
+			switches[#switches + 1] = Check(id .. "Category" .. category, BUFF_CATEGORIES[category] or category,
+				base .. "categories." .. category, On({
+					blocked = Categorized,
+					description = L["Player buffs in curated groups. Each switch shows or hides one group; Never Show still wins."],
+				}))
+		end
+
+		for index = 1, #switches, 2 do
+			Add(switches[index], switches[index + 1])
+		end
+	end
 	Add(
 		Slider(id .. "Size", L["Icon Size"], base .. "size", Range("size")),
 		Slider(id .. "Limit", L["Limit"], base .. "limit", Range("limit"))

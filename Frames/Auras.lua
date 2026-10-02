@@ -171,6 +171,10 @@ function Auras:Filter(settings)
 		if settings.listCaster == "yours" then
 			Add("yours")
 		end
+	elseif mode == "categories" then
+		local _, class = UnitClass("player")
+
+		candidates.includeSpellIDs = AUI.AuraCategories:Spells(settings.categories, AUI:Readable(class))
 	end
 
 	for _, name in ipairs(MODES[mode] or { mode }) do

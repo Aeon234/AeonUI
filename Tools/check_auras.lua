@@ -107,6 +107,8 @@ AUI.Text = {
 assert(loadfile(root .. "Profile/Schema.lua"))("AeonUI", AUI)
 assert(loadfile(root .. "Frames/CastData.lua"))("AeonUI", AUI)
 assert(loadfile(root .. "Frames/CastBar.lua"))("AeonUI", AUI)
+AUI.can = {}
+assert(loadfile(root .. "Frames/AuraCategories.lua"))("AeonUI", AUI)
 assert(loadfile(root .. "Frames/Auras.lua"))("AeonUI", AUI)
 
 local Auras, Schema = AUI.Auras, AUI.Schema
@@ -430,5 +432,59 @@ local hasDuration = Display("target", "buffs")
 hasDuration.filter = "hasDuration"
 Auras:Configure(widgets, hasDuration)
 Equal("duration filter", widgets.element.last.SetAuraGroupCandidateFilters[2].maxDuration, math.huge)
+
+-- Player buff categories -----------------------------------------------------------------------------------------
+
+local Categories = AUI.AuraCategories
+AUI.can.retailSpells = true
+Equal("retail offers every category", #Categories:Available(), 11)
+Equal("player buffs have category switches, all on", Display("player", "buffs").categories.support, true)
+Equal("other frames have none", Display("target", "buffs").categories, nil)
+local mageSpells = Categories:Spells(nil, "MAGE")
+Equal("own defensive for the class", mageSpells[45438], true)
+Equal("another class's own defensive left out", mageSpells[871], nil)
+Equal("an any-class offensive buff kept", mageSpells[2825], true)
+Equal("another class's external kept", mageSpells[6940], true)
+Equal("another class's healing kept", mageSpells[774], true)
+Equal("a switch turned off leaves its category out",
+	Categories:Spells({ externals = false }, "MAGE")[6940], nil)
+local seen = {}
+for _, category in pairs(Categories:Catalogue()) do
+	for id, owner in pairs(category.spells) do
+		Equal("retail spell IDs are whole numbers", id == math.floor(id) and id > 0, true)
+		Equal("retail owner is a class or ALL", type(owner), "string")
+		seen[id] = true
+	end
+end
+AUI.can.retailSpells = false
+local forever = Categories:Available()
+Equal("forever offers eight categories", #forever, 8)
+Equal("forever has no active mitigation", (function()
+	for _, key in ipairs(forever) do
+		if key == "activeMitigation" or key == "lesserHealing" or key == "support" then
+			return true
+		end
+	end
+
+	return false
+end)(), false)
+Equal("forever lists every rank", Categories:Spells(nil, "PRIEST")[10901], true)
+for _, key in ipairs(Categories.ORDER) do
+	Equal("every category has a switch: " .. key, Schema:Field("frames.player.buffs.categories." .. key) ~= nil, true)
+end
+
+issecretvalue = issecretvalue or function()
+	return false
+end
+UnitClass = function()
+	return "Mage", "MAGE"
+end
+AUI.can.retailSpells = true
+local playerBuffs = Display("player", "buffs")
+playerBuffs.filter = "categories"
+playerBuffs.exclude = "45438"
+local _, categoryCandidates = Auras:Filter(playerBuffs)
+Equal("categories send their spells", categoryCandidates.includeSpellIDs[342246], true)
+Equal("never show still applies", categoryCandidates.excludeSpellIDs[45438], true)
 
 print(("check_auras: %d checks passed"):format(checks))

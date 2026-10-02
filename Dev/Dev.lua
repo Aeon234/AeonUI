@@ -196,6 +196,29 @@ function Dev:Channels()
 	AUI:Print("channel log %s.", self.channelLog and "on: start a channel" or "off")
 end
 
+---Lists the buff category spell IDs the running client does not know.
+function Dev:Spells()
+	local unknown = 0
+
+	for key, category in pairs(AUI.AuraCategories:Catalogue()) do
+		local missing = {}
+
+		for id in pairs(category.spells) do
+			if not C_Spell.GetSpellInfo(id) then
+				missing[#missing + 1] = tostring(id)
+			end
+		end
+
+		if #missing > 0 then
+			table.sort(missing)
+			unknown = unknown + #missing
+			AUI:Print("%s: %s", key, table.concat(missing, ", "))
+		end
+	end
+
+	AUI:Print("buff categories: %d unknown spell IDs (%s list)", unknown, AUI.can.retailSpells and "Retail" or "Forever")
+end
+
 ---@param command string
 function Dev:Command(command)
 	if command == "codec" then
@@ -216,5 +239,11 @@ function Dev:Command(command)
 		return
 	end
 
-	AUI:Print("dev commands: codec, boss, channel")
+	if command == "spells" then
+		self:Spells()
+
+		return
+	end
+
+	AUI:Print("dev commands: codec, boss, channel, spells")
 end

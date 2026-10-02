@@ -76,8 +76,12 @@ local Schema = {
 		auraAnchor = { "aboveLeft", "aboveRight", "belowLeft", "belowRight", "left", "right" },
 		auraGrowth = { "right", "left" },
 		buffFilter = {
-			"all", "own", "important", "importantOwn", "hasDuration", "tracked", "bigDefensive", "externalDefensive",
-			"raidInCombat", "stealable", "anyDispellable", "notYours", "classCanApply",
+			"all", "own", "important", "importantOwn", "hasDuration", "tracked", "categories", "bigDefensive",
+			"externalDefensive", "raidInCombat", "stealable", "anyDispellable", "notYours", "classCanApply",
+		},
+		buffCategories = {
+			"defensives", "activeMitigation", "raidCooldowns", "externals", "coreHealing", "lesserHealing", "support",
+			"offensive", "movement", "utility", "consumables",
 		},
 		debuffFilter = {
 			"all", "own", "important", "importantOwn", "tracked", "crowdControl", "boss", "role", "raidInCombat",
@@ -642,6 +646,11 @@ Portrait("player", "LEFT")
 Overlays("player")
 CastBar("player", { width = 386, x = 0, y = -254, icon = false, target = false })
 Auras("player", Buffs(false), { enabled = false, anchor = "belowLeft", growth = "right", limit = 10, filter = "all" })
+
+-- The curated categories the player's buffs show with the Categories filter.
+for _, category in ipairs(Schema.choices.buffCategories) do
+	Boolean("frames.player.buffs.categories." .. category, true)
+end
 Indicator("player", "raid", true, 18, "CENTER", "inside")
 Indicator("player", "resting", true, 9, "TOPLEFT", "inside", 3, -2)
 Indicator("player", "combat", false, 16, "BOTTOMLEFT", "inside")
