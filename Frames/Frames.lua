@@ -21,6 +21,7 @@ local SPECS = {
 -- Settings that change a secure frame, which waits for combat to end.
 local LAYOUT = {
 	enabled = true, width = true, height = true, x = true, y = true, power = true, growth = true, spacing = true,
+	castbar = true,
 }
 
 ---Owns AeonUI's oUF frames: creates them, applies the active profile, and holds back changes to secure frames until
@@ -51,7 +52,8 @@ function Frames:Start()
 	local oUF = AUI.oUF
 	local UnitFrame = AUI.UnitFrame
 
-	-- Blizzard's own frames stay: they parent the pet, class resource, cast and target-of-target frames.
+	-- Blizzard's own frames stay: they parent the pet, class resource and target-of-target frames. oUF's Castbar on the
+	-- player still takes over Blizzard's player cast bar.
 	oUF.DisableBlizzard = function() end
 
 	AUI.Tags:Register()
@@ -148,5 +150,7 @@ function Frames:OnScaleChanged()
 		for _, frame in ipairs(self.objects[spec.key]) do
 			frame:UpdateBorder()
 		end
+
+		self:Apply(spec.key, false)
 	end
 end

@@ -27,12 +27,6 @@ local OVERSHIELD = {
 local Overlays = {}
 AUI.SettingsOverlays = Overlays
 
--- AeonUI's own choices first; the picker lists LibSharedMedia's other bar textures after them.
-local TEXTURES = {
-	{ value = AUI.Media.FLAT, text = L["Flat"] },
-	{ value = AUI.Media.STRIPED, text = L["Striped"], texture = AUI.Media.files[AUI.Media.STRIPED] },
-	{ value = AUI.Media.SHIELD, text = L["Blizzard"], texture = AUI.Media.files[AUI.Media.SHIELD] },
-}
 
 ---@param path string the overlay's path, ending in a dot
 ---@return fun(): string? blocked a reason while the overlay is not attached
@@ -75,7 +69,7 @@ local function Common(path, id, labels, extra)
 		Row(
 			Pages.Setting("dropdown", id .. "Texture", labels.texture, path .. "texture", {
 				picker = "texture",
-				options = TEXTURES,
+				options = Pages.TEXTURES,
 				depends = id,
 			}),
 			extra

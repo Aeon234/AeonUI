@@ -2,6 +2,7 @@
 	<Script file="Tags.lua" />
 	<Script file="Text.lua" />
 	<Script file="Overlays.lua" />
+	<Script file="CastBar.lua" />
 	<Script file="UnitFrame.lua" />
 	<Script file="Frames.lua" />
 </Ui>

@@ -17,6 +17,7 @@ local BACKGROUND = 0.067
 ---@field PowerHolder Frame? the attached power bar's holder, on frames that have one
 ---@field PowerBorder Texture[]?
 ---@field Overlays AUIOverlayWidgets? the health overlays, on frames that have them
+---@field CastBarWidgets AUICastBarWidgets? the cast bar, on frames that have one
 ---@field key string the frame's key under `frames` in the profile
 ---@field slot integer? the frame's place in its group, for a group's frames
 ---@field Bar StatusBar the frame's one bar: oUF's Health or Power element
@@ -117,7 +118,8 @@ function UnitFrame:Heights(config, key)
 end
 
 ---How far a group's slot sits from the group's first slot: one frame's width or height plus the spacing per slot,
----in the growth direction. Every slot keeps its place whether or not its unit exists.
+---in the growth direction; vertically, an attached cast bar's space too. Every slot keeps its place whether or not
+---its unit exists.
 ---@param config table
 ---@param key string a group's key
 ---@param slot integer? the frame's place in the group; nil or 1 for the first
@@ -139,7 +141,7 @@ function UnitFrame:SlotOffset(config, key, slot)
 	end
 
 	local main, power = self:Heights(config, key)
-	local step = (main + power + spacing) * (slot - 1)
+	local step = (main + power + AUI.CastBar:Extent(config, key) + spacing) * (slot - 1)
 
 	return 0, growth == "up" and step or -step
 end
@@ -200,6 +202,13 @@ function UnitFrame.HealthStyle(frame, unit)
 		frame.Power = power
 		frame.PowerHolder = holder
 		frame.PowerBorder = border
+	end
+
+	if Schema:Field("frames." .. frame.key .. ".castbar.enabled") then
+		local widgets = AUI.CastBar:Create(frame.key == "player" and UIParent or frame)
+
+		AUI.CastBar:Attach(frame, widgets)
+		frame.CastBarWidgets = widgets
 	end
 
 	frame:RegisterForClicks("AnyUp")
@@ -273,6 +282,21 @@ function UnitFrameMixin:ApplyLayout(config)
 		end
 	end
 
+	local cast = self.CastBarWidgets
+
+	if cast then
+		if Schema:Read(config, base .. "castbar.enabled") then
+			self:EnableElement("Castbar")
+
+			if self.key == "player" then
+				AUI.CastBar:RestorePetCastBar()
+			end
+		else
+			self:DisableElement("Castbar")
+			cast.holder:Hide()
+		end
+	end
+
 	if Schema:Read(config, base .. "enabled") then
 		self:Enable()
 	else
@@ -307,6 +331,16 @@ function UnitFrameMixin:ApplyAppearance(config)
 		if self:IsVisible() then
 			health:ForceUpdate()
 		end
+	end
+
+	local cast = self.CastBarWidgets
+	local castSettings = cast and AUI.CastBar:Resolve(config, self.key)
+
+	if cast and castSettings then
+		local anchor = self.key == "player" and UIParent or self
+
+		AUI.CastBar:Apply(cast, castSettings, anchor, Schema:Read(config, "frames." .. self.key .. ".width"))
+		AUI.CastBar:ApplyElement(cast, castSettings)
 	end
 
 	AUI.Text:Apply(self, self.key, config)

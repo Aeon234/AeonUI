@@ -10,6 +10,7 @@ local root = (arg and arg[0] or ""):match("^(.-)[^/\\]*$") .. "../"
 -- Environment ---------------------------------------------------------------------------------------------
 
 UNKNOWN, NONE, NAME, LEVEL, HEALTH, CUSTOM = "Unknown", "None", "Name", "Level", "Health", "Custom"
+INTERRUPTED = "Interrupted"
 PLAYER, TARGET, COLOR, DELETE, RESET, DEAD, PLAYER_OFFLINE = "Player", "Target", "Color", "Delete", "Reset", "Dead",
 	"Offline"
 SlashCmdList = {}
@@ -166,8 +167,9 @@ AUI.Media = {
 }
 for _, file in ipairs({
 	"Core/Callbacks.lua", "Profile/Schema.lua", "Profile/Store.lua", "Profile/Codec.lua", "Profile/Profile.lua",
-	"Frames/Tags.lua", "Frames/Text.lua", "Frames/Overlays.lua", "Frames/UnitFrame.lua",
-	"Settings/Note.lua", "Settings/Pages.lua", "Settings/TextSlots.lua", "Settings/Overlays.lua", "Settings/Previews.lua",
+	"Frames/Tags.lua", "Frames/Text.lua", "Frames/Overlays.lua", "Frames/CastBar.lua", "Frames/UnitFrame.lua",
+	"Settings/Note.lua", "Settings/Pages.lua", "Settings/TextSlots.lua", "Settings/Overlays.lua", "Settings/CastBar.lua",
+	"Settings/Previews.lua",
 	"Settings/Profiles.lua", "Settings/Recovery.lua", "Settings/Settings.lua",
 }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
@@ -254,8 +256,10 @@ Equal("Profiles page", pages.profiles.title, "Profiles")
 Equal("no Recovery page in normal mode", pages.recovery, nil)
 Equal("no preview on Globals", pages.globals.preview, nil)
 Equal("preview on Player", type(pages.player.preview.Draw), "function")
-Equal("player and target share their sample state", pages.player.preview.stateKey, pages.target.preview.stateKey)
-Equal("preview states", table.concat(pages.target.preview.states, ","), "Full,Damaged,Dead,Offline,Absorbs,Overflow")
+Equal("target and focus share their sample state", pages.target.preview.stateKey, pages.focus.preview.stateKey)
+Equal("player keeps its own sample state", pages.player.preview.stateKey ~= pages.target.preview.stateKey, true)
+Equal("preview states", table.concat(pages.target.preview.states, ","), "Full,Damaged,Dead,Offline,Absorbs,Overflow,Casting,Channeling,Not Interruptible,Interrupted")
+Equal("player preview adds empowered casts", pages.player.preview.states[#pages.player.preview.states], "Empowered")
 Equal("target of target has no overlay states", table.concat(pages.targettarget.preview.states, ","),
 	"Full,Damaged,Dead,Offline")
 Equal("target of target keeps its own sample state", pages.targettarget.preview.stateKey ~= pages.target.preview.stateKey,
@@ -434,7 +438,7 @@ Equal("no Status Line on bosses", Find(bosses, "statusLine"), nil)
 Equal("boss slots", #Options(Find(bosses, "slot")), 4)
 Equal("boss status in the percentage slot", Profile:Get("frames.boss.text.status"), 2)
 Equal("boss preview states", table.concat(pages.boss.preview.states, ","),
-	"Full,Damaged,Dead,Offline,Absorbs,Overflow,Slot Lost")
+	"Full,Damaged,Dead,Offline,Absorbs,Overflow,Casting,Channeling,Not Interruptible,Interrupted,Slot Lost")
 Equal("boss preview keeps its own state", pages.boss.preview.stateKey ~= pages.target.preview.stateKey, true)
 
 local UnitFrame = AUI.UnitFrame
@@ -445,12 +449,15 @@ local function Offset(slot)
 end
 Equal("first slot at the group position", Offset(1), "0,0")
 Equal("a single frame has no offset", Offset(nil), "0,0")
-Equal("down by height and spacing", Offset(2), "0,-46")
-Equal("down, third slot", Offset(3), "0,-92")
+Equal("down by height, cast bar and spacing", Offset(2), "0,-66")
+Equal("down, third slot", Offset(3), "0,-132")
+Profile:Set("frames.boss.castbar.enabled", false)
+Equal("no cast bar space while it is off", Offset(2), "0,-46")
+Profile:Set("frames.boss.castbar.enabled", true)
 Find(bosses, "power").set(true)
-Equal("the power bar adds to each step", Offset(2), "0,-52")
+Equal("the power bar adds to each step", Offset(2), "0,-72")
 Find(bosses, "growth").set("up")
-Equal("up", Offset(2), "0,52")
+Equal("up", Offset(2), "0,72")
 Find(bosses, "growth").set("right")
 Find(bosses, "spacing").set(10)
 Equal("right by width and spacing", Offset(3), "420,0")

@@ -144,6 +144,13 @@ local Section, Row, Choice, Slider, Check = Pages.Section, Pages.Row, Pages.Choi
 
 -- Labels ----------------------------------------------------------------------------------------------------
 
+-- Bar textures: AeonUI's own choices first; a texture picker lists LibSharedMedia's other bar textures after them.
+Pages.TEXTURES = {
+	{ value = AUI.Media.FLAT, text = L["Flat"] },
+	{ value = AUI.Media.STRIPED, text = L["Striped"], texture = AUI.Media.files[AUI.Media.STRIPED] },
+	{ value = AUI.Media.SHIELD, text = L["Blizzard"], texture = AUI.Media.files[AUI.Media.SHIELD] },
+}
+
 Pages.OUTLINES = {
 	NONE = NONE,
 	OUTLINE = L["Outline"],
@@ -313,6 +320,7 @@ local function UnitPage(key, switchLabel)
 		})
 	end
 	Append(elements, AUI.SettingsOverlays:Sections(key))
+	Append(elements, AUI.SettingsCastBar:Sections(key))
 	Append(elements, AUI.SettingsText:Sections(key))
 	Append(elements, {
 		Section("numbers", L["Numbers"]),

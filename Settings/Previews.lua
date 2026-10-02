@@ -40,6 +40,23 @@ local GROUP_STATES = {
 -- How many samples a group's preview shows.
 local GROUP_SAMPLES = 3
 
+-- Frames with a cast bar add states that show its looks. Every other state shows the ordinary sample cast.
+local CAST = { progress = 0.6, remaining = 1.2 }
+
+local CAST_STATES = {
+	{ label = L["Casting"], fill = 1, cast = CAST },
+	{ label = L["Channeling"], fill = 1, cast = { progress = 0.6, remaining = 1.8, channel = true } },
+	{ label = L["Not Interruptible"], fill = 1, cast = { progress = 0.6, remaining = 1.2, locked = true } },
+	{ label = INTERRUPTED, fill = 1, cast = { progress = 1, remaining = 0, failed = INTERRUPTED } },
+}
+
+-- The player's cast bar adds an empowered cast with three stages and the hold after them.
+local EMPOWER_STATES = {
+	{ label = L["Empowered"], fill = 1, cast = { progress = 0.6, remaining = 1.1, stages = { 0.3, 0.25, 0.25 } } },
+}
+
+local SAMPLE_ICON = "Interface\\Icons\\INV_Misc_QuestionMark"
+
 local POWER_STATES = {
 	{ label = STATE_FULL, fill = 1 },
 	{ label = STATE_HALF, fill = 0.5 },
@@ -109,6 +126,10 @@ function Previews:Sample(key, parent, slot)
 
 		if AUI.Overlays:Resolve(AUI.Profile.config, key) then
 			sample.overlays = AUI.Overlays:Create(bar)
+		end
+
+		if AUI.CastBar:Resolve(AUI.Profile.config, key) then
+			sample.cast = AUI.CastBar:Create(frame)
 		end
 
 		self.samples[id] = sample
@@ -210,6 +231,51 @@ end
 
 local function Ignore() end
 
+---A frame's cast bar settings as its preview draws them: always under the sample, even the player's, which on
+---screen stands on its own, and in the window's strata.
+---@param config table
+---@param key string
+---@return table? settings nil when the frame has no cast bar or it is off
+function Previews:CastSettings(config, key)
+	local settings = AUI.CastBar:Resolve(config, key)
+
+	if not settings or not settings.enabled then
+		return nil
+	end
+
+	if not settings.attached then
+		settings.attached, settings.side, settings.x, settings.y = true, "below", 0, 0
+	end
+
+	-- The sample draws in the settings window's own strata.
+	settings.strata = nil
+
+	return settings
+end
+
+---@param config table
+---@param key string
+---@param width number the sample's width
+---@return number above the space a cast bar takes above the sample
+---@return number below the space below it
+---@return number width the wider of the sample and its cast bar
+function Previews:CastSpace(config, key, width)
+	local settings = self:CastSettings(config, key)
+
+	if not settings then
+		return 0, 0, width
+	end
+
+	local castWidth, castHeight = AUI.CastBar:Size(settings, width)
+	local space = AUI.CastBar.GAP + castHeight + math.abs(settings.y)
+
+	if settings.side == "above" then
+		return space, 0, math.max(width, castWidth)
+	end
+
+	return 0, space, math.max(width, castWidth)
+end
+
 ---Draws one sample in a state.
 ---@param sample table
 ---@param key string
@@ -254,6 +320,27 @@ local function DrawSample(sample, key, config, state, addPart)
 	bar:SetValue(key == "playerPower" and values.powerPercent / 100 or values.percent / 100)
 	bar:SetStatusBarColor(barColor.r, barColor.g, barColor.b)
 	addPart(bar, key == "playerPower" and "width" or "reverse")
+
+	local cast = sample.cast
+	local castSettings = cast and Previews:CastSettings(config, key)
+
+	if cast and castSettings then
+		AUI.CastBar:Apply(cast, castSettings, sample.frame, sample.frame:GetWidth())
+		AUI.CastBar:ShowSample(cast, {
+			name = L["Sample Spell"],
+			icon = SAMPLE_ICON,
+			progress = (state.cast or CAST).progress,
+			remaining = (state.cast or CAST).remaining,
+			channel = (state.cast or CAST).channel,
+			locked = (state.cast or CAST).locked,
+			failed = (state.cast or CAST).failed,
+			stages = (state.cast or CAST).stages,
+		})
+		addPart(cast.bar, "castEnabled")
+	elseif cast then
+		cast.bar:Hide()
+		cast.holder:Hide()
+	end
 
 	local settings = sample.overlays and AUI.Overlays:Resolve(config, key)
 
@@ -328,6 +415,7 @@ local function Preview(key, states, stateKey)
 			local main, powerHeight = AUI.UnitFrame:Heights(config, key)
 			local height = main + powerHeight
 			local room = Schema:Read(config, base .. "text.size") + TEXT_ROOM
+			local castAbove, castBelow, fullWidth = Previews:CastSpace(config, key, width)
 			local state = FindState(states, label)
 			local offsets, left, right, top, bottom = {}, 0, 0, 0, 0
 
@@ -348,7 +436,8 @@ local function Preview(key, states, stateKey)
 
 				sample.frame:SetSize(width, height)
 				sample.frame:ClearAllPoints()
-				sample.frame:SetPoint("TOPLEFT", parent, "TOPLEFT", PAD + offset.x - left, -(PAD + room + top - offset.y))
+				sample.frame:SetPoint("TOPLEFT", parent, "TOPLEFT", PAD + offset.x - left,
+					-(PAD + room + castAbove + top - offset.y))
 				DrawSample(sample, key, config, state, slot == 1 and addPart or Ignore)
 				sample.frame:SetShown(state.lost ~= slot)
 			end
@@ -359,7 +448,8 @@ local function Preview(key, states, stateKey)
 				window:SetPreviewChosen(AUI.SettingsText:Chosen(key))
 			end
 
-			return width + right - left + PAD * 2, height + top - bottom + (PAD + room) * 2
+			return math.max(width, fullWidth) + right - left + PAD * 2,
+				height + top - bottom + castAbove + castBelow + (PAD + room) * 2
 		end,
 	}
 end
@@ -382,11 +472,15 @@ end
 ---@return table? preview the page's preview, or nil for a page without one
 function Previews:For(pageID)
 	if pageID == "player" or pageID == "target" or pageID == "focus" then
-		return Preview(pageID, Join(UNIT_STATES, OVERLAY_STATES), "overlays")
+		if pageID == "player" then
+			return Preview(pageID, Join(UNIT_STATES, OVERLAY_STATES, CAST_STATES, EMPOWER_STATES), "player")
+		end
+
+		return Preview(pageID, Join(UNIT_STATES, OVERLAY_STATES, CAST_STATES), "overlays")
 	end
 
 	if pageID == "boss" then
-		return Preview(pageID, Join(UNIT_STATES, OVERLAY_STATES, GROUP_STATES), "group")
+		return Preview(pageID, Join(UNIT_STATES, OVERLAY_STATES, CAST_STATES, GROUP_STATES), "group")
 	end
 
 	if pageID == "targettarget" then

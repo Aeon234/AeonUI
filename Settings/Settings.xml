@@ -4,6 +4,7 @@
 	<Script file="Pages.lua" />
 	<Script file="TextSlots.lua" />
 	<Script file="Overlays.lua" />
+	<Script file="CastBar.lua" />
 	<Script file="Previews.lua" />
 	<Script file="Profiles.lua" />
 	<Script file="Recovery.lua" />

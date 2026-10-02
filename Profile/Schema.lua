@@ -52,6 +52,11 @@ local Schema = {
 		overlayPosition = { "attach", "TOPLEFT", "TOPRIGHT", "BOTTOMLEFT", "BOTTOMRIGHT", "LEFT", "RIGHT" },
 		overshield = { "never", "always", "fromLeft" },
 		growth = { "down", "up", "right", "left" },
+		castSide = { "below", "above" },
+		strata = { "BACKGROUND", "LOW", "MEDIUM", "HIGH", "DIALOG" },
+		orientation = { "HORIZONTAL", "VERTICAL" },
+		iconSide = { "LEFT", "RIGHT" },
+		timeFormat = { "remaining", "elapsed", "remainingTotal", "elapsedTotal" },
 	},
 }
 AUI.Schema = Schema
@@ -224,6 +229,70 @@ local function AttachedPower(key)
 	Number("frames." .. key .. ".power.height", 6, 4, 20, true)
 end
 
+---A frame's cast bar. The player's stands alone at a screen position; the others attach to their frame.
+---@param key string
+---@param defaults table `width`, `x`, `y`, `icon`, and `side` for an attached bar
+local function CastBar(key, defaults)
+	local base = "frames." .. key .. ".castbar."
+	local white = { r = 1, g = 1, b = 1 }
+
+	Boolean(base .. "enabled", true)
+	Number(base .. "width", defaults.width, 40, 800, true)
+	Number(base .. "height", 16, 6, 60, true)
+	Number(base .. "x", defaults.x, -3000, 3000)
+	Number(base .. "y", defaults.y, -3000, 3000)
+
+	if defaults.side then
+		Choice(base .. "side", "castSide", defaults.side)
+		Boolean(base .. "matchWidth", true)
+	end
+
+	Choice(base .. "strata", "strata", "MEDIUM")
+	Boolean(base .. "alwaysShow", false)
+	String(base .. "texture", "flat", 64)
+	Color(base .. "color", { r = 1, g = 0.71, b = 0.192 })
+	Boolean(base .. "gradient", true)
+	Color(base .. "gradientColor", { r = 1, g = 0.682, b = 0.224 })
+	Choice(base .. "gradientDirection", "orientation", "HORIZONTAL")
+	Boolean(base .. "classColor", false)
+	Color(base .. "background", { r = 1, g = 1, b = 1, a = 0.5 })
+	Number(base .. "border", 1, 0, 4, true)
+	Boolean(base .. "spark", true)
+	Boolean(base .. "reverse", false)
+	Boolean(base .. "smooth", true)
+	Boolean(base .. "icon", defaults.icon)
+	Choice(base .. "iconSide", "iconSide", "LEFT")
+	Boolean(base .. "name.enabled", true)
+	Number(base .. "name.size", 14, 6, 48, true)
+	Color(base .. "name.color", white)
+	Number(base .. "name.x", 0, -200, 200)
+	Number(base .. "name.y", 0, -200, 200)
+	Number(base .. "name.maxLength", 0, 0, 60, true)
+	Boolean(base .. "time.enabled", true)
+	Number(base .. "time.size", 14, 6, 48, true)
+	Color(base .. "time.color", white)
+	Number(base .. "time.x", 0, -200, 200)
+	Number(base .. "time.y", 0, -200, 200)
+	Choice(base .. "time.format", "timeFormat", "remaining")
+	Choice(base .. "outline", "outline", "NONE")
+	Boolean(base .. "shadow", true)
+	Color(base .. "notInterruptible", { r = 0.8, g = 0.1, b = 0.1 })
+	Color(base .. "interrupted", { r = 0.8, g = 0.1, b = 0.1 })
+	Number(base .. "holdTime", 0.6, 0, 3)
+
+	if key == "player" then
+		Boolean(base .. "latency", true)
+		Color(base .. "latencyColor", { r = 1, g = 0.25, b = 0.25, a = 0.4 })
+		Boolean(base .. "latencyText", false)
+		Boolean(base .. "empowerColors", true)
+		Color(base .. "stage.1", { r = 0.506, g = 0.525, b = 0.518 })
+		Color(base .. "stage.2", { r = 0.624, g = 0.122, b = 0.161 })
+		Color(base .. "stage.3", { r = 1, g = 0.447, b = 0.11 })
+		Color(base .. "stage.4", { r = 1, g = 0.71, b = 0.192 })
+		Boolean(base .. "stageLabel", false)
+	end
+end
+
 -- The compact frames' default text: the name, left-aligned inside health.
 local NAME_ONLY = {
 	{ content = "name", anchor = "LEFT", placement = "inside", x = 4 },
@@ -232,6 +301,7 @@ local NAME_ONLY = {
 Geometry("player", 270, 36, 16, -330, -200)
 Boolean("frames.player.reverse", false)
 Overlays("player")
+CastBar("player", { width = 386, x = 0, y = -254, icon = false })
 TextFields("player", 1, false, {
 	{ content = "healthAndPercent", anchor = "TOPRIGHT", placement = "edge", x = -4 },
 })
@@ -240,6 +310,7 @@ Geometry("target", 270, 36, 16, 330, -200)
 Boolean("frames.target.reverse", true)
 AttachedPower("target")
 Overlays("target")
+CastBar("target", { width = 270, x = 0, y = 0, icon = true, side = "below" })
 TextFields("target", 1, false, {
 	{ content = "healthAndPercent", anchor = "TOPLEFT", placement = "edge", x = 4 },
 	{ content = "levelName", separator = "space", anchor = "TOPRIGHT", placement = "edge", x = -4, colorMode = "class" },
@@ -255,6 +326,7 @@ Geometry("focus", 200, 24, 16, -330, -140)
 Boolean("frames.focus.reverse", false)
 AttachedPower("focus")
 Overlays("focus")
+CastBar("focus", { width = 200, x = 0, y = 0, icon = false, side = "above" })
 TextFields("focus", 0, true, NAME_ONLY)
 
 -- The boss frames: one group, the first slot at the position, the others following by growth and spacing.
@@ -264,6 +336,7 @@ Number("frames.boss.spacing", 14, 0, 100, true)
 Boolean("frames.boss.reverse", false)
 AttachedPower("boss")
 Overlays("boss")
+CastBar("boss", { width = 200, x = 0, y = 0, icon = true, side = "below" })
 TextFields("boss", 2, nil, {
 	{ content = "name", anchor = "TOPLEFT", placement = "inside", x = 4 },
 	{ content = "healthPercent", anchor = "TOPRIGHT", placement = "inside", x = -4 },
