@@ -13,6 +13,7 @@ local MAX_DEPTH = 32
 ---@field integer boolean? a number must be whole
 ---@field options table<string, true>? the values a choice accepts
 ---@field maxLength integer? the longest string accepted
+---@field allowEmpty boolean? a string may be empty
 ---@field optional boolean? absence is meaningful: the setting follows a shared one
 
 ---Every setting a profile can hold. A profile's config is validated against these fields; keys outside them are
@@ -60,8 +61,23 @@ local Schema = {
 		glowStyle = { "pixel", "blizzard" },
 		auraAnchor = { "aboveLeft", "aboveRight", "belowLeft", "belowRight", "left", "right" },
 		auraGrowth = { "right", "left" },
-		buffFilter = { "all", "own", "important", "importantOwn", "hasDuration" },
-		debuffFilter = { "all", "own", "important", "importantOwn" },
+		buffFilter = {
+			"all", "own", "important", "importantOwn", "hasDuration", "tracked", "bigDefensive", "externalDefensive",
+			"raidInCombat", "stealable", "anyDispellable", "notYours", "classCanApply",
+		},
+		debuffFilter = {
+			"all", "own", "important", "importantOwn", "tracked", "crowdControl", "boss", "role", "raidInCombat",
+			"dispellableByYou", "anyDispellable", "magic", "curse", "disease", "poison", "notYours", "classCanApply",
+		},
+		buffHide = {
+			"important", "bigDefensive", "externalDefensive", "raidInCombat", "stealable", "anyDispellable", "yours",
+			"notYours", "classCanApply",
+		},
+		debuffHide = {
+			"crowdControl", "boss", "role", "raidInCombat", "important", "dispellableByYou", "anyDispellable", "magic",
+			"curse", "disease", "poison", "yours", "notYours", "classCanApply",
+		},
+		listCaster = { "anyone", "yours" },
 		auraSort = { "stable", "shortest", "yours", "blizzard", "importance", "name" },
 		auraCorner = { "BOTTOMRIGHT", "BOTTOMLEFT", "TOPRIGHT", "TOPLEFT", "CENTER" },
 	},
@@ -112,10 +128,16 @@ local function Choice(path, list, default)
 end
 
 ---@param path string
----@param default string? nil makes the field optional
+---@param default string? nil makes the field optional; an empty default lets the text be empty
 ---@param maxLength integer
 local function String(path, default, maxLength)
-	Field(path, { kind = "string", default = default, maxLength = maxLength, optional = default == nil })
+	Field(path, {
+		kind = "string",
+		default = default,
+		maxLength = maxLength,
+		optional = default == nil,
+		allowEmpty = default == "",
+	})
 end
 
 ---@param path string
@@ -340,6 +362,13 @@ local function AuraDisplay(key, kind, defaults)
 	Number(base .. "x", 0, -200, 200)
 	Number(base .. "y", 0, -200, 200)
 	Choice(base .. "filter", kind == "buffs" and "buffFilter" or "debuffFilter", defaults.filter)
+	for _, category in ipairs(Schema.choices[kind == "buffs" and "buffHide" or "debuffHide"]) do
+		Boolean(base .. "hide." .. category, false)
+	end
+
+	String(base .. "include", "", 1000)
+	String(base .. "exclude", "", 1000)
+	Choice(base .. "listCaster", "listCaster", "anyone")
 	Choice(base .. "sort", "auraSort", "stable")
 	Boolean(base .. "reverse", false)
 	Boolean(base .. "clicks", false)
@@ -500,7 +529,7 @@ function Schema:CheckValue(path, value)
 			return false, ("%s is not one of its choices"):format(path)
 		end
 	elseif kind == "string" then
-		if type(value) ~= "string" or value == "" or #value > (field.maxLength or 0) then
+		if type(value) ~= "string" or (value == "" and not field.allowEmpty) or #value > (field.maxLength or 0) then
 			return false, ("%s must be a short text"):format(path)
 		end
 	elseif kind == "color" then

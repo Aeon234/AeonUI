@@ -5,21 +5,33 @@ local Schema = AUI.Schema
 -- Space between a frame and its auras.
 local GAP = 8
 
--- Filter strings for each filter mode; buffs add their own Has Duration mode.
-local FILTERS = {
-	buffs = {
-		all = "HELPFUL",
-		own = "HELPFUL|PLAYER",
-		important = "HELPFUL|IMPORTANT",
-		importantOwn = "HELPFUL|IMPORTANT|PLAYER",
-		hasDuration = "HELPFUL",
-	},
-	debuffs = {
-		all = "HARMFUL",
-		own = "HARMFUL|PLAYER",
-		important = "HARMFUL|IMPORTANT",
-		importantOwn = "HARMFUL|IMPORTANT|PLAYER",
-	},
+-- How the client selects each category: a filter keyword, a candidate filter field, a dispel type, or a duration.
+-- A category is shown by its keyword or a true field, and hidden by the negated keyword or a false field.
+local CATEGORIES = {
+	important = { keyword = "IMPORTANT" },
+	bigDefensive = { keyword = "BIG_DEFENSIVE" },
+	externalDefensive = { keyword = "EXTERNAL_DEFENSIVE" },
+	raidInCombat = { keyword = "RAID_IN_COMBAT" },
+	crowdControl = { keyword = "CROWD_CONTROL" },
+	dispellableByYou = { keyword = "RAID" },
+	anyDispellable = { keyword = "DISPELLABLE" },
+	yours = { keyword = "PLAYER" },
+	notYours = { keyword = "PLAYER", negated = true },
+	boss = { field = "isBossAura" },
+	role = { field = "isRoleAura" },
+	stealable = { field = "isStealable" },
+	classCanApply = { field = "canApplyAura" },
+	magic = { dispel = "Magic" },
+	curse = { dispel = "Curse" },
+	disease = { dispel = "Disease" },
+	poison = { dispel = "Poison" },
+	hasDuration = { duration = true },
+}
+
+-- Filter modes made of several categories; any other mode is the category of the same name, or all auras.
+local MODES = {
+	own = { "yours" },
+	importantOwn = { "important", "yours" },
 }
 
 -- The client's sort for each sort choice.
@@ -80,7 +92,15 @@ function Auras:Resolve(config, key, kind)
 
 	for path in pairs(Schema.fields) do
 		if path:sub(1, #base) == base then
-			settings[path:sub(#base + 1)] = Schema:Read(config, path)
+			local name = path:sub(#base + 1)
+			local group, field = name:match("^(%a+)%.(%w+)$")
+
+			if group then
+				settings[group] = settings[group] or {}
+				settings[group][field] = Schema:Read(config, path)
+			else
+				settings[name] = Schema:Read(config, path)
+			end
 		end
 	end
 
@@ -90,19 +110,88 @@ function Auras:Resolve(config, key, kind)
 	return settings
 end
 
+---@param text string spell IDs separated by commas or spaces
+---@return table<integer, true> spells
+function Auras:SpellList(text)
+	local spells = {}
+
+	for id in (text or ""):gmatch("%d+") do
+		spells[tonumber(id) --[[@as integer]]] = true
+	end
+
+	return spells
+end
+
+---@param text string
+---@return string? problem why the text is not a spell list
+function Auras:CheckSpellList(text)
+	if text:find("[^%d,%s]") then
+		return AUI.L["Enter spell IDs separated by commas."]
+	end
+end
+
+---The client filter string and candidate filters for a display: its filter mode, its hidden categories and its
+---spell lists. A display's keywords all apply together, so a mode and the hidden categories narrow each other.
 ---@param settings table
 ---@return string filter the client filter string
 ---@return table? candidateFilters
 function Auras:Filter(settings)
-	local modes = FILTERS[settings.kind] or FILTERS.debuffs
-	local filter = modes[settings.filter] or modes.all
+	local keywords, seen = { settings.kind == "buffs" and "HELPFUL" or "HARMFUL" }, {}
+	local candidates = {}
 
-	if settings.filter == "hasDuration" then
-		-- A maximum duration also leaves out permanent auras.
-		return filter, { maxDuration = math.huge }
+	local function Add(name, hide)
+		local category = CATEGORIES[name] --[[@as table]]
+
+		if category.keyword then
+			local negated = (category.negated == true) ~= (hide == true)
+			local keyword = (negated and "!" or "") .. category.keyword
+
+			if not seen[keyword] then
+				seen[keyword] = true
+				keywords[#keywords + 1] = keyword
+			end
+		elseif category.field then
+			candidates[category.field] = not hide
+		elseif category.dispel then
+			local list = hide and "excludeDispelTypes" or "includeDispelTypes"
+
+			candidates[list] = candidates[list] or {}
+			candidates[list][category.dispel] = true
+		elseif category.duration and not hide then
+			-- A maximum duration also leaves out permanent auras.
+			candidates.maxDuration = math.huge
+		end
 	end
 
-	return filter, nil
+	local mode = settings.filter
+
+	if mode == "tracked" then
+		candidates.includeSpellIDs = self:SpellList(settings.include)
+
+		if settings.listCaster == "yours" then
+			Add("yours")
+		end
+	end
+
+	for _, name in ipairs(MODES[mode] or { mode }) do
+		if CATEGORIES[name] then
+			Add(name)
+		end
+	end
+
+	for _, name in ipairs(Schema.choices[settings.kind == "buffs" and "buffHide" or "debuffHide"]) do
+		if settings.hide and settings.hide[name] then
+			Add(name, true)
+		end
+	end
+
+	local exclude = self:SpellList(settings.exclude)
+
+	if next(exclude) then
+		candidates.excludeSpellIDs = exclude
+	end
+
+	return table.concat(keywords, "|"), next(candidates) and candidates or nil
 end
 
 ---@param settings table

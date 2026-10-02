@@ -199,6 +199,64 @@ for _, value in ipairs(Schema.choices.auraSort) do
 	Equal(value .. " has a client sort", AuraContainerSortMethod[(Auras:Sort({ sort = value }))] ~= nil, true)
 end
 
+-- Categories and spell lists -------------------------------------------------------------------------------
+
+local function Build(kind, fields)
+	local settings = Display("target", kind)
+	for key, value in pairs(fields) do
+		settings[key] = value
+	end
+
+	return Auras:Filter(settings)
+end
+
+local filter, candidates = Build("debuffs", { filter = "crowdControl" })
+Equal("crowd control", filter, "HARMFUL|CROWD_CONTROL")
+Equal("no extra filters", candidates, nil)
+filter, candidates = Build("debuffs", { filter = "boss" })
+Equal("boss by field", filter .. tostring(candidates.isBossAura), "HARMFULtrue")
+filter, candidates = Build("debuffs", { filter = "magic" })
+Equal("dispel type", candidates.includeDispelTypes.Magic, true)
+filter = Build("debuffs", { filter = "notYours" })
+Equal("not yours", filter, "HARMFUL|!PLAYER")
+filter = Build("debuffs", { filter = "dispellableByYou" })
+Equal("dispellable by you", filter, "HARMFUL|RAID")
+filter, candidates = Build("buffs", { filter = "stealable" })
+Equal("stealable buffs", filter .. tostring(candidates.isStealable), "HELPFULtrue")
+
+local hide = { crowdControl = true, boss = true, poison = true, notYours = true, classCanApply = false }
+filter, candidates = Build("debuffs", { filter = "important", hide = hide })
+Equal("hidden keywords negated", filter, "HARMFUL|IMPORTANT|!CROWD_CONTROL|PLAYER")
+Equal("hidden field false", candidates.isBossAura, false)
+Equal("hidden dispel type excluded", candidates.excludeDispelTypes.Poison, true)
+Equal("unchecked categories stay", candidates.canApplyAura, nil)
+filter = Build("debuffs", { filter = "own", hide = { yours = true } })
+Equal("contradicting categories show nothing", filter, "HARMFUL|PLAYER|!PLAYER")
+filter = Build("debuffs", { filter = "importantOwn", hide = { notYours = true } })
+Equal("repeated keywords once", filter, "HARMFUL|IMPORTANT|PLAYER")
+filter = Build("buffs", { filter = "all", hide = { crowdControl = true } })
+Equal("buffs ignore debuff categories", filter, "HELPFUL")
+
+filter, candidates = Build("debuffs", { filter = "tracked", include = "8921, 93402 155722" })
+Equal("tracked filter", filter, "HARMFUL")
+Equal("tracked spells", candidates.includeSpellIDs[93402] and candidates.includeSpellIDs[155722], true)
+filter, candidates = Build("debuffs", { filter = "tracked", include = "", listCaster = "yours" })
+Equal("tracked yours", filter, "HARMFUL|PLAYER")
+Equal("nothing tracked shows nothing", next(candidates.includeSpellIDs), nil)
+filter, candidates = Build("debuffs", { filter = "all", include = "8921" })
+Equal("tracked list only with the tracked filter", candidates, nil)
+filter, candidates = Build("debuffs", { filter = "all", exclude = "8921,1" })
+Equal("never shown", candidates.excludeSpellIDs[8921] and candidates.excludeSpellIDs[1], true)
+
+Equal("spell list parsed", Auras:SpellList(" 12,  34 56 ")[56], true)
+Equal("empty list", next(Auras:SpellList("")), nil)
+Equal("ids accepted", Auras:CheckSpellList("12, 34 56"), nil)
+Equal("words refused", Auras:CheckSpellList("12, Moonfire") ~= nil, true)
+Equal("hide fields grouped", Display("target", "debuffs").hide.crowdControl, false)
+Equal("empty lists by default", Display("target", "debuffs").include, "")
+Equal("empty text valid", (Schema:CheckValue("frames.target.debuffs.include", "")), true)
+Equal("other text still needs content", Schema:CheckValue("frames.target.text.font", ""), false)
+
 -- Placement -----------------------------------------------------------------------------------------------
 
 local function Place(settings, above, below)

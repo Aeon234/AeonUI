@@ -4,7 +4,8 @@ local L = AUI.L
 local Schema = AUI.Schema
 local Pages = AUI.SettingsPages
 
-local Section, Row, Choice, Slider, Check = Pages.Section, Pages.Row, Pages.Choice, Pages.Slider, Pages.Check
+local Section, Row, Choice, Slider, Check, Setting = Pages.Section, Pages.Row, Pages.Choice, Pages.Slider, Pages.Check,
+	Pages.Setting
 
 local ANCHORS = {
 	aboveLeft = L["Above Left"],
@@ -20,12 +21,42 @@ local GROWTHS = {
 	left = L["Left"],
 }
 
+-- Category names, shared by the filter modes and the Hide checkboxes.
+local CATEGORIES = {
+	important = L["Important"],
+	bigDefensive = L["Big Defensive"],
+	externalDefensive = L["External Defensive"],
+	raidInCombat = L["Raid In Combat"],
+	crowdControl = L["Crowd Control"],
+	dispellableByYou = L["Dispellable by You"],
+	anyDispellable = L["Any Dispellable"],
+	yours = L["Yours"],
+	notYours = L["Not Yours"],
+	boss = L["Boss"],
+	role = L["Role"],
+	stealable = L["Stealable"],
+	classCanApply = L["Your Class Can Apply"],
+	magic = L["Magic"],
+	curse = L["Curse"],
+	disease = L["Disease"],
+	poison = L["Poison"],
+}
+
 local FILTERS = {
 	all = L["All"],
 	own = L["Yours"],
-	important = L["Important"],
 	importantOwn = L["Important and Yours"],
 	hasDuration = L["Has Duration"],
+	tracked = L["Tracked Spells"],
+}
+
+for value, label in pairs(CATEGORIES) do
+	FILTERS[value] = FILTERS[value] or label
+end
+
+local CASTERS = {
+	anyone = L["Anyone's"],
+	yours = L["Yours"],
 }
 
 local SORTS = {
@@ -109,6 +140,34 @@ local function Display(key, kind)
 		Slider(id .. "X", L["X Offset"], base .. "x", offsetMin, offsetMax, On()),
 		Slider(id .. "Y", L["Y Offset"], base .. "y", offsetMin, offsetMax, On())
 	)
+	local hides = Schema.choices[kind == "buffs" and "buffHide" or "debuffHide"]
+
+	for index = 1, #hides, 2 do
+		local first, second = hides[index], hides[index + 1]
+		local function Hide(name)
+			return Check(id .. "Hide" .. name, L["Hide %s"]:format(CATEGORIES[name]), base .. "hide." .. name, On())
+		end
+
+		Add(Hide(first), second and Hide(second) or nil)
+	end
+
+	local validate = function(text)
+		return AUI.Auras:CheckSpellList(text)
+	end
+
+	Add(
+		Setting("text", id .. "Include", L["Tracked Spells"], base .. "include", On({
+			allowEmpty = true,
+			validate = validate,
+			description = L["Spell IDs, separated by commas, that the Tracked Spells filter shows. The game applies spell lists only to buffs on you, your group and your pets, and to debuffs on enemies."],
+		})),
+		Choice(id .. "ListCaster", L["Tracked Caster"], base .. "listCaster", Pages.Options("listCaster", CASTERS), On())
+	)
+	Add(Setting("text", id .. "Exclude", L["Never Show"], base .. "exclude", On({
+		allowEmpty = true,
+		validate = validate,
+		description = L["Spell IDs, separated by commas, this display never shows, whatever its filter. The game applies spell lists only to buffs on you, your group and your pets, and to debuffs on enemies."],
+	})))
 	Add(
 		Choice(id .. "Sort", L["Sort"], base .. "sort", Pages.Options("auraSort", SORTS), On()),
 		Check(id .. "Reverse", L["Reverse Sort"], base .. "reverse", On())
