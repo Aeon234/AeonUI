@@ -211,6 +211,8 @@ local L = select(2, ...).L
 
 -- Absorbs and Heals sections (Settings)
 -- L["Absorbs and Heals"] = "Absorbs and Heals"
+-- L["Overlay"] = "Overlay"
+-- L["Heal Prediction"] = "Heal Prediction"
 -- L["Show Absorbs"] = "Show Absorbs"
 -- L["Absorb Position"] = "Absorb Position"
 -- L["Absorb Height"] = "Absorb Height"
@@ -247,6 +249,9 @@ local L = select(2, ...).L
 
 -- Cast Bar section (Settings)
 -- L["Cast Bar"] = "Cast Bar"
+-- L["Spell Name"] = "Spell Name"
+-- L["Time"] = "Time"
+-- L["Cast Target"] = "Cast Target"
 -- L["Show Cast Bar"] = "Show Cast Bar"
 -- L["Replaces Blizzard's player cast bar while shown."] = "Replaces Blizzard's player cast bar while shown."
 -- L["Frame Strata"] = "Frame Strata"
@@ -408,6 +413,7 @@ local L = select(2, ...).L
 
 -- Indicators and Fading sections (Settings)
 -- L["Indicators"] = "Indicators"
+-- L["Indicator"] = "Indicator"
 -- L["Raid Marker"] = "Raid Marker"
 -- L["Resting"] = "Resting"
 -- L["Combat"] = "Combat"

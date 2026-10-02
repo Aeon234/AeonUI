@@ -33,29 +33,45 @@ function Indicators:Sections(key)
 
 	local anchors = AUI.SettingsText.ANCHORS
 	local placements = AUI.SettingsText.PLACEMENTS
+	local present, options = {}, {}
 
 	for _, indicator in ipairs(INDICATORS) do
+		if Schema:Field(base .. "indicators." .. indicator.name .. ".enabled") then
+			present[#present + 1] = indicator
+			options[#options + 1] = { id = indicator.name, title = indicator.label }
+		end
+	end
+
+	-- More than one indicator shares one block, picked by name.
+	local picked = #present > 1
+	if picked then
+		elements[#elements + 1] = Pages.Picker("indicator", L["Indicator"], options)
+	end
+
+	for _, indicator in ipairs(present) do
 		local path = base .. "indicators." .. indicator.name .. "."
-
-		if Schema:Field(path .. "enabled") then
-			local id = indicator.name
-			local sizeMin, sizeMax = Pages.Range(path .. "size")
-			local offsetMin, offsetMax = Pages.Range(path .. "x")
-			local on = { depends = id }
-
-			Add(
+		local id = indicator.name
+		local sizeMin, sizeMax = Pages.Range(path .. "size")
+		local offsetMin, offsetMax = Pages.Range(path .. "x")
+		local on = { depends = id }
+		local rows = {
+			Row(
 				Check(id, indicator.label, path .. "enabled"),
 				Slider(id .. "Size", L["Size"], path .. "size", sizeMin, sizeMax, Pages.Merge({}, on))
-			)
-			Add(
+			),
+			Row(
 				Choice(id .. "Anchor", L["Anchor"], path .. "anchor", Pages.Options("anchor", anchors), Pages.Merge({}, on)),
 				Choice(id .. "Placement", L["Placement"], path .. "placement", Pages.Options("placement", placements),
 					Pages.Merge({}, on))
-			)
-			Add(
+			),
+			Row(
 				Slider(id .. "X", L["X Offset"], path .. "x", offsetMin, offsetMax, Pages.Merge({}, on)),
 				Slider(id .. "Y", L["Y Offset"], path .. "y", offsetMin, offsetMax, Pages.Merge({}, on))
-			)
+			),
+		}
+
+		for _, row in ipairs(picked and Pages.Pick(id, rows) or rows) do
+			elements[#elements + 1] = row
 		end
 	end
 

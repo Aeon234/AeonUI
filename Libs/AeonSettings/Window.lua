@@ -26,6 +26,8 @@ local JUMP_MIN_SECTIONS = 3
 local JUMP_FLASH_DELAY = 0.15
 local FIND_TOP_GAP = 40 -- a found setting's section header lands this far below the list's top
 local TAB_TEMPLATE = "MinimalTabTemplate"
+local INTERNAL_TAB_TEMPLATE = "AeonUISettings_InternalTabTemplate"
+local INTERNAL_TAB_ATLAS = "common-internaltab" -- the internal tab art, used where the client has it
 local TAB_GAP = 5 -- between tabs, as Blizzard's Settings panel spaces its own
 local TAB_TEXT_PADDING = 40 -- MinimalTabTemplate's width beyond its text
 local VERSION_COLOR = "|cff9d9d9d"
@@ -61,6 +63,7 @@ local RESET_POPUP = "AeonUISettings_RESET_PAGE"
 ---@field last boolean? last element of its section
 ---@field onSurface boolean? drawn on a section surface
 ---@field collapsed boolean? a collapsible section that is collapsed
+---@field picked string? a picker's picked option
 ---@field empty boolean? a section with no elements after it
 
 ---@type table<string, AeonSettingsElementKind>
@@ -104,6 +107,39 @@ AS:RegisterElementKind("searchDivider", {
 	end,
 })
 
+-- Internal tab -------------------------------------------------------------------------------------------
+
+---A page tab drawn with the `common-internaltab` art: normal, hover and selected. It offers what the window uses
+---of `MinimalTabTemplate`: `Text` and `SetSelected`.
+AeonUISettings_InternalTabMixin = {}
+
+function AeonUISettings_InternalTabMixin:OnLoad()
+	local info = C_Texture.GetAtlasInfo(INTERNAL_TAB_ATLAS)
+	if info then
+		self:SetHeight(math.min(info.height, tokens.size.row))
+	end
+	self.selected = false
+	self:UpdateArt()
+end
+
+---@param selected boolean
+function AeonUISettings_InternalTabMixin:SetSelected(selected)
+	self.selected = selected
+	self:UpdateArt()
+end
+
+function AeonUISettings_InternalTabMixin:UpdateArt()
+	local hovered = self:IsMouseOver()
+	local atlas = INTERNAL_TAB_ATLAS
+	if self.selected then
+		atlas = atlas .. "-selected"
+	elseif hovered then
+		atlas = atlas .. "-hover"
+	end
+	self.Background:SetAtlas(atlas)
+	self.Text:SetFontObject((self.selected or hovered) and "GameFontHighlightSmall" or "GameFontNormalSmall")
+end
+
 -- Reset confirmation ----------------------------------------------------------------------------------------
 
 StaticPopupDialogs[RESET_POPUP] = {
@@ -125,7 +161,7 @@ StaticPopupDialogs[RESET_POPUP] = {
 ---@field options table creation options
 ---@field categories table[] category definitions
 ---@field pages table<string, table> page definitions by id
----@field memory { page: string?, scroll: table<string, number>, sections: table<string, table<string, boolean>>, tabs: table<string, string>, initial: table<string, any>, previewHidden: boolean, previewStates: table<string, string> }
+---@field memory { page: string?, scroll: table<string, number>, sections: table<string, table<string, boolean>>, tabs: table<string, string>, picks: table<string, table<string, string>>, initial: table<string, any>, previewHidden: boolean, previewStates: table<string, string> }
 ---`memory.page` is the page the window is on, kept through a search; `memory.scroll` holds each page's scroll
 ---position, per tab, from when it was last left; `memory.tabs` each page's chosen tab.
 ---@field scrollGeneration integer increments with each smooth scroll; a stale scroll's follow-up is dropped
@@ -146,7 +182,8 @@ AeonUISettings_WindowMixin = {}
 function AeonUISettings_WindowMixin:OnLoad()
 	self.categories = {}
 	self.pages = {}
-	self.memory = { scroll = {}, sections = {}, tabs = {}, initial = {}, previewHidden = false, previewStates = {} }
+	self.memory = { scroll = {}, sections = {}, tabs = {}, picks = {}, initial = {}, previewHidden = false,
+		previewStates = {} }
 	self.scrollGeneration = 0
 	self.reloadPending = {}
 	self.sections = {}
@@ -433,7 +470,8 @@ end
 function AeonUISettings_WindowMixin:CreateTabButton(index)
 	local bar = self.Page.TabBar
 	local previous = self.tabButtons[index - 1]
-	local button = CreateFrame("Button", nil, bar, TAB_TEMPLATE)
+	local template = C_Texture.GetAtlasInfo(INTERNAL_TAB_ATLAS) and INTERNAL_TAB_TEMPLATE or TAB_TEMPLATE
+	local button = CreateFrame("Button", nil, bar, template)
 	if previous then
 		button:SetPoint("BOTTOMLEFT", previous, "BOTTOMRIGHT", TAB_GAP, 0)
 	else
@@ -680,6 +718,17 @@ function AeonUISettings_WindowMixin:RefreshPage()
 	end)
 end
 
+---Picks a picker's option on a page, for the session, keeping the rows where they are on screen.
+---@param pageID string
+---@param pickerID string
+---@param optionID string
+function AeonUISettings_WindowMixin:SetPick(pageID, pickerID, optionID)
+	self.model:SetPick(pageID, pickerID, optionID)
+	if pageID == self.listPageID then
+		self:RefreshPage()
+	end
+end
+
 ---Collapses or expands a collapsible section on a page, for the session.
 ---@param pageID string
 ---@param sectionID string
@@ -796,10 +845,7 @@ function AeonUISettings_WindowMixin:ShowPage(page, hitIndex)
 
 	if hitIndex then
 		self.model:Reveal(page.id, hitIndex)
-		local tab = self.model:TabOf(page.id, hitIndex)
-		if tab then
-			self.model:SetTab(page.id, tab)
-		end
+		self.model:Choose(page.id, hitIndex)
 	end
 
 	local map = self:BuildList(page, hitIndex ~= nil)
@@ -1036,8 +1082,9 @@ function AeonUISettings_WindowMixin:SmoothScrollTo(index, onArrive, gap)
 	end)
 end
 
----Finds a setting from the preview: shows its tab, opens its collapsed group, scrolls its section header to just
----below the list's top, then flashes its row, or its half of a split row, if the row is on screen.
+---Finds a setting from the preview: shows its tab and picks its option, opens its collapsed group, scrolls its
+---section header to just below the list's top, then flashes its row, or its half of a split row, if the row is
+---on screen.
 ---@param settingID string
 function AeonUISettings_WindowMixin:FindSetting(settingID)
 	local page = self:CurrentPage()
@@ -1051,12 +1098,15 @@ function AeonUISettings_WindowMixin:FindSetting(settingID)
 	end
 
 	local tab = self.model:TabOf(page.id, index)
-	local revealed = self.model:Reveal(page.id, index)
-	if tab and tab ~= self.listTabID then
+	local otherTab = tab ~= nil and tab ~= self.listTabID
+	if otherTab then
 		self:SaveScroll()
-		self.model:SetTab(page.id, tab)
+	end
+	local revealed = self.model:Reveal(page.id, index)
+	local chosen = self.model:Choose(page.id, index)
+	if otherTab then
 		self:ShowPage(page)
-	elseif revealed then
+	elseif revealed or chosen then
 		self:RefreshPage()
 	end
 

@@ -94,8 +94,12 @@ function CastBar:Sections(key)
 		),
 	}
 
+	---@return table element the row added
 	local function Add(left, right)
-		elements[#elements + 1] = Row(left, right)
+		local row = Row(left, right)
+		elements[#elements + 1] = row
+
+		return row
 	end
 
 	local width = Slider("castWidth", L["Width"], base .. "width", widthMin, widthMax,
@@ -157,38 +161,56 @@ function CastBar:Sections(key)
 		Choice("castIconSide", L["Icon Side"], base .. "iconSide", Pages.Options("iconSide", ICON_SIDES),
 			On({ depends = "castIcon" }))
 	)
+	elements[#elements + 1] = Pages.Picker("castText", L["Text"], {
+		{ id = "name", title = L["Spell Name"] },
+		{ id = "time", title = L["Time"] },
+		{ id = "target", title = L["Cast Target"] },
+	})
 	Add(
 		Check("castName", L["Show Spell Name"], base .. "name.enabled", On()),
 		Slider("castNameSize", L["Spell Name Size"], base .. "name.size", sizeMin, sizeMax, On({ depends = "castName" }))
-	)
+	).pick = "name"
 	Add(
 		Color("castNameColor", L["Spell Name Color"], base .. "name.color", On({ depends = "castName" })),
 		Slider("castNameLength", L["Max Length"], base .. "name.maxLength", lengthMin, lengthMax, On({
 			depends = "castName",
 			description = L["The most letters of a spell name shown. 0 shortens a name only where it meets the time."],
 		}))
-	)
+	).pick = "name"
 	Add(
 		Slider("castNameX", L["Spell Name X"], base .. "name.x", -ATTACHED_OFFSET, ATTACHED_OFFSET,
 			On({ depends = "castName" })),
 		Slider("castNameY", L["Spell Name Y"], base .. "name.y", -ATTACHED_OFFSET, ATTACHED_OFFSET,
 			On({ depends = "castName" }))
-	)
+	).pick = "name"
 	Add(
 		Check("castTime", L["Show Time"], base .. "time.enabled", On()),
 		Choice("castTimeFormat", L["Time Format"], base .. "time.format", Pages.Options("timeFormat", TIME_FORMATS),
 			On({ depends = "castTime" }))
-	)
+	).pick = "time"
 	Add(
 		Slider("castTimeSize", L["Time Size"], base .. "time.size", sizeMin, sizeMax, On({ depends = "castTime" })),
 		Color("castTimeColor", L["Time Color"], base .. "time.color", On({ depends = "castTime" }))
-	)
+	).pick = "time"
 	Add(
 		Slider("castTimeX", L["Time X"], base .. "time.x", -ATTACHED_OFFSET, ATTACHED_OFFSET,
 			On({ depends = "castTime" })),
 		Slider("castTimeY", L["Time Y"], base .. "time.y", -ATTACHED_OFFSET, ATTACHED_OFFSET,
 			On({ depends = "castTime" }))
-	)
+	).pick = "time"
+	Add(
+		Check("castTarget", L["Show Cast Target"], base .. "target.enabled", On({
+			description = L["The name of the cast's target, in its class color, when the game shows it."],
+		})),
+		Slider("castTargetSize", L["Cast Target Size"], base .. "target.size", sizeMin, sizeMax,
+			On({ depends = "castTarget" }))
+	).pick = "target"
+	Add(
+		Slider("castTargetX", L["Cast Target X"], base .. "target.x", -ATTACHED_OFFSET, ATTACHED_OFFSET,
+			On({ depends = "castTarget" })),
+		Slider("castTargetY", L["Cast Target Y"], base .. "target.y", -ATTACHED_OFFSET, ATTACHED_OFFSET,
+			On({ depends = "castTarget" }))
+	).pick = "target"
 	Add(
 		Choice("castOutline", L["Outline"], base .. "outline", Pages.Options("outline", Pages.OUTLINES), On()),
 		Check("castShadow", L["Text Shadow"], base .. "shadow", On())
@@ -206,20 +228,6 @@ function CastBar:Sections(key)
 		format = "decimal",
 		description = L["How long Interrupted or Failed stays on the bar, in seconds."],
 	})))
-
-	Add(
-		Check("castTarget", L["Show Cast Target"], base .. "target.enabled", On({
-			description = L["The name of the cast's target, in its class color, when the game shows it."],
-		})),
-		Slider("castTargetSize", L["Cast Target Size"], base .. "target.size", sizeMin, sizeMax,
-			On({ depends = "castTarget" }))
-	)
-	Add(
-		Slider("castTargetX", L["Cast Target X"], base .. "target.x", -ATTACHED_OFFSET, ATTACHED_OFFSET,
-			On({ depends = "castTarget" })),
-		Slider("castTargetY", L["Cast Target Y"], base .. "target.y", -ATTACHED_OFFSET, ATTACHED_OFFSET,
-			On({ depends = "castTarget" }))
-	)
 
 	if Schema:Field(base .. "interruptReady") then
 		local linesMin, linesMax = Pages.Range(base .. "glowLines")

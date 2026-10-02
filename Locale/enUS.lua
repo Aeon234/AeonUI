@@ -240,6 +240,8 @@ L["Custom for this slot."] = "Custom for this slot."
 
 -- Absorbs and Heals sections (Settings)
 L["Absorbs and Heals"] = "Absorbs and Heals"
+L["Overlay"] = "Overlay"
+L["Heal Prediction"] = "Heal Prediction"
 L["Show Absorbs"] = "Show Absorbs"
 L["Absorb Position"] = "Absorb Position"
 L["Absorb Height"] = "Absorb Height"
@@ -279,6 +281,9 @@ L["Heal Prediction Color"] = "Heal Prediction Color"
 
 -- Cast Bar section (Settings)
 L["Cast Bar"] = "Cast Bar"
+L["Spell Name"] = "Spell Name"
+L["Time"] = "Time"
+L["Cast Target"] = "Cast Target"
 L["Show Cast Bar"] = "Show Cast Bar"
 L["Replaces Blizzard's player cast bar while shown."] = "Replaces Blizzard's player cast bar while shown."
 L["Frame Strata"] = "Frame Strata"
@@ -453,6 +458,7 @@ L["Enter spell IDs separated by commas."] = "Enter spell IDs separated by commas
 
 -- Indicators and Fading sections (Settings)
 L["Indicators"] = "Indicators"
+L["Indicator"] = "Indicator"
 L["Raid Marker"] = "Raid Marker"
 L["Resting"] = "Resting"
 L["Combat"] = "Combat"

@@ -23,6 +23,27 @@
 		</Scripts>
 	</Button>
 
+	<Button name="AeonUISettings_InternalTabTemplate" mixin="AeonUISettings_InternalTabMixin" registerForClicks="LeftButtonUp" virtual="true">
+		<Size x="100" y="32"/>
+		<Layers>
+			<Layer level="BACKGROUND">
+				<Texture parentKey="Background" setAllPoints="true"/>
+			</Layer>
+			<Layer level="ARTWORK">
+				<FontString parentKey="Text" inherits="GameFontNormalSmall">
+					<Anchors>
+						<Anchor point="CENTER"/>
+					</Anchors>
+				</FontString>
+			</Layer>
+		</Layers>
+		<Scripts>
+			<OnLoad method="OnLoad"/>
+			<OnEnter method="UpdateArt"/>
+			<OnLeave method="UpdateArt"/>
+		</Scripts>
+	</Button>
+
 	<Frame name="AeonUISettings_WindowTemplate" inherits="SettingsFrameTemplate" mixin="AeonUISettings_WindowMixin" toplevel="true" movable="true" enableMouse="true" clampedToScreen="true" frameStrata="HIGH" hidden="true" virtual="true">
 		<Layers>
 			<Layer level="OVERLAY">

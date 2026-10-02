@@ -23,6 +23,7 @@
 	<Script file="Window.lua"/>
 	<Script file="Row.lua"/>
 	<Script file="Section.lua"/>
+	<Script file="Picker.lua"/>
 	<Script file="Preview.lua"/>
 	<Script file="Checkbox.lua"/>
 	<Script file="SoundCheckbox.lua"/>
@@ -38,6 +39,7 @@
 	<Include file="CategoryList.xml"/>
 	<Include file="Row.xml"/>
 	<Include file="Section.xml"/>
+	<Include file="Picker.xml"/>
 	<Include file="Preview.xml"/>
 	<Include file="Checkbox.xml"/>
 	<Include file="SoundCheckbox.xml"/>

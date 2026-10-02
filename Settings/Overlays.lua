@@ -90,6 +90,11 @@ function Overlays:Sections(key)
 	local Shared = AUI.SettingsShared
 	local elements = {
 		Shared:Section("absorbsAndHeals", L["Absorbs and Heals"], key, Shared.SCOPES.absorbsAndHeals, false),
+		Pages.Picker("overlay", L["Overlay"], {
+			{ id = "absorb", title = L["Absorb"] },
+			{ id = "healAbsorb", title = L["Heal Absorb"] },
+			{ id = "healPrediction", title = L["Heal Prediction"] },
+		}),
 	}
 
 	local function Append(list)
@@ -98,7 +103,7 @@ function Overlays:Sections(key)
 		end
 	end
 
-	Append(Common(absorb, "absorb", {
+	Append(Pages.Pick("absorb", Common(absorb, "absorb", {
 		show = L["Show Absorbs"],
 		position = L["Absorb Position"],
 		height = L["Absorb Height"],
@@ -107,14 +112,16 @@ function Overlays:Sections(key)
 		depends = "absorb",
 		blocked = OnlyAttached(absorb),
 		description = L["The part of a shield larger than the missing health. Always draws it back over the health from the shield's edge; From Left grows it from the other end of the bar; Never hides it."],
-	})))
-	elements[#elements + 1] = Row(Check("glow", L["Blizzard Glow Line"], absorb .. "glow", {
-		depends = "absorb",
-		blocked = OnlyAttached(absorb),
-		description = L["Blizzard's shield glow where the shield meets current health."],
+	}))))
+	Append(Pages.Pick("absorb", {
+		Row(Check("glow", L["Blizzard Glow Line"], absorb .. "glow", {
+			depends = "absorb",
+			blocked = OnlyAttached(absorb),
+			description = L["Blizzard's shield glow where the shield meets current health."],
+		})),
 	}))
 
-	Append(Common(healAbsorb, "healAbsorb", {
+	Append(Pages.Pick("healAbsorb", Common(healAbsorb, "healAbsorb", {
 		show = L["Show Heal Absorbs"],
 		position = L["Heal Absorb Position"],
 		height = L["Heal Absorb Height"],
@@ -124,9 +131,9 @@ function Overlays:Sections(key)
 		format = "percent",
 		step = 5,
 		description = L["Darkens the health under heal absorbs."],
-	})))
+	}))))
 
-	Append(Common(prediction, "healPrediction", {
+	Append(Pages.Pick("healPrediction", Common(prediction, "healPrediction", {
 		show = L["Show Heal Prediction"],
 		position = L["Heal Prediction Position"],
 		height = L["Heal Prediction Height"],
@@ -135,7 +142,7 @@ function Overlays:Sections(key)
 		depends = "healPrediction",
 		format = "percent",
 		description = L["How far incoming heals can extend past the end of the health bar, as a percent of its length. 0 keeps them inside the bar."],
-	})))
+	}))))
 
 	return elements
 end

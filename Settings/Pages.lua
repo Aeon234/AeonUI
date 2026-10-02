@@ -194,6 +194,27 @@ function Pages.Row(left, right)
 	return { kind = "setting", setting = left }
 end
 
+---A picker row: one button per option. The rows after it that name an option in `pick` show while it is picked.
+---@param id string
+---@param label string
+---@param options { id: string, title: string }[]
+---@return table element
+function Pages.Picker(id, label, options)
+	return { kind = "picker", id = id, label = label, options = options }
+end
+
+---Names the picker option elements belong to.
+---@param option string
+---@param elements table[]
+---@return table[] elements
+function Pages.Pick(option, elements)
+	for _, element in ipairs(elements) do
+		element.pick = option
+	end
+
+	return elements
+end
+
 local Section, Row, Choice, Slider, Check = Pages.Section, Pages.Row, Pages.Choice, Pages.Slider, Pages.Check
 
 -- Labels ----------------------------------------------------------------------------------------------------

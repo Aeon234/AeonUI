@@ -1,4 +1,5 @@
--- Page model: each page's built elements, tabs, section collapse, setting activity, search and reload tracking.
+-- Page model: each page's built elements, tabs, pickers, section collapse, setting activity, search and reload
+-- tracking.
 -- Frame-free; the window draws what it returns. Every host function runs through `AS:CallHost`.
 local _, ns = ...
 local AS = ns.AeonSettings
@@ -18,11 +19,15 @@ local NIL_VALUE = {}
 ---@field switch table? the page's switch setting
 ---@field tabOf table<integer, string>? each element's tab, by full-list index, on a page with `tabs`
 ---@field tabs table[]? the page's tabs that hold elements, in the page's order
+---@field pickers table<string, table> the page's picker elements by id
+---@field pickOf table<integer, { picker: string, option: string }> each picked element's picker and option, by
+---full-list index
 ---@field shown AeonSettingsEntry[]? listed entries, in order
 ---@field map table<integer, integer>? full-list index to shown index
 
 ---@class AeonSettingsPageModel
----@field memory table the window's session memory; the model reads and writes `sections`, `tabs` and `initial`
+---@field memory table the window's session memory; the model reads and writes `sections`, `tabs`, `picks` and
+---`initial`
 ---@field kinds table<string, AeonSettingsElementKind>
 ---@field categories table[]
 ---@field snapshots table<string, AeonSettingsSnapshot> the latest build of each page, by page id
@@ -31,11 +36,12 @@ local PageModel = {}
 PageModel.__index = PageModel
 
 ---Creates a page model.
----@param memory { sections: table<string, table<string, boolean>>, tabs: table<string, string>?, initial: table<string, any> }
+---@param memory { sections: table<string, table<string, boolean>>, tabs: table<string, string>?, picks: table<string, table<string, string>>?, initial: table<string, any> }
 ---@param kinds table<string, AeonSettingsElementKind> registered element kinds, read at each build
 ---@return AeonSettingsPageModel
 function AS.CreatePageModel(memory, kinds)
 	memory.tabs = memory.tabs or {}
+	memory.picks = memory.picks or {}
 
 	return setmetatable({
 		memory = memory,
@@ -90,8 +96,37 @@ local function AssignTabs(pageTabs, all, kinds)
 	return tabOf, tabs
 end
 
----Calls the page's `Build()` once, indexes its settings, assigns its elements to tabs and records reload tracking
----for each reload-requiring setting. The result replaces the page's previous build.
+---Assigns each element that names an option (`pick`) to the picker before it. A picker's reach ends at the next
+---picker or the next section that is not collapsible; an element naming an option its picker lacks, or with no
+---picker in reach, is always listed.
+---@param all table[]
+---@param kinds table<string, AeonSettingsElementKind>
+---@return table<string, table> pickers
+---@return table<integer, { picker: string, option: string }> pickOf
+local function AssignPicks(all, kinds)
+	local pickers, pickOf = {}, {}
+	local current, options
+
+	for index, data in ipairs(all) do
+		local kind = kinds[data.kind]
+		if kind and kind.picker then
+			current, options = data, {}
+			for _, option in ipairs(data.options or {}) do
+				options[option.id] = true
+			end
+			pickers[data.id] = data
+		elseif kind and kind.section and not data.collapsible then
+			current = nil
+		elseif current and data.pick ~= nil and options[data.pick] then
+			pickOf[index] = { picker = current.id, option = data.pick }
+		end
+	end
+
+	return pickers, pickOf
+end
+
+---Calls the page's `Build()` once, indexes its settings, assigns its elements to tabs and pickers and records
+---reload tracking for each reload-requiring setting. The result replaces the page's previous build.
 ---@param page table
 ---@return AeonSettingsSnapshot
 function PageModel:Snapshot(page)
@@ -114,6 +149,7 @@ function PageModel:Snapshot(page)
 	end
 
 	local snapshot = { all = all, index = index, switch = switch }
+	snapshot.pickers, snapshot.pickOf = AssignPicks(all, self.kinds)
 	if page.tabs then
 		snapshot.tabOf, snapshot.tabs = AssignTabs(page.tabs, all, self.kinds)
 	end
@@ -123,7 +159,8 @@ function PageModel:Snapshot(page)
 end
 
 ---Lists a page: builds it, or with `reuse` keeps its latest build when there is one, then lays out its entries,
----leaving out the members of collapsed sections and, on a page with tabs, every element outside the active tab.
+---leaving out the members of collapsed sections, the elements of options not picked and, on a page with tabs,
+---every element outside the active tab. A collapsible section starts collapsed.
 ---@param page table
 ---@param reuse boolean?
 ---@return AeonSettingsEntry[] entries shown entries in list order
@@ -136,19 +173,26 @@ function PageModel:Build(page, reuse)
 	local shown, sections, map = {}, {}, {}
 	local hiding, inSection, position = false, false, 0
 	local tabOf, activeTab = snapshot.tabOf, self:ActiveTab(page.id)
+	local pickOf = snapshot.pickOf
 
 	for index, data in ipairs(snapshot.all) do
 		local kind = kinds[data.kind]
-		if kind and (not tabOf or tabOf[index] == activeTab) then
+		local pick = pickOf[index]
+		local listed = (not tabOf or tabOf[index] == activeTab)
+			and (not pick or pick.option == self:ActivePick(page.id, pick.picker))
+		if kind and listed then
 			local entry
 			if kind.section then
-				hiding = data.collapsible and collapsed[data.id] == true or false
+				hiding = data.collapsible and collapsed[data.id] ~= false or false
 				inSection, position = true, 0
 				entry = { kind = data.kind, data = data, pageID = page.id, collapsed = hiding }
 				sections[#sections + 1] = entry
 			elseif not hiding then
 				position = position + 1
 				entry = { kind = data.kind, data = data, pageID = page.id, position = position, onSurface = inSection }
+				if kind.picker then
+					entry.picked = self:ActivePick(page.id, data.id)
+				end
 			end
 			if entry then
 				shown[#shown + 1] = entry
@@ -216,6 +260,65 @@ function PageModel:TabOf(pageID, index)
 	return snapshot and snapshot.tabOf and snapshot.tabOf[index]
 end
 
+---Returns a picker's picked option: the one chosen this session while the picker still offers it, otherwise its
+---first.
+---@param pageID string
+---@param pickerID string
+---@return string? optionID nil when the page's latest build has no such picker, or it has no options
+function PageModel:ActivePick(pageID, pickerID)
+	local snapshot = self.snapshots[pageID]
+	local picker = snapshot and snapshot.pickers[pickerID]
+	local options = picker and picker.options
+	if not options or not options[1] then
+		return nil
+	end
+
+	local chosen = self.memory.picks[pageID] and self.memory.picks[pageID][pickerID]
+	for _, option in ipairs(options) do
+		if option.id == chosen then
+			return chosen
+		end
+	end
+
+	return options[1].id
+end
+
+---Picks a picker's option for the session. Takes effect at the page's next `Build`.
+---@param pageID string
+---@param pickerID string
+---@param optionID string
+function PageModel:SetPick(pageID, pickerID, optionID)
+	local picks = self.memory.picks[pageID] or {}
+	self.memory.picks[pageID] = picks
+	picks[pickerID] = optionID
+end
+
+---Chooses the tab and the picked option that list an element of the page's latest build, for the session.
+---@param pageID string
+---@param index integer index into the page's full element list
+---@return boolean changed the tab or a picked option changed
+function PageModel:Choose(pageID, index)
+	local snapshot = self.snapshots[pageID]
+	if not snapshot then
+		return false
+	end
+
+	local changed = false
+	local tab = self:TabOf(pageID, index)
+	if tab and tab ~= self:ActiveTab(pageID) then
+		self:SetTab(pageID, tab)
+		changed = true
+	end
+
+	local pick = snapshot.pickOf[index]
+	if pick and pick.option ~= self:ActivePick(pageID, pick.picker) then
+		self:SetPick(pageID, pick.picker, pick.option)
+		changed = true
+	end
+
+	return changed
+end
+
 ---@param pageID string
 ---@return table? switch the page's switch setting in its latest build
 function PageModel:PageSwitch(pageID)
@@ -264,14 +367,14 @@ function PageModel:State(pageID, setting)
 	return true
 end
 
----Collapses or expands a section on a page, for the session. Takes effect at the page's next `Build`.
+---Collapses or expands a collapsible section on a page, for the session. Takes effect at the page's next `Build`.
 ---@param pageID string
 ---@param sectionID string
 ---@param collapsed boolean
 function PageModel:SetCollapsed(pageID, sectionID, collapsed)
 	local sections = self.memory.sections[pageID] or {}
 	self.memory.sections[pageID] = sections
-	sections[sectionID] = collapsed or nil
+	sections[sectionID] = collapsed
 end
 
 ---Expands the section that holds an element of the page's latest build, so the element is listed at the next
@@ -280,9 +383,8 @@ end
 ---@param index integer index into the page's full element list
 ---@return boolean expanded a collapsed section was expanded
 function PageModel:Reveal(pageID, index)
-	local collapsed = self.memory.sections[pageID]
 	local snapshot = self.snapshots[pageID]
-	if not collapsed or not snapshot then
+	if not snapshot then
 		return false
 	end
 
@@ -290,8 +392,14 @@ function PageModel:Reveal(pageID, index)
 		local data = snapshot.all[i]
 		local kind = data and self.kinds[data.kind]
 		if kind and kind.section then
-			local wasCollapsed = collapsed[data.id] == true
-			collapsed[data.id] = nil
+			if not data.collapsible then
+				return false
+			end
+
+			local collapsed = self.memory.sections[pageID] or {}
+			self.memory.sections[pageID] = collapsed
+			local wasCollapsed = collapsed[data.id] ~= false
+			collapsed[data.id] = false
 
 			return wasCollapsed
 		end

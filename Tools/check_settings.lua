@@ -313,6 +313,30 @@ for _, id in ipairs({ "player", "pet", "target", "targettarget", "focus", "boss"
 	end
 end
 
+-- Pickers -------------------------------------------------------------------------------------------------
+
+local pickers = {}
+for _, id in ipairs({ "player", "pet", "target", "targettarget", "focus", "boss", "playerPower" }) do
+	local options
+
+	for _, element in ipairs(pages[id].Build()) do
+		if element.kind == "picker" then
+			options = {}
+			for _, option in ipairs(element.options) do
+				options[option.id] = true
+			end
+			pickers[id .. "." .. element.id] = #element.options
+		elseif element.kind == "section" and not element.collapsible then
+			options = nil
+		elseif element.pick ~= nil then
+			Equal(id .. " row picked as " .. element.pick .. " has its picker", options ~= nil and options[element.pick], true)
+		end
+	end
+end
+Equal("target overlays picker", pickers["target.overlay"], 3)
+Equal("target cast text picker", pickers["target.castText"], 3)
+Equal("player indicator picker", pickers["player.indicator"] ~= nil, true)
+
 -- Every setting on every page reads and saves ----------------------------------------------------------------
 
 for _, id in ipairs({ "globals", "player", "pet", "target", "targettarget", "focus", "boss", "playerPower", "classPower" }) do
