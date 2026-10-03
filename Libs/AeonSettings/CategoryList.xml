@@ -1,6 +1,6 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/">
 	<Button name="AeonUISettings_CategoryHeaderTemplate" inherits="ListHeaderVisualTemplate" mixin="AeonUISettings_CategoryHeaderMixin" registerForClicks="LeftButtonUp" virtual="true">
-		<Size y="26"/>
+		<Size y="28"/>
 		<Layers>
 			<Layer level="OVERLAY">
 				<Texture parentKey="Icon" hidden="true">
@@ -17,7 +17,7 @@
 	</Button>
 
 	<Button name="AeonUISettings_CategoryPageTemplate" mixin="AeonUISettings_CategoryPageMixin" registerForClicks="LeftButtonUp" virtual="true">
-		<Size y="20"/>
+		<Size y="24"/>
 		<Layers>
 			<Layer level="BACKGROUND">
 				<Texture parentKey="Background" hidden="true">

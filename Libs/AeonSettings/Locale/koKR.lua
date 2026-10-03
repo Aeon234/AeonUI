@@ -13,8 +13,6 @@ L["Requires %s to be enabled."] = "%s 활성화가 필요합니다."
 -- Window.lua
 L["Reset %s to defaults?"] = "%s을(를) 기본값으로 초기화하시겠습니까?"
 L["Reset"] = "초기화"
-L["Jump to section"] = "섹션으로 이동"
-L["%s (collapsed)"] = "%s (접힘)"
 L["Unavailable in combat."] = "전투 중에는 사용할 수 없습니다."
 L["1 change needs a reload"] = "변경 사항 1개는 UI를 다시 불러와야 적용됩니다"
 L["%d changes need a reload"] = "변경 사항 %d개는 UI를 다시 불러와야 적용됩니다"
@@ -29,8 +27,7 @@ L["Use Shared"] = "공유 값 사용"
 L["Removes this value so the setting follows the shared one again."] = "이 값을 제거하여 설정이 다시 공유 값을 따르게 합니다."
 
 -- Preview.lua
-L["Preview"] = "미리보기"
-L["Click part of the preview to find its setting"] = "미리보기의 일부를 클릭하면 해당 설정을 찾습니다"
+L["Click an element to find its settings"] = "요소를 클릭하면 해당 설정을 찾습니다"
 
 -- SoundCheckbox.lua
 L["Play sound"] = "소리 재생"

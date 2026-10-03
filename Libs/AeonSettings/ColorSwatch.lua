@@ -2,7 +2,9 @@
 local _, ns = ...
 local AS = ns.AeonSettings
 
-local INSET = 2
+-- The frame art (`Media\Swatch\Frame.png`): 110x110 in the top-left of a 128x128 file, drawn at the swatch's size;
+-- the color fills its inside, ART_INSIDE art pixels in, masked to the inside's shape (`Mask.png`).
+local ART, ART_FILE, ART_INSIDE = 110, 128, 15
 local CHECKER_DARK = 0.1
 local CHECKER_LIGHT = 0.4
 local HOVER_ALPHA = 0.15
@@ -63,14 +65,16 @@ function AeonUISettings_ColorSwatchMixin:OnLoad()
 	self.pending = false
 
 	local border = swatch.Border
-	local info = C_Texture.GetAtlasInfo("checkbox-minimal")
-	local width = (info and info.width or swatch:GetWidth()) - INSET * 2
-	local height = (info and info.height or swatch:GetHeight()) - INSET * 2
+	local size = AS.tokens.size.swatch
+	local inset = size * ART_INSIDE / ART
+	local width, height = size - inset * 2, size - inset * 2
+	border:SetTexture(AS.MEDIA .. "Swatch\\Frame.png")
+	border:SetTexCoord(0, ART / ART_FILE, 0, ART / ART_FILE)
 
 	local mask = swatch:CreateMaskTexture()
-	mask:SetAtlas("checkbox-minimal")
-	mask:SetPoint("TOPLEFT", border, "TOPLEFT", INSET, -INSET)
-	mask:SetPoint("BOTTOMRIGHT", border, "BOTTOMRIGHT", -INSET, INSET)
+	mask:SetTexture(AS.MEDIA .. "Swatch\\Mask.png", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+	mask:SetPoint("TOPLEFT", border, "TOPLEFT", inset, -inset)
+	mask:SetPoint("BOTTOMRIGHT", border, "BOTTOMRIGHT", -inset, inset)
 
 	-- A 3 x 3 checkerboard filling the inside, dark in the corners and the middle.
 	self.checker = {}
@@ -80,14 +84,14 @@ function AeonUISettings_ColorSwatchMixin:OnLoad()
 			local gray = (row + column) % 2 == 0 and CHECKER_DARK or CHECKER_LIGHT
 			square:SetColorTexture(gray, gray, gray, 1)
 			square:SetSize(width / 3, height / 3)
-			square:SetPoint("TOPLEFT", border, "TOPLEFT", INSET + column * width / 3, -(INSET + row * height / 3))
+			square:SetPoint("TOPLEFT", border, "TOPLEFT", inset + column * width / 3, -(inset + row * height / 3))
 			square:AddMaskTexture(mask)
 			self.checker[#self.checker + 1] = square
 		end
 	end
 
-	swatch.Color:SetPoint("TOPLEFT", border, "TOPLEFT", INSET, -INSET)
-	swatch.Color:SetPoint("BOTTOMRIGHT", border, "BOTTOMRIGHT", -INSET, INSET)
+	swatch.Color:SetPoint("TOPLEFT", border, "TOPLEFT", inset, -inset)
+	swatch.Color:SetPoint("BOTTOMRIGHT", border, "BOTTOMRIGHT", -inset, inset)
 	swatch.Color:AddMaskTexture(mask)
 
 	swatch.Highlight:SetColorTexture(1, 1, 1, HOVER_ALPHA)

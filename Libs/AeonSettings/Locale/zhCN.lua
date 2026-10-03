@@ -13,8 +13,6 @@ L["Requires %s to be enabled."] = "需要启用%s。"
 -- Window.lua
 L["Reset %s to defaults?"] = "将%s重置为默认设置？"
 L["Reset"] = "重置"
-L["Jump to section"] = "跳转到分区"
-L["%s (collapsed)"] = "%s（已折叠）"
 L["Unavailable in combat."] = "战斗中不可用。"
 L["1 change needs a reload"] = "1项更改需要重载界面"
 L["%d changes need a reload"] = "%d项更改需要重载界面"
@@ -29,8 +27,7 @@ L["Use Shared"] = "使用共享"
 L["Removes this value so the setting follows the shared one again."] = "移除此值，使该设置重新跟随共享设置。"
 
 -- Preview.lua
-L["Preview"] = "预览"
-L["Click part of the preview to find its setting"] = "点击预览中的部分以找到对应设置"
+L["Click an element to find its settings"] = "点击元素以找到对应设置"
 
 -- SoundCheckbox.lua
 L["Play sound"] = "播放音效"

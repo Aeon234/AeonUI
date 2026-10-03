@@ -1,6 +1,6 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/">
 	<Button name="AeonUISettings_SectionHeaderTemplate" mixin="AeonUISettings_SectionHeaderMixin" registerForClicks="LeftButtonUp" virtual="true">
-		<Size y="36"/>
+		<Size y="60"/>
 		<Layers>
 			<Layer level="ARTWORK">
 				<FontString parentKey="Title" inherits="GameFontNormal" justifyH="LEFT" wordwrap="false"/>

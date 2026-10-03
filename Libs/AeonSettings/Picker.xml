@@ -1,6 +1,6 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/">
 	<Frame name="AeonUISettings_PickerRowTemplate" mixin="AeonUISettings_PickerRowMixin" virtual="true">
-		<Size y="36"/>
+		<Size y="50"/>
 		<Layers>
 			<Layer level="BACKGROUND" textureSubLevel="0">
 				<Texture parentKey="Band" setAllPoints="true"/>

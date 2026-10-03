@@ -1,4 +1,4 @@
--- Section header: a section's title with its bar and divider and, on a collapsible group, a plus/minus.
+-- Section header: a section's capitalized title over a line across the list and, on a collapsible group, a plus/minus.
 local _, ns = ...
 local AS = ns.AeonSettings
 local tokens = AS.tokens
@@ -13,8 +13,7 @@ local ACTION_TO_TOGGLE = 10
 AeonUISettings_SectionHeaderMixin = {}
 
 function AeonUISettings_SectionHeaderMixin:OnLoad()
-	AS:SetFont(self.Title, "header")
-	self.Title:SetTextColor(unpack(tokens.color.sectionTitle))
+	AS:StyleHeaderTitle(self.Title)
 
 	-- The section gap above the header takes no clicks.
 	self:SetHitRectInsets(0, 0, tokens.space.sectionGap, 0)
@@ -23,9 +22,8 @@ function AeonUISettings_SectionHeaderMixin:OnLoad()
 	local inset = tokens.space.rowInset
 	-- Regions declared without anchors fill their parent; clear that before placing them.
 	self.Title:ClearAllPoints()
-	self.Title:SetPoint("LEFT", self, "TOPLEFT", inset, -self.titleCenter)
-	self.bar = AS:CreateHeaderBar(self, self.Title)
-	self.divider = AS:CreateHeaderDivider(self)
+	self.Title:SetPoint("LEFT", self, "TOPLEFT", 0, -self.titleCenter)
+	self.line = AS:CreateHeaderLine(self)
 	self.Toggle:ClearAllPoints()
 	self.Toggle:SetPoint("RIGHT", self, "TOPRIGHT", -inset, -self.titleCenter + self.toggleLift)
 
@@ -35,10 +33,6 @@ function AeonUISettings_SectionHeaderMixin:OnLoad()
 	self.action = action
 	self.actionSlot = AS:CreateSettingSlot()
 	self.menuSlot = AS:CreateSettingSlot()
-
-	self.outline = AS:CreateOutline(self, tokens.color.flash)
-	self.outline:SetPoint("TOPLEFT", 0, -tokens.space.sectionGap)
-	self.outline:SetPoint("BOTTOMRIGHT")
 end
 
 ---@param entry AeonSettingsEntry
@@ -48,7 +42,7 @@ function AeonUISettings_SectionHeaderMixin:Init(entry, window)
 	self.window = window
 	self.entry = entry
 
-	self.Title:SetText(data.title)
+	self.Title:SetText(data.title and data.title:upper())
 
 	local collapsible = data.collapsible == true
 	self:EnableMouse(collapsible)
@@ -121,7 +115,6 @@ function AeonUISettings_SectionHeaderMixin:OnClick()
 end
 
 function AeonUISettings_SectionHeaderMixin:Release()
-	AS:HideOutline(self.outline)
 	self.actionSlot:Release()
 	self.action:Hide()
 	self.menuSlot:Release()
@@ -134,6 +127,7 @@ end
 AS:RegisterElementKind("section", {
 	template = "AeonUISettings_SectionHeaderTemplate",
 	section = true,
+	extent = AS:HeaderExtent(),
 	Init = function(frame, entry, window)
 		frame:Init(entry, window)
 	end,
@@ -142,9 +136,5 @@ AS:RegisterElementKind("section", {
 	end,
 	Refresh = function(frame)
 		frame:RefreshState()
-	end,
-	-- A header shows no findable setting, so it always flashes whole.
-	Flash = function(frame)
-		AS:FlashOutline(frame.outline)
 	end,
 })

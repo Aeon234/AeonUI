@@ -321,10 +321,12 @@ function AeonUISettings_SettingRowMixin:Init(entry, window)
 	local even = (entry.position or 1) % 2 == 0
 	self.Band:SetAlpha(even and tokens.alpha.bandEven or tokens.alpha.bandOdd)
 
-	self.Divider:SetShown(split)
+	-- A single setting takes the left half, as wide as a split row's, and the divider shows on it too, so single and
+	-- split rows form one column.
+	self.Divider:Show()
 	self.First:ClearAllPoints()
 	self.First:SetPoint("TOPLEFT")
-	self.First:SetPoint("BOTTOMRIGHT", self, split and "BOTTOM" or "BOTTOMRIGHT")
+	self.First:SetPoint("BOTTOMRIGHT", self, "BOTTOM")
 	self.Second:ClearAllPoints()
 	self.Second:SetPoint("TOPLEFT", self, "TOP")
 	self.Second:SetPoint("BOTTOMRIGHT")
@@ -353,13 +355,16 @@ function AeonUISettings_SettingRowMixin:RefreshState()
 	end
 end
 
----Flashes the outline of the half that shows a setting, or of every half showing one when `settingID` is nil.
+---Flashes the outline of the half that shows a setting, or of every half showing one when `settingID` is nil; with
+---`hold`, the outline stays that many seconds before it fades over `fade`.
 ---@param settingID string?
-function AeonUISettings_SettingRowMixin:FlashSetting(settingID)
+---@param hold number?
+---@param fade number?
+function AeonUISettings_SettingRowMixin:FlashSetting(settingID, hold, fade)
 	for _, half in ipairs(self.halves) do
 		local setting = half.slot.setting
 		if setting and (settingID == nil or setting.id == settingID) then
-			AS:FlashOutline(half.outline)
+			AS:FlashOutline(half.outline, hold, fade)
 		end
 	end
 end
@@ -392,8 +397,8 @@ AS:RegisterElementKind("setting", {
 	Refresh = function(frame)
 		frame:RefreshState()
 	end,
-	Flash = function(frame, settingID)
-		frame:FlashSetting(settingID)
+	Flash = function(frame, settingID, hold, fade)
+		frame:FlashSetting(settingID, hold, fade)
 	end,
 	Search = function(data)
 		local parts = {}

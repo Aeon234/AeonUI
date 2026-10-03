@@ -13,8 +13,6 @@ L["Requires %s to be enabled."] = "Erfordert aktivierte Option „%s“."
 -- Window.lua
 L["Reset %s to defaults?"] = "%s auf Standard zurücksetzen?"
 L["Reset"] = "Zurücksetzen"
-L["Jump to section"] = "Zu Abschnitt springen"
-L["%s (collapsed)"] = "%s (eingeklappt)"
 L["Unavailable in combat."] = "Im Kampf nicht verfügbar."
 L["1 change needs a reload"] = "1 Änderung erfordert ein Neuladen"
 L["%d changes need a reload"] = "%d Änderungen erfordern ein Neuladen"
@@ -29,8 +27,7 @@ L["Use Shared"] = "Geteilten Wert verwenden"
 L["Removes this value so the setting follows the shared one again."] = "Entfernt diesen Wert, damit die Einstellung wieder dem geteilten Wert folgt."
 
 -- Preview.lua
-L["Preview"] = "Vorschau"
-L["Click part of the preview to find its setting"] = "Klicke auf einen Teil der Vorschau, um seine Einstellung zu finden"
+L["Click an element to find its settings"] = "Klicke auf ein Element, um seine Einstellungen zu finden"
 
 -- SoundCheckbox.lua
 L["Play sound"] = "Klang abspielen"

@@ -3,15 +3,30 @@ local _, ns = ...
 local AS = ns.AeonSettings
 local tokens = AS.tokens
 
-local HEADER_HEIGHT = 26
-local PAGE_HEIGHT = 20
+local HEADER_HEIGHT = 28
+local PAGE_HEIGHT = 22
+-- A page and the gap around it, split above and below so the page stays centered.
+local PAGE_EXTENT = 24
 local HEADER_TEXT_X = 8
 local PAGE_TEXT_X = 28
 local PAGE_TEXT_RIGHT = 4
 local PAGE_TEXT_Y = 1
+local PAGE_ICON_Y = 1
+local NATIVE_COLUMN = 192 -- the column width Blizzard's page highlight atlases are drawn for
 local SCROLLBAR_INSET = 10
 local SCROLLBAR_GAP = 2
 local COUNT_FORMAT = " |cff9d9d9d(%d)|r"
+
+-- Copies of Blizzard's fonts with only the face and size changed, so their colors and shadows stay the templates'.
+local headerFont = CreateFont("AeonUISettings_CategoryHeaderFont")
+headerFont:CopyFontObject(Game15Font_Shadow)
+headerFont:SetFont(AS.fonts.body, tokens.font.categoryHeaderSize, "")
+local pageFont = CreateFont("AeonUISettings_CategoryPageFont")
+pageFont:CopyFontObject(GameFontNormal)
+pageFont:SetFont(AS.fonts.body, tokens.font.categoryPageSize, "")
+local pageHighlightFont = CreateFont("AeonUISettings_CategoryPageHighlightFont")
+pageHighlightFont:CopyFontObject(GameFontHighlight)
+pageHighlightFont:SetFont(AS.fonts.body, tokens.font.categoryPageSize, "")
 
 ---Text start offset for an entry, leaving room for an icon when the list uses icons.
 ---@param baseX number
@@ -51,6 +66,9 @@ end
 AeonUISettings_CategoryHeaderMixin = {}
 
 function AeonUISettings_CategoryHeaderMixin:OnLoad()
+	self:SetNormalFontObject(headerFont)
+	self:SetHighlightFontObject(headerFont)
+
 	local title = self:GetTitleRegion()
 	for i = 1, title:GetNumPoints() do
 		local point, _, _, _, y = title:GetPoint(i)
@@ -119,7 +137,7 @@ function AeonUISettings_CategoryPageMixin:Init(data, list)
 	self.Label:SetText(page.title .. CountSuffix(list.counts and list.counts.pages[page.id]))
 
 	self.Icon:ClearAllPoints()
-	self.Icon:SetPoint("LEFT", self, "LEFT", x - tokens.size.listIcon - tokens.space.listIconGap, 0)
+	self.Icon:SetPoint("LEFT", self, "LEFT", x - tokens.size.listIcon - tokens.space.listIconGap, PAGE_ICON_Y)
 	SetIcon(self.Icon, page.icon)
 
 	self:UpdateState(self:IsMouseOver())
@@ -133,17 +151,17 @@ function AeonUISettings_CategoryPageMixin:UpdateState(hovered)
 	self.hovered = hovered
 	local selected = self.list.selected == self.page.id
 
-	if selected then
-		self.Background:SetAtlas("Options_List_Active", TextureKitConstants.UseAtlasSize)
-		self.Background:Show()
-	elseif hovered then
-		self.Background:SetAtlas("Options_List_Hover", TextureKitConstants.UseAtlasSize)
-		self.Background:Show()
+	local background = self.Background
+	if selected or hovered then
+		-- As wide as the atlas plus the column's width beyond Blizzard's, and the page's height.
+		background:SetAtlas(selected and "Options_List_Active" or "Options_List_Hover", TextureKitConstants.UseAtlasSize)
+		background:SetSize(background:GetWidth() + tokens.size.categoryColumn - NATIVE_COLUMN, PAGE_HEIGHT)
+		background:Show()
 	else
-		self.Background:Hide()
+		background:Hide()
 	end
 
-	self.Label:SetFontObject((selected or hovered) and GameFontHighlight or GameFontNormal)
+	self.Label:SetFontObject((selected or hovered) and pageHighlightFont or pageFont)
 	self.Icon:SetVertexColor(self.Label:GetTextColor())
 end
 
@@ -194,7 +212,7 @@ function AeonUISettings_CategoryListMixin:OnLoad()
 		end
 	end)
 	view:SetElementExtentCalculator(function(_, data)
-		return data.page and PAGE_HEIGHT or HEADER_HEIGHT
+		return data.page and PAGE_EXTENT or HEADER_HEIGHT
 	end)
 
 	ScrollUtil.InitScrollBoxListWithScrollBar(self.ScrollBox, self.ScrollBar, view)

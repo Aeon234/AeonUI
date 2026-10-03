@@ -8,6 +8,7 @@ local FLASH_DURATION = 0.75
 
 ---@class AeonSettingsOutline : Frame
 ---@field fade AnimationGroup
+---@field fadeAlpha Animation
 
 ---Creates a hidden outline on `parent`; the caller anchors it to the region to outline.
 ---@param parent Frame
@@ -46,6 +47,7 @@ function AS:CreateOutline(parent, color)
 		outline:Hide()
 	end)
 	outline.fade = fade
+	outline.fadeAlpha = alpha
 
 	outline:SetScript("OnHide", function()
 		fade:Stop()
@@ -62,10 +64,15 @@ function AS:ShowOutline(outline)
 	outline:Show()
 end
 
----Shows the outline at full strength, then fades it out. A new flash restarts the fade.
+---Shows the outline at full strength, then fades it out. A new flash restarts the fade. With `hold`, the outline
+---stays at full strength that many seconds first and fades over `fade` seconds.
 ---@param outline AeonSettingsOutline
-function AS:FlashOutline(outline)
+---@param hold number?
+---@param fade number? the fade's length with `hold`
+function AS:FlashOutline(outline, hold, fade)
 	self:ShowOutline(outline)
+	outline.fadeAlpha:SetStartDelay(hold or 0)
+	outline.fadeAlpha:SetDuration(hold and fade or FLASH_DURATION)
 	outline.fade:Play()
 end
 

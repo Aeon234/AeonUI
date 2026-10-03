@@ -13,8 +13,6 @@ L["Requires %s to be enabled."] = "Требуется включить «%s»."
 -- Window.lua
 L["Reset %s to defaults?"] = "Восстановить для «%s» значения по умолчанию?"
 L["Reset"] = "Сбросить"
-L["Jump to section"] = "Перейти к разделу"
-L["%s (collapsed)"] = "%s (свернуто)"
 L["Unavailable in combat."] = "Недоступно в бою."
 L["1 change needs a reload"] = "1 изменение требует перезагрузки"
 L["%d changes need a reload"] = "Изменений, требующих перезагрузки: %d"
@@ -29,8 +27,7 @@ L["Use Shared"] = "Использовать общее"
 L["Removes this value so the setting follows the shared one again."] = "Удаляет это значение, чтобы настройка снова следовала общей."
 
 -- Preview.lua
-L["Preview"] = "Предпросмотр"
-L["Click part of the preview to find its setting"] = "Щелкните часть предпросмотра, чтобы найти ее настройку"
+L["Click an element to find its settings"] = "Щелкните элемент, чтобы найти его настройки"
 
 -- SoundCheckbox.lua
 L["Play sound"] = "Воспроизводить звук"

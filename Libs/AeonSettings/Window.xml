@@ -1,22 +1,18 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/">
 	<Button name="AeonUISettings_SearchDividerTemplate" mixin="AeonUISettings_SearchDividerMixin" registerForClicks="LeftButtonUp" virtual="true">
-		<Size y="36"/>
+		<Size y="60"/>
 		<Layers>
 			<Layer level="BACKGROUND">
-				<Texture parentKey="MouseoverOverlay" alphaMode="ADD" hidden="true" setAllPoints="true">
+				<Texture parentKey="MouseoverOverlay" alphaMode="ADD" hidden="true">
 					<Color r="0.1" g="0.1" b="0.1" a="1"/>
 				</Texture>
 			</Layer>
 			<Layer level="ARTWORK">
-				<FontString parentKey="Title" inherits="GameFontNormalLarge" justifyH="LEFT" wordwrap="false">
-					<Anchors>
-						<Anchor point="LEFT" x="16"/>
-						<Anchor point="RIGHT" x="-16"/>
-					</Anchors>
-				</FontString>
+				<FontString parentKey="Title" inherits="GameFontNormal" justifyH="LEFT" wordwrap="false"/>
 			</Layer>
 		</Layers>
 		<Scripts>
+			<OnLoad method="OnLoad"/>
 			<OnClick method="OnClick"/>
 			<OnEnter method="OnEnter"/>
 			<OnLeave method="OnLeave"/>
@@ -27,7 +23,7 @@
 		<Size x="96" y="30"/>
 		<Layers>
 			<Layer level="ARTWORK">
-				<FontString parentKey="Text" inherits="GameFontNormal" wordwrap="false">
+				<FontString parentKey="Text" inherits="GameFontHighlight" wordwrap="false">
 					<Anchors>
 						<Anchor point="CENTER" y="-3"/>
 					</Anchors>
@@ -36,8 +32,6 @@
 		</Layers>
 		<Scripts>
 			<OnLoad method="OnLoad"/>
-			<OnEnter method="UpdateText"/>
-			<OnLeave method="UpdateText"/>
 		</Scripts>
 	</Button>
 
@@ -53,46 +47,22 @@
 			<Frame parentKey="Page">
 				<Layers>
 					<Layer level="ARTWORK">
-						<FontString parentKey="Empty" inherits="GameFontDisableLarge" hidden="true">
-							<Anchors>
-								<Anchor point="TOP" y="-94"/>
-							</Anchors>
-						</FontString>
+						<FontString parentKey="Empty" inherits="GameFontDisableLarge" hidden="true"/>
 					</Layer>
 				</Layers>
 				<Frames>
-					<Frame parentKey="Header">
-						<Size y="50"/>
-						<Anchors>
-							<Anchor point="TOPLEFT"/>
-							<Anchor point="TOPRIGHT"/>
-						</Anchors>
+					<Frame parentKey="Heading">
+						<Size y="1"/>
 						<Layers>
 							<Layer level="ARTWORK">
-								<FontString parentKey="Title" inherits="GameFontHighlightHuge" justifyH="LEFT" wordwrap="false">
-									<Anchors>
-										<Anchor point="TOPLEFT" x="7" y="-22"/>
-									</Anchors>
-								</FontString>
-								<Texture parentKey="Divider" atlas="Options_HorizontalDivider" useAtlasSize="true">
-									<Anchors>
-										<Anchor point="TOP" y="-50"/>
-									</Anchors>
-								</Texture>
+								<FontString parentKey="Title" inherits="GameFontHighlightHuge" justifyH="LEFT" wordwrap="false"/>
+								<FontString parentKey="Description" inherits="GameFontHighlight" justifyH="LEFT" justifyV="TOP"/>
 							</Layer>
 						</Layers>
 						<Frames>
 							<Button parentKey="DefaultsButton" inherits="SharedButtonTemplate">
 								<Size x="120" y="24"/>
-								<Anchors>
-									<Anchor point="RIGHT" relativePoint="TOPRIGHT" x="-36" y="-27"/>
-								</Anchors>
 							</Button>
-							<DropdownButton parentKey="JumpDropdown" inherits="WowStyle1ArrowDropdownTemplate" hidden="true">
-								<Anchors>
-									<Anchor point="LEFT" relativeKey="$parent.Title" relativePoint="RIGHT" x="8" y="0"/>
-								</Anchors>
-							</DropdownButton>
 						</Frames>
 					</Frame>
 					<Frame parentKey="Preview" inherits="AeonUISettings_PreviewPanelTemplate"/>
