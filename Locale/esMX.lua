@@ -12,6 +12,9 @@ local L = select(2, ...).L
 -- L["saved settings are damaged, so AeonUI is using default settings and leaves them unchanged until you reset them."] = "saved settings are damaged, so AeonUI is using default settings and leaves them unchanged until you reset them."
 -- L["the active profile can't be used, so AeonUI is showing default settings until you choose another profile."] = "the active profile can't be used, so AeonUI is showing default settings until you choose another profile."
 
+-- Chat messages (Settings host)
+-- L["%s needs a newer version of AeonUI to show its settings here, so it keeps its own window."] = "%s needs a newer version of AeonUI to show its settings here, so it keeps its own window."
+
 -- Profile names (Profile)
 -- L["A profile needs a name."] = "A profile needs a name."
 -- L["A profile name can be %d letters at most."] = "A profile name can be %d letters at most."

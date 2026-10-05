@@ -13,4 +13,5 @@
 	<Script file="Profiles.lua" />
 	<Script file="Recovery.lua" />
 	<Script file="Settings.lua" />
+	<Script file="Host.lua" />
 </Ui>

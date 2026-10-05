@@ -186,7 +186,7 @@ for _, file in ipairs({
 	"Frames/Tags.lua", "Frames/Text.lua", "Frames/Overlays.lua", "Frames/HealthColor.lua", "Frames/PowerColor.lua", "Frames/Portrait.lua", "Frames/CastBar.lua", "Frames/AuraCategories.lua", "Frames/Auras.lua", "Frames/ClassPower.lua", "Frames/Indicators.lua", "Frames/Fading.lua", "Frames/UnitFrame.lua", "Frames/Frames.lua",
 	"Settings/Note.lua", "Settings/Pages.lua", "Settings/Shared.lua", "Settings/TextSlots.lua", "Settings/Overlays.lua", "Settings/CastBar.lua", "Settings/Auras.lua", "Settings/ClassPower.lua", "Settings/Indicators.lua",
 	"Settings/Previews.lua",
-	"Settings/Profiles.lua", "Settings/Recovery.lua", "Settings/Settings.lua",
+	"Settings/Profiles.lua", "Settings/Recovery.lua", "Settings/Settings.lua", "Settings/Host.lua",
 	"Editor/Layout.lua", "Editor/External.lua", "Editor/Mover.lua", "Editor/Panel.lua", "Editor/Editor.lua",
 }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
@@ -1278,6 +1278,15 @@ Equal("live: background tinted", painted.background, 0.067)
 PowerColor.PostUpdateColor(powerBar, "target", nil, 0.2, 0.3, 0.4)
 Equal("live: an alternate color painted", painted.fill[1], 0.2)
 Profile:Reset()
+
+-- Hosting --------------------------------------------------------------------------------------------------
+
+local ownCount = #Settings:Categories()
+Equal("a hosted addon registers", (AeonUIHost:Register({ contract = 1, addon = "Guest", title = "Guest",
+	pages = { { id = "one", title = "One", Build = function() return {} end } } })), true)
+local withGuest = Settings:Categories()
+Equal("its header comes after AeonUI's categories", #withGuest, ownCount + 1)
+Equal("the last header is the guest's", withGuest[#withGuest].pages[1].id, "Guest:one")
 
 print = luaPrint
 io.stdout:write(("check_settings: %d checks passed\n"):format(checks))

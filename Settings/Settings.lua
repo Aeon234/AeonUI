@@ -27,18 +27,35 @@ local ALIASES = {
 local Settings = {}
 AUI.Settings = Settings
 
----@return table[] categories
+---@return table[] categories AeonUI's own, then a hosted addon's header
 function Settings:Categories()
+	local categories
+
 	if AUI.Profile.mode == "recovery" then
-		return {
+		categories = {
 			{ id = "recovery", title = L["Recovery"], pages = { AUI.SettingsRecovery:Page() } },
+		}
+	else
+		categories = {
+			{ id = "unitFrames", title = L["Unit Frames"], pages = AUI.SettingsPages:UnitFramePages() },
+			{ id = "profiles", title = L["Profiles"], pages = { AUI.SettingsProfiles:Page() } },
 		}
 	end
 
-	return {
-		{ id = "unitFrames", title = L["Unit Frames"], pages = AUI.SettingsPages:UnitFramePages() },
-		{ id = "profiles", title = L["Profiles"], pages = { AUI.SettingsProfiles:Page() } },
-	}
+	local hosted = AUI.SettingsHost:Category()
+
+	if hosted then
+		categories[#categories + 1] = hosted
+	end
+
+	return categories
+end
+
+---Redraws the category list after an addon was hosted, if the window already exists.
+function Settings:OnHostChanged()
+	if self.window then
+		self.window:SetCategories(self:Categories())
+	end
 end
 
 function Settings:Create()
