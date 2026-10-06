@@ -5,7 +5,7 @@
   "flavors": ["retail"],
 
   "globals": {
-    "read": ["LibStub", "SlashCmdList", "StaticPopupDialogs", "UISpecialFrames", "ClickCastFrames"],
+    "read": ["LibStub", "SlashCmdList", "StaticPopupDialogs", "UISpecialFrames", "ClickCastFrames", "WOW_PROJECT_CAMELOT"],
     "write": ["AeonUI*", "SLASH_AEONUI*", "SlashCmdList", "ClickCastFrames"]
   },
 

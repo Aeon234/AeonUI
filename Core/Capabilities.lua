@@ -10,7 +10,7 @@ AUI.Capabilities = Capabilities
 ---@class AUICapabilityFlags
 ---@field surnames boolean player names carry a surname, which `UnitName` returns second
 ---@field abbreviationConfig boolean number abbreviation can take custom breakpoints
----@field retailSpells boolean the client has the current classes' spells, so the current buff category lists apply
+---@field retailSpells boolean the client is Retail, whose classes' spells the current buff category lists hold
 AUI.can = {}
 
 ---The only place a client difference is detected. Runs once at login.
@@ -23,8 +23,7 @@ function Capabilities:Resolve()
 		and C_StringUtil ~= nil
 		and C_StringUtil.GetDefaultAbbreviationBreakpoints ~= nil
 
-	-- Death Strike exists only where the current class roster does.
-	can.retailSpells = C_Spell ~= nil and C_Spell.GetSpellInfo ~= nil and C_Spell.GetSpellInfo(49998) ~= nil
+	can.retailSpells = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE
 
 	self.resolved = true
 
