@@ -15,6 +15,9 @@ local L = AUI.L
 ---@field external boolean? another addon's frame: a target only, never a mover
 ---@field global string? an external target's frame name
 ---@field addon string? an external target's addon
+---@field guest boolean? a hosted addon's element, placed through its edit participant
+---@field guestID string? the hosted addon's own id for it
+---@field label string? a hosted addon's label for it
 
 -- Elements in the order the picker lists them.
 ---@type AUIEditorElement[]
@@ -70,6 +73,8 @@ function Layout:Find(id)
 			end
 		end
 	end
+
+	return AUI.EditorGuest:Find(id)
 end
 
 ---@param element AUIEditorElement
@@ -81,6 +86,10 @@ end
 ---@param element AUIEditorElement
 ---@return string label
 function Layout:Label(element)
+	if element.guest then
+		return element.label or element.id
+	end
+
 	if element.external then
 		return L["Levelbound Bars"]
 	end

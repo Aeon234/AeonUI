@@ -2,6 +2,7 @@ local AUI = select(2, ...)
 
 local L = AUI.L
 local Layout = AUI.EditorLayout
+local Guest = AUI.EditorGuest
 
 local FLAT = "Interface\\Buttons\\WHITE8X8"
 local TOOLBAR_HEIGHT = 42
@@ -90,7 +91,9 @@ local function Ignore() end
 ---The layout editor: a session over the active profile, begun from settings or `/aui edit`. Movers draw samples of
 ---each placed element over the live frames, which keep their secure state; a dropped or typed position is saved
 ---through the profile owner, which applies it to the live frames out of combat. Save keeps the session's changes,
----settings changed meanwhile included; Discard puts back the profile as it was when the session began.
+---settings changed meanwhile included; Discard puts back the profile as it was when the session began. A hosted
+---addon's elements join the session through its edit participant (`AUI.EditorGuest`): their movers sit over the real
+---elements, which show the guest's samples, and the guest saves and discards their positions with the session.
 ---@class AUIEditor
 ---@field active boolean
 ---@field paused boolean combat interrupted the session
@@ -153,6 +156,7 @@ function Editor:Enter(fromSettings)
 	self.states = {}
 	self.fromSettings = fromSettings == true
 	self.snapshot = AUI.Profile:Snapshot()
+	Guest:Begin()
 
 	AUI.Events:Register("PLAYER_REGEN_DISABLED", self, self.Pause)
 	AUI.Events:Register("PLAYER_REGEN_ENABLED", self, function()
@@ -166,6 +170,8 @@ function Editor:Enter(fromSettings)
 		if snapshot and AUI.Profile:Changed(snapshot) then
 			AUI.Profile:Restore(snapshot)
 		end
+
+		Guest:Discard()
 	end)
 	AUI.Events:Register("GLOBAL_MOUSE_DOWN", self, function()
 		if self:Showing() and not self:IsMouseOverLayout() then
@@ -197,9 +203,9 @@ function Editor:FromSettings()
 	self:Enter(true)
 end
 
----@return boolean dirty the session changed the profile
+---@return boolean dirty the session changed the profile or a hosted addon's positions
 function Editor:IsDirty()
-	return self.snapshot ~= nil and AUI.Profile:Changed(self.snapshot)
+	return (self.snapshot ~= nil and AUI.Profile:Changed(self.snapshot)) or (self.active and Guest:IsDirty())
 end
 
 function Editor:RequestExit()
@@ -218,6 +224,7 @@ end
 
 function Editor:Save()
 	self.snapshot = nil
+	Guest:Save()
 
 	self:Exit()
 end
@@ -231,6 +238,7 @@ function Editor:Discard()
 		AUI.Profile:Restore(snapshot)
 	end
 
+	Guest:Discard()
 	self:Exit()
 end
 
@@ -257,6 +265,7 @@ function Editor:Exit()
 	self.fromSettings = nil
 
 	self:HideLayout(false)
+	Guest:End()
 
 	if reopen then
 		AUI.Settings:Open()
@@ -368,6 +377,7 @@ function Editor:ShowLayout()
 		self.keyboard:Show()
 	end
 
+	Guest:Show(true)
 	self:RefreshMovers()
 	self:RefreshGrid()
 end
@@ -379,6 +389,7 @@ function Editor:HideLayout(keepToolbar)
 	end
 
 	AUI.EditorPanel:Hide()
+	Guest:Show(false)
 
 	if self.keyboard then
 		self.keyboard:Hide()
@@ -430,8 +441,9 @@ end
 function Editor:ApplyStateToAll(label)
 	for _, id in ipairs(self:ShownIDs()) do
 		local element = Layout:Find(id) --[[@as AUIEditorElement]]
+		local states = element.guest and {} or AUI.SettingsPreviews:States(self:StateKey(element))
 
-		for _, state in ipairs(AUI.SettingsPreviews:States(self:StateKey(element))) do
+		for _, state in ipairs(states) do
 			if state.label == label then
 				self.states[id] = label
 
@@ -520,6 +532,8 @@ function Editor:RefreshMovers()
 		end
 	end
 
+	self:RefreshGuestMovers(pixel)
+
 	if self.selected and not self:SelectedMover() then
 		self.selected = nil
 	end
@@ -527,15 +541,46 @@ function Editor:RefreshMovers()
 	self:PaintSelection()
 end
 
----@return string[] ids the shown elements, in the picker's order
+---Places a mover over each element the hosted addon lists, measured from the element itself.
+---@param pixel number
+function Editor:RefreshGuestMovers(pixel)
+	local seen = {}
+
+	for _, element in ipairs(Guest:Refresh()) do
+		local left, bottom, width, height = Guest:Rect(element)
+
+		if left and bottom and width and height then
+			local mover = self.movers[element.id]
+
+			if not mover then
+				mover = AUI.EditorMover:Create(element)
+				self.movers[element.id] = mover
+			end
+
+			mover:Place(ToPixel(left, pixel), ToPixel(bottom, pixel), width, height, pixel)
+			mover:Show()
+			seen[element.id] = true
+		end
+	end
+
+	for id, mover in pairs(self.movers) do
+		if mover.element.guest and not seen[id] then
+			mover:Hide()
+		end
+	end
+end
+
+---@return string[] ids the shown elements, in the picker's order: AeonUI's, then the hosted addon's
 function Editor:ShownIDs()
 	local ids = {}
 
-	for _, element in ipairs(Layout.ELEMENTS) do
-		local mover = self.movers[element.id]
+	for _, list in ipairs({ Layout.ELEMENTS, Guest.elements }) do
+		for _, element in ipairs(list) do
+			local mover = self.movers[element.id]
 
-		if mover and mover:IsShown() then
-			ids[#ids + 1] = element.id
+			if mover and mover:IsShown() then
+				ids[#ids + 1] = element.id
+			end
 		end
 	end
 
@@ -619,6 +664,22 @@ function Editor:EndDrag(mover, commit)
 		self.toolbar:SetAlpha(1)
 	end
 
+	-- A hosted addon's element moved with the drag, so a drop is saved and anything else puts it back, even when
+	-- combat ended the drag.
+	if mover.element.guest then
+		if commit and self:Showing() then
+			local left, bottom = mover:Rect()
+
+			Guest:Move(mover.element, left, bottom)
+		else
+			Guest:Revert(mover.element)
+		end
+
+		self:RefreshMovers()
+
+		return
+	end
+
 	if not self:Showing() then
 		return
 	end
@@ -681,6 +742,10 @@ function Editor:DragTo(mover, left, bottom)
 
 	self:ShowGuides(guideX, guideY)
 	mover:Place(left, bottom, width, height, pixel)
+
+	if mover.element.guest then
+		Guest:Drag(mover.element, left, bottom)
+	end
 end
 
 ---Moves the selected element by UI units.
@@ -692,6 +757,15 @@ function Editor:Nudge(dx, dy)
 
 	if not mover then
 		return false
+	end
+
+	if mover.element.guest then
+		local left, bottom = mover:Rect()
+
+		Guest:Move(mover.element, left + dx, bottom + dy)
+		self:RefreshMovers()
+
+		return true
 	end
 
 	AUI.Profile:SetPaths(Layout:Moved(AUI.Profile.config, mover.element, dx, dy))
@@ -711,7 +785,56 @@ function Editor:SetField(id, field, value)
 		return false
 	end
 
+	if element.guest then
+		return self:SetGuestCenter(element, field, value)
+	end
+
 	return (AUI.Profile:Set(Layout:FieldPath(AUI.Profile.config, element, field), value))
+end
+
+---Moves a hosted addon's element so its center sits at a typed offset from the screen's center; it has no typed size.
+---@param element AUIEditorElement
+---@param field string
+---@param value number
+---@return boolean ok
+function Editor:SetGuestCenter(element, field, value)
+	if field ~= "x" and field ~= "y" then
+		return false
+	end
+
+	local left, bottom, width, height = Guest:Rect(element)
+
+	if not left or not bottom or not width or not height then
+		return false
+	end
+
+	local screenWidth, screenHeight = UIParent:GetWidth(), UIParent:GetHeight()
+	local x, y = Guest:Center(element, screenWidth, screenHeight)
+
+	if field == "x" then
+		x = value
+	else
+		y = value
+	end
+
+	left = Layout:Clamp(screenWidth / 2 + x - width / 2, 0, math.max(screenWidth - width, 0))
+	bottom = Layout:Clamp(screenHeight / 2 + y - height / 2, 0, math.max(screenHeight - height, 0))
+
+	Guest:Move(element, left, bottom)
+	self:RefreshMovers()
+
+	return true
+end
+
+---Returns a hosted addon's element to its default position.
+---@param id string
+function Editor:ResetGuest(id)
+	local element = Layout:Find(id)
+
+	if element and element.guest then
+		Guest:Reset(element)
+		self:RefreshMovers()
+	end
 end
 
 ---Attaches an element to another's side, keeping it where it is, or detaches it with `targetID` nil.

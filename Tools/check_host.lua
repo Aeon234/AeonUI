@@ -1,5 +1,6 @@
 -- Checks Settings/Host.lua outside the game: registration checks, the contract version, page-id namespacing, the
--- hosted header after AeonUI's categories and the handle's routing to the window.
+-- hosted header after AeonUI's categories, the handle's routing to the window, and at contract 2 the edit
+-- participant's checks and the handle's editor calls.
 -- Run from any directory with Lua 5.1: lua Tools/check_host.lua
 -- AeonUI's Settings and the library are stand-ins that record the calls; drawing is not exercised.
 
@@ -107,7 +108,8 @@ Equal("a malformed registration is refused", accepted, false)
 Equal("with a reason", type(reason), "string")
 Equal("pages without Build are refused", (AeonUIHost:Register(Registration({ pages = { { id = "x" } } }))), false)
 
-accepted = AeonUIHost:Register(Registration({ contract = 2 }))
+Equal("the host names its contract", AeonUIHost.contract, 2)
+accepted = AeonUIHost:Register(Registration({ contract = 3 }))
 Equal("a newer contract is refused", accepted, false)
 Equal("and says so once", #printed, 1)
 AeonUIHost:Register(Registration({ contract = 3 }))
@@ -157,5 +159,56 @@ Equal("open fails while AeonUI is off", (handle:Open("controls")), false)
 AUI.failed = nil
 AUI.Profile.characterID = ""
 Equal("open fails before the character is known", (handle:Open("controls")), false)
+
+-- Contract 2 ----------------------------------------------------------------------------------------------
+
+AUI.Profile.characterID = "Player-1"
+Host.guest, Host.pages = nil, nil
+
+local participant = {}
+for _, method in ipairs({ "Movers", "Rect", "Begin", "Show", "Drag", "Move", "Revert", "Reset", "IsDefault", "IsDirty",
+	"Save", "Discard", "End" }) do
+	participant[method] = function() end
+end
+
+Equal("an edit participant needs contract 2", (AeonUIHost:Register(Registration({ edit = participant }))), false)
+local partial = { Movers = participant.Movers }
+Equal("and every method", (AeonUIHost:Register(Registration({ contract = 2, edit = partial }))), false)
+Equal("nothing hosted after refusals", Host:Participant(), nil)
+
+local entered, exits, refreshes = 0, 0, 0
+AUI.Editor = {
+	active = false,
+	Enter = function(self)
+		self.active = true
+		entered = entered + 1
+	end,
+	RequestExit = function()
+		exits = exits + 1
+	end,
+	QueueRefresh = function()
+		refreshes = refreshes + 1
+	end,
+}
+
+accepted = AeonUIHost:Register(Registration({
+	contract = 2,
+	edit = participant,
+	onAttached = function(given)
+		handle = given
+	end,
+}))
+Equal("a contract-2 guest with a participant is accepted", accepted, true)
+Equal("its participant is kept", Host:Participant(), participant)
+Equal("with its folder name", Host:Addon(), "AeonEssentials")
+Equal("the editor opens", (handle:OpenEditor()), true)
+Equal("a session began", entered, 1)
+handle:OpenEditor()
+Equal("a second open asks to end it", exits, 1)
+handle:RefreshEditor()
+Equal("a refresh is queued", refreshes, 1)
+AUI.failed = true
+Equal("the editor does not open while AeonUI is off", (handle:OpenEditor()), false)
+AUI.failed = nil
 
 io.stdout:write(("check_host: %d checks passed\n"):format(checks))

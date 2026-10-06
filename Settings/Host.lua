@@ -2,8 +2,13 @@ local AUI = select(2, ...)
 
 local L = AUI.L
 
--- The newest declaration contract this host draws: the shape of a hosted addon's pages and the handle it gets back.
-local CONTRACT = 1
+-- The newest declaration contract this host draws: 1 is the shape of a hosted addon's pages and the handle it gets
+-- back; 2 adds the guest's movers to the layout editor through an edit participant.
+local CONTRACT = 2
+
+-- What an edit participant answers, each a method.
+local PARTICIPANT = { "Movers", "Rect", "Begin", "Show", "Drag", "Move", "Revert", "Reset", "IsDefault", "IsDirty",
+	"Save", "Discard", "End" }
 
 -- Hosted page ids are the guest's own, prefixed with its folder name and this separator.
 local SEPARATOR = ":"
@@ -14,7 +19,25 @@ local SEPARATOR = ":"
 ---@field title string its header's title
 ---@field icon (string|number)? its header's icon
 ---@field pages table[] its pages in display order, as it hands them to its own window
+---@field edit AUIEditParticipant? contract 2: its side of the layout editor's session
 ---@field onAttached fun(handle: AUIHostHandle)?
+
+---A hosted addon's side of the layout editor. Rectangles are left, bottom, width and height in UIParent units; ids
+---and pages are the guest's own.
+---@class AUIEditParticipant
+---@field Movers fun(self): { id: string, label: string, page: string }[] the elements to place, while their features run
+---@field Rect fun(self, id: string): number?, number?, number?, number?
+---@field Begin fun(self) a session begins
+---@field Show fun(self, shown: boolean) the layout shows or hides; the guest shows or hides its samples
+---@field Drag fun(self, id: string, left: number, bottom: number) follows a drag without saving
+---@field Move fun(self, id: string, left: number, bottom: number) saves a position
+---@field Revert fun(self, id: string) puts an element back after a drag that ended without a drop
+---@field Reset fun(self, id: string) returns an element to its default position
+---@field IsDefault fun(self, id: string): boolean
+---@field IsDirty fun(self): boolean
+---@field Save fun(self) keeps the session's changes
+---@field Discard fun(self) puts back the positions the session began with
+---@field End fun(self) the session ends
 
 ---Shows a hosted addon's settings pages in AeonUI's window, under one header after AeonUI's own categories. The guest
 ---keeps its logic and saved data; the host only draws its pages and routes its window calls.
@@ -57,6 +80,20 @@ local function Problem(registration)
 	for _, page in ipairs(registration.pages) do
 		if type(page) ~= "table" or type(page.id) ~= "string" or type(page.Build) ~= "function" then
 			return "a page lacks an id or Build"
+		end
+	end
+
+	local edit = registration.edit
+
+	if edit ~= nil then
+		if registration.contract < 2 or type(edit) ~= "table" then
+			return "edit needs contract 2 and a table"
+		end
+
+		for _, method in ipairs(PARTICIPANT) do
+			if type(edit[method]) ~= "function" then
+				return "edit lacks " .. method
+			end
 		end
 	end
 end
@@ -114,6 +151,16 @@ function Host:Register(registration)
 	end
 
 	return true
+end
+
+---@return AUIEditParticipant? participant the hosted addon's side of the layout editor, at contract 2
+function Host:Participant()
+	return self.guest and self.guest.edit or nil
+end
+
+---@return string? addon the hosted addon's folder name
+function Host:Addon()
+	return self.guest and self.guest.addon or nil
 end
 
 ---@return table? category the hosted header, or nil while nothing is hosted
@@ -182,11 +229,33 @@ function Host:Handle(addon)
 		SetTextCursor = function(_, settingID, position)
 			AS:SetTextCursor(settingID, position)
 		end,
+		---Begins a layout editor session, or asks to end the one running.
+		---@return boolean opened false when AeonUI is off for the session
+		OpenEditor = function()
+			if not Host:CanOpen() then
+				return false
+			end
+
+			local Editor = AUI.Editor
+
+			if Editor.active then
+				Editor:RequestExit()
+			else
+				Editor:Enter()
+			end
+
+			return true
+		end,
+		---Lists and measures the guest's movers again, once a burst of changes settles.
+		RefreshEditor = function()
+			AUI.Editor:QueueRefresh()
+		end,
 	}
 end
 
 ---The one deliberate global through which a suite addon finds its host. Not a public interface.
 AeonUIHost = {
+	contract = CONTRACT,
 	Register = function(_, registration)
 		return Host:Register(registration)
 	end,

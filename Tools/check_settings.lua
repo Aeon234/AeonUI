@@ -136,7 +136,21 @@ function window:SetPreviewChosen(key)
 	self.chosen = key
 end
 
+-- Errors raised by functions a hosted addon supplied, which the library reports and survives.
+local hostErrors = {}
+
 local AS = {
+	CallHost = function(_, fallback, fn, ...)
+		local results = { pcall(fn, ...) }
+
+		if not results[1] then
+			hostErrors[#hostErrors + 1] = results[2]
+
+			return fallback
+		end
+
+		return unpack(results, 2, table.maxn(results))
+	end,
 	RegisterElementKind = function(_, kind, definition)
 		kinds[kind] = definition
 	end,
@@ -187,7 +201,7 @@ for _, file in ipairs({
 	"Settings/Note.lua", "Settings/Pages.lua", "Settings/Shared.lua", "Settings/TextSlots.lua", "Settings/Overlays.lua", "Settings/CastBar.lua", "Settings/Auras.lua", "Settings/ClassPower.lua", "Settings/Indicators.lua",
 	"Settings/Previews.lua",
 	"Settings/Profiles.lua", "Settings/Recovery.lua", "Settings/Settings.lua", "Settings/Host.lua",
-	"Editor/Layout.lua", "Editor/External.lua", "Editor/Mover.lua", "Editor/Panel.lua", "Editor/Editor.lua",
+	"Editor/Layout.lua", "Editor/External.lua", "Editor/Guest.lua", "Editor/Mover.lua", "Editor/Panel.lua", "Editor/Editor.lua",
 }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
@@ -1287,6 +1301,72 @@ Equal("a hosted addon registers", (AeonUIHost:Register({ contract = 1, addon = "
 local withGuest = Settings:Categories()
 Equal("its header comes after AeonUI's categories", #withGuest, ownCount + 1)
 Equal("the last header is the guest's", withGuest[#withGuest].pages[1].id, "Guest:one")
+
+-- A hosted addon's elements in the layout editor -----------------------------------------------------------
+
+local SettingsHost, Guest = AUI.SettingsHost, AUI.EditorGuest
+local moves, dirty, rect = {}, false, { 900, 500, 80, 40 }
+local participant = {
+	Movers = function()
+		return { { id = "popups.position", label = "Popups", page = "popups" } }
+	end,
+	Rect = function(_, id)
+		if id == "popups.position" then
+			return unpack(rect)
+		end
+	end,
+	Move = function(_, id, left, bottom)
+		moves[#moves + 1] = id .. " " .. left .. " " .. bottom
+		dirty = true
+	end,
+	IsDirty = function()
+		return dirty
+	end,
+	IsDefault = function()
+		return not dirty
+	end,
+}
+for _, method in ipairs({ "Begin", "Show", "Drag", "Revert", "Reset", "Save", "Discard", "End" }) do
+	participant[method] = function() end
+end
+
+SettingsHost.guest, SettingsHost.pages = nil, nil
+Equal("a contract-2 guest registers", (AeonUIHost:Register({ contract = 2, addon = "Guest", title = "Guest", edit = participant,
+	pages = { { id = "popups", title = "Pop-ups", Build = function() return {} end } } })), true)
+Equal("the guest takes part in the editor", Guest:Present(), true)
+
+local guests = Guest:Refresh()
+local popupsElement = Layout:Find("guest.popups.position") --[[@as table]]
+Equal("its elements are listed", #guests, 1)
+Equal("and found by their prefixed id", popupsElement, guests[1])
+Equal("labeled by the guest", Layout:Label(popupsElement), "Popups")
+Equal("its page is the guest's, namespaced", popupsElement.page, "Guest:popups")
+Equal("a listing keeps the element's table", Guest:Refresh()[1], popupsElement)
+Equal("its rectangle comes from the guest", table.concat({ Guest:Rect(popupsElement) }, " "), "900 500 80 40")
+Equal("its center offset", table.concat({ Guest:Center(popupsElement, 1920, 1080) }, " "), "-20 -20")
+Equal("it is no attach target", Offered(pet, "guest.popups.position"), false)
+
+Equal("a typed X moves the guest's element", Editor:SetField("guest.popups.position", "x", 100), true)
+Equal("keeping Y, as a rectangle", moves[1], "popups.position 1020 500")
+Editor:SetField("guest.popups.position", "y", 600)
+Equal("a typed Y beyond the screen is kept on it", moves[2], "popups.position 900 1040")
+Equal("a size cannot be typed", Editor:SetField("guest.popups.position", "width", 100), false)
+Equal("the guest's changes make a session dirty", (function()
+	Editor.active = true
+	local result = Editor:IsDirty()
+	Editor.active = false
+
+	return result
+end)(), true)
+
+rect = { nil }
+Equal("an element the guest cannot measure has no rectangle", Guest:Rect(popupsElement), nil)
+participant.Movers = function()
+	error("guest broke")
+end
+Equal("a guest that raises an error lists nothing", #Guest:Refresh(), 0)
+Equal("and its elements are gone", Layout:Find("guest.popups.position"), nil)
+Equal("the error is reported, not raised", #hostErrors, 1)
 
 print = luaPrint
 io.stdout:write(("check_settings: %d checks passed\n"):format(checks))

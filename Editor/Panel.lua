@@ -48,8 +48,9 @@ local SIDES = { "LEFT", "RIGHT", "TOP", "BOTTOM" }
 ---@field id string? the element the panel shows
 
 ---The panel beside the selected mover: an element picker for movers that overlap, its position and size, an
----expandable attach part, and a button to its settings. A typed number applies on Enter only; Escape, leaving the
----box or an invalid number puts back the applied value.
+---expandable attach part, and a button to its settings. A hosted addon's element shows its position only, with Reset
+---Position in place of the attach part. A typed number applies on Enter only; Escape, leaving the box or an invalid
+---number puts back the applied value.
 ---@class AUIEditPanel
 ---@field frame AUIEditPanelFrame?
 ---@field expanded boolean the attach part is open, for the session
@@ -270,8 +271,6 @@ function Panel:Build()
 		end
 	end)
 
-	local column = PAD + LABEL_WIDTH + LABEL_GAP
-	local second = column + BOX_WIDTH + COLUMN_GAP + LABEL_WIDTH + LABEL_GAP
 	local top = -PAD - PICKER_HEIGHT * 2 - MENU_GAP - SECTION_GAP
 
 	frame.boxes = {
@@ -281,10 +280,7 @@ function Panel:Build()
 		NumberBox(frame, "height"),
 	}
 
-	frame.boxes[1]:SetPoint("TOPLEFT", column, top)
-	frame.boxes[2]:SetPoint("TOPLEFT", second, top)
-	frame.boxes[3]:SetPoint("TOPLEFT", column, top - ROW)
-	frame.boxes[4]:SetPoint("TOPLEFT", second, top - ROW)
+	self:PlaceBoxes(frame, top)
 	frame.boxes[3].label:SetText(L["Width"])
 	frame.boxes[4].label:SetText(L["Height"])
 
@@ -386,7 +382,14 @@ function Panel:Build()
 	frame.expand:SetSize(half, BUTTON_HEIGHT)
 	frame.expand:SetPoint("BOTTOMLEFT", PAD, PAD)
 	frame.expand:SetScript("OnClick", function()
-		self.expanded = not self.expanded
+		local element = Shown()
+
+		if element and element.guest then
+			AUI.Editor:ResetGuest(element.id)
+		else
+			self.expanded = not self.expanded
+		end
+
 		self:Refresh()
 	end)
 
@@ -405,9 +408,28 @@ function Panel:Build()
 	self.frame = frame
 end
 
+---Places the position and size boxes in two rows from `top`.
+---@param frame AUIEditPanelFrame
+---@param top number
+function Panel:PlaceBoxes(frame, top)
+	local column = PAD + LABEL_WIDTH + LABEL_GAP
+	local second = column + BOX_WIDTH + COLUMN_GAP + LABEL_WIDTH + LABEL_GAP
+	local boxes = frame.boxes
+
+	for index, box in ipairs(boxes) do
+		box:ClearAllPoints()
+		box:SetPoint("TOPLEFT", index % 2 == 1 and column or second, top - (index > 2 and ROW or 0))
+	end
+end
+
 ---@param waiting boolean the element waits for a missing frame, which adds a row with Reconnect and Detach
+---@param guest boolean? a hosted addon's element: the picker, its position and the buttons
 ---@return number height the panel's height with the attach part open or closed
-function Panel:Height(waiting)
+function Panel:Height(waiting, guest)
+	if guest then
+		return PAD * 2 + PICKER_HEIGHT + SECTION_GAP + ROW + BUTTON_HEIGHT
+	end
+
 	local rows = self.expanded and (waiting and 8 or 6) or 2
 
 	return PAD * 2 + PICKER_HEIGHT * 2 + MENU_GAP + SECTION_GAP + ROW * rows + (self.expanded and SECTION_GAP or 0)
@@ -443,6 +465,13 @@ function Panel:Refresh()
 	local Layout = AUI.EditorLayout
 	local frame = self.frame --[[@as AUIEditPanelFrame]]
 	local element = mover.element
+
+	if element.guest then
+		self:RefreshGuest(frame, mover)
+
+		return
+	end
+
 	local config = AUI.Profile.config
 	local target = Layout:AttachTarget(config, element)
 	local attached = target ~= nil
@@ -455,6 +484,14 @@ function Panel:Refresh()
 
 	frame.id = element.id
 	frame:SetHeight(self:Height(waiting))
+	self:PlaceBoxes(frame, -PAD - PICKER_HEIGHT * 2 - MENU_GAP - SECTION_GAP)
+	frame.sample:Show()
+	frame.applyAll:Show()
+	frame.boxes[3]:Show()
+	frame.boxes[3].label:Show()
+	frame.boxes[4]:Show()
+	frame.boxes[4].label:Show()
+	frame.expand:SetEnabled(true)
 	frame.picker:GenerateMenu()
 	frame.picker:OverrideText(Layout:Label(element))
 	frame.sample:GenerateMenu()
@@ -498,6 +535,54 @@ function Panel:Refresh()
 	end
 
 	frame.expand:SetText(self.expanded and L["Hide Attach"] or L["Attach"])
+
+	self:Place(mover)
+	frame:Show()
+end
+
+---Shows a hosted addon's element: the picker, its center's offset from the screen's center, Reset Position and its
+---settings.
+---@param frame AUIEditPanelFrame
+---@param mover AUIMover
+function Panel:RefreshGuest(frame, mover)
+	local Layout, Guest = AUI.EditorLayout, AUI.EditorGuest
+	local element = mover.element
+	local x, y = Guest:Center(element, UIParent:GetWidth(), UIParent:GetHeight())
+
+	frame.id = element.id
+	frame:SetHeight(self:Height(false, true))
+	frame.picker:GenerateMenu()
+	frame.picker:OverrideText(Layout:Label(element))
+	frame.sample:Hide()
+	frame.applyAll:Hide()
+
+	self:PlaceBoxes(frame, -PAD - PICKER_HEIGHT - SECTION_GAP)
+
+	for index, box in ipairs(frame.boxes) do
+		local shown = index <= 2
+
+		box:SetShown(shown)
+		box.label:SetShown(shown)
+		box:SetEnabled(true)
+		box:SetAlpha(1)
+		box.label:SetAlpha(1)
+	end
+
+	frame.boxes[1].label:SetText(L["X"])
+	frame.boxes[2].label:SetText(L["Y"])
+	Fill(frame.boxes[1], x)
+	Fill(frame.boxes[2], y)
+
+	for _, region in ipairs(frame.attachRows) do
+		region:Hide()
+	end
+
+	for _, region in ipairs(frame.waitRows) do
+		region:Hide()
+	end
+
+	frame.expand:SetText(RESET_POSITION)
+	frame.expand:SetEnabled(not Guest:IsDefault(element))
 
 	self:Place(mover)
 	frame:Show()
