@@ -4,6 +4,7 @@ local AUI = select(2, ...)
 local Codec = AUI.Codec
 
 ---@class AUIDev
+---@field MinimapProbe AUIMinimapProbe? the M0 minimap probe, from Dev/MinimapProbe.lua
 local Dev = {}
 AUI.Dev = Dev
 
@@ -132,13 +133,21 @@ function Dev:Codec()
 	AUI:Print("codec: %d passed, %d failed", passed, failed)
 end
 
----@param command string
-function Dev:Command(command)
+---@param line string the words after `/aui dev`, lowercased
+function Dev:Command(line)
+	local command, rest = line:match("^(%S*)%s*(.-)$")
+
 	if command == "codec" then
 		self:Codec()
 
 		return
 	end
 
-	AUI:Print("dev commands: codec")
+	if command == "minimap" and self.MinimapProbe then
+		self.MinimapProbe:Command(rest)
+
+		return
+	end
+
+	AUI:Print("dev commands: codec, minimap")
 end

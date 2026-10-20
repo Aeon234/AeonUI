@@ -7,7 +7,7 @@
 
   "globals": {
     "read": ["LibStub", "SlashCmdList", "StaticPopupDialogs", "UISpecialFrames", "WOW_PROJECT_CAMELOT"],
-    "write": ["AeonUI*", "SLASH_AEONUI*", "SlashCmdList"]
+    "write": ["AeonUI*", "SLASH_AEONUI*", "SlashCmdList", "GetMinimapShape"]
   },
 
   "diagnostics": {

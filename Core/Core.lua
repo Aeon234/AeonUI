@@ -118,10 +118,10 @@ SLASH_AEONUI1 = "/aeonui"
 SLASH_AEONUI2 = "/aui"
 
 SlashCmdList.AEONUI = function(message)
-	local command, argument = (message or ""):lower():match("^%s*(%S*)%s*(%S*)")
+	local command, rest = (message or ""):lower():match("^%s*(%S*)%s*(.-)%s*$")
 
 	if command == "dev" and AUI.Dev then
-		AUI.Dev:Command(argument)
+		AUI.Dev:Command(rest)
 
 		return
 	end
