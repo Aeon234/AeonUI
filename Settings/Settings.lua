@@ -5,57 +5,25 @@ local AS = AUI.AeonSettings --[[@as table]]
 
 local FRAME_NAME = "AeonUISettings"
 
--- Words `/aui <word>` accepts for a page.
-local ALIASES = {
-	globals = "globals",
-	player = "player",
-	pet = "pet",
-	target = "target",
-	tot = "targettarget",
-	focus = "focus",
-	boss = "boss",
-	power = "playerPower",
-	resource = "classPower",
-	profiles = "profiles",
-}
-
 ---The settings window, built on the AeonSettings library. Its pages follow the profile owner's mode: Recovery
----alone while the saved data cannot be used, otherwise the unit-frame pages and Profiles.
+---alone while the saved data cannot be used, otherwise Profiles.
 ---@class AUISettings
 ---@field window table?
 ---@field recovery boolean? the window shows the Recovery page
 local Settings = {}
 AUI.Settings = Settings
 
----@return table[] categories AeonUI's own, then a hosted addon's header
+---@return table[] categories
 function Settings:Categories()
-	local categories
-
 	if AUI.Profile.mode == "recovery" then
-		categories = {
+		return {
 			{ id = "recovery", title = L["Recovery"], pages = { AUI.SettingsRecovery:Page() } },
 		}
-	else
-		categories = {
-			{ id = "unitFrames", title = L["Unit Frames"], pages = AUI.SettingsPages:UnitFramePages() },
-			{ id = "profiles", title = L["Profiles"], pages = { AUI.SettingsProfiles:Page() } },
-		}
 	end
 
-	local hosted = AUI.SettingsHost:Category()
-
-	if hosted then
-		categories[#categories + 1] = hosted
-	end
-
-	return categories
-end
-
----Redraws the category list after an addon was hosted, if the window already exists.
-function Settings:OnHostChanged()
-	if self.window then
-		self.window:SetCategories(self:Categories())
-	end
+	return {
+		{ id = "profiles", title = L["Profiles"], pages = { AUI.SettingsProfiles:Page() } },
+	}
 end
 
 function Settings:Create()
@@ -68,15 +36,6 @@ function Settings:Create()
 		title = AUI.title,
 		version = AUI.version,
 		contentWidth = 980,
-		onEditMode = function()
-			AUI.Editor:FromSettings()
-		end,
-		onClose = function()
-			AUI.Editor:OnSettingsHidden()
-		end,
-		onPageChanged = function()
-			AUI.SettingsPreviews.picked = nil
-		end,
 	})
 
 	self.window = window
@@ -112,17 +71,13 @@ function Settings:IsOpen()
 	return self.window ~= nil and self.window:IsShown()
 end
 
----@param page string? a page id or an alias for one
+---@param page string? a page id
 function Settings:Open(page)
 	self:Create()
 
 	local window = self.window --[[@as table]]
 
-	window:Open(page and (ALIASES[page] or page) or nil)
-
-	if self:IsOpen() then
-		AUI.Editor:OnSettingsShown()
-	end
+	window:Open(page)
 end
 
 function Settings:Close()

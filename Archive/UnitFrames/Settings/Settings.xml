@@ -1,0 +1,17 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+	<Include file="Note.xml" />
+	<Script file="Note.lua" />
+	<Script file="Pages.lua" />
+	<Script file="Shared.lua" />
+	<Script file="TextSlots.lua" />
+	<Script file="Overlays.lua" />
+	<Script file="CastBar.lua" />
+	<Script file="Auras.lua" />
+	<Script file="ClassPower.lua" />
+	<Script file="Indicators.lua" />
+	<Script file="Previews.lua" />
+	<Script file="Profiles.lua" />
+	<Script file="Recovery.lua" />
+	<Script file="Settings.lua" />
+	<Script file="Host.lua" />
+</Ui>

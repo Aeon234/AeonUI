@@ -23,7 +23,7 @@ local CHANNEL = "Profile"
 ---@field active boolean
 ---@field quarantined string? why the profile cannot be used
 
----Owns `AeonUIDB`: loads and validates it, chooses what the frames show, and is the only writer. Every structural
+---Owns `AeonUIDB`: loads and validates it, chooses the active config, and is the only writer. Every structural
 ---change is prepared on a copy of the store, validated and published at once; a failure before publishing leaves
 ---the saved data as it was.
 ---@class AUIProfile
@@ -35,7 +35,7 @@ local CHANNEL = "Profile"
 ---@field newer boolean?
 ---@field quarantined table<string, string>
 ---@field activeID string?
----@field config table the config the frames read: the active profile's own, or a disposable copy
+---@field config table the config the addon reads: the active profile's own, or a disposable copy
 local Profile = {
 	characterID = "",
 	mode = "recovery",
@@ -43,10 +43,6 @@ local Profile = {
 	config = {},
 }
 AUI.Profile = Profile
-
----@type (fun(config: table): boolean)? recalculates attached elements and linked sizes in a config, returning whether
----anything changed; set by the layout code, which knows each element's geometry
-Profile.Normalize = nil
 
 ---Publishes a root as the saved data.
 ---@param root any the store, or the original saved data when putting it back
@@ -92,7 +88,7 @@ function Profile:FallbackConfig()
 	return Schema:Defaults()
 end
 
----Chooses what the frames show from a validated root.
+---Chooses the active config from a validated root.
 ---@param report AUIStoreReport
 function Profile:Resolve(report)
 	self.quarantined = report.quarantined
@@ -205,14 +201,6 @@ function Profile:Commit(change, quiet)
 
 	if result == false then
 		return false, refusal
-	end
-
-	if self.Normalize and type(candidate.profilesByID) == "table" then
-		for _, record in pairs(candidate.profilesByID) do
-			if type(record) == "table" and type(record.config) == "table" and not Schema:LayoutLoop(record.config) then
-				pcall(self.Normalize, record.config)
-			end
-		end
 	end
 
 	local report = Store:Inspect(candidate)
@@ -351,138 +339,10 @@ function Profile:Set(path, value)
 		return true
 	end
 
-	local previous = AUI:CopyTable(Schema:Lookup(self.config, path))
-
 	Schema:Write(self.config, path, AUI:CopyTable(value))
-
-	local loop = Schema:LayoutLoop(self.config)
-
-	if loop then
-		Schema:Write(self.config, path, previous)
-
-		return false, loop
-	end
-
-	-- A change that moved attached or linked elements announces the whole profile.
-	local moved = self.Normalize ~= nil and self.Normalize(self.config)
-
-	AUI.Callbacks:Fire(CHANNEL, (not moved) and path or nil)
+	AUI.Callbacks:Fire(CHANNEL, path)
 
 	return true
-end
-
----Recalculates attached elements and linked sizes in every profile, after something outside the profiles moved.
----@return boolean ok
-function Profile:Recalculate()
-	return (self:Commit(function() end))
-end
-
----Changes several settings of the active profile as one change.
----@param values table<string, any> values by path
----@return boolean ok
----@return string? problem
-function Profile:SetPaths(values)
-	if not self:CanEdit() then
-		return false, "the active profile cannot be edited"
-	end
-
-	for path, value in pairs(values) do
-		local ok, problem = Schema:CheckValue(path, value)
-
-		if not ok then
-			return false, problem
-		end
-	end
-
-	local id = self.activeID --[[@as string]]
-
-	return self:Commit(function(candidate)
-		local config = candidate.profilesByID[id].config
-
-		for path, value in pairs(values) do
-			Schema:Write(config, path, AUI:CopyTable(value))
-		end
-	end)
-end
-
----@class AUIProfileSnapshot
----@field id string the profile the copy was taken from
----@field config table
-
----@return AUIProfileSnapshot? snapshot a copy of the active profile's settings, or nil when it cannot be edited
-function Profile:Snapshot()
-	if not self:CanEdit() then
-		return nil
-	end
-
-	return { id = self.activeID --[[@as string]], config = AUI:CopyTable(self.config) }
-end
-
----@param a any
----@param b any
----@return boolean equal the same plain value, tables compared by content
-local function Same(a, b)
-	if type(a) ~= "table" or type(b) ~= "table" then
-		return a == b
-	end
-
-	for key, value in pairs(a) do
-		if not Same(value, b[key]) then
-			return false
-		end
-	end
-
-	for key in pairs(b) do
-		if a[key] == nil then
-			return false
-		end
-	end
-
-	return true
-end
-
----@param snapshot AUIProfileSnapshot
----@return boolean changed the snapshot's profile no longer holds the copied settings
-function Profile:Changed(snapshot)
-	local record = self.root and self.root.profilesByID[snapshot.id]
-
-	return record ~= nil and not Same(record.config, snapshot.config)
-end
-
----Puts a snapshot's settings back into its profile, when that profile still exists.
----@param snapshot AUIProfileSnapshot
----@return boolean ok
----@return string? problem
-function Profile:Restore(snapshot)
-	return self:Commit(function(candidate)
-		local record = candidate.profilesByID[snapshot.id]
-
-		if record then
-			record.config = AUI:CopyTable(snapshot.config)
-		end
-	end)
-end
-
----@param key string
----@param default any
----@return any value a personal editor preference, which profiles do not hold
-function Profile:EditorPreference(key, default)
-	local value = self.root and self.root.editorPreferences[key]
-
-	if value == nil then
-		return default
-	end
-
-	return value
-end
-
----@param key string
----@param value any plain data
----@return boolean ok
-function Profile:SetEditorPreference(key, value)
-	return (self:Commit(function(candidate)
-		candidate.editorPreferences[key] = value
-	end, true))
 end
 
 ---@param candidate AUIStoreRoot
@@ -804,36 +664,4 @@ function Profile:RawExport()
 		client = ("%s.%s"):format(tostring(version), tostring(build)),
 		problem = self.problem,
 	})
-end
-
----Copies settings between paths of the active profile as one change. Every source is read before anything is
----written, and a source holding nothing clears its target, so the target follows the same default or shared value.
----@param map table<string, string> target path to source path; both must be settings
----@return boolean ok
----@return string? problem
-function Profile:CopyPaths(map)
-	if not self:CanEdit() then
-		return false, "the active profile cannot be edited"
-	end
-
-	for target, source in pairs(map) do
-		if not Schema:Field(target) or not Schema:Field(source) then
-			return false, ("%s or %s is not a setting"):format(target, source)
-		end
-	end
-
-	local id = self.activeID --[[@as string]]
-
-	return self:Commit(function(candidate)
-		local config = candidate.profilesByID[id].config
-		local values = {}
-
-		for target, source in pairs(map) do
-			values[target] = { value = AUI:CopyTable(Schema:Lookup(config, source)) }
-		end
-
-		for target, entry in pairs(values) do
-			Schema:Write(config, target, entry.value)
-		end
-	end)
 end

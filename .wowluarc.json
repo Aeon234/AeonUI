@@ -2,11 +2,12 @@
   "$schema": "https://raw.githubusercontent.com/TradeSkillMaster/wowlua-ls/main/editors/vscode/wowluarc.schema.json",
 
   "library": ["Libs/"],
+  "ignore": ["Archive/"],
   "flavors": ["retail"],
 
   "globals": {
-    "read": ["LibStub", "SlashCmdList", "StaticPopupDialogs", "UISpecialFrames", "ClickCastFrames", "WOW_PROJECT_CAMELOT"],
-    "write": ["AeonUI*", "SLASH_AEONUI*", "SlashCmdList", "ClickCastFrames"]
+    "read": ["LibStub", "SlashCmdList", "StaticPopupDialogs", "UISpecialFrames", "WOW_PROJECT_CAMELOT"],
+    "write": ["AeonUI*", "SLASH_AEONUI*", "SlashCmdList"]
   },
 
   "diagnostics": {

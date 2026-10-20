@@ -28,10 +28,9 @@ end
 
 local AUI = {}
 assert(loadfile(root .. "Core/Core.lua"))("AeonUI", AUI)
-assert(loadfile(root .. "Profile/Schema.lua"))("AeonUI", AUI)
 assert(loadfile(root .. "Media/Media.lua"))("AeonUI", AUI)
 
-local Media, Schema = AUI.Media, AUI.Schema
+local Media = AUI.Media
 
 -- Harness -------------------------------------------------------------------------------------------------
 
@@ -57,9 +56,5 @@ Equal("Slug", Media:FontFlags("SLUG"), "SLUG")
 Equal("Slug Outline", Media:FontFlags("SLUG_OUTLINE"), "SLUG, OUTLINE")
 Equal("Slug Thick Outline", Media:FontFlags("SLUG_THICKOUTLINE"), "SLUG, THICKOUTLINE")
 Equal("unknown choice draws plain", Media:FontFlags("SHADOW"), "")
-
-for _, choice in ipairs(Schema.choices.outline) do
-	Equal(choice .. " has flags", type(Media:FontFlags(choice)), "string")
-end
 
 print(("check_media: %d checks passed"):format(checks))

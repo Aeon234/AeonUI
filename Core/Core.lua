@@ -8,7 +8,6 @@ local addonName = ...
 ---@field L AUILocale
 ---@field Callbacks AUICallbacks
 ---@field Events AUIEvents
----@field oUF table the private oUF instance, set by Libs/oUF/init.lua
 ---@field AeonSettings table the vendored settings library, set by Libs/AeonSettings/Core.lua
 ---@field Schema AUISchema
 ---@field Store AUIStore
@@ -130,18 +129,6 @@ SlashCmdList.AEONUI = function(message)
 
 	if command == "debug" then
 		AUI:PrintDiagnostics()
-
-		return
-	end
-
-	if command == "edit" then
-		if AUI.failed then
-			AUI:Warn(AUI.L["AeonUI is off for this session, so its settings can't open."])
-
-			return
-		end
-
-		AUI.Editor:Enter()
 
 		return
 	end

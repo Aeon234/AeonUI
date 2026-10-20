@@ -1,12 +1,12 @@
--- Checks the load path: every file the .toc and its .xml files name exists, every AeonUI-owned .lua file is
--- loaded exactly once, and every oUF element AeonUI's code uses is loaded. Libraries under Libs/ are followed only where embeds.xml names them.
+-- Checks the load path: every file the .toc and its .xml files name exists, and every AeonUI-owned .lua file is
+-- loaded exactly once. Libraries under Libs/ are followed only where embeds.xml names them.
 -- Run from any directory with Lua 5.1: lua Tools/check_manifest.lua
 
 local root = (arg and arg[0] or ""):match("^(.-)[^/\\]*$") .. "../"
 local windows = package.config:sub(1, 1) == "\\"
 
 -- Folders whose .lua files are never loaded by the game or are not AeonUI's.
-local UNLISTED = { ["Libs/"] = true, ["Tools/"] = true, ["Scripts/"] = true }
+local UNLISTED = { ["Libs/"] = true, ["Tools/"] = true, ["Scripts/"] = true, ["Archive/"] = true }
 
 local problems = {}
 local loaded = {}
@@ -101,42 +101,6 @@ for line in pipe:lines() do
 	end
 end
 pipe:close()
-
--- Every oUF element AeonUI's code uses must be on the load path: oUF quietly ignores a widget whose element it never
--- registered.
-local ELEMENTS = {
-	{ pattern = "%.Health%s*=", file = "Libs/oUF/elements/health.lua" },
-	{ pattern = "%.Power%s*=", file = "Libs/oUF/elements/power.lua" },
-	{ pattern = "%.Castbar%s*=", file = "Libs/oUF/elements/castbar.lua" },
-	{ pattern = ":CreateAuras%(", file = "Libs/oUF/elements/auras.lua" },
-	{ pattern = ":Tag%(", file = "Libs/oUF/elements/tags.lua" },
-	{ pattern = "%.ClassPower%s*=", file = "Libs/oUF/elements/classpower.lua" },
-	{ pattern = "%.Runes%s*=", file = "Libs/oUF/elements/runes.lua" },
-	{ pattern = "%.Stagger%s*=", file = "Libs/oUF/elements/stagger.lua" },
-	{ pattern = "%.AdditionalPower%s*=", file = "Libs/oUF/elements/additionalpower.lua" },
-	{ pattern = "RaidTargetIndicator", file = "Libs/oUF/elements/raidtargetindicator.lua" },
-	{ pattern = "RestingIndicator", file = "Libs/oUF/elements/restingindicator.lua" },
-	{ pattern = "CombatIndicator", file = "Libs/oUF/elements/combatindicator.lua" },
-	{ pattern = "LeaderIndicator", file = "Libs/oUF/elements/leaderindicator.lua" },
-	{ pattern = "AssistantIndicator", file = "Libs/oUF/elements/assistantindicator.lua" },
-	{ pattern = "PvPIndicator", file = "Libs/oUF/elements/pvpindicator.lua" },
-	{ pattern = "ThreatIndicator", file = "Libs/oUF/elements/threatindicator.lua" },
-	{ pattern = "%.Totems%s*=", file = "Libs/oUF/elements/totems.lua" },
-	{ pattern = "%.Portrait%s*=", file = "Libs/oUF/elements/portrait.lua" },
-}
-
-for path in pairs(loaded) do
-	local top = path:match("^[^/]+/")
-	local text = not (top and UNLISTED[top]) and Read(path)
-
-	if text then
-		for _, element in ipairs(ELEMENTS) do
-			if text:find(element.pattern) and not loaded[element.file] then
-				Problem(("%s uses %s, which is not on the load path"):format(path, element.file))
-			end
-		end
-	end
-end
 
 local count = 0
 for _ in pairs(loaded) do

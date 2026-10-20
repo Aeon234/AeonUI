@@ -47,8 +47,5 @@ frame:SetScript("OnEvent", function(self, event)
 				L["the active profile can't be used, so AeonUI is showing default settings until you choose another profile."]
 			)
 		end
-
-		AUI.Frames:Start()
-		AUI.EditorExternal:Start()
 	end
 end)

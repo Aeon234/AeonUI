@@ -16,7 +16,6 @@ local Schema = AUI.Schema
 ---@field schemaVersion integer
 ---@field profilesByID table<string, AUIProfileRecord>
 ---@field charactersByID table<string, AUICharacterRecord>
----@field editorPreferences table
 ---@field nextID integer
 ---@field migrationBackup table?
 
@@ -78,7 +77,6 @@ function Store:NewRoot(characterID)
 		charactersByID = {
 			[characterID] = { activeProfileID = self.DEFAULT_ID, specAssignments = {} },
 		},
-		editorPreferences = {},
 		nextID = 2,
 	}
 end
@@ -175,12 +173,6 @@ function Store:Inspect(root)
 
 	if type(root.profilesByID) ~= "table" or type(root.charactersByID) ~= "table" then
 		report.problem = "the saved data is missing its profiles or characters"
-
-		return report
-	end
-
-	if type(root.editorPreferences) ~= "table" or not Schema:IsPlain(root.editorPreferences) then
-		report.problem = "the saved editor preferences are malformed"
 
 		return report
 	end

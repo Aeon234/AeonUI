@@ -4,8 +4,6 @@ local AUI = select(2, ...)
 local Codec = AUI.Codec
 
 ---@class AUIDev
----@field bossTest boolean? the boss frames show the player
----@field channelLog boolean? each channel the player starts is printed
 local Dev = {}
 AUI.Dev = Dev
 
@@ -134,91 +132,6 @@ function Dev:Codec()
 	AUI:Print("codec: %d passed, %d failed", passed, failed)
 end
 
----Shows the boss frames on the player, for placing them without an encounter, or returns them to their boss units.
----Changing a secure frame's unit is refused in combat.
-function Dev:Bosses()
-	local frames = AUI.Frames.objects.boss
-
-	if not frames then
-		AUI:Warn("the boss frames have not been created.")
-
-		return
-	end
-
-	if InCombatLockdown() then
-		AUI:Warn("boss test mode can only change out of combat.")
-
-		return
-	end
-
-	self.bossTest = not self.bossTest
-
-	for slot, frame in ipairs(frames) do
-		frame:SetAttribute("unit", self.bossTest and "player" or ("boss" .. slot))
-	end
-
-	AUI:Print("boss test mode %s.", self.bossTest and "on: the boss frames show the player" or "off")
-end
-
----Prints a channel the player started: its spell ID, name and length, and whether the tick list has it.
-function Dev:OnChannel(_, unit)
-	if unit ~= "player" then
-		return
-	end
-
-	local name, _, _, start, finish, _, _, spellID = UnitChannelInfo("player")
-
-	if issecretvalue(name) or issecretvalue(spellID) or issecretvalue(start) or issecretvalue(finish) then
-		AUI:Print("channel: hidden by the client.")
-
-		return
-	end
-
-	if not name then
-		return
-	end
-
-	local listed = AUI.CastData.channels[spellID] and "listed" or "not listed"
-
-	AUI:Print("channel: %s, spell %d, %.2f s, %s", name, spellID, (finish - start) / 1000, listed)
-end
-
----Turns the channel log on or off.
-function Dev:Channels()
-	self.channelLog = not self.channelLog
-
-	if self.channelLog then
-		AUI.Events:Register("UNIT_SPELLCAST_CHANNEL_START", self, self.OnChannel)
-	else
-		AUI.Events:Unregister("UNIT_SPELLCAST_CHANNEL_START", self)
-	end
-
-	AUI:Print("channel log %s.", self.channelLog and "on: start a channel" or "off")
-end
-
----Lists the buff category spell IDs the running client does not know.
-function Dev:Spells()
-	local unknown = 0
-
-	for key, category in pairs(AUI.AuraCategories:Catalogue()) do
-		local missing = {}
-
-		for id in pairs(category.spells) do
-			if not C_Spell.GetSpellInfo(id) then
-				missing[#missing + 1] = tostring(id)
-			end
-		end
-
-		if #missing > 0 then
-			table.sort(missing)
-			unknown = unknown + #missing
-			AUI:Print("%s: %s", key, table.concat(missing, ", "))
-		end
-	end
-
-	AUI:Print("buff categories: %d unknown spell IDs (%s list)", unknown, AUI.can.retailSpells and "Retail" or "Forever")
-end
-
 ---@param command string
 function Dev:Command(command)
 	if command == "codec" then
@@ -227,23 +140,5 @@ function Dev:Command(command)
 		return
 	end
 
-	if command == "boss" then
-		self:Bosses()
-
-		return
-	end
-
-	if command == "channel" then
-		self:Channels()
-
-		return
-	end
-
-	if command == "spells" then
-		self:Spells()
-
-		return
-	end
-
-	AUI:Print("dev commands: codec, boss, channel, spells")
+	AUI:Print("dev commands: codec")
 end
