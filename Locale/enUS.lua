@@ -38,11 +38,24 @@ L["This profile string was made by a newer version of AeonUI."] =
 	"This profile string was made by a newer version of AeonUI."
 L["This profile string holds settings AeonUI can't use."] = "This profile string holds settings AeonUI can't use."
 
--- Settings window categories (Settings)
+-- Minimap button tooltip (Core)
+L["Click: open settings"] = "Click: open settings"
+
+-- Page titles (Settings)
 L["Profiles"] = "Profiles"
 L["Recovery"] = "Recovery"
 
+-- General page (Settings)
+L["Settings for AeonUI as a whole. Each feature has its own page."] =
+	"Settings for AeonUI as a whole. Each feature has its own page."
+L["Access"] = "Access"
+L["Show Minimap Button"] = "Show Minimap Button"
+L["Left-click opens settings."] = "Left-click opens settings."
+L["/aui and the addon compartment open settings too."] = "/aui and the addon compartment open settings too."
+
 -- Profiles page (Settings)
+L["Keep different setups of AeonUI, and share them as text."] =
+	"Keep different setups of AeonUI, and share them as text."
 L["AeonUI profile \"%s\"."] = "AeonUI profile \"%s\"."
 L["It holds %d settings this version doesn't use; they are kept."] =
 	"It holds %d settings this version doesn't use; they are kept."
@@ -56,6 +69,8 @@ L["Delete the damaged profile \"%s\"? Characters using it switch to another prof
 L["Create another profile first."] = "Create another profile first."
 
 -- Recovery page (Settings)
+L["AeonUI's saved settings can't be used, so its other pages are unavailable."] =
+	"AeonUI's saved settings can't be used, so its other pages are unavailable."
 L["Saved Settings"] = "Saved Settings"
 L["Your saved settings are damaged. AeonUI shows default settings and leaves them unchanged until you reset them."] =
 	"Your saved settings are damaged. AeonUI shows default settings and leaves them unchanged until you reset them."

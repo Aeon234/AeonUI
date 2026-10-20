@@ -8,7 +8,6 @@ local addonName = ...
 ---@field L AUILocale
 ---@field Callbacks AUICallbacks
 ---@field Events AUIEvents
----@field AeonSettings table the vendored settings library, set by Libs/AeonSettings/Core.lua
 ---@field Schema AUISchema
 ---@field Store AUIStore
 ---@field Profile AUIProfile

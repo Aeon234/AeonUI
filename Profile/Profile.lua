@@ -182,7 +182,9 @@ function Profile:Initialize(original, characterID)
 end
 
 ---Applies a change to a copy of the store and publishes it when the result is valid. The change returns false and a
----problem to refuse. Nothing is published, and nothing changes, unless every step succeeds.
+---problem to refuse. Nothing is published, and nothing changes, unless every step succeeds. The account-wide `global`
+---table is not copied: the candidate shares it, so the libraries that keep a reference to it and write it in place
+---(LibDBIcon, the settings library's edit mode) keep writing the published store.
 ---@param change fun(candidate: AUIStoreRoot): boolean?, string?
 ---@param quiet boolean? skip the change notification
 ---@return boolean ok
@@ -193,6 +195,9 @@ function Profile:Commit(change, quiet)
 	end
 
 	local candidate = AUI:CopyTable(self.root)
+
+	candidate.global = self.root.global
+
 	local ran, result, refusal = pcall(change, candidate)
 
 	if not ran then
@@ -232,6 +237,11 @@ function Profile:Commit(change, quiet)
 	end
 
 	return true
+end
+
+---@return table? global the account-wide state outside profiles, written in place by its owners; nil in recovery
+function Profile:Global()
+	return self.root and self.root.global
 end
 
 ---@return AUIProfileInfo

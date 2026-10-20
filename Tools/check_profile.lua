@@ -188,6 +188,8 @@ Equal("pristine activates Default", Profile.activeID, Store.DEFAULT_ID)
 Equal("pristine store is saved", AeonUIDB, Profile.root)
 Equal("pristine character record", AeonUIDB.charactersByID["Player-1"].activeProfileID, Store.DEFAULT_ID)
 Equal("pristine reads defaults", Profile:Get("fixture.bar.y"), -184)
+Equal("pristine holds account settings", type(AeonUIDB.global), "table")
+Equal("account settings are the store's", Profile:Global(), AeonUIDB.global)
 
 -- A second character joins an existing store.
 local existing = Valid("Player-1")
@@ -225,6 +227,13 @@ ExpectRecovery("no profiles", noProfiles)
 local badID = Valid()
 badID.profilesByID.nope = badID.profilesByID[Store.DEFAULT_ID]
 ExpectRecovery("a malformed profile ID", badID)
+local badGlobal = Valid()
+badGlobal.global = 5
+ExpectRecovery("malformed account settings", badGlobal)
+local noGlobal = Valid()
+noGlobal.global = nil
+ExpectRecovery("missing account settings", noGlobal)
+Equal("recovery has no account settings", Profile:Global(), nil)
 local badCharacter = Valid()
 badCharacter.charactersByID["Player-1"].specAssignments = { [0] = Store.DEFAULT_ID }
 ExpectRecovery("a malformed specialization assignment", badCharacter)
@@ -430,6 +439,15 @@ lagging.profilesByID.p00000007 = { name = "Seven", schemaVersion = Schema.VERSIO
 Load(lagging)
 ok, id = Profile:Create("Eight")
 Equal("IDs never reuse one in use", id, "p00000008")
+
+-- Account settings stay the same table across commits: libraries keep a reference and write it in place.
+Load(Valid())
+local global = Profile:Global()
+global.minimapButton = { hide = true }
+Equal("a commit with account settings", (Profile:Create("Account")), true)
+Equal("a commit keeps the account table", Profile:Global(), global)
+Equal("the published store holds it", AeonUIDB.global, global)
+Equal("its contents are kept", AeonUIDB.global.minimapButton.hide, true)
 
 -- Rollback ------------------------------------------------------------------------------------------------
 

@@ -6,6 +6,11 @@ externals:
   Libs/LibStub: https://repos.wowace.com/wow/libstub/trunk
   Libs/CallbackHandler-1.0: https://repos.wowace.com/wow/callbackhandler/trunk/CallbackHandler-1.0
   Libs/LibSharedMedia-3.0: https://repos.wowace.com/wow/libsharedmedia-3-0/trunk/LibSharedMedia-3.0
+  Libs/LibDataBroker-1.1: https://repos.wowace.com/wow/libdbicon-1-0/trunk/LibDataBroker-1.1
+  Libs/LibDBIcon-1.0: https://repos.wowace.com/wow/libdbicon-1-0/trunk/LibDBIcon-1.0
+  Libs/LibAeonSettings:
+    url: https://github.com/Aeon234/LibAeonSettings.git
+    tag: 1.2.0
 
 ignore:
   - .pkgmeta
@@ -15,4 +20,3 @@ ignore:
   - Dev
   - "*.md"
   - Archive
-  - Libs/AeonSettings/PIN.json
