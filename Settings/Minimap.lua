@@ -180,57 +180,54 @@ function SettingsMinimap:Declare(window)
 		step = 1,
 	})
 
-	for _, group in ipairs({ { key = "rows", title = L["Row Fading"] }, { key = "map", title = L["Map Fading"] } }) do
-		local base = "minimap.fade." .. group.key .. "."
-		local fade = page:Section(group.key .. "Fade", group.title)
+	local fade = page:Section("fade", L["Fading"])
 
-		local function Needs(path, reason)
-			return function()
-				if not AUI.Profile:Get(base .. path) then
-					return reason
-				end
+	local function Needs(path, reason)
+		return function()
+			if not AUI.Profile:Get(path) then
+				return reason
 			end
 		end
-
-		fade:Checkbox({
-			id = group.key .. "Mouseover",
-			label = L["Fade Until Mouseover"],
-			path = base .. "mouseover",
-			default = Settings:Default(base .. "mouseover"),
-		})
-		fade:Slider({
-			id = group.key .. "MouseoverOpacity",
-			resettable = true,
-			label = L["Mouseover Opacity"],
-			description = L["How visible it stays while the mouse is away."],
-			path = base .. "mouseoverOpacity",
-			default = Settings:Default(base .. "mouseoverOpacity"),
-			min = 0,
-			max = 100,
-			step = 5,
-			format = "percent",
-			blocked = Needs("mouseover", L["Needs Fade Until Mouseover."]),
-		})
-		fade:Checkbox({
-			id = group.key .. "Combat",
-			label = L["Fade in Combat"],
-			path = base .. "combat",
-			default = Settings:Default(base .. "combat"),
-		})
-		fade:Slider({
-			id = group.key .. "CombatOpacity",
-			resettable = true,
-			label = L["Combat Opacity"],
-			description = L["How visible it stays in combat. The mouse brings it back."],
-			path = base .. "combatOpacity",
-			default = Settings:Default(base .. "combatOpacity"),
-			min = 0,
-			max = 100,
-			step = 5,
-			format = "percent",
-			blocked = Needs("combat", L["Needs Fade in Combat."]),
-		})
 	end
+
+	fade:Checkbox({
+		id = "fadeMouseover",
+		label = L["Fade Until Mouseover"],
+		path = "minimap.fade.mouseover",
+		default = Settings:Default("minimap.fade.mouseover"),
+	})
+	fade:Slider({
+		id = "fadeMouseoverOpacity",
+		resettable = true,
+		label = L["Mouseover Opacity"],
+		description = L["How visible the minimap stays while the mouse is away."],
+		path = "minimap.fade.mouseoverOpacity",
+		default = Settings:Default("minimap.fade.mouseoverOpacity"),
+		min = 0,
+		max = 100,
+		step = 5,
+		format = "percent",
+		blocked = Needs("minimap.fade.mouseover", L["Needs Fade Until Mouseover."]),
+	})
+	fade:Checkbox({
+		id = "fadeCombat",
+		label = L["Fade in Combat"],
+		path = "minimap.fade.combat",
+		default = Settings:Default("minimap.fade.combat"),
+	})
+	fade:Slider({
+		id = "fadeCombatOpacity",
+		resettable = true,
+		label = L["Combat Opacity"],
+		description = L["How visible the minimap stays in combat. The mouse brings it back."],
+		path = "minimap.fade.combatOpacity",
+		default = Settings:Default("minimap.fade.combatOpacity"),
+		min = 0,
+		max = 100,
+		step = 5,
+		format = "percent",
+		blocked = Needs("minimap.fade.combat", L["Needs Fade in Combat."]),
+	})
 
 	local zoom = page:Section("zoom", L["Zoom"])
 

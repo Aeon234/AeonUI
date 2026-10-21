@@ -216,7 +216,7 @@ function Map:TakeOver()
 	Minimap:HookScript("OnLeave", function()
 		Map:OnLeave()
 	end)
-	AUI.MinimapFade:Start({ rows = AUI.MinimapRows:List(), map = { Minimap } })
+	AUI.MinimapFade:Start(self.holder --[[@as Frame]])
 
 	GetMinimapShape = function()
 		return "SQUARE"
@@ -344,8 +344,9 @@ function Map:Arrange(force)
 			top = layout.top,
 			bottom = layout.bottom,
 		})
+		-- The rows' text sits above the border: the metal title bar behind it is opaque.
 		border:SetFrameLevel(Minimap:GetFrameLevel() + 10)
-		AUI.MinimapRows:SetFrameLevel(Minimap:GetFrameLevel() + 2)
+		AUI.MinimapRows:SetFrameLevel(Minimap:GetFrameLevel() + 15)
 	end
 
 	AUI.MinimapRows:Place(holder, layout, color)

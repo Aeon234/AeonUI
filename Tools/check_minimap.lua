@@ -347,8 +347,8 @@ Equal("the lower opacity wins in combat", Fade:Target(fading, false, true), 0.3)
 fading.mouseover = false
 Equal("combat alone fades in combat", Fade:Target(fading, false, true), 0.5)
 Equal("and not out of it", Fade:Target(fading, false, false), 1)
-Equal("no fading by default", Schema:Read(stored, "minimap.fade.rows.mouseover") or
-	Schema:Read(stored, "minimap.fade.map.combat"), false)
+Equal("no fading by default", Schema:Read(stored, "minimap.fade.mouseover") or
+	Schema:Read(stored, "minimap.fade.combat"), false)
 
 -- Applying ---------------------------------------------------------------------------------------------------
 

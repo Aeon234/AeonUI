@@ -324,18 +324,15 @@ for _, section in ipairs(minimapPage.sections) do
 	end
 end
 
-for _, group in ipairs({ "rows", "map" }) do
-	local fade = minimapPage.sections[group .. "Fade"].settings
-
-	Equal(group .. " mouseover opacity waits for its fade", type(fade[group .. "MouseoverOpacity"].blocked()), "string")
-	Equal(group .. " combat opacity waits for its fade", type(fade[group .. "CombatOpacity"].blocked()), "string")
-	Profile:Set("minimap.fade." .. group .. ".mouseover", true)
-	Profile:Set("minimap.fade." .. group .. ".combat", true)
-	Equal(group .. " mouseover opacity follows its fade", fade[group .. "MouseoverOpacity"].blocked(), nil)
-	Equal(group .. " combat opacity follows its fade", fade[group .. "CombatOpacity"].blocked(), nil)
-	Profile:Set("minimap.fade." .. group .. ".mouseover", false)
-	Profile:Set("minimap.fade." .. group .. ".combat", false)
-end
+local fade = minimapPage.sections.fade.settings
+Equal("mouseover opacity waits for its fade", type(fade.fadeMouseoverOpacity.blocked()), "string")
+Equal("combat opacity waits for its fade", type(fade.fadeCombatOpacity.blocked()), "string")
+Profile:Set("minimap.fade.mouseover", true)
+Profile:Set("minimap.fade.combat", true)
+Equal("mouseover opacity follows its fade", fade.fadeMouseoverOpacity.blocked(), nil)
+Equal("combat opacity follows its fade", fade.fadeCombatOpacity.blocked(), nil)
+Profile:Set("minimap.fade.mouseover", false)
+Profile:Set("minimap.fade.combat", false)
 Equal("row height is on the page", minimapPage.sections.rows.settings.rowHeight.path, "minimap.rows.height")
 
 local borderSection = minimapPage.sections.border

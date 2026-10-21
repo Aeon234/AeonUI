@@ -35,17 +35,6 @@ function Rows:Build(holder, onEnter, onLeave)
 	end
 end
 
----@return Frame[]
-function Rows:List()
-	local list = {}
-
-	for _, key in ipairs(Layout.ROWS) do
-		list[#list + 1] = self.frames[key]
-	end
-
-	return list
-end
-
 ---@param level integer
 function Rows:SetFrameLevel(level)
 	for _, frame in pairs(self.frames) do
