@@ -15,6 +15,9 @@ DELETE = "Delete"
 RESET = "Reset"
 CANCEL = "Cancel"
 CLOSE = "Close"
+NONE = "None"
+BACKGROUND = "Background"
+MINIMAP_LABEL = "Minimap"
 SlashCmdList = {}
 StaticPopupDialogs = {}
 C_AddOns = {
@@ -79,6 +82,10 @@ local SETTING_FIELDS = {
 local CONTROL_FIELDS = {
 	Checkbox = {},
 	Button = { verb = true, confirm = true, run = true },
+	Slider = { min = true, max = true, step = true, format = true },
+	Dropdown = { options = true, picker = true, placeholder = true, titleCase = true, confirm = true, verb = true,
+		width = true },
+	Color = { hasOpacity = true, classColor = true },
 }
 local PAGE_FIELDS = { title = true, description = true, under = true, icon = true, slot = true, switch = true }
 local DECLARATION_FIELDS = {
@@ -186,6 +193,19 @@ function lib:Settings(name, declaration)
 	return window
 end
 
+local placements = {}
+function lib:Placement(name, declaration)
+	local registration = { name = name, declaration = declaration, applied = 0 }
+
+	function registration:Apply()
+		self.applied = self.applied + 1
+	end
+
+	placements[name] = registration
+
+	return registration
+end
+
 -- LibDataBroker and LibDBIcon stand-ins.
 local launchers = {}
 local LDB = {
@@ -214,14 +234,26 @@ function LibStub(name)
 	return assert(LIBRARIES[name], name)
 end
 
+function Mixin(object, ...)
+	for index = 1, select("#", ...) do
+		for key, value in pairs((select(index, ...))) do
+			object[key] = value
+		end
+	end
+
+	return object
+end
+
 local AUI = {}
 assert(loadfile(root .. "Core/Core.lua"))("AeonUI", AUI)
 AUI.L = setmetatable({}, { __index = function(_, key)
 	return key
 end })
 for _, file in ipairs({ "Core/Callbacks.lua", "Core/Capabilities.lua", "Core/Broker.lua", "Profile/Schema.lua",
-	"Profile/Store.lua", "Profile/Profile.lua", "Settings/Window.lua", "Settings/General.lua", "Settings/Profiles.lua",
-	"Settings/Recovery.lua" }) do
+	"Profile/Store.lua", "Profile/Profile.lua", "UI/Border.lua", "Minimap/Layout.lua", "Minimap/Elements.lua",
+	"Minimap/Rows.lua", "Minimap/Fade.lua", "Minimap/Text.lua", "Minimap/Map.lua", "Settings/Window.lua",
+	"Settings/General.lua", "Settings/Minimap.lua", "Settings/Profiles.lua", "Settings/Recovery.lua",
+	"Settings/EditTargets.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 
@@ -260,7 +292,7 @@ local window = Load(nil)
 local declaration = window.declaration
 Equal("registered under the addon's name", window.name, "AeonUI")
 Equal("named root frame", declaration.frameName, "AeonUISettings")
-Equal("sidebar order", table.concat(window.order, " "), "general - profiles")
+Equal("sidebar order", table.concat(window.order, " "), "general minimap - profiles")
 Equal("Settings:Window reuses the window", Settings:Window(), window)
 Equal("the store is the active config", declaration.store(), Profile.config)
 Equal("account settings are the store's", declaration.account(), AeonUIDB.global)
@@ -278,6 +310,73 @@ window.shown = true
 Profile:Create("Refresh")
 Equal("a profile change redraws an open window", window.refreshed > before, true)
 window.shown = false
+
+-- Minimap page --------------------------------------------------------------------------------------------------
+
+local minimapPage = window.pages.minimap
+Equal("the module's switch is the enabled setting", minimapPage.info.switch.path, "minimap.enabled")
+Equal("the switch defaults on", minimapPage.info.switch.default, true)
+
+for _, section in ipairs(minimapPage.sections) do
+	for _, setting in ipairs(section.settings) do
+		Equal(setting.id .. " names a setting", AUI.Schema:Field(setting.path) ~= nil, true)
+		Equal(setting.id .. " carries its default", setting.default == nil, AUI.Schema:Field(setting.path).default == nil)
+	end
+end
+
+for _, group in ipairs({ "rows", "map" }) do
+	local fade = minimapPage.sections[group .. "Fade"].settings
+
+	Equal(group .. " mouseover opacity waits for its fade", type(fade[group .. "MouseoverOpacity"].blocked()), "string")
+	Equal(group .. " combat opacity waits for its fade", type(fade[group .. "CombatOpacity"].blocked()), "string")
+	Profile:Set("minimap.fade." .. group .. ".mouseover", true)
+	Profile:Set("minimap.fade." .. group .. ".combat", true)
+	Equal(group .. " mouseover opacity follows its fade", fade[group .. "MouseoverOpacity"].blocked(), nil)
+	Equal(group .. " combat opacity follows its fade", fade[group .. "CombatOpacity"].blocked(), nil)
+	Profile:Set("minimap.fade." .. group .. ".mouseover", false)
+	Profile:Set("minimap.fade." .. group .. ".combat", false)
+end
+Equal("row height is on the page", minimapPage.sections.rows.settings.rowHeight.path, "minimap.rows.height")
+
+local borderSection = minimapPage.sections.border
+Equal("every border style is offered", #borderSection.settings.borderStyle.options, #AUI.Border.STYLES)
+local borderSettings = borderSection.settings
+Equal("border color is free with Metal", borderSettings.borderColor.blocked(), nil)
+Equal("thickness is free with Metal", borderSettings.borderThickness.blocked(), nil)
+Profile:Set("minimap.border.style", "NONE")
+Equal("border color needs a style", type(borderSettings.borderColor.blocked()), "string")
+Equal("thickness needs an art style", type(borderSettings.borderThickness.blocked()), "string")
+Profile:Set("minimap.border.style", "FOREVER")
+Equal("Forever keeps its own colors", type(borderSettings.borderColor.blocked()), "string")
+Equal("Forever takes a thickness", borderSettings.borderThickness.blocked(), nil)
+Profile:Set("minimap.border.style", "FOREVER_MINIMAL")
+Equal("Forever Minimal takes a color", borderSettings.borderColor.blocked(), nil)
+Profile:Set("minimap.border.style", "METAL")
+local resetSlider = minimapPage.sections.zoom.settings.zoomReset
+Equal("a zero reset reads Never", resetSlider.format(0), "Never")
+Equal("a reset reads in seconds", resetSlider.format(15), "15 s")
+
+-- Edit mode ----------------------------------------------------------------------------------------------------
+
+AUI.EditTargets.registration = nil
+AUI.EditTargets:Register()
+local placement = placements.AeonUI
+Equal("edit mode is registered", placement ~= nil, true)
+Equal("no target while the module is off this session", #placement.declaration.targets(), 0)
+AUI.Minimap.active, AUI.Minimap.holder = true, {}
+local target = placement.declaration.targets()[1]
+Equal("the minimap is a target", target and target.key, "minimap")
+Equal("it moves the module's frame", target.frame, AUI.Minimap.holder)
+Equal("it starts at the default place", target.default, AUI.Minimap.DEFAULT_POSITION)
+Equal("Element Options lands on its page", target.settings.page, "minimap")
+Equal("no stored position at first", placement.declaration.get("minimap"), nil)
+placement.declaration.set("minimap", { point = "TOPLEFT", x = 12, y = -30 })
+Equal("a moved position is saved in the profile", Profile:Get("minimap.position").point, "TOPLEFT")
+Equal("and read back", placement.declaration.get("minimap").x, 12)
+placement.declaration.set("minimap", { point = "NOWHERE", x = 0, y = 0 })
+Equal("a malformed position is refused", Profile:Get("minimap.position").point, "TOPLEFT")
+Equal("an unknown key reads nothing", placement.declaration.get("other"), nil)
+AUI.Minimap.active, AUI.Minimap.holder = false, nil
 
 -- Profiles adapter --------------------------------------------------------------------------------------------
 

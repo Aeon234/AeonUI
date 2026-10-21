@@ -133,6 +133,101 @@ function Dev:Codec()
 	AUI:Print("codec: %d passed, %d failed", passed, failed)
 end
 
+-- The atlases `/aui dev atlas` reports when it is given no names: Blizzard's metal window frame.
+local METAL_ATLASES = {
+	"UI-Frame-Metal-CornerTopLeft", "UI-Frame-Metal-CornerTopRight", "UI-Frame-Metal-CornerTopRightDouble",
+	"UI-Frame-Metal-CornerBottomLeft", "UI-Frame-Metal-CornerBottomRight", "_UI-Frame-Metal-EdgeTop",
+	"_UI-Frame-Metal-EdgeBottom", "!UI-Frame-Metal-EdgeLeft", "!UI-Frame-Metal-EdgeRight",
+}
+
+---Prints each atlas's size in UI units, its file and its texture coordinates, read from the running client.
+---@param line string atlas names separated by spaces; the metal frame's when empty. Names are lowercased by the slash
+---command, which atlas lookups ignore.
+function Dev:Atlases(line)
+	local names = {}
+
+	for name in line:gmatch("%S+") do
+		names[#names + 1] = name
+	end
+
+	if #names == 0 then
+		names = METAL_ATLASES
+	end
+
+	local version, build = GetBuildInfo()
+
+	AUI:Print("atlases on %s.%s:", tostring(version), tostring(build))
+
+	for _, name in ipairs(names) do
+		local info = C_Texture.GetAtlasInfo(name)
+
+		if info then
+			AUI:Print("%s: %d x %d, file %s, x %.4f-%.4f, y %.4f-%.4f, tiles %s/%s", name, info.width, info.height,
+				tostring(info.filename or info.file), info.leftTexCoord, info.rightTexCoord, info.topTexCoord,
+				info.bottomTexCoord, tostring(info.tilesHorizontally), tostring(info.tilesVertically))
+		else
+			AUI:Print("%s: no such atlas", name)
+		end
+	end
+end
+
+---@param frame table
+---@return string text a frame's center, size and scale in screen pixels' units
+local function Rect(frame)
+	local x, y = frame:GetCenter()
+	local scale = frame:GetEffectiveScale()
+
+	return ("center %.1f, %.1f  size %.1f x %.1f  scale %.3f"):format((x or 0) * scale, (y or 0) * scale,
+		frame:GetWidth() * scale, frame:GetHeight() * scale, scale)
+end
+
+---Prints where the Minimap module's frame and Blizzard's map are on screen, and the map's clamping.
+function Dev:MapReport()
+	local module = AUI.Minimap
+
+	if not module.active then
+		AUI:Print("map: the Minimap module is not active this session.")
+
+		return
+	end
+
+	local left, right, top, bottom = Minimap:GetClampRectInsets()
+
+	AUI:Print("map: screen %.0f x %.0f", GetPhysicalScreenSize())
+	AUI:Print("holder: %s", Rect(module.holder --[[@as Frame]]))
+	AUI:Print("Minimap: %s", Rect(Minimap))
+	AUI:Print("clamped %s, clamp insets %.1f %.1f %.1f %.1f, mask %s", tostring(Minimap:IsClampedToScreen()), left,
+		right, top, bottom, tostring(module.mask):match("[^\\]+$") or "?")
+end
+
+---Places a minimap row element, standing in for the drag editor until it exists.
+---@param line string `<element> <top1|top2|bottom1|bottom2|hidden> [order]`, lowercased
+function Dev:PlaceElement(line)
+	local key, row, order = line:match("^(%S+)%s+(%S+)%s*(%d*)$")
+	local element = key and AUI.MinimapElements.byKey[key]
+
+	if not element then
+		local keys = {}
+
+		for _, known in ipairs(AUI.MinimapElements.list) do
+			keys[#keys + 1] = known.key
+		end
+
+		AUI:Print("usage: /aui dev row <%s> <top1|top2|bottom1|bottom2|hidden> [order]", table.concat(keys, "|"))
+
+		return
+	end
+
+	local rowPath, orderPath = AUI.MinimapElements:Paths(key)
+	local ok, problem = AUI.Profile:Set(rowPath, row:upper())
+
+	if ok and order ~= "" then
+		ok, problem = AUI.Profile:Set(orderPath, tonumber(order))
+	end
+
+	AUI:Print("row: %s %s", key, ok and "placed" or tostring(problem))
+end
+
 ---@param line string the words after `/aui dev`, lowercased
 function Dev:Command(line)
 	local command, rest = line:match("^(%S*)%s*(.-)$")
@@ -143,11 +238,29 @@ function Dev:Command(line)
 		return
 	end
 
+	if command == "map" then
+		self:MapReport()
+
+		return
+	end
+
+	if command == "atlas" then
+		self:Atlases(rest)
+
+		return
+	end
+
+	if command == "row" then
+		self:PlaceElement(rest)
+
+		return
+	end
+
 	if command == "minimap" and self.MinimapProbe then
 		self.MinimapProbe:Command(rest)
 
 		return
 	end
 
-	AUI:Print("dev commands: codec, minimap")
+	AUI:Print("dev commands: codec, map, atlas [names], row, minimap")
 end

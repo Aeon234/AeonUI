@@ -12,6 +12,10 @@ local addonName = ...
 ---@field Store AUIStore
 ---@field Profile AUIProfile
 ---@field Settings AUISettings
+---@field Broker AUIBroker
+---@field Border AUIBorderFactory
+---@field Minimap AUIMinimap the Minimap module (not Blizzard's `Minimap` frame)
+---@field EditTargets AUIEditTargets
 ---@field Codec AUICodec
 ---@field Dev AUIDev? development self-tests, present only in unpackaged builds
 ---@field failed boolean? saved data or the character could not be loaded; AeonUI stays off for the session

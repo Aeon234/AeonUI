@@ -49,5 +49,7 @@ frame:SetScript("OnEvent", function(self, event)
 		end
 
 		AUI.Broker:Create()
+		AUI.Minimap:Start()
+		AUI.EditTargets:Register()
 	end
 end)

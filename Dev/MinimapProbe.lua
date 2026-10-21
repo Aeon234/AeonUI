@@ -305,6 +305,12 @@ function Probe:Command(line)
 		return
 	end
 
+	if AUI.Minimap.active then
+		AUI:Warn("the Minimap module has the minimap this session: turn it off on the Minimap page and /reload first.")
+
+		return
+	end
+
 	if command == "on" then
 		self:TakeOver()
 		self:Report()

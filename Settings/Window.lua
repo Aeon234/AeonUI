@@ -7,7 +7,7 @@ local FRAME_NAME = "AeonUISettings"
 
 ---The settings window, built on LibAeonSettings. It is registered and its pages declared the first time it is asked
 ---for, once saved data is ready. Its pages follow the profile owner's mode at that moment: Recovery alone while the
----saved data cannot be used, otherwise General and Profiles.
+---saved data cannot be used, otherwise General, the feature pages and Profiles.
 ---@class AUISettings
 ---@field window table?
 local Settings = {}
@@ -22,6 +22,7 @@ local function DeclareSidebar(window)
 	end
 
 	AUI.SettingsGeneral:Declare(window)
+	AUI.SettingsMinimap:Declare(window)
 	window:Divider()
 	AUI.SettingsProfiles:Declare(window)
 end

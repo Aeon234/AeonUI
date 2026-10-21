@@ -3,10 +3,16 @@ local AUI = select(2, ...)
 -- Deepest nesting accepted in profile data, including fields this version does not know.
 local MAX_DEPTH = 32
 
+-- The points a stored position may name: a frame's point, placed at the same point of the screen.
+local POINTS = {
+	TOPLEFT = true, TOP = true, TOPRIGHT = true, LEFT = true, CENTER = true, RIGHT = true, BOTTOMLEFT = true,
+	BOTTOM = true, BOTTOMRIGHT = true,
+}
+
 ---One setting a profile can hold: its type, default and bounds.
 ---@class AUISchemaField
 ---@field path string dot-separated path inside a profile's config
----@field kind "boolean"|"number"|"choice"|"string"|"color"
+---@field kind "boolean"|"number"|"choice"|"string"|"color"|"position"
 ---@field default any the factory value; nil for an optional field, which then follows a shared setting
 ---@field min number?
 ---@field max number?
@@ -108,6 +114,12 @@ function Schema:Color(path, default)
 	Field(path, { kind = "color", default = default, optional = default == nil })
 end
 
+---A frame's position, `{ point, x, y }`: optional, so that absence means the frame's default place.
+---@param path string
+function Schema:Position(path)
+	Field(path, { kind = "position", optional = true })
+end
+
 ---A setting that follows a shared one until it holds its own value: optional, with the shared field's kind and
 ---bounds.
 ---@param path string
@@ -138,6 +150,22 @@ end
 ---@return boolean
 local function IsFinite(value)
 	return type(value) == "number" and value == value and value ~= math.huge and value ~= -math.huge
+end
+
+---@param value any
+---@return boolean
+local function IsPosition(value)
+	if type(value) ~= "table" then
+		return false
+	end
+
+	for key in pairs(value) do
+		if key ~= "point" and key ~= "x" and key ~= "y" then
+			return false
+		end
+	end
+
+	return POINTS[value.point] == true and IsFinite(value.x) and IsFinite(value.y)
 end
 
 ---@param value any
@@ -206,6 +234,10 @@ function Schema:CheckValue(path, value)
 	elseif kind == "color" then
 		if not IsColor(value) then
 			return false, ("%s must be a color"):format(path)
+		end
+	elseif kind == "position" then
+		if not IsPosition(value) then
+			return false, ("%s must be a position"):format(path)
 		end
 	elseif type(value) ~= kind then
 		return false, ("%s must be a %s"):format(path, kind)

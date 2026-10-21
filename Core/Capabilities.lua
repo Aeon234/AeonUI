@@ -9,6 +9,8 @@ AUI.Capabilities = Capabilities
 
 ---@class AUICapabilityFlags
 ---@field compartment boolean the addon compartment entry point
+---@field minimapConfig boolean the minimap cluster re-applies its own mask when rotation changes (Forever)
+---@field foreverArt boolean the client draws Forever's art for shared atlases, which places some differently
 AUI.can = {}
 
 ---The only place a client difference is detected. Runs once at login.
@@ -17,6 +19,8 @@ function Capabilities:Resolve()
 	local can = AUI.can
 
 	can.compartment = AddonCompartmentFrame ~= nil
+	can.minimapConfig = MinimapCluster ~= nil and MinimapCluster.UpdateMinimapConfig ~= nil
+	can.foreverArt = WOW_PROJECT_ID == WOW_PROJECT_CAMELOT
 
 	self.resolved = true
 
