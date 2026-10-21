@@ -250,6 +250,15 @@ function Dev:Command(line)
 		return
 	end
 
+	if command == "preview" then
+		local elements = AUI.MinimapElements
+
+		elements:SetPreview(not elements.preview)
+		AUI:Print("preview: %s", elements.preview and "on" or "off")
+
+		return
+	end
+
 	if command == "row" then
 		self:PlaceElement(rest)
 
@@ -262,5 +271,5 @@ function Dev:Command(line)
 		return
 	end
 
-	AUI:Print("dev commands: codec, map, atlas [names], row, minimap")
+	AUI:Print("dev commands: codec, map, atlas [names], row, preview, minimap")
 end

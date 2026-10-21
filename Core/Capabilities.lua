@@ -11,6 +11,7 @@ AUI.Capabilities = Capabilities
 ---@field compartment boolean the addon compartment entry point
 ---@field minimapConfig boolean the minimap cluster re-applies its own mask when rotation changes (Forever)
 ---@field foreverArt boolean the client draws Forever's art for shared atlases, which places some differently
+---@field dielCycle boolean the client reports day and night itself (`C_DateAndTime.IsDayTime`, Forever)
 AUI.can = {}
 
 ---The only place a client difference is detected. Runs once at login.
@@ -21,6 +22,7 @@ function Capabilities:Resolve()
 	can.compartment = AddonCompartmentFrame ~= nil
 	can.minimapConfig = MinimapCluster ~= nil and MinimapCluster.UpdateMinimapConfig ~= nil
 	can.foreverArt = WOW_PROJECT_ID == WOW_PROJECT_CAMELOT
+	can.dielCycle = C_DateAndTime ~= nil and C_DateAndTime.IsDayTime ~= nil
 
 	self.resolved = true
 

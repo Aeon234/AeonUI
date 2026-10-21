@@ -54,8 +54,14 @@ L["Left-click opens settings."] = "Left-click opens settings."
 L["/aui and the addon compartment open settings too."] = "/aui and the addon compartment open settings too."
 
 -- Minimap page (Settings)
-L["A rectangular minimap with information rows, a border and zoom. Move it in Edit Mode."] =
-	"A rectangular minimap with information rows, a border and zoom. Move it in Edit Mode."
+L["The map's size, fading and zoom. Move it in Edit Mode."] = "The map's size, fading and zoom. Move it in Edit Mode."
+L["The frame around the map and its rows."] = "The frame around the map and its rows."
+L["The information rows above and below the map."] = "The information rows above and below the map."
+L["The zone's name. Hover it for Blizzard's zone tooltip; click it to open the world map."] =
+	"The zone's name. Hover it for Blizzard's zone tooltip; click it to open the world map."
+L["The time, with day and night. Hover it for both the realm's and your local time."] =
+	"The time, with day and night. Hover it for both the realm's and your local time."
+L["Your position on the map, where the map has one."] = "Your position on the map, where the map has one."
 L["Map"] = "Map"
 L["Turning the minimap on or off takes effect after a /reload. While it is off, Blizzard's minimap is left as it is."] =
 	"Turning the minimap on or off takes effect after a /reload. While it is off, Blizzard's minimap is left as it is."
@@ -82,8 +88,33 @@ L["Shows behind the map's information rows."] = "Shows behind the map's informat
 L["Rows"] = "Rows"
 L["Row Height"] = "Row Height"
 L["Every row's height. Buttons are square at it."] = "Every row's height. Buttons are square at it."
-L["Text Size"] = "Text Size"
-L["Zone Text Size"] = "Zone Text Size"
+L["Zone Color"] = "Zone Color"
+L["By PvP Status"] = "By PvP Status"
+L["Gold"] = "Gold"
+L["Off shows the realm's time."] = "Off shows the realm's time."
+L["Show Day and Night"] = "Show Day and Night"
+L["Icon Size"] = "Icon Size"
+L["Needs Show Day and Night."] = "Needs Show Day and Night."
+L["Coordinates"] = "Coordinates"
+L["Instance Difficulty"] = "Instance Difficulty"
+L["The instance's difficulty beside the zone, shown inside an instance."] =
+	"The instance's difficulty beside the zone, shown inside an instance."
+L["Text"] = "Text"
+L["Font"] = "Font"
+L["Outline"] = "Outline"
+L["All Rows"] = "All Rows"
+L["Text Color"] = "Text Color"
+L["For the clock and coordinates; the zone and instance difficulty have colors of their own."] =
+	"For the clock and coordinates; the zone and instance difficulty have colors of their own."
+L["Each element's page can change its own font, size, outline, offset and color."] =
+	"Each element's page can change its own font, size, outline, offset and color."
+L["Y Offset"] = "Y Offset"
+L["Raises the text, or lowers it below 0, to sit it in the middle of the row."] =
+	"Raises the text, or lowers it below 0, to sit it in the middle of the row."
+L["Colors"] = "Colors"
+L["Mythic, and Mythic+ with its keystone level."] = "Mythic, and Mythic+ with its keystone level."
+L["Timewalking, Follower, Delves, Story and PvP."] = "Timewalking, Follower, Delves, Story and PvP."
+L["Decimal Places"] = "Decimal Places"
 L["Fading"] = "Fading"
 L["Fade Until Mouseover"] = "Fade Until Mouseover"
 L["Mouseover Opacity"] = "Mouseover Opacity"
@@ -102,6 +133,18 @@ L["Returns to the widest view this long after the last zoom."] =
 	"Returns to the widest view this long after the last zoom."
 L["Never"] = "Never"
 L["%d s"] = "%d s"
+
+-- Minimap difficulty badge (short labels)
+L["N"] = "N"
+L["H"] = "H"
+L["M"] = "M"
+L["M+"] = "M+"
+L["LFR"] = "LFR"
+L["TW"] = "TW"
+L["PvP"] = "PvP"
+L["Follower"] = "Follower"
+L["Delves"] = "Delves"
+L["Story"] = "Story"
 
 -- Profiles page (Settings)
 L["Keep different setups of AeonUI, and share them as text."] =

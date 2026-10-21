@@ -69,6 +69,12 @@ local TITLE = {
 }
 -- The map's edge runs along the middle of the band under the strip, this far from the strip.
 local TITLE_SEPARATOR = 2.25
+-- The divider between cells in a metal row: the side band cut from the left edge, with its soft shadows (pixels 22 to
+-- 40 of 190 across), 9 atlas units wide and tiled down the row's height, so it joins the bands above and below.
+local CELL_DIVIDER = { atlas = "!UI-Frame-Metal-EdgeLeft", left = 22 / 190, right = 40 / 190, width = 9 }
+-- The Forever styles whose band also divides cells, drawn from a straight stretch of the band's left side: Forever's
+-- bevel, light outside and dark inside, matches the light-over-dark separators cut from its top edge.
+local BAND_DIVIDERS = { FOREVER_MINIMAL = true, FOREVER = true }
 
 -- Forever Minimal's own band color: at it, the art is drawn as it is.
 local ART_COLOR = { r = 132 / 255, g = 105 / 255, b = 82 / 255 }
@@ -145,6 +151,20 @@ function Border:FitScale(texelsAcross, outset, size, scale)
 	end
 
 	return scale
+end
+
+---@param style AUIBorderStyle
+---@param thickness number percent
+---@return number? width the style's own divider between cells in a row, in the owner's units; nil when the row draws
+---a plain line
+function Border:CellDividerWidth(style, thickness)
+	if style == "METAL" then
+		return CELL_DIVIDER.width * thickness / 100
+	elseif BAND_DIVIDERS[style] then
+		return BAND_WIDTH * ART_SCALE * thickness / 100
+	end
+
+	return nil
 end
 
 ---@param style AUIBorderStyle
@@ -639,6 +659,47 @@ local function Tint(textures, color, tintable)
 			texture:SetVertexColor(1, 1, 1, 1)
 		end
 	end
+end
+
+---Draws a texture as the style's divider between cells in a row. Returns false, leaving the texture alone, when the
+---style has none and the row draws a plain line.
+---@param texture Texture
+---@param style AUIBorderStyle
+---@param color AUIColor
+---@return boolean drawn
+function Border:StyleCellDivider(texture, style, color)
+	local art = ART[style]
+
+	if art and BAND_DIVIDERS[style] then
+		local size = art.size
+
+		texture:SetTexture(art.band)
+		texture:SetTexCoord(BAND_START / size, (BAND_START + BAND_WIDTH) / size, (size / 2 - 0.5) / size,
+			(size / 2 + 0.5) / size)
+		texture:SetHorizTile(false)
+		texture:SetVertTile(false)
+		Tint({ texture }, color, art.tinted == true)
+
+		return true
+	end
+
+	if style ~= "METAL" then
+		return false
+	end
+
+	local info = C_Texture.GetAtlasInfo(CELL_DIVIDER.atlas)
+
+	texture:SetTexCoord(CELL_DIVIDER.left, CELL_DIVIDER.right, 0, 1)
+	texture:SetHorizTile(false)
+	texture:SetVertTile(info ~= nil and info.tilesVertically)
+
+	if info then
+		texture:SetAtlas(CELL_DIVIDER.atlas)
+	end
+
+	Tint({ texture }, color, true)
+
+	return true
 end
 
 ---Textures the rows' bands, lines and backgrounds for the style: the Forever band from a straight stretch of its top

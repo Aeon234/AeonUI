@@ -5,7 +5,7 @@ local Elements = AUI.MinimapElements
 
 AUI.Schema:Number("minimap.rows.height", 22, 16, 40, true)
 
--- A cell divider's height against its row's, and its opacity against the border color.
+-- A plain cell divider's height against its row's, and its opacity against the border color.
 local DIVIDER_HEIGHT = 0.6
 local DIVIDER_ALPHA = 0.6
 
@@ -42,19 +42,25 @@ function Rows:SetFrameLevel(level)
 	end
 end
 
+---@class AUIMinimapRowLook
+---@field style AUIBorderStyle
+---@field color AUIColor the border color
+---@field thickness number percent
+
+---Places a row's dividers: the border style's own divider, the full height of the row, or a plain line of one pixel.
 ---@param key string
 ---@param row AUIMinimapRowLayout
----@param color AUIColor
-function Rows:PlaceDividers(key, row, color)
+---@param look AUIMinimapRowLook
+function Rows:PlaceDividers(key, row, look)
 	local frame, pool = self.frames[key], self.dividers[key]
-	local pixel = AUI:Pixel(frame)
+	local color = look.color
+	local styled = AUI.Border:CellDividerWidth(look.style, look.thickness)
 
 	for index, x in ipairs(row.dividers) do
 		local divider = pool[index]
 
 		if not divider then
 			divider = frame:CreateTexture(nil, "ARTWORK")
-			divider:SetColorTexture(1, 1, 1, 1)
 			divider:SetSnapToPixelGrid(false)
 			divider:SetTexelSnappingBias(0)
 			pool[index] = divider
@@ -62,8 +68,18 @@ function Rows:PlaceDividers(key, row, color)
 
 		divider:ClearAllPoints()
 		divider:SetPoint("CENTER", frame, "LEFT", x, 0)
-		divider:SetSize(pixel, row.height * DIVIDER_HEIGHT)
-		divider:SetVertexColor(color.r or 1, color.g or 1, color.b or 1, DIVIDER_ALPHA)
+
+		if styled and AUI.Border:StyleCellDivider(divider, look.style, color) then
+			divider:SetSize(styled, row.height)
+		else
+			divider:SetTexCoord(0, 1, 0, 1)
+			divider:SetVertTile(false)
+			divider:SetDesaturated(false)
+			divider:SetColorTexture(1, 1, 1, 1)
+			divider:SetVertexColor(color.r or 1, color.g or 1, color.b or 1, DIVIDER_ALPHA)
+			divider:SetSize(AUI:Pixel(frame), row.height * DIVIDER_HEIGHT)
+		end
+
 		divider:Show()
 	end
 
@@ -75,8 +91,8 @@ end
 ---Shows the rows the layout draws, puts each element in its cell and hides the elements with no cell.
 ---@param holder Frame
 ---@param layout AUIMinimapLayout
----@param color AUIColor the dividers' color
-function Rows:Place(holder, layout, color)
+---@param look AUIMinimapRowLook the border's, for the dividers
+function Rows:Place(holder, layout, look)
 	local placed = {}
 	local shown = {}
 
@@ -106,7 +122,7 @@ function Rows:Place(holder, layout, color)
 				shown[cell.key] = cell.width > 0
 			end
 
-			self:PlaceDividers(key, row, color)
+			self:PlaceDividers(key, row, look)
 		end
 	end
 

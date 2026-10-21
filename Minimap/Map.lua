@@ -18,6 +18,8 @@ local HYBRID_ADDON = "Blizzard_HybridMinimap"
 -- is drawn above the map and crosses each corner's diagonal from x + y = 22 to 30, so with the map's edge 10.5 texels
 -- in, the map runs flush under the band and its square corners lie under the band's chamfer.
 local ART_OUTSET = 10.5
+-- The least room between a styled cell divider and the cells on either side of it, together.
+local CELL_GAP = 4
 
 Schema:Choices("minimapBorderStyle", AUI.Border.STYLES)
 Schema:Boolean("minimap.enabled", true)
@@ -298,12 +300,14 @@ function Map:Arrange(force)
 	local holder = self.holder --[[@as Frame]]
 	local style, thickness = Profile:Get("minimap.border.style"), Profile:Get("minimap.border.thickness")
 	local separator, divider = AUI.Border:Gaps(style, thickness, AUI:Pixel(holder))
+	local cellDivider = AUI.Border:CellDividerWidth(style, thickness)
 	local layout = AUI.MinimapLayout:Compute({
 		width = geometry.width,
 		mapHeight = geometry.height,
 		rowHeight = Profile:Get("minimap.rows.height"),
 		separator = separator,
 		divider = divider,
+		spacing = cellDivider and math.max(AUI.MinimapLayout.SPACING, cellDivider + CELL_GAP) or nil,
 		rows = AUI.MinimapElements:Rows(),
 	})
 	local arranged = ("%s %s %s"):format(layout.width, layout.height, layout.mapTop)
@@ -349,7 +353,7 @@ function Map:Arrange(force)
 		AUI.MinimapRows:SetFrameLevel(Minimap:GetFrameLevel() + 15)
 	end
 
-	AUI.MinimapRows:Place(holder, layout, color)
+	AUI.MinimapRows:Place(holder, layout, { style = style, color = color, thickness = thickness })
 end
 
 ---Sizes, scales, crops and borders the map and arranges its rows from the active profile. Out of combat only; in

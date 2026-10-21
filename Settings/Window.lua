@@ -22,6 +22,7 @@ local function DeclareSidebar(window)
 	end
 
 	AUI.SettingsGeneral:Declare(window)
+	window:Divider()
 	AUI.SettingsMinimap:Declare(window)
 	window:Divider()
 	AUI.SettingsProfiles:Declare(window)

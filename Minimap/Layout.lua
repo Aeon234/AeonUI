@@ -1,7 +1,7 @@
 local AUI = select(2, ...)
 
--- Space between a row's edges and its outer cells, and between neighboring cells; a divider sits in the middle of each
--- space before a cell that has a neighbor on its left.
+-- Space between a row's edges and its outer cells, and between neighboring cells unless the border's cell dividers need
+-- more; a divider sits in the middle of each space before a cell that has a neighbor on its left.
 local PADDING = 6
 local SPACING = 10
 
@@ -35,6 +35,7 @@ local SPACING = 10
 ---@field rowHeight number
 ---@field separator number the space between a side's rows and the map
 ---@field divider number the space between two rows on one side
+---@field spacing number? the space between neighboring cells; `SPACING` when nil
 ---@field rows table<string, AUIMinimapCell[]> each row's visible cells in order; a missing or empty row is not drawn
 
 ---@class AUIMinimapLayout
@@ -62,9 +63,12 @@ AUI.MinimapLayout = Layout
 ---@param cells AUIMinimapCell[]
 ---@param width number
 ---@param height number
+---@param spacing number? the space between neighbors, room for their divider; `SPACING` when nil
 ---@return AUIMinimapPlacedCell[] placed in the given order
 ---@return number[] dividers
-function Layout:Row(cells, width, height)
+function Layout:Row(cells, width, height, spacing)
+	spacing = spacing or SPACING
+
 	local texts, buttons = {}, {}
 
 	for _, cell in ipairs(cells) do
@@ -76,14 +80,14 @@ function Layout:Row(cells, width, height)
 	end
 
 	local positions = {}
-	local buttonsLeft = width - PADDING - #buttons * height - math.max(0, #buttons - 1) * SPACING
+	local buttonsLeft = width - PADDING - #buttons * height - math.max(0, #buttons - 1) * spacing
 
 	for index, cell in ipairs(buttons) do
-		positions[cell] = { x = buttonsLeft + (index - 1) * (height + SPACING), width = height }
+		positions[cell] = { x = buttonsLeft + (index - 1) * (height + spacing), width = height }
 	end
 
-	local room = (#buttons > 0 and buttonsLeft - SPACING or width - PADDING) - PADDING
-	local fixed, flexible = math.max(0, #texts - 1) * SPACING, 0
+	local room = (#buttons > 0 and buttonsLeft - spacing or width - PADDING) - PADDING
+	local fixed, flexible = math.max(0, #texts - 1) * spacing, 0
 
 	for _, cell in ipairs(texts) do
 		if cell.flexible then
@@ -102,7 +106,7 @@ function Layout:Row(cells, width, height)
 		local cellWidth = math.min(cell.flexible and natural * share or natural, math.max(0, limit - x))
 
 		positions[cell] = { x = x, width = cellWidth }
-		x = x + cellWidth + SPACING
+		x = x + cellWidth + spacing
 	end
 
 	local placed, dividers = {}, {}
@@ -115,7 +119,7 @@ function Layout:Row(cells, width, height)
 
 		if position.width > 0 then
 			if previous then
-				dividers[#dividers + 1] = position.x - SPACING / 2
+				dividers[#dividers + 1] = position.x - spacing / 2
 			end
 
 			previous = position
@@ -153,7 +157,7 @@ function Layout:Compute(input)
 	local rows = {}
 
 	local function Add(key, y)
-		local cells, dividers = self:Row(input.rows[key], input.width, height)
+		local cells, dividers = self:Row(input.rows[key], input.width, height, input.spacing)
 
 		rows[#rows + 1] = { key = key, y = y, height = height, cells = cells, dividers = dividers }
 

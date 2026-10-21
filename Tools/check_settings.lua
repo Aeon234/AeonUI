@@ -18,6 +18,16 @@ CLOSE = "Close"
 NONE = "None"
 BACKGROUND = "Background"
 MINIMAP_LABEL = "Minimap"
+ZONE = "Zone"
+FONT_SIZE = "Font Size"
+OTHER = "Other"
+PLAYER_DIFFICULTY1 = "Normal"
+PLAYER_DIFFICULTY2 = "Heroic"
+PLAYER_DIFFICULTY3 = "Raid Finder"
+PLAYER_DIFFICULTY6 = "Mythic"
+TIMEMANAGER_TITLE = "Clock"
+TIMEMANAGER_24HOURMODE = "24 Hour Mode"
+TIMEMANAGER_LOCALTIME = "Use Local Time"
 SlashCmdList = {}
 StaticPopupDialogs = {}
 C_AddOns = {
@@ -144,7 +154,10 @@ local function NewPage(id, info)
 	return page
 end
 
-local lib = {}
+local lib = {
+	OUTLINES = { { value = "NONE" }, { value = "OUTLINE" }, { value = "THICKOUTLINE" }, { value = "SLUG" },
+		{ value = "SLUG_OUTLINE" }, { value = "SLUG_THICKOUTLINE" } },
+}
 
 function lib:Settings(name, declaration)
 	Allowed("declaration", declaration, DECLARATION_FIELDS)
@@ -162,6 +175,10 @@ function lib:Settings(name, declaration)
 
 	function window:Divider()
 		self.order[#self.order + 1] = "-"
+	end
+
+	function window:Header(id)
+		self.order[#self.order + 1] = "#" .. id
 	end
 
 	function window:ProfilesPage(id, info)
@@ -251,7 +268,7 @@ AUI.L = setmetatable({}, { __index = function(_, key)
 end })
 for _, file in ipairs({ "Core/Callbacks.lua", "Core/Capabilities.lua", "Core/Broker.lua", "Profile/Schema.lua",
 	"Profile/Store.lua", "Profile/Profile.lua", "UI/Border.lua", "Minimap/Layout.lua", "Minimap/Elements.lua",
-	"Minimap/Rows.lua", "Minimap/Fade.lua", "Minimap/Text.lua", "Minimap/Map.lua", "Settings/Window.lua",
+	"Minimap/Rows.lua", "Minimap/Fade.lua", "Minimap/Text.lua", "Minimap/Difficulty.lua", "Minimap/Map.lua", "Settings/Window.lua",
 	"Settings/General.lua", "Settings/Minimap.lua", "Settings/Profiles.lua", "Settings/Recovery.lua",
 	"Settings/EditTargets.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
@@ -292,7 +309,8 @@ local window = Load(nil)
 local declaration = window.declaration
 Equal("registered under the addon's name", window.name, "AeonUI")
 Equal("named root frame", declaration.frameName, "AeonUISettings")
-Equal("sidebar order", table.concat(window.order, " "), "general minimap - profiles")
+Equal("sidebar order", table.concat(window.order, " "), "general - #minimapHeader minimap minimapBorder minimapRows " ..
+	"minimapZone minimapClock minimapDifficulty minimapCoordinates - profiles")
 Equal("Settings:Window reuses the window", Settings:Window(), window)
 Equal("the store is the active config", declaration.store(), Profile.config)
 Equal("account settings are the store's", declaration.account(), AeonUIDB.global)
@@ -314,13 +332,47 @@ window.shown = false
 -- Minimap page --------------------------------------------------------------------------------------------------
 
 local minimapPage = window.pages.minimap
-Equal("the module's switch is the enabled setting", minimapPage.info.switch.path, "minimap.enabled")
-Equal("the switch defaults on", minimapPage.info.switch.default, true)
+local MINIMAP_PAGES = { "minimap", "minimapBorder", "minimapRows", "minimapZone", "minimapClock", "minimapDifficulty",
+	"minimapCoordinates" }
+local outlineChoices = {}
+for index, option in ipairs(window.pages.minimapDifficulty.sections.difficultyText.settings.difficultyText_outline.options) do
+	outlineChoices[index] = option.value
+end
+Equal("every outline the library offers is a valid choice", table.concat(outlineChoices, " "),
+	table.concat(AUI.Schema.choices.fontOutline, " "))
+local iconSize = window.pages.minimapClock.sections.clock.settings.iconSize
+Equal("icon size is free while day and night shows", iconSize.blocked(), nil)
+Profile:Set("minimap.clock.dayNight", false)
+Equal("icon size waits for day and night", type(iconSize.blocked()), "string")
+Profile:Set("minimap.clock.dayNight", true)
+Equal("the rows' text has its own section", window.pages.minimapRows.sections.rowsText.settings.rowsText_size.path,
+	"minimap.text.size")
+Equal("the zone offers no text color", window.pages.minimapZone.sections.zoneText.settings.zoneText_color, nil)
+Equal("the clock does", window.pages.minimapClock.sections.clockText.settings.clockText_color.inherits.path,
+	"minimap.text.color")
+Equal("a color for each difficulty tier", #window.pages.minimapDifficulty.sections.difficultyColors.settings, 5)
 
-for _, section in ipairs(minimapPage.sections) do
-	for _, setting in ipairs(section.settings) do
-		Equal(setting.id .. " names a setting", AUI.Schema:Field(setting.path) ~= nil, true)
-		Equal(setting.id .. " carries its default", setting.default == nil, AUI.Schema:Field(setting.path).default == nil)
+for _, id in ipairs(MINIMAP_PAGES) do
+	local page = window.pages[id]
+
+	Equal(id .. " sits under the Minimap header", page.info.under, "minimapHeader")
+	local element = id:match("^minimap(%u%l+)$")
+	local elementKey = element and element ~= "Border" and element ~= "Rows" and element:lower()
+
+	Equal(id .. " carries its switch", page.info.switch.path,
+		elementKey and "minimap.elements." .. elementKey .. ".enabled" or "minimap.enabled")
+	Equal(id .. " switch defaults on", page.info.switch.default, true)
+
+	for _, section in ipairs(page.sections) do
+		for _, setting in ipairs(section.settings) do
+			Equal(setting.id .. " names a setting", AUI.Schema:Field(setting.path) ~= nil, true)
+			local field = AUI.Schema:Field(setting.path)
+			local source = field.shared and AUI.Schema:Field(field.shared) or field
+
+			Equal(setting.id .. " carries its default", setting.default == nil, source.default == nil)
+			Equal(setting.id .. " follows what its field follows", setting.inherits and setting.inherits.path,
+				field.shared)
+		end
 	end
 end
 
@@ -333,9 +385,11 @@ Equal("mouseover opacity follows its fade", fade.fadeMouseoverOpacity.blocked(),
 Equal("combat opacity follows its fade", fade.fadeCombatOpacity.blocked(), nil)
 Profile:Set("minimap.fade.mouseover", false)
 Profile:Set("minimap.fade.combat", false)
-Equal("row height is on the page", minimapPage.sections.rows.settings.rowHeight.path, "minimap.rows.height")
+Equal("row height is on the page", window.pages.minimapRows.sections.rows.settings.rowHeight.path, "minimap.rows.height")
+Equal("precision is a plain count of decimal places",
+	window.pages.minimapCoordinates.sections.coordinates.settings.precision.format, nil)
 
-local borderSection = minimapPage.sections.border
+local borderSection = window.pages.minimapBorder.sections.border
 Equal("every border style is offered", #borderSection.settings.borderStyle.options, #AUI.Border.STYLES)
 local borderSettings = borderSection.settings
 Equal("border color is free with Metal", borderSettings.borderColor.blocked(), nil)

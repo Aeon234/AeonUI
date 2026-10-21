@@ -9,6 +9,10 @@ local root = (arg and arg[0] or ""):match("^(.-)[^/\\]*$") .. "../"
 -- Environment ---------------------------------------------------------------------------------------------
 
 UNKNOWN = "Unknown"
+TIMEMANAGER_TICKER_24HOUR = "%02d:%02d"
+TIME_TWELVEHOURAM = "%d:%02d AM"
+TIME_TWELVEHOURPM = "%d:%02d PM"
+NORMAL_FONT_COLOR = { r = 1, g = 0.82, b = 0 }
 SlashCmdList = {}
 C_AddOns = {
 	GetAddOnMetadata = function() end,
@@ -88,7 +92,8 @@ AUI.L = setmetatable({}, { __index = function(_, key)
 	return key
 end })
 for _, file in ipairs({ "Core/Callbacks.lua", "Profile/Schema.lua", "UI/Border.lua", "Minimap/Layout.lua",
-	"Minimap/Elements.lua", "Minimap/Rows.lua", "Minimap/Fade.lua", "Minimap/Text.lua", "Minimap/Map.lua" }) do
+	"Minimap/Elements.lua", "Minimap/Rows.lua", "Minimap/Fade.lua", "Minimap/Text.lua", "Minimap/Difficulty.lua",
+	"Minimap/Map.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 
@@ -311,11 +316,20 @@ local Elements = AUI.MinimapElements
 Equal("the zone starts in Top 1", Schema:Read(stored, "minimap.elements.zone.row"), "TOP1")
 Equal("the clock starts in Top 2", Schema:Read(stored, "minimap.elements.clock.row"), "TOP2")
 Equal("default row height", Schema:Read(stored, "minimap.rows.height"), 22)
-Equal("default text size", Schema:Read(stored, "minimap.rows.textSize"), 12)
-Equal("default zone text size", Schema:Read(stored, "minimap.zone.textSize"), 13)
+Equal("default text size", Schema:Read(stored, "minimap.text.size"), 12)
+Equal("the zone follows the rows' text size", Schema:Read(stored, "minimap.zone.text.size"), 12)
+stored.minimap = { text = { size = 15 } }
+Equal("and follows a change to it", Schema:Read(stored, "minimap.clock.text.size"), 15)
+stored.minimap.clock = { text = { size = 10 } }
+Equal("until it is given its own", Schema:Read(stored, "minimap.clock.text.size"), 10)
+Equal("which leaves the others following", Schema:Read(stored, "minimap.coordinates.text.size"), 15)
+stored.minimap = nil
+Equal("the zone keeps its own colors", Schema:Field("minimap.zone.text.color"), nil)
+Equal("the clock takes the text color", Schema:Read(stored, "minimap.clock.text.color").r, 1)
 Equal("an unknown row", (Schema:CheckValue("minimap.elements.zone.row", "LEFT")), false)
 
 local zone, clock = Elements.byKey.zone, Elements.byKey.clock
+local Zone = zone
 function zone:Width()
 	return 80
 end
@@ -335,7 +349,82 @@ zone.value = ""
 Equal("an element with nothing to show takes no cell", #Elements:Rows().BOTTOM1, 1)
 stored.minimap.elements.clock.row = "HIDDEN"
 Equal("a hidden element takes no cell", Elements:Rows().BOTTOM1, nil)
+Equal("every element starts on", Schema:Read({}, "minimap.elements.coordinates.enabled"), true)
 stored.minimap = nil
+
+-- Text elements ----------------------------------------------------------------------------------------------
+
+local Clock, Coordinates, Difficulty = Elements.byKey.clock, Elements.byKey.coordinates, Elements.byKey.difficulty
+Equal("24-hour time", Clock:Format(9, 5, true), "09:05")
+Equal("12-hour morning", Clock:Format(9, 5, false), "9:05 AM")
+Equal("midnight is 12 AM", Clock:Format(0, 0, false), "12:00 AM")
+Equal("noon is 12 PM", Clock:Format(12, 30, false), "12:30 PM")
+Equal("evening", Clock:Format(23, 59, false), "11:59 PM")
+Equal("day starts at dawn", Clock:IsDay(5, 30), true)
+Equal("night before dawn", Clock:IsDay(5, 29), false)
+Equal("night from dusk", Clock:IsDay(21, 0), false)
+Equal("clock defaults", tostring(Schema:Read(stored, "minimap.clock.twentyFour")) ..
+	tostring(Schema:Read(stored, "minimap.clock.localTime")) .. tostring(Schema:Read(stored, "minimap.clock.dayNight")),
+	"truetruetrue")
+Equal("one decimal by default", Coordinates:Format(45.678, 62.345, 1), "45.7, 62.3")
+Equal("no decimals", Coordinates:Format(45.678, 62.345, 0), "46, 62")
+Equal("default precision", Schema:Read(stored, "minimap.coordinates.precision"), 1)
+local rect = { x = 1000, y = 2000, width = -500, height = -1000 }
+local mapX, mapY = Coordinates:MapPercent(750, 1500, rect)
+Equal("a world position halfway across the map", mapX, 50)
+Equal("and halfway down it", mapY, 50)
+Equal("a map with no extent gives no position", Coordinates:MapPercent(0, 0, { x = 0, y = 0, width = 0, height = 0 }),
+	nil)
+Equal("coordinates start in Top 2 before the clock", Schema:Read(stored, "minimap.elements.coordinates.order"), 1)
+Equal("the difficulty starts after the zone", Schema:Read(stored, "minimap.elements.difficulty.row") ..
+	Schema:Read(stored, "minimap.elements.difficulty.order"), "TOP12")
+Equal("zone colored by PvP status by default", Schema:Read(stored, "minimap.zone.color"), "PVP")
+Equal("a sanctuary is blue", Zone:Color("sanctuary").b, 0.94)
+Equal("no status is gold", Zone:Color(nil).g, 0.82)
+
+local function Label(id, info, size, keystone)
+	return table.concat({ Difficulty:Label(id, info, size, keystone) }, " ")
+end
+Equal("heroic raid by group size", Label(15, { instanceType = "raid", isHeroic = true, maxPlayers = 30 }, 25, 0),
+	"25H heroic")
+Equal("mythic", Label(16, { instanceType = "raid", displayMythic = true, maxPlayers = 20 }, 20, 0), "M mythic")
+Equal("keystone", Label(8, { instanceType = "party", isChallengeMode = true, maxPlayers = 5 }, 5, 12), "M+12 mythic")
+Equal("raid finder", Label(17, { instanceType = "raid", isLFR = true, maxPlayers = 30 }, 25, 0), "LFR lfr")
+Equal("normal dungeon", Label(1, { instanceType = "party", maxPlayers = 5 }, 5, 0), "5N normal")
+Equal("timewalking", Label(24, nil, 5, 0), "TW other")
+Equal("battlegrounds", Label(0, { instanceType = "pvp" }, 0, 0), "PvP other")
+Equal("an unknown difficulty has no label", Difficulty:Label(999, nil, 0, 0), nil)
+
+function IsInInstance()
+	return false
+end
+AUI.Events = AUI.Events or { Coalesce = function() end }
+local labelColor
+Difficulty.text = { SetText = function() end, SetTextColor = function(_, r, g, b) labelColor = { r, g, b } end }
+zone.active, clock.active, Difficulty.active = nil, nil, true
+Difficulty:Update()
+Equal("no badge outside an instance", Difficulty:IsShown(), false)
+Elements:SetPreview(true)
+Equal("the preview shows a sample badge", Difficulty.value, "25H")
+Equal("marked as the sample", Difficulty.sample, true)
+Equal("in the heroic color", labelColor[3], 0.867)
+stored.minimap = { difficulty = { colors = { heroic = { r = 1, g = 0, b = 0 } } } }
+Difficulty.tier = nil
+Difficulty:Update()
+Equal("a chosen tier color is used", labelColor[1], 1)
+stored.minimap = nil
+Equal("Friz Quadrata by default", Schema:Read(stored, "minimap.difficulty.text.font"), "Friz Quadrata TT")
+Equal("no outline by default", Schema:Read(stored, "minimap.difficulty.text.outline"), "NONE")
+for _, key in ipairs({ "zone", "clock", "coordinates", "difficulty" }) do
+	Equal(key .. " text sits in the row's middle by default", Schema:Read(stored, "minimap." .. key .. ".text.offsetY"),
+		0)
+end
+Equal("an offset past the limit", (Schema:CheckValue("minimap.zone.text.offsetY", 11)), false)
+Equal("an unknown outline", (Schema:CheckValue("minimap.difficulty.text.outline", "GLOW")), false)
+Equal("following again", (Schema:CheckValue("minimap.difficulty.text.outline", nil)), true)
+Elements:SetPreview(false)
+Equal("and takes it away again", Difficulty:IsShown(), false)
+Difficulty.active, Difficulty.text = nil, nil
 
 -- Fading -------------------------------------------------------------------------------------------------------
 
@@ -347,6 +436,13 @@ Equal("the lower opacity wins in combat", Fade:Target(fading, false, true), 0.3)
 fading.mouseover = false
 Equal("combat alone fades in combat", Fade:Target(fading, false, true), 0.5)
 Equal("and not out of it", Fade:Target(fading, false, false), 1)
+Equal("metal draws its own cell divider", Border:CellDividerWidth("METAL", 100), 9)
+Equal("which follows the thickness", Border:CellDividerWidth("METAL", 200), 18)
+Equal("Forever Minimal divides with its band", Border:CellDividerWidth("FOREVER_MINIMAL", 100), 2)
+Equal("Forever divides with its band", Border:CellDividerWidth("FOREVER", 100), 2)
+Equal("thin line draws a plain line", Border:CellDividerWidth("THIN_LINE", 100), nil)
+cells = Layout:Row({ { key = "a", kind = "text", width = 20 }, { key = "b", kind = "text", width = 20 } }, 240, 22, 22)
+Equal("a wider spacing makes room for a wide divider", cells[2].x, PADDING + 20 + 22)
 Equal("no fading by default", Schema:Read(stored, "minimap.fade.mouseover") or
 	Schema:Read(stored, "minimap.fade.combat"), false)
 
