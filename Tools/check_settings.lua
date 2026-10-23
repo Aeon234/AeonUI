@@ -18,6 +18,8 @@ CLOSE = "Close"
 NONE = "None"
 BACKGROUND = "Background"
 MINIMAP_LABEL = "Minimap"
+MAIL_LABEL = "Mail"
+TRACKING = "Tracking"
 ZONE = "Zone"
 FONT_SIZE = "Font Size"
 OTHER = "Other"
@@ -268,7 +270,8 @@ AUI.L = setmetatable({}, { __index = function(_, key)
 end })
 for _, file in ipairs({ "Core/Callbacks.lua", "Core/Capabilities.lua", "Core/Broker.lua", "Profile/Schema.lua",
 	"Profile/Store.lua", "Profile/Profile.lua", "UI/Border.lua", "Minimap/Layout.lua", "Minimap/Elements.lua",
-	"Minimap/Rows.lua", "Minimap/Fade.lua", "Minimap/Text.lua", "Minimap/Difficulty.lua", "Minimap/Map.lua", "Settings/Window.lua",
+	"Minimap/Rows.lua", "Minimap/Fade.lua", "Minimap/Text.lua", "Minimap/Difficulty.lua",
+	"Minimap/Buttons.lua", "Minimap/Map.lua", "Settings/Window.lua",
 	"Settings/General.lua", "Settings/Minimap.lua", "Settings/Profiles.lua", "Settings/Recovery.lua",
 	"Settings/EditTargets.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
@@ -310,7 +313,8 @@ local declaration = window.declaration
 Equal("registered under the addon's name", window.name, "AeonUI")
 Equal("named root frame", declaration.frameName, "AeonUISettings")
 Equal("sidebar order", table.concat(window.order, " "), "general - #minimapHeader minimap minimapBorder minimapRows " ..
-	"minimapZone minimapClock minimapDifficulty minimapCoordinates - profiles")
+	"minimapZone minimapClock minimapDifficulty minimapCoordinates minimapMail minimapTracking minimapCalendar " ..
+	"minimapCompartment - profiles")
 Equal("Settings:Window reuses the window", Settings:Window(), window)
 Equal("the store is the active config", declaration.store(), Profile.config)
 Equal("account settings are the store's", declaration.account(), AeonUIDB.global)
@@ -333,7 +337,7 @@ window.shown = false
 
 local minimapPage = window.pages.minimap
 local MINIMAP_PAGES = { "minimap", "minimapBorder", "minimapRows", "minimapZone", "minimapClock", "minimapDifficulty",
-	"minimapCoordinates" }
+	"minimapCoordinates", "minimapMail", "minimapTracking", "minimapCalendar", "minimapCompartment" }
 local outlineChoices = {}
 for index, option in ipairs(window.pages.minimapDifficulty.sections.difficultyText.settings.difficultyText_outline.options) do
 	outlineChoices[index] = option.value
@@ -505,6 +509,15 @@ Equal("reset saves a new store", AeonUIDB, Profile.root)
 Equal("reset reloads", reloads, 1)
 Equal("the export dialog is registered", StaticPopupDialogs.AEONUI_DIAGNOSTIC_EXPORT.hasEditBox, true)
 Equal("Escape on the reset dialog is harmless", resetPopup.button2, CANCEL)
+
+-- Crafting orders, on a client with them --------------------------------------------------------------------------
+
+AUI.can.craftingOrders = true
+window = Load(nil)
+Equal("crafting orders get a page after mail", window.order[12], "minimapCraftingOrders")
+Equal("which turns the element on or off", window.pages.minimapCraftingOrders.info.switch.path,
+	"minimap.elements.craftingOrders.enabled")
+AUI.can.craftingOrders = nil
 
 -- Minimap button -------------------------------------------------------------------------------------------------
 

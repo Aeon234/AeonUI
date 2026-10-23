@@ -86,7 +86,8 @@ local TIER_DESCRIPTIONS = {
 }
 
 -- The header's pages in sidebar order. `minimap` is the page edit mode's Element Options opens; `element` names the row
--- element a page belongs to.
+-- element a page belongs to, `needs` the capability without which it is left out, and `note` what a button's page says
+-- about it.
 local PAGES = {
 	{ id = "minimap", title = L["Map"], description = L["The map's size, fading and zoom. Move it in Edit Mode."] },
 	{ id = "minimapBorder", title = L["Border"], description = L["The frame around the map and its rows."] },
@@ -115,6 +116,42 @@ local PAGES = {
 		title = L["Coordinates"],
 		description = L["Your position on the map, where the map has one."],
 	},
+	{
+		id = "minimapMail",
+		element = "mail",
+		title = MAIL_LABEL,
+		description = L["Unread mail. Hover it for the latest senders."],
+		note = L["The button keeps its place in the row; its icon shows only while you have unread mail."],
+	},
+	{
+		id = "minimapCraftingOrders",
+		element = "craftingOrders",
+		needs = "craftingOrders",
+		title = L["Crafting Orders"],
+		description = L["Personal crafting orders waiting for you. Hover it for each profession's count."],
+		note = L["The button keeps its place in the row; its icon shows only while you have personal orders."],
+	},
+	{
+		id = "minimapTracking",
+		element = "tracking",
+		title = TRACKING,
+		description = L["Opens Blizzard's tracking menu, to choose what the map shows."],
+		note = L["The menu is Blizzard's own, so it lists what this game version can track."],
+	},
+	{
+		id = "minimapCalendar",
+		element = "calendar",
+		title = L["Calendar"],
+		description = L["Shows or hides the calendar. On Retail its icon shows the day of the month."],
+		note = L["It pulses while you have calendar invites; a click then opens the calendar on them."],
+	},
+	{
+		id = "minimapCompartment",
+		element = "compartment",
+		title = L["Addon Compartment"],
+		description = L["Blizzard's addon compartment, with every addon's entry."],
+		note = L["It is Blizzard's own button in its own art, shown while an addon uses it."],
+	},
 }
 
 ---@param window table
@@ -125,20 +162,26 @@ function SettingsMinimap:Declare(window)
 	window:Header("minimapHeader", MINIMAP_LABEL)
 
 	for _, info in ipairs(PAGES) do
-		-- An element's page turns that element on or off; the others, the whole minimap.
-		local switchPath = info.element and select(3, AUI.MinimapElements:Paths(info.element)) or "minimap.enabled"
-		local page = window:Page(info.id, {
-			title = info.title,
-			description = info.description,
-			under = "minimapHeader",
-			switch = { path = switchPath, default = Settings:Default(switchPath) },
-		})
+		if not info.needs or AUI.can[info.needs] then
+			-- An element's page turns that element on or off; the others, the whole minimap.
+			local switchPath = info.element and select(3, AUI.MinimapElements:Paths(info.element)) or "minimap.enabled"
+			local page = window:Page(info.id, {
+				title = info.title,
+				description = info.description,
+				under = "minimapHeader",
+				switch = { path = switchPath, default = Settings:Default(switchPath) },
+			})
 
-		if not page then
-			return
+			if not page then
+				return
+			end
+
+			pages[info.id] = page
+
+			if info.note then
+				page:Section(info.id .. "About", info.title):Note(info.note)
+			end
 		end
-
-		pages[info.id] = page
 	end
 
 	local map = pages.minimap:Section("map", L["Map"])

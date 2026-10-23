@@ -20,6 +20,10 @@ local HYBRID_ADDON = "Blizzard_HybridMinimap"
 local ART_OUTSET = 10.5
 -- The least room between a styled cell divider and the cells on either side of it, together.
 local CELL_GAP = 4
+-- How far Blizzard's map-corner buttons (Retail's landing page, Forever's event button) sit in from the map's
+-- bottom-left corner, and how far above the map and its border they are drawn.
+local CORNER_INSET = 2
+local CORNER_LEVEL = 20
 
 Schema:Choices("minimapBorderStyle", AUI.Border.STYLES)
 Schema:Boolean("minimap.enabled", true)
@@ -186,6 +190,33 @@ function Map:AdoptHybrid()
 	end)
 end
 
+---Blizzard's buttons that ride on the map, children of `MinimapBackdrop`: Retail's expansion landing page button and
+---Forever's event button. Either may be absent or hidden.
+---@return Frame[]
+function Map:CornerButtons()
+	local buttons = {}
+
+	for _, button in ipairs({ ExpansionLandingPageMinimapButton or false,
+		MinimapBackdrop and MinimapBackdrop.ExternalEventURLButton or false }) do
+		if button then
+			buttons[#buttons + 1] = button
+		end
+	end
+
+	return buttons
+end
+
+---Puts Blizzard's map-corner buttons in the map's bottom-left corner, above the border.
+function Map:PlaceCornerButtons()
+	local content = self.content --[[@as Frame]]
+
+	for _, button in ipairs(self:CornerButtons()) do
+		button:ClearAllPoints()
+		button:SetPoint("BOTTOMLEFT", content, "BOTTOMLEFT", CORNER_INSET, CORNER_INSET)
+		button:SetFrameLevel(Minimap:GetFrameLevel() + CORNER_LEVEL)
+	end
+end
+
 function Map:TakeOver()
 	Minimap:SetParent(self.content)
 	Minimap:ClearAllPoints()
@@ -203,6 +234,17 @@ function Map:TakeOver()
 		if texture then
 			texture:SetAlpha(0)
 		end
+	end
+
+	self:PlaceCornerButtons()
+
+	-- Retail places the landing page button again whenever its icon changes with the expansion or garrison.
+	local landing = ExpansionLandingPageMinimapButton
+
+	if landing and landing.SetLandingPageIconOffset then
+		hooksecurefunc(landing, "SetLandingPageIconOffset", function()
+			Map:PlaceCornerButtons()
+		end)
 	end
 
 	for _, key in ipairs({ "ZoomIn", "ZoomOut", "ZoomHitArea" }) do
@@ -351,6 +393,7 @@ function Map:Arrange(force)
 		-- The rows' text sits above the border: the metal title bar behind it is opaque.
 		border:SetFrameLevel(Minimap:GetFrameLevel() + 10)
 		AUI.MinimapRows:SetFrameLevel(Minimap:GetFrameLevel() + 15)
+		self:PlaceCornerButtons()
 	end
 
 	AUI.MinimapRows:Place(holder, layout, { style = style, color = color, thickness = thickness })

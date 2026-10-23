@@ -5,5 +5,6 @@
 	<Script file="Fade.lua" />
 	<Script file="Text.lua" />
 	<Script file="Difficulty.lua" />
+	<Script file="Buttons.lua" />
 	<Script file="Map.lua" />
 </Ui>

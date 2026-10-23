@@ -66,8 +66,6 @@ function Elements:Register(element, row, order)
 	self.byKey[element.key] = element
 end
 
----Builds each element's frame. An element that takes the mouse, for a tooltip or a click, also reports the mouse to
----the Minimap module, so the minimap stays hovered while the mouse is over it.
 ---Declares an element's own text settings (`minimap.<key>.text.*`), each following the rows' text until set. At load
 ---only.
 ---@param key string
@@ -102,6 +100,8 @@ function Elements:StyleText(key, text, colored)
 	return Profile:Get(base .. "offsetY")
 end
 
+---Builds each element's frame. An element that takes the mouse, for a tooltip or a click, also reports the mouse to
+---the Minimap module, so the minimap stays hovered while the mouse is over it.
 ---@param parent Frame
 function Elements:Build(parent)
 	for _, element in ipairs(self.list) do

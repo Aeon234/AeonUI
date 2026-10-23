@@ -93,7 +93,7 @@ AUI.L = setmetatable({}, { __index = function(_, key)
 end })
 for _, file in ipairs({ "Core/Callbacks.lua", "Profile/Schema.lua", "UI/Border.lua", "Minimap/Layout.lua",
 	"Minimap/Elements.lua", "Minimap/Rows.lua", "Minimap/Fade.lua", "Minimap/Text.lua", "Minimap/Difficulty.lua",
-	"Minimap/Map.lua" }) do
+	"Minimap/Buttons.lua", "Minimap/Map.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 
@@ -425,6 +425,27 @@ Equal("following again", (Schema:CheckValue("minimap.difficulty.text.outline", n
 Elements:SetPreview(false)
 Equal("and takes it away again", Difficulty:IsShown(), false)
 Difficulty.active, Difficulty.text = nil, nil
+
+-- Button elements --------------------------------------------------------------------------------------------
+
+local Mail, Calendar, Compartment = Elements.byKey.mail, Elements.byKey.calendar, Elements.byKey.compartment
+Equal("mail starts in Top 1 after the difficulty", Schema:Read(stored, "minimap.elements.mail.row") ..
+	Schema:Read(stored, "minimap.elements.mail.order"), "TOP13")
+Equal("crafting orders follow mail", Schema:Read(stored, "minimap.elements.craftingOrders.order"), 4)
+Equal("tracking, calendar and the compartment end Top 2", Schema:Read(stored, "minimap.elements.tracking.order") ..
+	Schema:Read(stored, "minimap.elements.calendar.order") .. Schema:Read(stored, "minimap.elements.compartment.order"),
+	"345")
+Equal("an hour before midnight", Calendar:SecondsToMidnight(23, 0), 3600 + 5)
+Equal("from midnight, a whole day", Calendar:SecondsToMidnight(0, 0), 86400 + 5)
+Mail.active, Calendar.active = true, true
+rows = Elements:Rows()
+Equal("mail keeps its cell without mail", rows.TOP1 and rows.TOP1[1].key, "mail")
+Equal("as a button", rows.TOP1[1].kind, "button")
+Equal("buttons carry no width", rows.TOP1[1].width, nil)
+Equal("a calendar cell in Top 2", rows.TOP2 and rows.TOP2[1].key, "calendar")
+Equal("the compartment takes no cell without Blizzard's button", Compartment:IsShown(), false)
+Equal("crafting orders take no cell on a client without them", Elements.byKey.craftingOrders:IsShown(), false)
+Mail.active, Calendar.active = nil, nil
 
 -- Fading -------------------------------------------------------------------------------------------------------
 
