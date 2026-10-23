@@ -34,10 +34,12 @@ local TEXT_FIELDS = { "font", "size", "outline", "offsetY" }
 ---@field list AUIMinimapElement[] in registration order
 ---@field byKey table<string, AUIMinimapElement>
 ---@field preview boolean elements with nothing to show now show a sample instead
+---@field previewers table<string, true> what has the preview on: the settings window, the development command
 local Elements = {
 	list = {},
 	byKey = {},
 	preview = false,
+	previewers = {},
 }
 AUI.MinimapElements = Elements
 
@@ -172,10 +174,19 @@ function Elements:Rows()
 	return rows
 end
 
----Turns the preview on or off: while it is on, each placed element with nothing to show, such as the difficulty badge
----outside an instance, shows a sample, so every element can be seen in its row.
----@param preview boolean
-function Elements:SetPreview(preview)
+---Turns the preview on or off for one source: while any source has it on, each placed element with nothing to show,
+---such as the difficulty badge outside an instance, shows a sample, so every element can be seen in its row.
+---@param on boolean
+---@param source string who asks, so one source turning it off leaves another's on
+function Elements:SetPreview(on, source)
+	self.previewers[source] = on or nil
+
+	local preview = next(self.previewers) ~= nil
+
+	if preview == self.preview then
+		return
+	end
+
 	self.preview = preview
 
 	for _, element in ipairs(self.list) do

@@ -423,7 +423,7 @@ Difficulty.text = { SetText = function() end, SetTextColor = function(_, r, g, b
 zone.active, clock.active, Difficulty.active = nil, nil, true
 Difficulty:Update()
 Equal("no badge outside an instance", Difficulty:IsShown(), false)
-Elements:SetPreview(true)
+Elements:SetPreview(true, "dev")
 Equal("the preview shows a sample badge", Difficulty.value, "25H")
 Equal("marked as the sample", Difficulty.sample, true)
 Equal("in the heroic color", labelColor[3], 0.867)
@@ -441,7 +441,10 @@ end
 Equal("an offset past the limit", (Schema:CheckValue("minimap.zone.text.offsetY", 11)), false)
 Equal("an unknown outline", (Schema:CheckValue("minimap.difficulty.text.outline", "GLOW")), false)
 Equal("following again", (Schema:CheckValue("minimap.difficulty.text.outline", nil)), true)
-Elements:SetPreview(false)
+Elements:SetPreview(true, "settings")
+Elements:SetPreview(false, "dev")
+Equal("another source keeps the preview on", Elements.preview, true)
+Elements:SetPreview(false, "settings")
 Equal("and takes it away again", Difficulty:IsShown(), false)
 Difficulty.active, Difficulty.text = nil, nil
 

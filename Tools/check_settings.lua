@@ -156,6 +156,19 @@ local function NewPage(id, info)
 	return page
 end
 
+-- Blizzard's post-hook, on a table's method.
+function hooksecurefunc(object, method, hook)
+	local original = object[method]
+
+	object[method] = function(...)
+		local results = { original(...) }
+
+		hook(...)
+
+		return unpack(results)
+	end
+end
+
 local lib = {
 	OUTLINES = { { value = "NONE" }, { value = "OUTLINE" }, { value = "THICKOUTLINE" }, { value = "SLUG" },
 		{ value = "SLUG_OUTLINE" }, { value = "SLUG_THICKOUTLINE" } },
@@ -205,6 +218,30 @@ function lib:Settings(name, declaration)
 
 	function window:IsShown()
 		return self.shown == true
+	end
+
+	function window:SelectPage(id)
+		self.page = id
+	end
+
+	-- The frame is built on the first opening; its scripts can be hooked, and Escape hides it without Close.
+	function window:Open()
+		if not self.frame then
+			local frame = { scripts = {} }
+
+			function frame:HookScript(script, hook)
+				self.scripts[script] = hook
+			end
+
+			function frame:SetShown(shown)
+				window.shown = shown
+				self.scripts[shown and "OnShow" or "OnHide"]()
+			end
+
+			self.frame = frame
+		end
+
+		self.shown = true
 	end
 
 	self.window = window
@@ -509,6 +546,23 @@ Equal("reset saves a new store", AeonUIDB, Profile.root)
 Equal("reset reloads", reloads, 1)
 Equal("the export dialog is registered", StaticPopupDialogs.AEONUI_DIAGNOSTIC_EXPORT.hasEditBox, true)
 Equal("Escape on the reset dialog is harmless", resetPopup.button2, CANCEL)
+
+-- The minimap's preview ------------------------------------------------------------------------------------------
+
+local Elements = AUI.MinimapElements
+window = Settings:Window()
+window.page = "minimapZone"
+window:Open()
+Equal("opening on a minimap page shows the minimap's samples", Elements.previewers.settings, true)
+window:SelectPage("general")
+Equal("another page takes them away", Elements.previewers.settings, nil)
+window:SelectPage("minimapCalendar")
+Equal("a minimap page brings them back", Elements.previewers.settings, true)
+window.frame:SetShown(false)
+Equal("hiding the window takes them away", Elements.previewers.settings, nil)
+window.frame:SetShown(true)
+Equal("showing it again on a minimap page brings them back", Elements.previewers.settings, true)
+window.frame:SetShown(false)
 
 -- Crafting orders, on a client with them --------------------------------------------------------------------------
 

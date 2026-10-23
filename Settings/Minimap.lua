@@ -7,7 +7,10 @@ local lib = LibStub("LibAeonSettings-1.0")
 ---Map, Border and Rows carry the module's switch; each element's page carries that element's. The minimap's position
 ---is set in edit mode.
 ---@class AUISettingsMinimap
-local SettingsMinimap = {}
+---@field pageIDs table<string, true> the pages under the Minimap header
+local SettingsMinimap = {
+	pageIDs = {},
+}
 AUI.SettingsMinimap = SettingsMinimap
 
 local STYLE_LABELS = {
@@ -178,6 +181,7 @@ function SettingsMinimap:Declare(window)
 			end
 
 			pages[info.id] = page
+			self.pageIDs[info.id] = true
 
 			if info.note then
 				page:Section(info.id .. "About", info.title):Note(info.note)

@@ -253,8 +253,8 @@ function Dev:Command(line)
 	if command == "preview" then
 		local elements = AUI.MinimapElements
 
-		elements:SetPreview(not elements.preview)
-		AUI:Print("preview: %s", elements.preview and "on" or "off")
+		elements:SetPreview(not elements.previewers.dev, "dev")
+		AUI:Print("preview: %s", elements.previewers.dev and "on" or "off")
 
 		return
 	end
