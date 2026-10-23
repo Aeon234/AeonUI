@@ -53,7 +53,8 @@ local function DeclareText(section, key, colored)
 	}))
 
 	if colored or not key then
-		local note = L["For the clock and coordinates; the zone and instance difficulty have colors of their own."]
+		local note =
+			L["For the clock, coordinates and the addon count; the zone and instance difficulty have colors of their own."]
 
 		section:Color(Field("color", { label = L["Text Color"], description = not key and note or nil }))
 	end
@@ -150,7 +151,7 @@ local PAGES = {
 		element = "compartment",
 		title = L["Addon Compartment"],
 		description = L["Blizzard's addon compartment, with every addon's entry."],
-		note = L["It is Blizzard's own button in its own art, shown while an addon uses it."],
+		note = L["It is Blizzard's own button, showing how many addons use it; shown while an addon does."],
 	},
 }
 
@@ -371,6 +372,7 @@ function SettingsMinimap:Declare(window)
 		step = 1,
 	})
 	DeclareText(pages.minimapCoordinates:Section("coordinatesText", L["Text"]), "coordinates", true)
+	DeclareText(pages.minimapCompartment:Section("compartmentText", L["Text"]), "compartment", true)
 
 	local fade = pages.minimap:Section("fade", L["Fading"])
 

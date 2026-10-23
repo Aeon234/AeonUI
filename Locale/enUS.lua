@@ -112,8 +112,8 @@ L["Font"] = "Font"
 L["Outline"] = "Outline"
 L["All Rows"] = "All Rows"
 L["Text Color"] = "Text Color"
-L["For the clock and coordinates; the zone and instance difficulty have colors of their own."] =
-	"For the clock and coordinates; the zone and instance difficulty have colors of their own."
+L["For the clock, coordinates and the addon count; the zone and instance difficulty have colors of their own."] =
+	"For the clock, coordinates and the addon count; the zone and instance difficulty have colors of their own."
 L["Each element's page can change its own font, size, outline, offset and color."] =
 	"Each element's page can change its own font, size, outline, offset and color."
 L["Y Offset"] = "Y Offset"
@@ -134,8 +134,8 @@ L["Calendar"] = "Calendar"
 L["It pulses while you have calendar invites; a click then opens the calendar on them."] =
 	"It pulses while you have calendar invites; a click then opens the calendar on them."
 L["Addon Compartment"] = "Addon Compartment"
-L["It is Blizzard's own button in its own art, shown while an addon uses it."] =
-	"It is Blizzard's own button in its own art, shown while an addon uses it."
+L["It is Blizzard's own button, showing how many addons use it; shown while an addon does."] =
+	"It is Blizzard's own button, showing how many addons use it; shown while an addon does."
 L["Fading"] = "Fading"
 L["Fade Until Mouseover"] = "Fade Until Mouseover"
 L["Mouseover Opacity"] = "Mouseover Opacity"

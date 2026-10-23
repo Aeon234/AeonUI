@@ -240,39 +240,56 @@ local PADDING, SPACING = Layout.PADDING, Layout.SPACING
 
 local cells, dividers = Layout:Row({
 	{ key = "zone", kind = "text", width = 60, flexible = true },
-	{ key = "clock", kind = "text", width = 30 },
-	{ key = "mail", kind = "button" },
-	{ key = "calendar", kind = "button" },
+	{ key = "difficulty", kind = "text", width = 30 },
+	{ key = "clock", kind = "text", width = 40 },
 }, 240, 22)
-Equal("text starts at the padding", cells[1].x, PADDING)
-Equal("a text cell keeps its natural width when it fits", cells[1].width, 60)
-Equal("the next text follows after the spacing", cells[2].x, PADDING + 60 + SPACING)
-Equal("buttons are square at the row's height", cells[3].width, 22)
-Equal("the last button ends at the padding", cells[4].x + cells[4].width, 240 - PADDING)
-Equal("buttons are spaced like text", cells[4].x - (cells[3].x + 22), SPACING)
-Equal("a divider between each pair of neighbors", #dividers, 3)
-Equal("each divider sits in the middle of the space before its cell", dividers[1], cells[2].x - SPACING / 2)
+Equal("the first cell starts at the padding", cells[1].x, PADDING)
+Equal("the flexible zone takes the room left over", cells[1].width, 240 - 2 * PADDING - 2 * SPACING - 30 - 40)
+Equal("so the last cell ends at the right padding", cells[3].x + cells[3].width, 240 - PADDING)
+Equal("cells keep their natural widths", cells[2].width .. " " .. cells[3].width, "30 40")
+Equal("no divider follows the flexible zone, only the next pair", #dividers, 1)
+Equal("each divider sits in the middle of the space before its cell", dividers[1], cells[3].x - SPACING / 2)
+
+cells, dividers = Layout:Row({
+	{ key = "mail", kind = "button" },
+	{ key = "tracking", kind = "button" },
+	{ key = "coordinates", kind = "text", width = 50 },
+	{ key = "calendar", kind = "button" },
+	{ key = "compartment", kind = "button" },
+}, 240, 22)
+Equal("buttons are square at the row's height", cells[1].width, 22)
+Equal("cells run in their order", cells[2].x, PADDING + 22 + SPACING)
+Equal("buttons after the text end at the right padding", cells[5].x + cells[5].width, 240 - PADDING)
+local slotLeft, slotRight = cells[2].x + 22 + SPACING, cells[4].x - SPACING
+Equal("text that is not flexible is centered in the room left over", cells[3].x - slotLeft,
+	slotRight - (cells[3].x + cells[3].width))
+Equal("at its natural width", cells[3].width, 50)
+Equal("dividers bound the text's whole room", dividers[2], slotLeft - SPACING / 2)
+
+cells = Layout:Row({ { key = "mail", kind = "button" }, { key = "calendar", kind = "button" } }, 240, 22)
+Equal("a row of buttons sits at the right", cells[2].x + 22, 240 - PADDING)
 
 cells = Layout:Row({
 	{ key = "zone", kind = "text", width = 300, flexible = true },
 	{ key = "clock", kind = "text", width = 30 },
+	{ key = "mail", kind = "button" },
 }, 240, 22)
-Equal("a flexible cell shrinks to leave room for the rest", cells[1].width, 240 - 2 * PADDING - SPACING - 30)
+Equal("a flexible cell shrinks to leave room for the rest", cells[1].width, 240 - 2 * PADDING - 2 * SPACING - 30 - 22)
 Equal("and the rest keep their width", cells[2].width, 30)
-Equal("the last cell still ends inside the row", cells[2].x + cells[2].width, 240 - PADDING)
+Equal("the last cell still ends inside the row", cells[3].x + cells[3].width, 240 - PADDING)
 
 cells, dividers = Layout:Row({
 	{ key = "a", kind = "text", width = 200 },
 	{ key = "b", kind = "text", width = 100 },
 }, 240, 22)
-Equal("a fixed cell past the room is cut short", cells[2].width, 240 - PADDING - cells[2].x)
+Equal("text that does not fit shrinks in proportion", math.floor(cells[1].width / cells[2].width * 1000 + 0.5), 2000)
+Equal("and fills the row", math.floor(cells[2].x + cells[2].width + 0.5), 240 - PADDING)
 
 cells, dividers = Layout:Row({
-	{ key = "a", kind = "text", width = 230 },
-	{ key = "b", kind = "text", width = 100 },
-}, 240, 22)
-Equal("a cell with no room left has no width", cells[2].width, 0)
-Equal("and no divider", #dividers, 0)
+	{ key = "a", kind = "button" }, { key = "b", kind = "button" }, { key = "c", kind = "button" },
+}, 70, 22)
+Equal("a button past the room is dropped", cells[3].width, 0)
+Equal("and has no divider", #dividers, 1)
 
 local function Compute(rows)
 	return Layout:Compute({ width = 240, mapHeight = 180, rowHeight = 22, separator = 2, divider = 4, rows = rows })
@@ -314,7 +331,8 @@ Equal("no border leaves no gap", (Border:Gaps("NONE", 100, 0.5)), 0)
 
 local Elements = AUI.MinimapElements
 Equal("the zone starts in Top 1", Schema:Read(stored, "minimap.elements.zone.row"), "TOP1")
-Equal("the clock starts in Top 2", Schema:Read(stored, "minimap.elements.clock.row"), "TOP2")
+Equal("the clock starts at the right of Top 1", Schema:Read(stored, "minimap.elements.clock.row") ..
+	Schema:Read(stored, "minimap.elements.clock.order"), "TOP13")
 Equal("default row height", Schema:Read(stored, "minimap.rows.height"), 22)
 Equal("default text size", Schema:Read(stored, "minimap.text.size"), 12)
 Equal("the zone follows the rows' text size", Schema:Read(stored, "minimap.zone.text.size"), 12)
@@ -338,7 +356,7 @@ function clock:Width()
 end
 zone.active, zone.value, clock.active, clock.value = true, "Dalaran", true, "12:00"
 local rows = Elements:Rows()
-Equal("each element in its default row", rows.TOP1[1].key .. rows.TOP2[1].key, "zoneclock")
+Equal("each element in its default row and order", rows.TOP1[1].key .. rows.TOP1[2].key, "zoneclock")
 Equal("text cells carry their width", rows.TOP1[1].width, 80)
 Equal("the zone gives way first", rows.TOP1[1].flexible, true)
 stored.minimap = { elements = { zone = { row = "BOTTOM1", order = 3 }, clock = { row = "BOTTOM1", order = 1 } } }
@@ -375,7 +393,8 @@ Equal("a world position halfway across the map", mapX, 50)
 Equal("and halfway down it", mapY, 50)
 Equal("a map with no extent gives no position", Coordinates:MapPercent(0, 0, { x = 0, y = 0, width = 0, height = 0 }),
 	nil)
-Equal("coordinates start in Top 2 before the clock", Schema:Read(stored, "minimap.elements.coordinates.order"), 1)
+Equal("coordinates start in Top 2 between tracking and the calendar", Schema:Read(stored,
+	"minimap.elements.coordinates.row") .. Schema:Read(stored, "minimap.elements.coordinates.order"), "TOP24")
 Equal("the difficulty starts after the zone", Schema:Read(stored, "minimap.elements.difficulty.row") ..
 	Schema:Read(stored, "minimap.elements.difficulty.order"), "TOP12")
 Equal("zone colored by PvP status by default", Schema:Read(stored, "minimap.zone.color"), "PVP")
@@ -429,20 +448,20 @@ Difficulty.active, Difficulty.text = nil, nil
 -- Button elements --------------------------------------------------------------------------------------------
 
 local Mail, Calendar, Compartment = Elements.byKey.mail, Elements.byKey.calendar, Elements.byKey.compartment
-Equal("mail starts in Top 1 after the difficulty", Schema:Read(stored, "minimap.elements.mail.row") ..
-	Schema:Read(stored, "minimap.elements.mail.order"), "TOP13")
-Equal("crafting orders follow mail", Schema:Read(stored, "minimap.elements.craftingOrders.order"), 4)
+Equal("mail starts Top 2", Schema:Read(stored, "minimap.elements.mail.row") ..
+	Schema:Read(stored, "minimap.elements.mail.order"), "TOP21")
+Equal("crafting orders follow mail", Schema:Read(stored, "minimap.elements.craftingOrders.order"), 2)
 Equal("tracking, calendar and the compartment end Top 2", Schema:Read(stored, "minimap.elements.tracking.order") ..
 	Schema:Read(stored, "minimap.elements.calendar.order") .. Schema:Read(stored, "minimap.elements.compartment.order"),
-	"345")
+	"356")
 Equal("an hour before midnight", Calendar:SecondsToMidnight(23, 0), 3600 + 5)
 Equal("from midnight, a whole day", Calendar:SecondsToMidnight(0, 0), 86400 + 5)
 Mail.active, Calendar.active = true, true
 rows = Elements:Rows()
-Equal("mail keeps its cell without mail", rows.TOP1 and rows.TOP1[1].key, "mail")
-Equal("as a button", rows.TOP1[1].kind, "button")
-Equal("buttons carry no width", rows.TOP1[1].width, nil)
-Equal("a calendar cell in Top 2", rows.TOP2 and rows.TOP2[1].key, "calendar")
+Equal("mail keeps its cell without mail", rows.TOP2 and rows.TOP2[1].key, "mail")
+Equal("as a button", rows.TOP2[1].kind, "button")
+Equal("buttons carry no width", rows.TOP2[1].width, nil)
+Equal("then the calendar", rows.TOP2[2].key, "calendar")
 Equal("the compartment takes no cell without Blizzard's button", Compartment:IsShown(), false)
 Equal("crafting orders take no cell on a client without them", Elements.byKey.craftingOrders:IsShown(), false)
 Mail.active, Calendar.active = nil, nil
@@ -462,8 +481,9 @@ Equal("which follows the thickness", Border:CellDividerWidth("METAL", 200), 18)
 Equal("Forever Minimal divides with its band", Border:CellDividerWidth("FOREVER_MINIMAL", 100), 2)
 Equal("Forever divides with its band", Border:CellDividerWidth("FOREVER", 100), 2)
 Equal("thin line draws a plain line", Border:CellDividerWidth("THIN_LINE", 100), nil)
-cells = Layout:Row({ { key = "a", kind = "text", width = 20 }, { key = "b", kind = "text", width = 20 } }, 240, 22, 22)
-Equal("a wider spacing makes room for a wide divider", cells[2].x, PADDING + 20 + 22)
+cells = Layout:Row({ { key = "a", kind = "text", width = 20, flexible = true }, { key = "b", kind = "text", width = 20 } },
+	240, 22, 22)
+Equal("a wider spacing makes room for a wide divider", cells[2].x - (cells[1].x + cells[1].width), 22)
 Equal("no fading by default", Schema:Read(stored, "minimap.fade.mouseover") or
 	Schema:Read(stored, "minimap.fade.combat"), false)
 

@@ -24,6 +24,9 @@ local EVENTS = {
 	"PLAYER_ENTERING_WORLD", "ZONE_CHANGED_NEW_AREA", "PLAYER_DIFFICULTY_CHANGED", "UPDATE_INSTANCE_INFO",
 	"GROUP_ROSTER_UPDATE", "CHALLENGE_MODE_START", "CHALLENGE_MODE_COMPLETED", "CHALLENGE_MODE_RESET",
 }
+-- The labels the box is sized for, whichever is widest in the font: a raid's size and difficulty, a keystone, Raid
+-- Finder. A longer label widens the box.
+local WIDEST = { { "40", "N" }, { "25", "H" }, { "M+", "20" }, { "LFR" } }
 -- The preview's sample: a heroic raid of 25.
 local SAMPLE = {
 	difficultyID = 15,
@@ -146,7 +149,7 @@ function Difficulty:Build(parent)
 	text:SetFontObject(GameFontNormalSmall)
 	text:SetPoint("LEFT")
 	text:SetPoint("RIGHT")
-	text:SetJustifyH("LEFT")
+	text:SetJustifyH("CENTER")
 	text:SetWordWrap(false)
 	frame:EnableMouse(true)
 	frame:SetScript("OnEnter", function(owner)
@@ -180,9 +183,24 @@ function Difficulty:IsShown()
 	return self.active == true and self.value ~= nil
 end
 
+---The label's box: as wide as the widest usual label, so it keeps its size between difficulties, with the label
+---centered in it.
 ---@return number
 function Difficulty:Width()
-	return math.ceil((self.text --[[@as FontString]]):GetUnboundedStringWidth())
+	local text = self.text --[[@as FontString]]
+	local width = text:GetUnboundedStringWidth()
+
+	for _, parts in ipairs(WIDEST) do
+		local label = ""
+
+		for _, part in ipairs(parts) do
+			label = label .. (part:match("%d") and part or L[part])
+		end
+
+		width = math.max(width, text:GetUnboundedStringWidthForText(label))
+	end
+
+	return math.ceil(width)
 end
 
 ---@param active boolean

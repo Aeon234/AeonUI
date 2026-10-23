@@ -58,8 +58,11 @@ local Layout = {
 }
 AUI.MinimapLayout = Layout
 
----Places a row's cells: text cells at the left in order at their natural widths, button cells as equal squares at the
----right in order. When the text does not fit, flexible cells shrink first, then any cell past the room is cut short.
+---Places a row's cells left to right in their order: text cells at their natural widths, button cells as squares.
+---The room left over goes to the row's filler, its first flexible cell or else its first text cell: a flexible filler
+---widens, any other is centered in the room. A row without text keeps its cells at the right. When the cells do not
+---fit, flexible cells shrink first, then the other text cells; buttons past the room are dropped. A flexible cell's
+---room separates it from the next cell, so no divider follows it.
 ---@param cells AUIMinimapCell[]
 ---@param width number
 ---@param height number
@@ -69,60 +72,80 @@ AUI.MinimapLayout = Layout
 function Layout:Row(cells, width, height, spacing)
 	spacing = spacing or SPACING
 
-	local texts, buttons = {}, {}
+	local room = width - 2 * PADDING
+	local natural, total, flexible, rigid = {}, 0, 0, 0
+	local filler
 
-	for _, cell in ipairs(cells) do
-		if cell.kind == "button" then
-			buttons[#buttons + 1] = cell
-		else
-			texts[#texts + 1] = cell
+	for index, cell in ipairs(cells) do
+		local size = cell.kind == "button" and height or (cell.width or 0)
+
+		natural[index] = size
+		total = total + size + (index > 1 and spacing or 0)
+
+		if cell.kind ~= "button" then
+			if cell.flexible then
+				flexible = flexible + size
+				filler = filler or index
+			else
+				rigid = rigid + size
+			end
 		end
 	end
 
-	local positions = {}
-	local buttonsLeft = width - PADDING - #buttons * height - math.max(0, #buttons - 1) * spacing
-
-	for index, cell in ipairs(buttons) do
-		positions[cell] = { x = buttonsLeft + (index - 1) * (height + spacing), width = height }
-	end
-
-	local room = (#buttons > 0 and buttonsLeft - spacing or width - PADDING) - PADDING
-	local fixed, flexible = math.max(0, #texts - 1) * spacing, 0
-
-	for _, cell in ipairs(texts) do
-		if cell.flexible then
-			flexible = flexible + (cell.width or 0)
-		else
-			fixed = fixed + (cell.width or 0)
+	for index, cell in ipairs(cells) do
+		if not filler and cell.kind ~= "button" then
+			filler = index
 		end
 	end
 
-	-- The flexible cells share what the others leave, in proportion to their natural widths.
-	local share = flexible > 0 and math.max(0, math.min(1, (room - fixed) / flexible)) or 1
-	local x, limit = PADDING, PADDING + math.max(0, room)
+	-- Each slot is the room a cell is given; the cell's own width may be less, centered in it.
+	local slots = {}
+	local excess = room - total
+	local flexibleShare = flexible > 0 and math.max(0, math.min(1, 1 + excess / flexible)) or 1
+	local rigidShare = rigid > 0 and math.max(0, math.min(1, 1 + (excess + flexible) / rigid)) or 1
 
-	for _, cell in ipairs(texts) do
-		local natural = cell.width or 0
-		local cellWidth = math.min(cell.flexible and natural * share or natural, math.max(0, limit - x))
+	for index, cell in ipairs(cells) do
+		local size = natural[index]
 
-		positions[cell] = { x = x, width = cellWidth }
-		x = x + cellWidth + spacing
+		if cell.kind ~= "button" and excess < 0 then
+			size = size * (cell.flexible and flexibleShare or rigidShare)
+		end
+
+		slots[index] = size
 	end
 
+	if excess > 0 and filler then
+		slots[filler] = slots[filler] + excess
+	end
+
+	local x = PADDING + ((excess > 0 and not filler) and excess or 0)
+	local limit = PADDING + room
 	local placed, dividers = {}, {}
-	local previous
+	local previous, previousFlexible = false, false
 
-	for _, cell in ipairs(cells) do
-		local position = positions[cell]
+	for index, cell in ipairs(cells) do
+		local slot = math.min(slots[index], math.max(0, limit - x))
 
-		placed[#placed + 1] = { key = cell.key, x = position.x, width = position.width }
+		if cell.kind == "button" and slot < height then
+			slot = 0
+		end
 
-		if position.width > 0 then
-			if previous then
-				dividers[#dividers + 1] = position.x - spacing / 2
+		local cellWidth, cellX = slot, x
+
+		if slot > 0 and index == filler and not cell.flexible and slot > natural[index] then
+			cellWidth = natural[index]
+			cellX = x + (slot - cellWidth) / 2
+		end
+
+		placed[index] = { key = cell.key, x = cellX, width = cellWidth }
+
+		if slot > 0 then
+			if previous and not previousFlexible then
+				dividers[#dividers + 1] = x - spacing / 2
 			end
 
-			previous = position
+			previous, previousFlexible = true, cell.flexible == true
+			x = x + slot + spacing
 		end
 	end
 

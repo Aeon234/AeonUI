@@ -2,8 +2,9 @@ local AUI = select(2, ...)
 
 local Elements = AUI.MinimapElements
 
--- An icon's longest side against its square cell.
+-- An icon's longest side against its square cell, and how far it moves down and right while pressed.
 local ICON_SCALE = 0.8
+local PRESS_OFFSET = 1
 -- Forever's header buttons brighten with a copy of their art drawn additively (Blizzard_Minimap/Camelot).
 local ADD_ALPHA = 0.2
 -- The pending invites' pulse: the additive copy's peak opacity and the seconds to reach it.
@@ -27,6 +28,8 @@ local MIDNIGHT_MARGIN = 5
 ---@field glow Texture? the additive copy of the art, the hover highlight where Blizzard has none
 ---@field atlases AUIButtonAtlases?
 ---@field size number? the icon's longest side
+---@field pulseTexture Texture? an overlay pulsed to draw attention
+---@field flipbook Texture? an animation drawn over the icon
 ---@field pressed boolean?
 ---@field Atlases fun(self: AUIMinimapButtonElement): AUIButtonAtlases the art for the client
 ---@field FillTooltip fun(self: AUIMinimapButtonElement, tooltip: GameTooltip): boolean? fills the hover tooltip;
@@ -104,14 +107,22 @@ function ButtonElementMixin:Style()
 	glow:SetAlpha(atlases.highlight and 1 or ADD_ALPHA)
 end
 
+---Moves the icon down and right while the button is held, in its pressed art where Blizzard has one.
 ---@param pressed boolean
 function ButtonElementMixin:SetPressed(pressed)
 	local atlases = self.atlases --[[@as AUIButtonAtlases]]
+	local offset = pressed and PRESS_OFFSET or 0
 
 	self.pressed = pressed
 
 	if atlases.pushed then
 		FitAtlas(self.icon --[[@as Texture]], pressed and atlases.pushed or atlases.normal, self.size or 1)
+	end
+
+	for _, texture in ipairs({ self.icon, self.glow, self.pulseTexture or false, self.flipbook or false }) do
+		if texture then
+			texture:SetPoint("CENTER", offset, -offset)
+		end
 	end
 end
 
@@ -149,7 +160,6 @@ end
 ---animation plays once when mail arrives. Its tooltip is Blizzard's, with the latest senders.
 ---@class AUIMinimapMail: AUIMinimapButtonElement
 ---@field hasMail boolean? the icon shows mail
----@field flipbook Texture?
 ---@field animation AnimationGroup?
 local Mail = Mixin({ key = "mail" }, ButtonElementMixin)
 
@@ -284,20 +294,21 @@ end
 ---@field invites integer? pending invites, as last counted
 ---@field day integer? the day of the month the icon shows
 ---@field timer table? the check after the realm's midnight
----@field pulseTexture Texture?
 ---@field pulse AnimationGroup?
 local Calendar = Mixin({ key = "calendar" }, ButtonElementMixin)
 
+---Retail's day-of-month art, which Forever's client also names; Forever's boxed calendar button where it is missing.
 ---@return AUIButtonAtlases
 function Calendar:Atlases()
-	if AUI.can.foreverArt then
+	local day = self.day or 1
+	local normal = ("ui-hud-calendar-%d-up"):format(day)
+
+	if not C_Texture.GetAtlasInfo(normal) then
 		return { normal = "ui-hud-minimap-calendar-button" }
 	end
 
-	local day = self.day or 1
-
 	return {
-		normal = ("ui-hud-calendar-%d-up"):format(day),
+		normal = normal,
 		pushed = ("ui-hud-calendar-%d-down"):format(day),
 		highlight = ("ui-hud-calendar-%d-mouseover"):format(day),
 	}
@@ -434,9 +445,10 @@ end
 ---@field blizzard DropdownButton? Blizzard's tracking button
 local Tracking = Mixin({ key = "tracking" }, ButtonElementMixin)
 
+---Retail's magnifying glass, which Forever's client also names; Forever's boxed tracking button where it is missing.
 ---@return AUIButtonAtlases
 function Tracking:Atlases()
-	if AUI.can.foreverArt then
+	if not C_Texture.GetAtlasInfo("ui-hud-minimap-tracking-up") then
 		return { normal = "ui-hud-minimap-tracking-button" }
 	end
 
@@ -569,13 +581,23 @@ function CraftingOrders:FillTooltip(tooltip)
 	end
 end
 
----The addon compartment: Blizzard's own button, which keeps every addon's entry and its menu, moved into the cell in
----its own art and scaled to the row. It shows while an addon is registered with it.
+---The addon compartment: Blizzard's own button, which keeps every addon's entry and its menu, moved into the cell.
+---Its box and count are hidden, since the cell's dividers frame it; AeonUI's copy of the count shows in the element's
+---text settings, gold on hover and moved while pressed. It shows while an addon is registered with it.
 ---@class AUIMinimapCompartment: AUIMinimapElement
 ---@field frame Frame?
----@field blizzard DropdownButton? `AddonCompartmentFrame`
+---@field blizzard AUICompartmentButton? `AddonCompartmentFrame`
+---@field count FontString? the addon count
+---@field offsetY number? the count's Y Offset
+---@field hovered boolean?
+---@field pressed boolean?
 ---@field placing boolean? the button is being placed, so its SetPoint hook ignores the call
 local Compartment = { key = "compartment", kind = "button" }
+
+---`AddonCompartmentFrame`, with Forever's state art.
+---@class AUICompartmentButton: DropdownButton
+---@field StateTexture Texture?
+---@field AddTexture Texture?
 
 ---@param parent Frame
 function Compartment:Build(parent)
@@ -584,7 +606,7 @@ function Compartment:Build(parent)
 	frame:Hide()
 	self.frame = frame
 
-	local blizzard = AddonCompartmentFrame
+	local blizzard = AddonCompartmentFrame --[[@as AUICompartmentButton?]]
 
 	if not blizzard then
 		return
@@ -607,12 +629,81 @@ function Compartment:Build(parent)
 		end)
 	end
 
+	self:HideBox()
+
+	local blizzardCount = blizzard:GetFontString()
+	local count = blizzard:CreateFontString(nil, "OVERLAY")
+
+	count:SetFontObject(GameFontHighlight)
+	count:SetText(blizzardCount:GetText())
+	blizzardCount:SetAlpha(0)
+	self.count = count
+
+	-- Blizzard sets the count whenever an addon registers.
+	hooksecurefunc(blizzardCount, "SetText", function(_, text)
+		count:SetText(text)
+	end)
+
+	-- Forever's button sets its art's opacity again on every hover and press.
+	if blizzard.OnButtonStateChanged then
+		hooksecurefunc(blizzard, "OnButtonStateChanged", function()
+			Compartment:HideBox()
+		end)
+	end
+
 	blizzard:HookScript("OnEnter", function()
+		Compartment.hovered = true
+		Compartment:StyleCount()
 		AUI.Minimap:OnEnter()
 	end)
 	blizzard:HookScript("OnLeave", function()
+		Compartment.hovered = false
+		Compartment:StyleCount()
 		AUI.Minimap:OnLeave()
 	end)
+	blizzard:HookScript("OnMouseDown", function()
+		Compartment.pressed = true
+		Compartment:PlaceCount()
+	end)
+	blizzard:HookScript("OnMouseUp", function()
+		Compartment.pressed = false
+		Compartment:PlaceCount()
+	end)
+end
+
+---Gives the count its text settings, in gold while hovered.
+function Compartment:StyleCount()
+	local count = self.count --[[@as FontString]]
+
+	self.offsetY = Elements:StyleText(self.key, count, true)
+
+	if self.hovered then
+		count:SetTextColor(NORMAL_FONT_COLOR:GetRGB())
+	end
+
+	self:PlaceCount()
+end
+
+---Centers the count in the cell at its Y Offset, down and right while pressed.
+function Compartment:PlaceCount()
+	local count = self.count --[[@as FontString]]
+	local offset = self.pressed and PRESS_OFFSET or 0
+
+	count:ClearAllPoints()
+	count:SetPoint("CENTER", offset, (self.offsetY or 0) - offset)
+end
+
+---Hides the button's box: Forever's state art, Retail's round button.
+function Compartment:HideBox()
+	local blizzard = self.blizzard --[[@as AUICompartmentButton]]
+
+	for _, texture in ipairs({ blizzard.StateTexture or false, blizzard.AddTexture or false,
+		blizzard:GetNormalTexture() or false, blizzard:GetPushedTexture() or false,
+		blizzard:GetHighlightTexture() or false }) do
+		if texture then
+			texture:SetAlpha(0)
+		end
+	end
 end
 
 function Compartment:Place()
@@ -624,7 +715,7 @@ function Compartment:Place()
 	self.placing = false
 end
 
----Scales Blizzard's button to the row's height.
+---Sizes Blizzard's button to the cell and styles the count.
 function Compartment:Style()
 	local blizzard = self.blizzard
 
@@ -632,11 +723,11 @@ function Compartment:Style()
 		return
 	end
 
-	local size = AUI.Profile:Get("minimap.rows.height") * ICON_SCALE
-	local width, height = blizzard:GetSize()
+	local size = AUI.Profile:Get("minimap.rows.height")
 
-	blizzard:SetScale(size / math.max(width, height, 1))
+	blizzard:SetSize(size, size)
 	self:Place()
+	self:StyleCount()
 end
 
 ---@param active boolean
@@ -658,8 +749,9 @@ function Compartment:Width()
 	return 0
 end
 
-Elements:Register(Mail, "TOP1", 3)
-Elements:Register(CraftingOrders, "TOP1", 4)
+Elements:DeclareText("compartment", true)
+Elements:Register(Mail, "TOP2", 1)
+Elements:Register(CraftingOrders, "TOP2", 2)
 Elements:Register(Tracking, "TOP2", 3)
-Elements:Register(Calendar, "TOP2", 4)
-Elements:Register(Compartment, "TOP2", 5)
+Elements:Register(Calendar, "TOP2", 5)
+Elements:Register(Compartment, "TOP2", 6)
