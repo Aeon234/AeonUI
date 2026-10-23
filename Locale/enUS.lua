@@ -59,16 +59,17 @@ L["The frame around the map and its rows."] = "The frame around the map and its 
 L["The information rows above and below the map."] = "The information rows above and below the map."
 L["The zone's name. Hover it for Blizzard's zone tooltip; click it to open the world map."] =
 	"The zone's name. Hover it for Blizzard's zone tooltip; click it to open the world map."
+L["The instance's difficulty beside the zone, shown inside an instance."] =
+	"The instance's difficulty beside the zone, shown inside an instance."
 L["The time, with day and night. Hover it for both the realm's and your local time."] =
 	"The time, with day and night. Hover it for both the realm's and your local time."
-L["Your position on the map, where the map has one."] = "Your position on the map, where the map has one."
 L["Unread mail. Hover it for the latest senders."] = "Unread mail. Hover it for the latest senders."
 L["Personal crafting orders waiting for you. Hover it for each profession's count."] =
 	"Personal crafting orders waiting for you. Hover it for each profession's count."
 L["Opens Blizzard's tracking menu, to choose what the map shows."] =
 	"Opens Blizzard's tracking menu, to choose what the map shows."
-L["Shows or hides the calendar. On Retail its icon shows the day of the month."] =
-	"Shows or hides the calendar. On Retail its icon shows the day of the month."
+L["Your position on the map, where the map has one."] = "Your position on the map, where the map has one."
+L["Shows or hides the calendar."] = "Shows or hides the calendar."
 L["Blizzard's addon compartment, with every addon's entry."] = "Blizzard's addon compartment, with every addon's entry."
 L["Map"] = "Map"
 L["Turning the minimap on or off takes effect after a /reload. While it is off, Blizzard's minimap is left as it is."] =
@@ -105,8 +106,6 @@ L["Icon Size"] = "Icon Size"
 L["Needs Show Day and Night."] = "Needs Show Day and Night."
 L["Coordinates"] = "Coordinates"
 L["Instance Difficulty"] = "Instance Difficulty"
-L["The instance's difficulty beside the zone, shown inside an instance."] =
-	"The instance's difficulty beside the zone, shown inside an instance."
 L["Text"] = "Text"
 L["Font"] = "Font"
 L["Outline"] = "Outline"

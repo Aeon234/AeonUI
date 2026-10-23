@@ -313,7 +313,7 @@ local declaration = window.declaration
 Equal("registered under the addon's name", window.name, "AeonUI")
 Equal("named root frame", declaration.frameName, "AeonUISettings")
 Equal("sidebar order", table.concat(window.order, " "), "general - #minimapHeader minimap minimapBorder minimapRows " ..
-	"minimapZone minimapClock minimapDifficulty minimapCoordinates minimapMail minimapTracking minimapCalendar " ..
+	"minimapZone minimapDifficulty minimapClock minimapMail minimapTracking minimapCoordinates minimapCalendar " ..
 	"minimapCompartment - profiles")
 Equal("Settings:Window reuses the window", Settings:Window(), window)
 Equal("the store is the active config", declaration.store(), Profile.config)
@@ -514,7 +514,7 @@ Equal("Escape on the reset dialog is harmless", resetPopup.button2, CANCEL)
 
 AUI.can.craftingOrders = true
 window = Load(nil)
-Equal("crafting orders get a page after mail", window.order[12], "minimapCraftingOrders")
+Equal("crafting orders get a page after mail", window.order[11], "minimapCraftingOrders")
 Equal("which turns the element on or off", window.pages.minimapCraftingOrders.info.switch.path,
 	"minimap.elements.craftingOrders.enabled")
 AUI.can.craftingOrders = nil

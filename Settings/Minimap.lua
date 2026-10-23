@@ -86,7 +86,7 @@ local TIER_DESCRIPTIONS = {
 	other = L["Timewalking, Follower, Delves, Story and PvP."],
 }
 
--- The header's pages in sidebar order. `minimap` is the page edit mode's Element Options opens; `element` names the row
+-- The header's pages in sidebar order: the map's, then each element's in the order the default layout shows them. `minimap` is the page edit mode's Element Options opens; `element` names the row
 -- element a page belongs to, `needs` the capability without which it is left out, and `note` what a button's page says
 -- about it.
 local PAGES = {
@@ -100,22 +100,16 @@ local PAGES = {
 		description = L["The zone's name. Hover it for Blizzard's zone tooltip; click it to open the world map."],
 	},
 	{
-		id = "minimapClock",
-		element = "clock",
-		title = TIMEMANAGER_TITLE,
-		description = L["The time, with day and night. Hover it for both the realm's and your local time."],
-	},
-	{
 		id = "minimapDifficulty",
 		element = "difficulty",
 		title = L["Instance Difficulty"],
 		description = L["The instance's difficulty beside the zone, shown inside an instance."],
 	},
 	{
-		id = "minimapCoordinates",
-		element = "coordinates",
-		title = L["Coordinates"],
-		description = L["Your position on the map, where the map has one."],
+		id = "minimapClock",
+		element = "clock",
+		title = TIMEMANAGER_TITLE,
+		description = L["The time, with day and night. Hover it for both the realm's and your local time."],
 	},
 	{
 		id = "minimapMail",
@@ -140,10 +134,16 @@ local PAGES = {
 		note = L["The menu is Blizzard's own, so it lists what this game version can track."],
 	},
 	{
+		id = "minimapCoordinates",
+		element = "coordinates",
+		title = L["Coordinates"],
+		description = L["Your position on the map, where the map has one."],
+	},
+	{
 		id = "minimapCalendar",
 		element = "calendar",
 		title = L["Calendar"],
-		description = L["Shows or hides the calendar. On Retail its icon shows the day of the month."],
+		description = L["Shows or hides the calendar."],
 		note = L["It pulses while you have calendar invites; a click then opens the calendar on them."],
 	},
 	{

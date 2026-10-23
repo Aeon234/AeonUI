@@ -13,7 +13,9 @@ local PULSE_DURATION = 0.8
 -- Retail's new-mail flipbook: its frames, and its size against the icon's width (52 on a 20-unit icon).
 local MAIL_FLIPBOOK = { atlas = "UI-HUD-Minimap-Mail-New-Flipbook", rows = 5, columns = 4, frames = 20, duration = 0.5,
 	scale = 52 / 20 }
--- Seconds past the realm's midnight before the calendar icon checks the day again.
+-- The calendar's icon, from Blizzard's gamepad radial menu, with its pressed art beside it.
+local CALENDAR_ICON = "gamepad-radial-icon-calendar"
+-- Seconds past the realm's midnight before a day-of-month calendar icon checks the day again.
 local MIDNIGHT_MARGIN = 5
 
 ---@class AUIButtonAtlases
@@ -288,24 +290,34 @@ function Mail:FillTooltip(tooltip)
 	FormatUnreadMailTooltip(tooltip, #senders >= 1 and HAVE_MAIL_FROM or HAVE_MAIL, senders)
 end
 
----The calendar: Retail's icon shows the day of the month, Forever's is its plain calendar button. Pending invites
----pulse the icon, and the first click opens the calendar on them; otherwise a click shows or hides the calendar.
+---The calendar, drawn with Blizzard's gamepad calendar icon. Pending invites pulse the icon, and the first click
+---opens the calendar on them; otherwise a click shows or hides the calendar.
 ---@class AUIMinimapCalendar: AUIMinimapButtonElement
 ---@field invites integer? pending invites, as last counted
+---@field dated boolean? the icon shows the day of the month, on a client without the gamepad icon
 ---@field day integer? the day of the month the icon shows
 ---@field timer table? the check after the realm's midnight
 ---@field pulse AnimationGroup?
 local Calendar = Mixin({ key = "calendar" }, ButtonElementMixin)
 
----Retail's day-of-month art, which Forever's client also names; Forever's boxed calendar button where it is missing.
+---The gamepad calendar icon, hovered with an additive copy; where the client lacks it, the minimap's day-of-month art,
+---then Forever's boxed calendar button.
 ---@return AUIButtonAtlases
 function Calendar:Atlases()
+	self.dated = false
+
+	if C_Texture.GetAtlasInfo(CALENDAR_ICON) then
+		return { normal = CALENDAR_ICON, pushed = CALENDAR_ICON .. "-down" }
+	end
+
 	local day = self.day or 1
 	local normal = ("ui-hud-calendar-%d-up"):format(day)
 
 	if not C_Texture.GetAtlasInfo(normal) then
 		return { normal = "ui-hud-minimap-calendar-button" }
 	end
+
+	self.dated = true
 
 	return {
 		normal = normal,
@@ -361,7 +373,10 @@ function Calendar:SetActive(active)
 
 	if active then
 		self:Update()
-		self:UpdateDay()
+
+		if self.dated then
+			self:UpdateDay()
+		end
 	else
 		(self.pulse --[[@as AnimationGroup]]):Stop()
 
