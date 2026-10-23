@@ -561,6 +561,12 @@ local Editor = AUI.MinimapEditor
 window = Load(nil)
 Equal("the Rows page draws the layout editor", type(window.pages.minimapRows.preview.refresh), "function")
 Equal("elements are named by their pages", AUI.SettingsMinimap:ElementTitle("difficulty"), "Instance Difficulty")
+Equal("the positioning page keeps its id", window.pages.minimapRows.info.title, "Widget Positioning")
+Equal("the calendar offers an icon size", window.pages.minimapCalendar.sections.minimapCalendarAbout.settings
+	.calendarIconSize.path, "minimap.calendar.iconSize")
+Equal("the calendar's icon starts larger", AUI.Settings:Default("minimap.calendar.iconSize"), 100)
+Equal("the compartment has no icon to size", window.pages.minimapCompartment.sections.minimapCompartmentAbout.settings
+	.compartmentIconSize, nil)
 local slots = {
 	{ row = "TOP1", index = 1, x = 10, y = 11 }, { row = "TOP1", index = 2, x = 60, y = 11 },
 	{ row = "TOP2", index = 1, x = 10, y = 39 }, { row = "TOP2", index = 2, x = 90, y = 39 },

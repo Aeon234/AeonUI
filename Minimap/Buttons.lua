@@ -2,9 +2,16 @@ local AUI = select(2, ...)
 
 local Elements = AUI.MinimapElements
 
--- An icon's longest side against its square cell, and how far it moves down and right while pressed.
-local ICON_SCALE = 0.8
+-- How far an icon moves down and right while pressed.
 local PRESS_OFFSET = 1
+-- Each icon's default size, its longest side as a percent of the row's height.
+local ICON_SIZES = { mail = 100, craftingOrders = 80, tracking = 90, calendar = 100 }
+-- The compartment's count, against the row's height.
+local COMPARTMENT_SCALE = 0.8
+
+for key, size in pairs(ICON_SIZES) do
+	AUI.Schema:Number("minimap." .. key .. ".iconSize", size, 50, 120, true)
+end
 -- Forever's header buttons brighten with a copy of their art drawn additively (Blizzard_Minimap/Camelot).
 local ADD_ALPHA = 0.2
 -- The pending invites' pulse: the additive copy's peak opacity and the seconds to reach it.
@@ -100,7 +107,8 @@ end
 ---Sizes the icon to the row's height.
 function ButtonElementMixin:Style()
 	local atlases = self.atlases --[[@as AUIButtonAtlases]]
-	local size = math.floor(AUI.Profile:Get("minimap.rows.height") * ICON_SCALE)
+	local percent = AUI.Profile:Get("minimap." .. self.key .. ".iconSize")
+	local size = math.floor(AUI.Profile:Get("minimap.rows.height") * percent / 100)
 	local glow = self.glow --[[@as Texture]]
 
 	self.size = size

@@ -12,7 +12,7 @@ Schema:Choices("fontOutline", { "NONE", "OUTLINE", "THICKOUTLINE", "SLUG", "SLUG
 -- The text of every row, which each text element follows until it is changed on the element's page.
 Schema:String("minimap.text.font", "Friz Quadrata TT", 64)
 Schema:Number("minimap.text.size", 12, 8, 24, true)
-Schema:Choice("minimap.text.outline", "fontOutline", "NONE")
+Schema:Choice("minimap.text.outline", "fontOutline", "SLUG")
 Schema:Number("minimap.text.offsetY", 0, -10, 10, true)
 Schema:Color("minimap.text.color", { r = 1, g = 1, b = 1 })
 

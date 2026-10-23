@@ -453,7 +453,7 @@ Difficulty:Update()
 Equal("a chosen tier color is used", labelColor[1], 1)
 stored.minimap = nil
 Equal("Friz Quadrata by default", Schema:Read(stored, "minimap.difficulty.text.font"), "Friz Quadrata TT")
-Equal("no outline by default", Schema:Read(stored, "minimap.difficulty.text.outline"), "NONE")
+Equal("Slug by default", Schema:Read(stored, "minimap.difficulty.text.outline"), "SLUG")
 for _, key in ipairs({ "zone", "clock", "coordinates", "difficulty" }) do
 	Equal(key .. " text sits in the row's middle by default", Schema:Read(stored, "minimap." .. key .. ".text.offsetY"),
 		0)

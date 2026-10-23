@@ -92,15 +92,15 @@ local TIER_DESCRIPTIONS = {
 }
 
 -- The header's pages in sidebar order: the map's, then each element's in the order the default layout shows them.
--- `minimap` is the page edit mode's Element Options opens; `element` names the row
--- element a page belongs to, `needs` the capability without which it is left out, and `note` what a button's page says
--- about it.
+-- `minimap` is the page edit mode's Element Options opens; `element` names the row element a page belongs to, `needs`
+-- the capability without which it is left out, `note` what a button's page says about it, and `iconSize` whether it
+-- offers the button's Icon Size.
 local PAGES = {
 	{ id = "minimap", title = L["Map"], description = L["The map's size, fading and zoom. Move it in Edit Mode."] },
 	{ id = "minimapBorder", title = L["Border"], description = L["The frame around the map and its rows."] },
 	{
 		id = "minimapRows",
-		title = L["Rows"],
+		title = L["Widget Positioning"],
 		description = L["The information rows above and below the map, and what each holds."],
 	},
 	{
@@ -124,6 +124,7 @@ local PAGES = {
 	{
 		id = "minimapMail",
 		element = "mail",
+		iconSize = true,
 		title = MAIL_LABEL,
 		description = L["Unread mail. Hover it for the latest senders."],
 		note = L["The button keeps its place in the row; its icon shows only while you have unread mail."],
@@ -131,6 +132,7 @@ local PAGES = {
 	{
 		id = "minimapCraftingOrders",
 		element = "craftingOrders",
+		iconSize = true,
 		needs = "craftingOrders",
 		title = L["Crafting Orders"],
 		description = L["Personal crafting orders waiting for you. Hover it for each profession's count."],
@@ -139,6 +141,7 @@ local PAGES = {
 	{
 		id = "minimapTracking",
 		element = "tracking",
+		iconSize = true,
 		title = TRACKING,
 		description = L["Opens Blizzard's tracking menu, to choose what the map shows."],
 		note = L["The menu is Blizzard's own, so it lists what this game version can track."],
@@ -152,6 +155,7 @@ local PAGES = {
 	{
 		id = "minimapCalendar",
 		element = "calendar",
+		iconSize = true,
 		title = L["Calendar"],
 		description = L["Shows or hides the calendar."],
 		note = L["It pulses while you have calendar invites; a click then opens the calendar on them."],
@@ -205,7 +209,26 @@ function SettingsMinimap:Declare(window)
 			self.pageIDs[info.id] = true
 
 			if info.note then
-				page:Section(info.id .. "About", info.title):Note(info.note)
+				local about = page:Section(info.id .. "About", info.title)
+
+				if info.iconSize then
+					local path = "minimap." .. info.element .. ".iconSize"
+
+					about:Slider({
+						id = info.element .. "IconSize",
+						resettable = true,
+						label = L["Icon Size"],
+						description = L["Compared with the row's height."],
+						path = path,
+						default = Settings:Default(path),
+						min = 50,
+						max = 120,
+						step = 5,
+						format = "percent",
+					})
+				end
+
+				about:Note(info.note)
 			end
 		end
 	end
