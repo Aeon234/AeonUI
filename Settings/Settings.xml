@@ -2,6 +2,7 @@
 	<Script file="Window.lua" />
 	<Script file="General.lua" />
 	<Script file="Minimap.lua" />
+	<Script file="MinimapEditor.lua" />
 	<Script file="Profiles.lua" />
 	<Script file="Recovery.lua" />
 	<Script file="EditTargets.lua" />

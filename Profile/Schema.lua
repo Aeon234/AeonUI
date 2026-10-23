@@ -12,12 +12,12 @@ local POINTS = {
 ---One setting a profile can hold: its type, default and bounds.
 ---@class AUISchemaField
 ---@field path string dot-separated path inside a profile's config
----@field kind "boolean"|"number"|"choice"|"string"|"color"|"position"
+---@field kind "boolean"|"number"|"choice"|"string"|"color"|"position"|"lists"
 ---@field default any the factory value; nil for an optional field, which then follows a shared setting
 ---@field min number?
 ---@field max number?
 ---@field integer boolean? a number must be whole
----@field options table<string, true>? the values a choice accepts
+---@field options table<string, true>? the values a choice accepts, or the list names a lists field accepts
 ---@field maxLength integer? the longest string accepted
 ---@field allowEmpty boolean? a string may be empty
 ---@field optional boolean? absence is meaningful: the setting follows a shared one
@@ -120,6 +120,21 @@ function Schema:Position(path)
 	Field(path, { kind = "position", optional = true })
 end
 
+---Named lists of short texts, `{ [name] = { text, ... } }`, each text in one list at most: optional, so that absence
+---means the feature's own default arrangement.
+---@param path string
+---@param names string[] the list names accepted
+---@param maxLength integer the longest text accepted
+function Schema:Lists(path, names, maxLength)
+	local options = {}
+
+	for _, name in ipairs(names) do
+		options[name] = true
+	end
+
+	Field(path, { kind = "lists", options = options, maxLength = maxLength, optional = true })
+end
+
 ---A setting that follows a shared one until it holds its own value: optional, with the shared field's kind and
 ---bounds.
 ---@param path string
@@ -186,6 +201,41 @@ local function IsColor(value)
 	return value.r ~= nil and value.g ~= nil and value.b ~= nil
 end
 
+---@param value any
+---@param field AUISchemaField a lists field
+---@return boolean
+local function IsLists(value, field)
+	if type(value) ~= "table" then
+		return false
+	end
+
+	local seen, options, maxLength = {}, field.options or {}, field.maxLength or 0
+
+	for name, list in pairs(value) do
+		if not options[name] or type(list) ~= "table" then
+			return false
+		end
+
+		local count = 0
+
+		for _ in pairs(list) do
+			count = count + 1
+		end
+
+		for index = 1, count do
+			local text = list[index]
+
+			if type(text) ~= "string" or text == "" or #text > maxLength or seen[text] then
+				return false
+			end
+
+			seen[text] = true
+		end
+	end
+
+	return true
+end
+
 ---@param path string
 ---@param value any nil clears an optional field
 ---@return boolean ok
@@ -238,6 +288,10 @@ function Schema:CheckValue(path, value)
 	elseif kind == "position" then
 		if not IsPosition(value) then
 			return false, ("%s must be a position"):format(path)
+		end
+	elseif kind == "lists" then
+		if not IsLists(value, field) then
+			return false, ("%s must be named lists of short texts, each text once"):format(path)
 		end
 	elseif type(value) ~= kind then
 		return false, ("%s must be a %s"):format(path, kind)

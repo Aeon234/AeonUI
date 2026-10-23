@@ -330,9 +330,33 @@ Equal("no border leaves no gap", (Border:Gaps("NONE", 100, 0.5)), 0)
 -- Elements -----------------------------------------------------------------------------------------------------
 
 local Elements = AUI.MinimapElements
-Equal("the zone starts in Top 1", Schema:Read(stored, "minimap.elements.zone.row"), "TOP1")
-Equal("the clock starts at the right of Top 1", Schema:Read(stored, "minimap.elements.clock.row") ..
-	Schema:Read(stored, "minimap.elements.clock.order"), "TOP13")
+local defaults = Elements:DefaultLayout()
+Equal("Top 1 starts with the zone, the difficulty and the clock", table.concat(defaults.TOP1, " "),
+	"zone difficulty clock")
+Equal("Top 2 starts with the buttons around the coordinates", table.concat(defaults.TOP2, " "),
+	"mail craftingOrders tracking coordinates calendar compartment")
+Equal("nothing starts below the map or off it", #defaults.BOTTOM1 + #defaults.BOTTOM2 + #defaults.HIDDEN, 0)
+Equal("no saved layout is the default", table.concat(Elements:FullLayout(nil).TOP1, " "), "zone difficulty clock")
+local full = Elements:FullLayout({ TOP1 = { "clock", "zone", "gone" }, HIDDEN = { "difficulty", "clock" } })
+Equal("a saved layout keeps its order and drops unknown keys", table.concat(full.TOP1, " "), "clock zone")
+Equal("each element is in one list, the first that names it", table.concat(full.HIDDEN, " "), "difficulty")
+Equal("an element the saved layout lacks returns after its default neighbor", table.concat(full.TOP2, " "),
+	"mail craftingOrders tracking coordinates calendar compartment")
+full = Elements:FullLayout({ TOP2 = { "calendar", "mail" } })
+Equal("missing elements slot in after the nearest default neighbor", table.concat(full.TOP2, " "),
+	"calendar compartment mail craftingOrders tracking coordinates")
+local moved = Elements:Move(defaults, "clock", "BOTTOM1")
+Equal("a move takes the element out of its list", table.concat(moved.TOP1, " "), "zone difficulty")
+Equal("and puts it at the end of the other", moved.BOTTOM1[1], "clock")
+moved = Elements:Move(defaults, "clock", "TOP1", 1)
+Equal("or at a place in the same list", table.concat(moved.TOP1, " "), "clock zone difficulty")
+Equal("the original is untouched", table.concat(defaults.TOP1, " "), "zone difficulty clock")
+Equal("a layout is a valid setting", (Schema:CheckValue("minimap.layout", moved)), true)
+Equal("an unknown list is not", (Schema:CheckValue("minimap.layout", { LEFT = { "zone" } })), false)
+Equal("nor an element in two lists", (Schema:CheckValue("minimap.layout", { TOP1 = { "zone" }, TOP2 = { "zone" } })),
+	false)
+Equal("nor a list with a gap", (Schema:CheckValue("minimap.layout", { TOP1 = { [1] = "zone", [3] = "clock" } })),
+	false)
 Equal("default row height", Schema:Read(stored, "minimap.rows.height"), 22)
 Equal("default text size", Schema:Read(stored, "minimap.text.size"), 12)
 Equal("the zone follows the rows' text size", Schema:Read(stored, "minimap.zone.text.size"), 12)
@@ -344,7 +368,6 @@ Equal("which leaves the others following", Schema:Read(stored, "minimap.coordina
 stored.minimap = nil
 Equal("the zone keeps its own colors", Schema:Field("minimap.zone.text.color"), nil)
 Equal("the clock takes the text color", Schema:Read(stored, "minimap.clock.text.color").r, 1)
-Equal("an unknown row", (Schema:CheckValue("minimap.elements.zone.row", "LEFT")), false)
 
 local zone, clock = Elements.byKey.zone, Elements.byKey.clock
 local Zone = zone
@@ -359,13 +382,14 @@ local rows = Elements:Rows()
 Equal("each element in its default row and order", rows.TOP1[1].key .. rows.TOP1[2].key, "zoneclock")
 Equal("text cells carry their width", rows.TOP1[1].width, 80)
 Equal("the zone gives way first", rows.TOP1[1].flexible, true)
-stored.minimap = { elements = { zone = { row = "BOTTOM1", order = 3 }, clock = { row = "BOTTOM1", order = 1 } } }
+stored.minimap = { layout = { BOTTOM1 = { "clock", "zone" } } }
 rows = Elements:Rows()
 Equal("a row holds its elements by order", rows.BOTTOM1[1].key .. rows.BOTTOM1[2].key, "clockzone")
 Equal("and leaves the default rows empty", rows.TOP1 == nil and rows.TOP2 == nil, true)
 zone.value = ""
 Equal("an element with nothing to show takes no cell", #Elements:Rows().BOTTOM1, 1)
-stored.minimap.elements.clock.row = "HIDDEN"
+stored.minimap.layout.HIDDEN = { "clock" }
+stored.minimap.layout.BOTTOM1 = { "zone" }
 Equal("a hidden element takes no cell", Elements:Rows().BOTTOM1, nil)
 Equal("every element starts on", Schema:Read({}, "minimap.elements.coordinates.enabled"), true)
 stored.minimap = nil
@@ -393,10 +417,6 @@ Equal("a world position halfway across the map", mapX, 50)
 Equal("and halfway down it", mapY, 50)
 Equal("a map with no extent gives no position", Coordinates:MapPercent(0, 0, { x = 0, y = 0, width = 0, height = 0 }),
 	nil)
-Equal("coordinates start in Top 2 between tracking and the calendar", Schema:Read(stored,
-	"minimap.elements.coordinates.row") .. Schema:Read(stored, "minimap.elements.coordinates.order"), "TOP24")
-Equal("the difficulty starts after the zone", Schema:Read(stored, "minimap.elements.difficulty.row") ..
-	Schema:Read(stored, "minimap.elements.difficulty.order"), "TOP12")
 Equal("zone colored by PvP status by default", Schema:Read(stored, "minimap.zone.color"), "PVP")
 Equal("a sanctuary is blue", Zone:Color("sanctuary").b, 0.94)
 Equal("no status is gold", Zone:Color(nil).g, 0.82)
@@ -451,12 +471,6 @@ Difficulty.active, Difficulty.text = nil, nil
 -- Button elements --------------------------------------------------------------------------------------------
 
 local Mail, Calendar, Compartment = Elements.byKey.mail, Elements.byKey.calendar, Elements.byKey.compartment
-Equal("mail starts Top 2", Schema:Read(stored, "minimap.elements.mail.row") ..
-	Schema:Read(stored, "minimap.elements.mail.order"), "TOP21")
-Equal("crafting orders follow mail", Schema:Read(stored, "minimap.elements.craftingOrders.order"), 2)
-Equal("tracking, calendar and the compartment end Top 2", Schema:Read(stored, "minimap.elements.tracking.order") ..
-	Schema:Read(stored, "minimap.elements.calendar.order") .. Schema:Read(stored, "minimap.elements.compartment.order"),
-	"356")
 Equal("an hour before midnight", Calendar:SecondsToMidnight(23, 0), 3600 + 5)
 Equal("from midnight, a whole day", Calendar:SecondsToMidnight(0, 0), 86400 + 5)
 Mail.active, Calendar.active = true, true

@@ -8,8 +8,10 @@ local lib = LibStub("LibAeonSettings-1.0")
 ---is set in edit mode.
 ---@class AUISettingsMinimap
 ---@field pageIDs table<string, true> the pages under the Minimap header
+---@field titles table<string, string> each row element's page title, its name in the layout editor
 local SettingsMinimap = {
 	pageIDs = {},
+	titles = {},
 }
 AUI.SettingsMinimap = SettingsMinimap
 
@@ -89,13 +91,18 @@ local TIER_DESCRIPTIONS = {
 	other = L["Timewalking, Follower, Delves, Story and PvP."],
 }
 
--- The header's pages in sidebar order: the map's, then each element's in the order the default layout shows them. `minimap` is the page edit mode's Element Options opens; `element` names the row
+-- The header's pages in sidebar order: the map's, then each element's in the order the default layout shows them.
+-- `minimap` is the page edit mode's Element Options opens; `element` names the row
 -- element a page belongs to, `needs` the capability without which it is left out, and `note` what a button's page says
 -- about it.
 local PAGES = {
 	{ id = "minimap", title = L["Map"], description = L["The map's size, fading and zoom. Move it in Edit Mode."] },
 	{ id = "minimapBorder", title = L["Border"], description = L["The frame around the map and its rows."] },
-	{ id = "minimapRows", title = L["Rows"], description = L["The information rows above and below the map."] },
+	{
+		id = "minimapRows",
+		title = L["Rows"],
+		description = L["The information rows above and below the map, and what each holds."],
+	},
 	{
 		id = "minimapZone",
 		element = "zone",
@@ -158,6 +165,20 @@ local PAGES = {
 	},
 }
 
+---@param key string a row element's key
+---@return string name its page title
+function SettingsMinimap:ElementTitle(key)
+	if not next(self.titles) then
+		for _, info in ipairs(PAGES) do
+			if info.element then
+				self.titles[info.element] = info.title
+			end
+		end
+	end
+
+	return self.titles[key] or key
+end
+
 ---@param window table
 function SettingsMinimap:Declare(window)
 	local Settings = AUI.Settings
@@ -168,7 +189,7 @@ function SettingsMinimap:Declare(window)
 	for _, info in ipairs(PAGES) do
 		if not info.needs or AUI.can[info.needs] then
 			-- An element's page turns that element on or off; the others, the whole minimap.
-			local switchPath = info.element and select(3, AUI.MinimapElements:Paths(info.element)) or "minimap.enabled"
+			local switchPath = info.element and AUI.MinimapElements:EnabledPath(info.element) or "minimap.enabled"
 			local page = window:Page(info.id, {
 				title = info.title,
 				description = info.description,
@@ -294,6 +315,21 @@ function SettingsMinimap:Declare(window)
 		path = "minimap.background",
 		default = Settings:Default("minimap.background"),
 		hasOpacity = true,
+	})
+
+	local Editor = AUI.MinimapEditor
+
+	pages.minimapRows:Preview({
+		height = 160,
+		create = function(canvas)
+			Editor:Create(canvas)
+		end,
+		refresh = function()
+			return Editor:Draw()
+		end,
+		caption = function()
+			return Editor:Caption()
+		end,
 	})
 
 	local rows = pages.minimapRows:Section("rows", L["Rows"])

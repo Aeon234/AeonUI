@@ -541,6 +541,11 @@ function CraftingOrders:Atlases()
 end
 
 ---@return boolean
+function CraftingOrders:Available()
+	return AUI.can.craftingOrders == true
+end
+
+---@return boolean
 function CraftingOrders:IsShown()
 	return self.active == true and AUI.can.craftingOrders == true
 end

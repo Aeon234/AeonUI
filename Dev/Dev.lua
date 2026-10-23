@@ -200,7 +200,7 @@ function Dev:MapReport()
 		right, top, bottom, tostring(module.mask):match("[^\\]+$") or "?")
 end
 
----Places a minimap row element, standing in for the drag editor until it exists.
+---Places a minimap row element.
 ---@param line string `<element> <top1|top2|bottom1|bottom2|hidden> [order]`, lowercased
 function Dev:PlaceElement(line)
 	local key, row, order = line:match("^(%S+)%s+(%S+)%s*(%d*)$")
@@ -218,12 +218,16 @@ function Dev:PlaceElement(line)
 		return
 	end
 
-	local rowPath, orderPath = AUI.MinimapElements:Paths(key)
-	local ok, problem = AUI.Profile:Set(rowPath, row:upper())
+	local elements = AUI.MinimapElements
 
-	if ok and order ~= "" then
-		ok, problem = AUI.Profile:Set(orderPath, tonumber(order))
+	if not tContains(elements.LISTS, row:upper()) then
+		AUI:Print("row: %s is not a row", row)
+
+		return
 	end
+
+	local layout = elements:Move(elements:Layout(), key, row:upper(), tonumber(order))
+	local ok, problem = AUI.Profile:Set(elements.LAYOUT_PATH, layout)
 
 	AUI:Print("row: %s %s", key, ok and "placed" or tostring(problem))
 end

@@ -141,6 +141,14 @@ local function NewPage(id, info)
 
 	local page = { id = id, info = info, sections = {} }
 
+	function page:Preview(previewInfo)
+		Allowed("preview " .. id, previewInfo, { height = true, states = true, create = true, refresh = true,
+			caption = true, pick = true, stop = true })
+		self.preview = previewInfo
+
+		return previewInfo
+	end
+
 	function page:Section(sectionID, _, sectionInfo)
 		Allowed("section " .. sectionID, sectionInfo, { show = true })
 
@@ -308,7 +316,7 @@ end })
 for _, file in ipairs({ "Core/Callbacks.lua", "Core/Capabilities.lua", "Core/Broker.lua", "Profile/Schema.lua",
 	"Profile/Store.lua", "Profile/Profile.lua", "UI/Border.lua", "Minimap/Layout.lua", "Minimap/Elements.lua",
 	"Minimap/Rows.lua", "Minimap/Fade.lua", "Minimap/Text.lua", "Minimap/Difficulty.lua",
-	"Minimap/Buttons.lua", "Minimap/Map.lua", "Settings/Window.lua",
+	"Minimap/Buttons.lua", "Minimap/Map.lua", "Settings/Window.lua", "Settings/MinimapEditor.lua",
 	"Settings/General.lua", "Settings/Minimap.lua", "Settings/Profiles.lua", "Settings/Recovery.lua",
 	"Settings/EditTargets.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
@@ -546,6 +554,28 @@ Equal("reset saves a new store", AeonUIDB, Profile.root)
 Equal("reset reloads", reloads, 1)
 Equal("the export dialog is registered", StaticPopupDialogs.AEONUI_DIAGNOSTIC_EXPORT.hasEditBox, true)
 Equal("Escape on the reset dialog is harmless", resetPopup.button2, CANCEL)
+
+-- The layout editor ----------------------------------------------------------------------------------------------
+
+local Editor = AUI.MinimapEditor
+window = Load(nil)
+Equal("the Rows page draws the layout editor", type(window.pages.minimapRows.preview.refresh), "function")
+Equal("elements are named by their pages", AUI.SettingsMinimap:ElementTitle("difficulty"), "Instance Difficulty")
+local slots = {
+	{ row = "TOP1", index = 1, x = 10, y = 11 }, { row = "TOP1", index = 2, x = 60, y = 11 },
+	{ row = "TOP2", index = 1, x = 10, y = 39 }, { row = "TOP2", index = 2, x = 90, y = 39 },
+}
+local slot = Editor:NearestSlot(slots, 70, 30)
+Equal("a drop goes to the nearest row", slot.row, "TOP2")
+Equal("at the nearest place in it", slot.index, 2)
+local function Shown(key)
+	return key ~= "craftingOrders"
+end
+local top2 = { "mail", "craftingOrders", "tracking", "coordinates" }
+Equal("a place among shown elements skips those the client cannot show",
+	Editor:ListIndex(top2, "coordinates", 2, Shown), 3)
+Equal("the dragged element is left out", Editor:ListIndex(top2, "mail", 1, Shown), 2)
+Equal("past the last shown element is the end", Editor:ListIndex(top2, "mail", 9, Shown), 4)
 
 -- The minimap's preview ------------------------------------------------------------------------------------------
 
