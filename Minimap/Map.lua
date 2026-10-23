@@ -24,6 +24,13 @@ local CELL_GAP = 4
 -- bottom-left corner, and how far above the map and its border they are drawn.
 local CORNER_INSET = 2
 local CORNER_LEVEL = 20
+-- The settings that change the map itself; every other minimap setting only restyles and arranges the rows and border.
+local MAP_PATHS = {
+	["minimap.width"] = true,
+	["minimap.height"] = true,
+	["minimap.scale"] = true,
+	["minimap.zoom.wheel"] = true,
+}
 
 Schema:Choices("minimapBorderStyle", AUI.Border.STYLES)
 Schema:Boolean("minimap.enabled", true)
@@ -62,11 +69,14 @@ Schema:Position("minimap.position")
 ---@field hidden Frame? parks Blizzard's frames
 ---@field pending boolean an apply is waiting for combat to end
 ---@field resetTimer table? the automatic zoom reset's timer
+---@field mapChanged boolean? a coalesced change includes a setting of the map itself
+---@field watchedIcons table<Frame, true> LibDBIcon buttons whose hover reaches the module
 local Map = {
 	DEFAULT_POSITION = { point = "TOPRIGHT", x = -20, y = -20 },
 	active = false,
 	pending = false,
 	mask = SQUARE_MASK,
+	watchedIcons = {},
 }
 AUI.Minimap = Map
 
@@ -261,6 +271,7 @@ function Map:TakeOver()
 		Map:OnLeave()
 	end)
 	AUI.MinimapFade:Start(self.holder --[[@as Frame]])
+	self:WatchIcons()
 
 	GetMinimapShape = function()
 		return "SQUARE"
@@ -320,11 +331,75 @@ function Map:OnCombatEnded()
 	end
 end
 
+---Applies minimap changes once per frame, however many arrive (a slider's drag): the whole map after a change to the
+---map itself or a profile switch, otherwise only the rows and border.
 ---@param path string?
 function Map:OnProfileChanged(path)
-	if path == nil or path:sub(1, 8) == "minimap." then
-		self:Apply()
+	if path ~= nil and path:sub(1, 8) ~= "minimap." then
+		return
 	end
+
+	if path == nil or MAP_PATHS[path] then
+		self.mapChanged = true
+	end
+
+	AUI.Events:Coalesce("minimapApply", function()
+		local whole = Map.mapChanged
+
+		Map.mapChanged = nil
+
+		if whole then
+			Map:Apply()
+		else
+			Map:Restyle()
+		end
+	end)
+end
+
+---Restyles the rows' elements and arranges the rows and border, leaving the map as it is.
+function Map:Restyle()
+	if not self.active then
+		return
+	end
+
+	AUI.MinimapElements:Refresh()
+	self:Arrange(true)
+	AUI.MinimapFade:Refresh()
+end
+
+---LibDBIcon's buttons sit on the map's edge and may reach past the assembly; entering and leaving them counts as the
+---minimap's, so leaving the minimap through one ends a mouseover fade.
+function Map:WatchIcons()
+	local icons = LibStub("LibDBIcon-1.0", true)
+
+	if not icons then
+		return
+	end
+
+	-- GetButtonList returns the buttons' names; its annotation says buttons.
+	for _, name in ipairs(icons:GetButtonList() --[[@as string[] ]]) do
+		self:WatchIcon(icons:GetMinimapButton(name))
+	end
+
+	-- CallbackHandler embeds RegisterCallback in the library.
+	;(icons --[[@as table]]).RegisterCallback(self, "LibDBIcon_IconCreated", function(_, button)
+		Map:WatchIcon(button)
+	end)
+end
+
+---@param button Frame?
+function Map:WatchIcon(button)
+	if not button or self.watchedIcons[button] then
+		return
+	end
+
+	self.watchedIcons[button] = true
+	button:HookScript("OnEnter", function()
+		Map:OnEnter()
+	end)
+	button:HookScript("OnLeave", function()
+		Map:OnLeave()
+	end)
 end
 
 ---Sizes the assembly for the map and the rows that have something to show, places the map, the rows and their cells,

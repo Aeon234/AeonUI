@@ -506,22 +506,46 @@ Equal("no fading by default", Schema:Read(stored, "minimap.fade.mouseover") or
 
 -- Applying ---------------------------------------------------------------------------------------------------
 
-local applied = 0
+local applied, restyled = 0, 0
 function Map:Apply()
 	applied = applied + 1
 end
+function Map:Restyle()
+	restyled = restyled + 1
+end
+local coalesced = {}
+AUI.Events.Coalesce = function(_, key, work)
+	coalesced[key] = work
+end
+local function NextFrame()
+	for key, work in pairs(coalesced) do
+		coalesced[key] = nil
+		work()
+	end
+end
 
 Map:OnProfileChanged("minimap.width")
-Equal("a minimap setting re-applies", applied, 1)
+NextFrame()
+Equal("a setting of the map itself re-applies the map", applied, 1)
 Map:OnProfileChanged(nil)
-Equal("a profile switch re-applies", applied, 2)
+NextFrame()
+Equal("a profile switch re-applies it", applied, 2)
 Map:OnProfileChanged("fixture.width")
-Equal("other settings do not", applied, 2)
+NextFrame()
+Equal("other addons' settings do nothing", applied + restyled, 2)
+Map:OnProfileChanged("minimap.text.color")
+Map:OnProfileChanged("minimap.text.color")
+NextFrame()
+Equal("a row setting only restyles, once a frame", applied .. " " .. restyled, "2 1")
+Map:OnProfileChanged("minimap.text.size")
+Map:OnProfileChanged("minimap.height")
+NextFrame()
+Equal("a map setting among them applies the whole map instead", applied .. " " .. restyled, "3 1")
 Map.pending = false
 Map:OnCombatEnded()
-Equal("combat ending applies nothing unless asked", applied, 2)
+Equal("combat ending applies nothing unless asked", applied, 3)
 Map.pending = true
 Map:OnCombatEnded()
-Equal("a request made in combat applies when it ends", applied, 3)
+Equal("a request made in combat applies when it ends", applied, 4)
 
 io.stdout:write(("check_minimap: %d checks passed\n"):format(checks))
