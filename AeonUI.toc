@@ -24,4 +24,5 @@ Settings\Settings.xml
 #@do-not-package@
 Dev\Dev.lua
 Dev\MinimapProbe.lua
+Dev\WorldMapProbe.xml
 #@end-do-not-package@

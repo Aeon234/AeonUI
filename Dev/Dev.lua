@@ -5,6 +5,7 @@ local Codec = AUI.Codec
 
 ---@class AUIDev
 ---@field MinimapProbe AUIMinimapProbe? the M0 minimap probe, from Dev/MinimapProbe.lua
+---@field WorldMapProbe AUIWorldMapProbe? the W0 world map probe, from Dev/WorldMapProbe.lua
 local Dev = {}
 AUI.Dev = Dev
 
@@ -275,5 +276,11 @@ function Dev:Command(line)
 		return
 	end
 
-	AUI:Print("dev commands: codec, map, atlas [names], row, preview, minimap")
+	if command == "worldmap" and self.WorldMapProbe then
+		self.WorldMapProbe:Command(rest)
+
+		return
+	end
+
+	AUI:Print("dev commands: codec, map, atlas [names], row, preview, minimap, worldmap")
 end
