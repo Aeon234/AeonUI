@@ -23,11 +23,15 @@ local AREA_FIELDS = 4
 ---@field DARKNESS_PATH string how dark they are drawn, in percent
 ---@field ZONE_LEVELS_PATH string add a zone's level range to its hover label
 ---@field FISHING_LEVELS_PATH string add a zone's Fishing skill range to its hover label
+---@field DUNGEON_MARKERS_PATH string a dungeon or raid marker's left click opens its dungeon map
+---@field DUNGEON_INSTANCES_PATH string the world map opens on the dungeon map inside an instance
 local Options = {
 	UNEXPLORED_PATH = "worldMap.unexplored.enabled",
 	DARKNESS_PATH = "worldMap.unexplored.darkness",
 	ZONE_LEVELS_PATH = "worldMap.levels.zone",
 	FISHING_LEVELS_PATH = "worldMap.levels.fishing",
+	DUNGEON_MARKERS_PATH = "worldMap.dungeonMaps.markers",
+	DUNGEON_INSTANCES_PATH = "worldMap.dungeonMaps.instances",
 }
 AUI.WorldMapOptions = Options
 
@@ -35,6 +39,8 @@ Schema:Boolean(Options.UNEXPLORED_PATH, true)
 Schema:Number(Options.DARKNESS_PATH, 50, 10, 90, true)
 Schema:Boolean(Options.ZONE_LEVELS_PATH, true)
 Schema:Boolean(Options.FISHING_LEVELS_PATH, false)
+Schema:Boolean(Options.DUNGEON_MARKERS_PATH, true)
+Schema:Boolean(Options.DUNGEON_INSTANCES_PATH, true)
 
 ---@param areas number[][] a map art's area rows
 ---@param explored table<number, true> the first fileDataID of each area the player has explored

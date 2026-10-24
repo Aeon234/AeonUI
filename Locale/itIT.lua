@@ -154,6 +154,12 @@ L["Zone Levels"] = "Livelli delle zone"
 L["Adds a zone's level range to its name as you hover it on a continent."] = "Aggiunge l'intervallo di livelli di una zona al suo nome quando ci passi sopra su un continente."
 L["Fishing Levels"] = "Livelli di pesca"
 L["Adds the Fishing skill a zone's waters ask for, colored against yours."] = "Aggiunge l'abilità di pesca richiesta dalle acque di una zona, colorata in base alla tua."
+L["Dungeon Maps"] = "Mappe delle spedizioni"
+L["Open from Markers"] = "Apri dagli indicatori"
+L["Left-clicking a dungeon or raid marker shows the instance's map, with its floors and bosses."] = "Il clic sinistro su un indicatore di spedizione o incursione mostra la mappa dell'istanza, con i suoi piani e i boss."
+L["Open Inside Instances"] = "Apri nelle istanze"
+L["Opening the world map inside a dungeon or raid shows its map, where Blizzard's has none."] = "Aprire la mappa del mondo in una spedizione o incursione mostra la sua mappa, dove quella di Blizzard non ce l'ha."
+L["Only instances whose map art the game has; the others keep the journal."] = "Solo le istanze di cui il gioco ha la mappa; le altre mantengono la guida."
 
 -- Map Markers page (Settings)
 L["Map Markers"] = "Indicatori della mappa"
@@ -257,6 +263,15 @@ L["Click: choose a destination"] = "Clic: scegli una destinazione"
 L["Left-click: %s"] = "Clic sinistro: %s"
 L["Shift-click: set a waypoint"] = "Maiusc-clic: imposta un punto di riferimento"
 L["Shift-click: remove the waypoint"] = "Maiusc-clic: rimuovi il punto di riferimento"
+L["Dungeon Map"] = "Mappa della spedizione"
+
+-- Dungeon maps (World Map)
+L["Floor %d"] = "Piano %d"
+L["Up to %s"] = "Su verso %s"
+L["Down to %s"] = "Giù verso %s"
+L["Entrance"] = "Ingresso"
+L["Optional"] = "Facoltativo"
+L["Right-click: back to the map"] = "Clic destro: torna alla mappa"
 
 -- Profiles page (Settings)
 L["Keep different setups of AeonUI, and share them as text."] = "Conserva diverse configurazioni di AeonUI e condividile come testo."

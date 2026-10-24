@@ -154,6 +154,12 @@ L["Zone Levels"] = "Уровни зон"
 L["Adds a zone's level range to its name as you hover it on a continent."] = "Добавляет к названию зоны диапазон уровней при наведении на неё на карте континента."
 L["Fishing Levels"] = "Уровни рыбной ловли"
 L["Adds the Fishing skill a zone's waters ask for, colored against yours."] = "Добавляет навык рыбной ловли, нужный в водах зоны, с цветом по вашему навыку."
+L["Dungeon Maps"] = "Карты подземелий"
+L["Open from Markers"] = "Открывать по меткам"
+L["Left-clicking a dungeon or raid marker shows the instance's map, with its floors and bosses."] = "Щелчок левой кнопкой по метке подземелья или рейда показывает карту инстанса с этажами и боссами."
+L["Open Inside Instances"] = "Открывать в инстансах"
+L["Opening the world map inside a dungeon or raid shows its map, where Blizzard's has none."] = "При открытии карты мира в подземелье или рейде показывается его карта, если у Blizzard её нет."
+L["Only instances whose map art the game has; the others keep the journal."] = "Только инстансы, карта которых есть в игре; для остальных открывается путеводитель."
 
 -- Map Markers page (Settings)
 L["Map Markers"] = "Метки на карте"
@@ -257,6 +263,15 @@ L["Click: choose a destination"] = "Клик: выбрать место назн
 L["Left-click: %s"] = "Левый клик: %s"
 L["Shift-click: set a waypoint"] = "Shift-клик: поставить путевую точку"
 L["Shift-click: remove the waypoint"] = "Shift-клик: убрать путевую точку"
+L["Dungeon Map"] = "Карта подземелья"
+
+-- Dungeon maps (World Map)
+L["Floor %d"] = "Этаж %d"
+L["Up to %s"] = "Наверх: %s"
+L["Down to %s"] = "Вниз: %s"
+L["Entrance"] = "Вход"
+L["Optional"] = "Необязательный"
+L["Right-click: back to the map"] = "Правый щелчок: назад к карте"
 
 -- Profiles page (Settings)
 L["Keep different setups of AeonUI, and share them as text."] = "Храните разные наборы настроек AeonUI и делитесь ими в виде текста."

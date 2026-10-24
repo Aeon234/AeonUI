@@ -120,6 +120,24 @@ function SettingsWorldMap:DeclareOptions(window)
 		path = Options.FISHING_LEVELS_PATH,
 		default = Settings:Default(Options.FISHING_LEVELS_PATH),
 	})
+
+	local dungeons = page:Section("dungeonMaps", L["Dungeon Maps"])
+
+	dungeons:Checkbox({
+		id = "dungeonMarkers",
+		label = L["Open from Markers"],
+		description = L["Left-clicking a dungeon or raid marker shows the instance's map, with its floors and bosses."],
+		path = Options.DUNGEON_MARKERS_PATH,
+		default = Settings:Default(Options.DUNGEON_MARKERS_PATH),
+	})
+	dungeons:Checkbox({
+		id = "dungeonInstances",
+		label = L["Open Inside Instances"],
+		description = L["Opening the world map inside a dungeon or raid shows its map, where Blizzard's has none."],
+		path = Options.DUNGEON_INSTANCES_PATH,
+		default = Settings:Default(Options.DUNGEON_INSTANCES_PATH),
+	})
+	dungeons:Note(L["Only instances whose map art the game has; the others keep the journal."])
 end
 
 ---@param window table

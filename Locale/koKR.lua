@@ -154,6 +154,12 @@ L["Zone Levels"] = "지역 레벨"
 L["Adds a zone's level range to its name as you hover it on a continent."] = "대륙 지도에서 지역에 마우스를 올리면 이름 옆에 레벨 범위를 추가합니다."
 L["Fishing Levels"] = "낚시 숙련도"
 L["Adds the Fishing skill a zone's waters ask for, colored against yours."] = "지역의 물가에서 필요한 낚시 숙련도를 내 숙련도에 따라 색을 입혀 추가합니다."
+L["Dungeon Maps"] = "던전 지도"
+L["Open from Markers"] = "표시에서 열기"
+L["Left-clicking a dungeon or raid marker shows the instance's map, with its floors and bosses."] = "던전이나 공격대 표시를 왼쪽 클릭하면 층과 우두머리가 담긴 인스턴스 지도를 보여 줍니다."
+L["Open Inside Instances"] = "인스턴스 안에서 열기"
+L["Opening the world map inside a dungeon or raid shows its map, where Blizzard's has none."] = "던전이나 공격대 안에서 세계 지도를 열면, 블리자드 지도에 없을 때 해당 지도를 보여 줍니다."
+L["Only instances whose map art the game has; the others keep the journal."] = "게임에 지도 그림이 있는 인스턴스만 해당하며, 나머지는 던전 안내서를 엽니다."
 
 -- Map Markers page (Settings)
 L["Map Markers"] = "지도 표시"
@@ -257,6 +263,15 @@ L["Click: choose a destination"] = "클릭: 목적지 선택"
 L["Left-click: %s"] = "왼쪽 클릭: %s"
 L["Shift-click: set a waypoint"] = "Shift-클릭: 경유지 설정"
 L["Shift-click: remove the waypoint"] = "Shift-클릭: 경유지 제거"
+L["Dungeon Map"] = "던전 지도"
+
+-- Dungeon maps (World Map)
+L["Floor %d"] = "%d층"
+L["Up to %s"] = "%s(으)로 올라가기"
+L["Down to %s"] = "%s(으)로 내려가기"
+L["Entrance"] = "입구"
+L["Optional"] = "선택"
+L["Right-click: back to the map"] = "오른쪽 클릭: 지도로 돌아가기"
 
 -- Profiles page (Settings)
 L["Keep different setups of AeonUI, and share them as text."] = "AeonUI 설정을 여러 개 보관하고 텍스트로 공유합니다."

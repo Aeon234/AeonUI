@@ -3,7 +3,8 @@
 -- rectangles, the map types each category shows on, turning a category off, leaving out the other faction's and
 -- other races' markers, grouping markers that meet, each category's icon, the town markers' class and capital rules,
 -- exit arrows' rotation, the shape of Forever's marker and town data, and the Map Options: their settings, which
--- areas are unexplored, splitting an area into the art's tiles, the range text and Fishing colors, and their data.
+-- areas are unexplored, splitting an area into the art's tiles, the range text and Fishing colors, and their data;
+-- and the dungeon maps: tile paths and layout, fitting the picture, the opening floor, pins, and their data.
 -- Run from any directory with Lua 5.1: lua Tools/check_worldmap.lua
 -- Loads the real files against stubbed globals. It proves the logic, not the drawing.
 
@@ -13,7 +14,7 @@ local root = (arg and arg[0] or ""):match("^(.-)[^/\\]*$") .. "../"
 
 local AUI = {}
 for _, file in ipairs({ "Profile/Schema.lua", "WorldMap/Markers.lua", "WorldMap/Data.lua", "WorldMap/TownData.lua",
-	"WorldMap/Options.lua", "WorldMap/OptionsData.lua" }) do
+	"WorldMap/Options.lua", "WorldMap/OptionsData.lua", "WorldMap/Dungeons.lua", "WorldMap/DungeonData.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 
@@ -336,6 +337,88 @@ for kind, list in pairs(levelData) do
 	end
 end
 Equal("41 zone and 43 fishing ranges", ranges, 84)
+
+-- Dungeon maps ------------------------------------------------------------------------------------------------
+
+local Dungeons = AUI.WorldMapDungeons
+Equal("dungeon maps open from markers by default", Schema:Field(Options.DUNGEON_MARKERS_PATH).default, true)
+Equal("and inside instances", Schema:Field(Options.DUNGEON_INSTANCES_PATH).default, true)
+local deadmines = { folder = "TheDeadmines", floors = { 1, 2 }, pins = {} }
+Equal("a floor's tile is named by folder, floor and tile", Dungeons:TilePath(deadmines, 2, 7),
+	"Interface\\WorldMap\\TheDeadmines\\TheDeadmines2_7")
+Equal("a flat map's by folder and tile", Dungeons:TilePath({ folder = "ZulFarrak", flat = true }, 1, 12),
+	"Interface\\WorldMap\\ZulFarrak\\ZulFarrak12")
+Equal("a floor's name is Blizzard's string", Dungeons:FloorKey(deadmines, 2), "DUNGEON_FLOOR_THEDEADMINES2")
+local first, last = Dungeons:Tile(1), Dungeons:Tile(12)
+Equal("the first tile is whole", first.x == 0 and first.y == 0 and first.right == 1 and first.bottom == 1, true)
+Equal("the last starts three across, two down", last.x == 768 and last.y == 512, true)
+Equal("and is cut to the picture", last.width == 234 and last.height == 156, true)
+Near("its width as a coordinate", last.right, 234 / 256)
+Equal("the fourth is cut on the right only", Dungeons:Tile(4).width == 234 and Dungeons:Tile(4).height == 256, true)
+local fitScale, fitLeft, fitTop = Dungeons:Fit(1002, 1000)
+Equal("a tall frame fits the width", fitScale == 1 and fitLeft == 0 and fitTop == 166, true)
+fitScale, fitLeft, fitTop = Dungeons:Fit(2004, 668)
+Equal("a wide frame fits the height and centers", fitScale == 1 and fitLeft == 501 and fitTop == 0, true)
+local monastery = { folder = "ScarletMonastery", floors = { 1, 2, 3, 4 }, wings = { library = 2, armory = 3 },
+	pins = { [2] = {
+		{ 0.5, 0.5, boss = "A" }, { 0.501, 0.5, boss = "B" }, { 0.2, 0.2, boss = "C" },
+		{ 0.1, 0.1, floor = 1, up = true }, { 0.9, 0.9, floor = 3 }, { 0.3, 0.3, entrance = true },
+	} } }
+Equal("a wing opens on its floor", Dungeons:StartFloor(monastery, { 1, 2, 3, 4 }, "library"), 2)
+Equal("a wing whose floor has no art opens on the first", Dungeons:StartFloor(monastery, { 1, 2, 4 }, "armory"), 1)
+Equal("no wing opens on the first", Dungeons:StartFloor(monastery, { 2, 4 }), 1)
+local floorPins = Dungeons:Pins(monastery, 2, { 1, 2 })
+Equal("bosses at one spot share a pin; a way to a floor without art is left out", #floorPins, 4)
+Equal("the shared pin lists both", #floorPins[1].bosses, 2)
+Equal("a way keeps its direction", floorPins[3].floor == 1 and floorPins[3].up == true, true)
+Equal("the entrance is kept", floorPins[4].entrance, true)
+Equal("a floor without pins has none", #Dungeons:Pins(monastery, 1, { 1, 2 }), 0)
+
+local dungeonData, dungeonPins, maps = AUI.WorldMapDungeonData(), 0, 0
+local instances = {}
+for _, list in pairs(AUI.WorldMapData()) do
+	for _, rows in pairs(list) do
+		for _, row in ipairs(rows) do
+			if row.instance then
+				instances[row.instance] = instances[row.instance] or {}
+				if row.wing then
+					instances[row.instance][row.wing] = true
+				end
+			end
+		end
+	end
+end
+for instanceID, map in pairs(dungeonData) do
+	local where = "dungeon map " .. instanceID
+	local floors = {}
+
+	maps = maps + 1
+	Equal(where .. " has a folder", type(map.folder), "string")
+	Equal(where .. " is an instance a marker opens", instances[instanceID] ~= nil, true)
+	for _, floor in ipairs(map.floors) do
+		floors[floor] = true
+	end
+	for wing, floor in pairs(map.wings or {}) do
+		Equal(where .. " wing " .. wing .. " opens on one of its floors", floors[floor], true)
+		Equal(where .. " wing " .. wing .. " is a marker's", instances[instanceID][wing], true)
+	end
+	for floor, rows in pairs(map.pins) do
+		Equal(where .. " pins floor " .. floor .. " of its own", floors[floor], true)
+		for index, row in ipairs(rows) do
+			local at = where .. " floor " .. floor .. " pin " .. index
+
+			dungeonPins = dungeonPins + 1
+			Equal(at .. " lies on the art", row[1] >= 0 and row[1] <= 1 and row[2] >= 0 and row[2] <= 1, true)
+			Equal(at .. " is a boss, a way or the entrance", (row.boss and 1 or 0) + (row.floor and 1 or 0)
+				+ (row.entrance and 1 or 0), 1)
+			if row.floor then
+				Equal(at .. " leads to another of its floors", floors[row.floor] == true and row.floor ~= floor, true)
+			end
+		end
+	end
+end
+Equal("23 instances have a dungeon map", maps, 23)
+Equal("every pin of the kept floors is here", dungeonPins, 301)
 
 -- Forever's data ----------------------------------------------------------------------------------------------
 

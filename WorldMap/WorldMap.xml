@@ -4,11 +4,14 @@
 	<Script file="TownData.lua" />
 	<Script file="Options.lua" />
 	<Script file="OptionsData.lua" />
+	<Script file="Dungeons.lua" />
+	<Script file="DungeonData.lua" />
 	<Script file="Pin.lua" />
 	<Script file="Provider.lua" />
 	<Script file="MinimapPins.lua" />
 	<Script file="Unexplored.lua" />
 	<Script file="Levels.lua" />
+	<Script file="DungeonMap.lua" />
 	<Script file="WorldMap.lua" />
 
 	<Frame name="AeonUIWorldMapUnexploredPinTemplate" mixin="AeonUIWorldMapUnexploredPinMixin" virtual="true" />

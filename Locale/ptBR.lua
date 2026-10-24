@@ -154,6 +154,12 @@ L["Zone Levels"] = "Níveis de zona"
 L["Adds a zone's level range to its name as you hover it on a continent."] = "Acrescenta a faixa de níveis de uma zona ao nome dela quando você passa o cursor em um continente."
 L["Fishing Levels"] = "Níveis de pesca"
 L["Adds the Fishing skill a zone's waters ask for, colored against yours."] = "Acrescenta a perícia em pesca que as águas de uma zona exigem, colorida conforme a sua."
+L["Dungeon Maps"] = "Mapas de masmorra"
+L["Open from Markers"] = "Abrir pelos marcadores"
+L["Left-clicking a dungeon or raid marker shows the instance's map, with its floors and bosses."] = "Clicar com o botão esquerdo em um marcador de masmorra ou raide mostra o mapa da instância, com seus andares e chefes."
+L["Open Inside Instances"] = "Abrir dentro de instâncias"
+L["Opening the world map inside a dungeon or raid shows its map, where Blizzard's has none."] = "Abrir o mapa-múndi dentro de uma masmorra ou raide mostra o mapa dela, quando o da Blizzard não tem."
+L["Only instances whose map art the game has; the others keep the journal."] = "Só as instâncias cujo mapa o jogo tem; as outras continuam com o guia."
 
 -- Map Markers page (Settings)
 L["Map Markers"] = "Marcadores do mapa"
@@ -257,6 +263,15 @@ L["Click: choose a destination"] = "Clique: escolher um destino"
 L["Left-click: %s"] = "Clique esquerdo: %s"
 L["Shift-click: set a waypoint"] = "Shift-clique: marcar um ponto de referência"
 L["Shift-click: remove the waypoint"] = "Shift-clique: remover o ponto de referência"
+L["Dungeon Map"] = "Mapa da masmorra"
+
+-- Dungeon maps (World Map)
+L["Floor %d"] = "Andar %d"
+L["Up to %s"] = "Subir para %s"
+L["Down to %s"] = "Descer para %s"
+L["Entrance"] = "Entrada"
+L["Optional"] = "Opcional"
+L["Right-click: back to the map"] = "Botão direito: voltar ao mapa"
 
 -- Profiles page (Settings)
 L["Keep different setups of AeonUI, and share them as text."] = "Mantenha diferentes configurações do AeonUI e compartilhe-as como texto."

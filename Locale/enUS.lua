@@ -195,6 +195,15 @@ L["Adds a zone's level range to its name as you hover it on a continent."] =
 L["Fishing Levels"] = "Fishing Levels"
 L["Adds the Fishing skill a zone's waters ask for, colored against yours."] =
 	"Adds the Fishing skill a zone's waters ask for, colored against yours."
+L["Dungeon Maps"] = "Dungeon Maps"
+L["Open from Markers"] = "Open from Markers"
+L["Left-clicking a dungeon or raid marker shows the instance's map, with its floors and bosses."] =
+	"Left-clicking a dungeon or raid marker shows the instance's map, with its floors and bosses."
+L["Open Inside Instances"] = "Open Inside Instances"
+L["Opening the world map inside a dungeon or raid shows its map, where Blizzard's has none."] =
+	"Opening the world map inside a dungeon or raid shows its map, where Blizzard's has none."
+L["Only instances whose map art the game has; the others keep the journal."] =
+	"Only instances whose map art the game has; the others keep the journal."
 
 -- Map Markers page (Settings)
 L["Map Markers"] = "Map Markers"
@@ -303,6 +312,15 @@ L["Click: choose a destination"] = "Click: choose a destination"
 L["Left-click: %s"] = "Left-click: %s"
 L["Shift-click: set a waypoint"] = "Shift-click: set a waypoint"
 L["Shift-click: remove the waypoint"] = "Shift-click: remove the waypoint"
+L["Dungeon Map"] = "Dungeon Map"
+
+-- Dungeon maps (World Map)
+L["Floor %d"] = "Floor %d"
+L["Up to %s"] = "Up to %s"
+L["Down to %s"] = "Down to %s"
+L["Entrance"] = "Entrance"
+L["Optional"] = "Optional"
+L["Right-click: back to the map"] = "Right-click: back to the map"
 
 -- Profiles page (Settings)
 L["Keep different setups of AeonUI, and share them as text."] =

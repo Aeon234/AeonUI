@@ -339,7 +339,8 @@ function WorldMap:ChooseStop(pin, stops)
 end
 
 ---A click on a pin: Shift toggles the waypoint on its first marker; a transport shows its first destination on the
----left button and its second on the right, or offers a menu for more; an instance opens in the journal.
+---left button and its second on the right, or offers a menu for more; an instance opens its dungeon map, or else the
+---journal.
 ---@param pin AeonUIWorldMapPinMixin
 ---@param button string
 function WorldMap:Click(pin, button)
@@ -370,9 +371,19 @@ function WorldMap:Click(pin, button)
 		return
 	end
 
-	local journal = group.category.instance and self:CanOpenJournal() and self:JournalInstance(marker)
+	if button ~= "LeftButton" or not group.category.instance then
+		return
+	end
 
-	if button == "LeftButton" and journal then
+	if AUI.WorldMapDungeon:CanOpen(marker.instance) then
+		AUI.WorldMapDungeon:Open(marker.instance --[[@as number]], self:MarkerName(marker), marker.wing)
+
+		return
+	end
+
+	local journal = self:CanOpenJournal() and self:JournalInstance(marker)
+
+	if journal then
 		self:OpenJournal(journal)
 	end
 end
@@ -455,6 +466,8 @@ function WorldMap:AddHints(group)
 				hints[#hints + 1] = L["Right-click: show %s"]:format(self:StopName(stops[2]))
 			end
 		end
+	elseif group.category.instance and AUI.WorldMapDungeon:CanOpen(marker.instance) then
+		hints[#hints + 1] = L["Left-click: %s"]:format(L["Dungeon Map"])
 	elseif group.category.instance and self:CanOpenJournal() and self:JournalInstance(marker) then
 		hints[#hints + 1] = L["Left-click: %s"]:format(ENCOUNTER_JOURNAL)
 	end
@@ -550,6 +563,7 @@ function WorldMap:Apply()
 	self:ApplyMarkers()
 	AUI.WorldMapUnexplored:Apply()
 	AUI.WorldMapLevels:Apply()
+	AUI.WorldMapDungeon:Apply()
 end
 
 ---Reads the marker settings, then puts the provider on the map and redraws, or takes it off.

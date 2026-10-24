@@ -154,6 +154,12 @@ L["Zone Levels"] = "Niveaux de zone"
 L["Adds a zone's level range to its name as you hover it on a continent."] = "Ajoute la tranche de niveaux d'une zone à son nom quand vous la survolez sur un continent."
 L["Fishing Levels"] = "Niveaux de pêche"
 L["Adds the Fishing skill a zone's waters ask for, colored against yours."] = "Ajoute la compétence de pêche que demandent les eaux d'une zone, colorée selon la vôtre."
+L["Dungeon Maps"] = "Cartes de donjon"
+L["Open from Markers"] = "Ouvrir depuis les marqueurs"
+L["Left-clicking a dungeon or raid marker shows the instance's map, with its floors and bosses."] = "Un clic gauche sur un marqueur de donjon ou de raid affiche la carte de l'instance, avec ses niveaux et ses boss."
+L["Open Inside Instances"] = "Ouvrir dans les instances"
+L["Opening the world map inside a dungeon or raid shows its map, where Blizzard's has none."] = "Ouvrir la carte du monde dans un donjon ou un raid affiche sa carte, là où celle de Blizzard n'en a pas."
+L["Only instances whose map art the game has; the others keep the journal."] = "Seulement les instances dont le jeu a la carte ; les autres gardent le guide des donjons."
 
 -- Map Markers page (Settings)
 L["Map Markers"] = "Marqueurs de carte"
@@ -257,6 +263,15 @@ L["Click: choose a destination"] = "Clic : choisir une destination"
 L["Left-click: %s"] = "Clic gauche : %s"
 L["Shift-click: set a waypoint"] = "Maj-clic : placer un point de passage"
 L["Shift-click: remove the waypoint"] = "Maj-clic : retirer le point de passage"
+L["Dungeon Map"] = "Carte du donjon"
+
+-- Dungeon maps (World Map)
+L["Floor %d"] = "Niveau %d"
+L["Up to %s"] = "Monter vers %s"
+L["Down to %s"] = "Descendre vers %s"
+L["Entrance"] = "Entrée"
+L["Optional"] = "Facultatif"
+L["Right-click: back to the map"] = "Clic droit : retour à la carte"
 
 -- Profiles page (Settings)
 L["Keep different setups of AeonUI, and share them as text."] = "Conservez différentes configurations d'AeonUI et partagez-les sous forme de texte."

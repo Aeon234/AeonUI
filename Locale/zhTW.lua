@@ -154,6 +154,12 @@ L["Zone Levels"] = "區域等級"
 L["Adds a zone's level range to its name as you hover it on a continent."] = "在大陸地圖上懸停區域時，在名稱後加上其等級範圍。"
 L["Fishing Levels"] = "釣魚等級"
 L["Adds the Fishing skill a zone's waters ask for, colored against yours."] = "加上該區域水域所需的釣魚技能，並依你的技能著色。"
+L["Dungeon Maps"] = "地城地圖"
+L["Open from Markers"] = "從標記開啟"
+L["Left-clicking a dungeon or raid marker shows the instance's map, with its floors and bosses."] = "左鍵點擊地城或團隊副本標記，顯示該副本的地圖及其樓層與首領。"
+L["Open Inside Instances"] = "在副本內開啟"
+L["Opening the world map inside a dungeon or raid shows its map, where Blizzard's has none."] = "在地城或團隊副本內開啟世界地圖時，若暴雪地圖沒有該副本地圖，則顯示它。"
+L["Only instances whose map art the game has; the others keep the journal."] = "僅限遊戲中有地圖圖像的副本；其餘仍開啟冒險指南。"
 
 -- Map Markers page (Settings)
 L["Map Markers"] = "地圖標記"
@@ -257,6 +263,15 @@ L["Click: choose a destination"] = "點擊：選擇目的地"
 L["Left-click: %s"] = "左鍵點擊：%s"
 L["Shift-click: set a waypoint"] = "Shift-點擊：設定路徑點"
 L["Shift-click: remove the waypoint"] = "Shift-點擊：移除路徑點"
+L["Dungeon Map"] = "地城地圖"
+
+-- Dungeon maps (World Map)
+L["Floor %d"] = "第%d層"
+L["Up to %s"] = "上到%s"
+L["Down to %s"] = "下到%s"
+L["Entrance"] = "入口"
+L["Optional"] = "可選"
+L["Right-click: back to the map"] = "右鍵點擊：返回地圖"
 
 -- Profiles page (Settings)
 L["Keep different setups of AeonUI, and share them as text."] = "保存 AeonUI 的不同配置，並以文字形式分享。"

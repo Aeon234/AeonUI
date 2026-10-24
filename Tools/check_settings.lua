@@ -634,7 +634,7 @@ for index, section in ipairs(optionsPage.sections) do
 		Equal(setting.id .. " carries its default", setting.default, field.default)
 	end
 end
-Equal("sections: unexplored, levels", table.concat(optionSections, " "), "unexplored levels")
+Equal("sections: unexplored, levels, dungeon maps", table.concat(optionSections, " "), "unexplored levels dungeonMaps")
 local darkness = optionsPage.sections.unexplored.settings.darkness
 Equal("darkness is a percentage", darkness.format, "percent")
 Equal("which needs the unexplored areas on", darkness.depends, "unexplored")
