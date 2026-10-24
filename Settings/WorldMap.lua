@@ -53,8 +53,8 @@ local function ForPlayer(category)
 	end
 end
 
----The World Map header and its pages. Map Markers carries the markers' switch, which takes effect at once. Left out
----where there is no marker data for the client's world.
+---The World Map header and its pages: Map Options, then Map Markers, which carries the markers' switch. Changes take
+---effect at once. Left out where there is no marker data for the client's world.
 ---@class AUISettingsWorldMap
 ---@field pageIDs table<string, true> the pages under the World Map header
 local SettingsWorldMap = {
@@ -68,10 +68,66 @@ function SettingsWorldMap:IsAvailable()
 end
 
 ---@param window table
+function SettingsWorldMap:DeclareOptions(window)
+	local Settings, Options = AUI.Settings, AUI.WorldMapOptions
+	local page = window:Page("worldMapOptions", {
+		title = L["Map Options"],
+		description = L["How Blizzard's world map draws zones and what it adds as you hover them."],
+		under = "worldMapHeader",
+	})
+
+	if not page then
+		return
+	end
+
+	self.pageIDs.worldMapOptions = true
+
+	local unexplored = page:Section("unexplored", L["Unexplored Areas"])
+
+	unexplored:Checkbox({
+		id = "unexplored",
+		label = L["Show Unexplored Areas"],
+		description = L["Draws the parts of a zone you have not explored yet, darkened, instead of leaving them blank."],
+		path = Options.UNEXPLORED_PATH,
+		default = Settings:Default(Options.UNEXPLORED_PATH),
+	})
+	unexplored:Slider({
+		id = "darkness",
+		resettable = true,
+		label = L["Darkness"],
+		path = Options.DARKNESS_PATH,
+		default = Settings:Default(Options.DARKNESS_PATH),
+		depends = "unexplored",
+		min = 10,
+		max = 90,
+		step = 5,
+		format = "percent",
+	})
+
+	local levels = page:Section("levels", L["Zone Labels"])
+
+	levels:Checkbox({
+		id = "zoneLevels",
+		label = L["Zone Levels"],
+		description = L["Adds a zone's level range to its name as you hover it on a continent."],
+		path = Options.ZONE_LEVELS_PATH,
+		default = Settings:Default(Options.ZONE_LEVELS_PATH),
+	})
+	levels:Checkbox({
+		id = "fishingLevels",
+		label = L["Fishing Levels"],
+		description = L["Adds the Fishing skill a zone's waters ask for, colored against yours."],
+		path = Options.FISHING_LEVELS_PATH,
+		default = Settings:Default(Options.FISHING_LEVELS_PATH),
+	})
+end
+
+---@param window table
 function SettingsWorldMap:Declare(window)
 	local Settings, Markers = AUI.Settings, AUI.WorldMapMarkers
 
 	window:Header("worldMapHeader", WORLDMAP_BUTTON)
+	self:DeclareOptions(window)
 
 	local page = window:Page("worldMapMarkers", {
 		title = L["Map Markers"],

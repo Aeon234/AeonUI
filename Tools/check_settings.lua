@@ -320,7 +320,7 @@ end })
 for _, file in ipairs({ "Core/Callbacks.lua", "Core/Capabilities.lua", "Core/Broker.lua", "Profile/Schema.lua",
 	"Profile/Store.lua", "Profile/Profile.lua", "UI/Border.lua", "Minimap/Layout.lua", "Minimap/Elements.lua",
 	"Minimap/Rows.lua", "Minimap/Fade.lua", "Minimap/Text.lua", "Minimap/Difficulty.lua",
-	"Minimap/Buttons.lua", "Minimap/Map.lua", "WorldMap/Markers.lua", "Settings/Window.lua", "Settings/MinimapEditor.lua",
+	"Minimap/Buttons.lua", "Minimap/Map.lua", "WorldMap/Markers.lua", "WorldMap/Options.lua", "Settings/Window.lua", "Settings/MinimapEditor.lua",
 	"Settings/General.lua", "Settings/Minimap.lua", "Settings/WorldMap.lua", "Settings/Profiles.lua", "Settings/Recovery.lua",
 	"Settings/EditTargets.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
@@ -619,7 +619,27 @@ Equal("no World Map header without marker data", table.concat(window.order, " ")
 AUI.can.worldMapMarkers = true
 window = Load(nil)
 Equal("the World Map header follows the Minimap's", table.concat(window.order, " "):match("minimapCompartment (.*)$"),
-	"- #worldMapHeader worldMapMarkers - profiles")
+	"- #worldMapHeader worldMapOptions worldMapMarkers - profiles")
+local optionsPage = window.pages.worldMapOptions
+Equal("Map Options sits under the World Map header", optionsPage.info.under, "worldMapHeader")
+Equal("with no page switch", optionsPage.info.switch, nil)
+local optionSections = {}
+for index, section in ipairs(optionsPage.sections) do
+	optionSections[index] = section.id
+
+	for _, setting in ipairs(section.settings) do
+		local field = AUI.Schema:Field(setting.path)
+
+		Equal(setting.id .. " names a setting", field ~= nil, true)
+		Equal(setting.id .. " carries its default", setting.default, field.default)
+	end
+end
+Equal("sections: unexplored, levels", table.concat(optionSections, " "), "unexplored levels")
+local darkness = optionsPage.sections.unexplored.settings.darkness
+Equal("darkness is a percentage", darkness.format, "percent")
+Equal("which needs the unexplored areas on", darkness.depends, "unexplored")
+Equal("fishing levels start off", optionsPage.sections.levels.settings.fishingLevels.default, false)
+Equal("Map Options is listed as the World Map's", AUI.SettingsWorldMap.pageIDs.worldMapOptions, true)
 local markersPage = window.pages.worldMapMarkers
 Equal("Map Markers sits under the World Map header", markersPage.info.under, "worldMapHeader")
 Equal("Map Markers carries the markers' switch", markersPage.info.switch.path, "worldMap.markers.enabled")

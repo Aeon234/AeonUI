@@ -2,7 +2,8 @@
 -- marker rows by map, which markers a zone map draws, placing a zone's markers on its continent through the map
 -- rectangles, the map types each category shows on, turning a category off, leaving out the other faction's and
 -- other races' markers, grouping markers that meet, each category's icon, the town markers' class and capital rules,
--- exit arrows' rotation, and the shape of Forever's marker and town data.
+-- exit arrows' rotation, the shape of Forever's marker and town data, and the Map Options: their settings, which
+-- areas are unexplored, splitting an area into the art's tiles, the range text and Fishing colors, and their data.
 -- Run from any directory with Lua 5.1: lua Tools/check_worldmap.lua
 -- Loads the real files against stubbed globals. It proves the logic, not the drawing.
 
@@ -11,7 +12,8 @@ local root = (arg and arg[0] or ""):match("^(.-)[^/\\]*$") .. "../"
 -- Environment ---------------------------------------------------------------------------------------------
 
 local AUI = {}
-for _, file in ipairs({ "Profile/Schema.lua", "WorldMap/Markers.lua", "WorldMap/Data.lua", "WorldMap/TownData.lua" }) do
+for _, file in ipairs({ "Profile/Schema.lua", "WorldMap/Markers.lua", "WorldMap/Data.lua", "WorldMap/TownData.lua",
+	"WorldMap/Options.lua", "WorldMap/OptionsData.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 
@@ -273,6 +275,67 @@ Equal("a round minimap holds a point inside its radius", Markers:OnMinimap(30, 4
 Equal("and not one past it", Markers:OnMinimap(40, 40, { radius = 50 }), false)
 Equal("a rectangular minimap holds its corner", Markers:OnMinimap(90, 60, { halfWidth = 100, halfHeight = 70 }), true)
 Equal("and not a point past its height", Markers:OnMinimap(10, 71, { halfWidth = 100, halfHeight = 70 }), false)
+
+-- Map Options -------------------------------------------------------------------------------------------------
+
+local Options = AUI.WorldMapOptions
+Equal("unexplored areas default on", Schema:Field(Options.UNEXPLORED_PATH).default, true)
+Equal("at half darkness", Schema:Field(Options.DARKNESS_PATH).default, 50)
+Equal("darkness refuses below 10%", (Schema:CheckValue(Options.DARKNESS_PATH, 5)), false)
+Equal("darkness refuses above 90%", (Schema:CheckValue(Options.DARKNESS_PATH, 95)), false)
+Equal("zone levels default on", Schema:Field(Options.ZONE_LEVELS_PATH).default, true)
+Equal("fishing levels default off", Schema:Field(Options.FISHING_LEVELS_PATH).default, false)
+
+local areas = { { 100, 100, 0, 0, 11 }, { 300, 200, 10, 20, 21, 22, 23, 24 }, { 50, 50, 5, 5, 31 } }
+local unexplored = Options:Unexplored(areas, { [21] = true })
+Equal("an explored area is left out", #unexplored, 2)
+Equal("the rest keep their order", unexplored[1][5] == 11 and unexplored[2][5] == 31, true)
+Equal("nothing explored leaves every area", #Options:Unexplored(areas, {}), 3)
+
+local tiles = Options:Tiles(areas[2], 256, 256)
+Equal("a 300 by 200 area takes two tiles across, one down", #tiles, 2)
+Equal("the first is a full tile", tiles[1].width == 256 and tiles[1].height == 200 and tiles[1].right == 1, true)
+Equal("in its own file", tiles[1].file, 21)
+Near("its height fills 200 of a 256 file", tiles[1].bottom, 200 / 256)
+Equal("the last column holds the rest", tiles[2].width, 44)
+Near("in a 64-wide file", tiles[2].right, 44 / 64)
+Equal("beside the first", tiles[2].x == 266 and tiles[2].y == 20, true)
+Equal("in the next file", tiles[2].file, 22)
+tiles = Options:Tiles({ 512, 300, 0, 0, 1, 2, 3, 4 }, 256, 256)
+Equal("a 512 by 300 area takes two rows of two", #tiles, 4)
+Equal("the second row starts with the third file", tiles[3].file == 3 and tiles[3].y == 256, true)
+Equal("and holds the rest of the height", tiles[3].height, 44)
+Equal("a whole last tile keeps its full file", tiles[2].right, 1)
+tiles = Options:Tiles({ 10, 10, 0, 0, 7 }, 256, 256)
+Near("the smallest file is 16", tiles[1].right, 10 / 16)
+
+Equal("a range reads as Blizzard's labels write it", Options:RangeText({ 10, 25 }), "(10-25)")
+Equal("a single level stands alone", Options:RangeText({ 60, 60 }), "(60)")
+Equal("no Fishing is gray", Options:FishingDifficulty(nil, { 55, 150 }), "trivial")
+Equal("below the range is red", Options:FishingDifficulty(40, { 55, 150 }), "impossible")
+Equal("inside it is yellow", Options:FishingDifficulty(55, { 55, 150 }), "difficult")
+Equal("at its top is green", Options:FishingDifficulty(150, { 55, 150 }), "standard")
+
+local exploration, areaCount = AUI.WorldMapExplorationData(), 0
+for art, list in pairs(exploration) do
+	for index, area in ipairs(list) do
+		local where = ("unexplored area %d of art %d"):format(index, art)
+		local files = math.ceil(area[1] / 256) * math.ceil(area[2] / 256)
+
+		areaCount = areaCount + 1
+		Equal(where .. " has a size and offset", area[1] > 0 and area[2] > 0 and area[3] >= 0 and area[4] >= 0, true)
+		Equal(where .. " names a file for each 256 tile", #area, 4 + files)
+	end
+end
+Equal("every unexplored area of the sources is here", areaCount, 572)
+local levelData, ranges = AUI.WorldMapLevelData(), 0
+for kind, list in pairs(levelData) do
+	for mapID, range in pairs(list) do
+		ranges = ranges + 1
+		Equal(kind .. " range on " .. mapID .. " runs low to high", range[1] <= range[2] and range[1] > 0, true)
+	end
+end
+Equal("41 zone and 43 fishing ranges", ranges, 84)
 
 -- Forever's data ----------------------------------------------------------------------------------------------
 

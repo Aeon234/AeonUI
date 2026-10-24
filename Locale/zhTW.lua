@@ -142,6 +142,19 @@ L["Follower"] = "追隨者"
 L["Delves"] = "探究"
 L["Story"] = "劇情"
 
+-- Map Options page (Settings)
+L["Map Options"] = "地圖選項"
+L["How Blizzard's world map draws zones and what it adds as you hover them."] = "暴雪世界地圖如何繪製區域，以及滑鼠懸停時額外顯示的內容。"
+L["Unexplored Areas"] = "未探索區域"
+L["Show Unexplored Areas"] = "顯示未探索區域"
+L["Draws the parts of a zone you have not explored yet, darkened, instead of leaving them blank."] = "將區域中尚未探索的部分以暗色繪製，而不是留白。"
+L["Darkness"] = "暗度"
+L["Zone Labels"] = "區域標籤"
+L["Zone Levels"] = "區域等級"
+L["Adds a zone's level range to its name as you hover it on a continent."] = "在大陸地圖上懸停區域時，在名稱後加上其等級範圍。"
+L["Fishing Levels"] = "釣魚等級"
+L["Adds the Fishing skill a zone's waters ask for, colored against yours."] = "加上該區域水域所需的釣魚技能，並依你的技能著色。"
+
 -- Map Markers page (Settings)
 L["Map Markers"] = "地圖標記"
 L["Dungeons, raids, travel and other places marked on the world map. Hover a marker for its name."] = "在世界地圖上標出的地城、團隊副本、交通和其他地點。將滑鼠游標停在標記上可查看名稱。"

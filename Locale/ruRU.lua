@@ -142,6 +142,19 @@ L["Follower"] = "Соратн."
 L["Delves"] = "Вылазки"
 L["Story"] = "Сюжет"
 
+-- Map Options page (Settings)
+L["Map Options"] = "Параметры карты"
+L["How Blizzard's world map draws zones and what it adds as you hover them."] = "Как карта мира Blizzard рисует зоны и что добавляет при наведении курсора."
+L["Unexplored Areas"] = "Неисследованные области"
+L["Show Unexplored Areas"] = "Показывать неисследованные области"
+L["Draws the parts of a zone you have not explored yet, darkened, instead of leaving them blank."] = "Рисует ещё не исследованные части зоны затемнёнными, а не оставляет их пустыми."
+L["Darkness"] = "Затемнение"
+L["Zone Labels"] = "Подписи зон"
+L["Zone Levels"] = "Уровни зон"
+L["Adds a zone's level range to its name as you hover it on a continent."] = "Добавляет к названию зоны диапазон уровней при наведении на неё на карте континента."
+L["Fishing Levels"] = "Уровни рыбной ловли"
+L["Adds the Fishing skill a zone's waters ask for, colored against yours."] = "Добавляет навык рыбной ловли, нужный в водах зоны, с цветом по вашему навыку."
+
 -- Map Markers page (Settings)
 L["Map Markers"] = "Метки на карте"
 L["Dungeons, raids, travel and other places marked on the world map. Hover a marker for its name."] = "Подземелья, рейды, транспорт и другие места, отмеченные на карте мира. Наведите курсор на метку, чтобы увидеть её название."

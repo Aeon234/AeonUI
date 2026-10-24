@@ -142,6 +142,19 @@ L["Follower"] = "Seguid."
 L["Delves"] = "Profund."
 L["Story"] = "Historia"
 
+-- Map Options page (Settings)
+L["Map Options"] = "Opciones del mapa"
+L["How Blizzard's world map draws zones and what it adds as you hover them."] = "Cómo dibuja las zonas el mapa del mundo de Blizzard y qué añade al pasar el cursor."
+L["Unexplored Areas"] = "Zonas inexploradas"
+L["Show Unexplored Areas"] = "Mostrar zonas inexploradas"
+L["Draws the parts of a zone you have not explored yet, darkened, instead of leaving them blank."] = "Dibuja oscurecidas las partes de una zona que aún no has explorado, en lugar de dejarlas en blanco."
+L["Darkness"] = "Oscuridad"
+L["Zone Labels"] = "Rótulos de zona"
+L["Zone Levels"] = "Niveles de zona"
+L["Adds a zone's level range to its name as you hover it on a continent."] = "Añade el rango de niveles de una zona a su nombre al pasar el cursor sobre ella en un continente."
+L["Fishing Levels"] = "Niveles de pesca"
+L["Adds the Fishing skill a zone's waters ask for, colored against yours."] = "Añade la habilidad de pesca que piden las aguas de una zona, coloreada según la tuya."
+
 -- Map Markers page (Settings)
 L["Map Markers"] = "Marcadores del mapa"
 L["Dungeons, raids, travel and other places marked on the world map. Hover a marker for its name."] = "Mazmorras, bandas, viajes y otros lugares marcados en el mapa del mundo. Pasa el ratón sobre un marcador para ver su nombre."

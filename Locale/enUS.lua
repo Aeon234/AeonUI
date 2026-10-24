@@ -179,6 +179,23 @@ L["Follower"] = "Follower"
 L["Delves"] = "Delves"
 L["Story"] = "Story"
 
+-- Map Options page (Settings)
+L["Map Options"] = "Map Options"
+L["How Blizzard's world map draws zones and what it adds as you hover them."] =
+	"How Blizzard's world map draws zones and what it adds as you hover them."
+L["Unexplored Areas"] = "Unexplored Areas"
+L["Show Unexplored Areas"] = "Show Unexplored Areas"
+L["Draws the parts of a zone you have not explored yet, darkened, instead of leaving them blank."] =
+	"Draws the parts of a zone you have not explored yet, darkened, instead of leaving them blank."
+L["Darkness"] = "Darkness"
+L["Zone Labels"] = "Zone Labels"
+L["Zone Levels"] = "Zone Levels"
+L["Adds a zone's level range to its name as you hover it on a continent."] =
+	"Adds a zone's level range to its name as you hover it on a continent."
+L["Fishing Levels"] = "Fishing Levels"
+L["Adds the Fishing skill a zone's waters ask for, colored against yours."] =
+	"Adds the Fishing skill a zone's waters ask for, colored against yours."
+
 -- Map Markers page (Settings)
 L["Map Markers"] = "Map Markers"
 L["Dungeons, raids, travel and other places marked on the world map. Hover a marker for its name."] =

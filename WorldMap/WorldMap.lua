@@ -379,7 +379,7 @@ end
 
 ---@param levels number[] `{ min, max }`
 ---@return table color the range's color against the player's level, as Blizzard's map labels color zones
-local function LevelColor(levels)
+function WorldMap:LevelColor(levels)
 	local level = AUI:Readable(UnitLevel("player"), 0)
 
 	if level < levels[1] then
@@ -420,7 +420,7 @@ function WorldMap:AddMarkerLines(marker, first)
 		local text = levels[1] == levels[2] and L["Level %d"]:format(levels[1])
 			or L["Level %d-%d"]:format(levels[1], levels[2])
 
-		GameTooltip_AddColoredLine(GameTooltip, text, LevelColor(levels))
+		GameTooltip_AddColoredLine(GameTooltip, text, self:LevelColor(levels))
 	end
 
 	if marker.faction then
@@ -545,8 +545,15 @@ function WorldMap:OnProfileChanged(path)
 	end)
 end
 
----Reads the marker settings, then puts the provider on the map and redraws, or takes it off.
+---Applies the World Map's settings: the markers, then the map options.
 function WorldMap:Apply()
+	self:ApplyMarkers()
+	AUI.WorldMapUnexplored:Apply()
+	AUI.WorldMapLevels:Apply()
+end
+
+---Reads the marker settings, then puts the provider on the map and redraws, or takes it off.
+function WorldMap:ApplyMarkers()
 	local Profile = AUI.Profile
 	local provider = AUI.WorldMapProvider
 
