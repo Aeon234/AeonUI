@@ -252,6 +252,28 @@ local zone, above, right = { 0, 0.5, 0.5, 1 }, { 0, 0.5, 0, 0.5 }, { 0.5, 1, 0.5
 Near("an exit toward a zone above points up", Markers:ExitRotation(0.5, 0.5, zone, above), 0)
 Near("toward a zone to the right it turns clockwise", Markers:ExitRotation(0.5, 0.5, zone, right), -math.pi / 2)
 
+-- Minimap pins ------------------------------------------------------------------------------------------------
+
+for _, entry in ipairs(Markers.MINIMAP) do
+	Equal(entry.key .. " on the minimap defaults on", Schema:Field(Markers:MinimapPath(entry.key)).default, true)
+	for _, key in ipairs(entry.categories) do
+		Equal(entry.key .. " shows a known category", Markers.byKey[key] ~= nil, true)
+	end
+end
+local right, up = Markers:MinimapOffset(10, 0)
+Equal("a marker to the north is straight up", right == 0 and up == 10, true)
+right, up = Markers:MinimapOffset(0, 10)
+Equal("a marker to the west is to the left", right == -10 and up == 0, true)
+right, up = Markers:MinimapOffset(0, 10, math.pi / 2)
+Near("facing west turns it straight up", up, 10)
+Near("with nothing to the side", right, 0)
+right, up = Markers:MinimapOffset(10, 0, math.pi / 2)
+Near("facing west puts the north to the right", right, 10)
+Equal("a round minimap holds a point inside its radius", Markers:OnMinimap(30, 40, { radius = 50 }), true)
+Equal("and not one past it", Markers:OnMinimap(40, 40, { radius = 50 }), false)
+Equal("a rectangular minimap holds its corner", Markers:OnMinimap(90, 60, { halfWidth = 100, halfHeight = 70 }), true)
+Equal("and not a point past its height", Markers:OnMinimap(10, 71, { halfWidth = 100, halfHeight = 70 }), false)
+
 -- Forever's data ----------------------------------------------------------------------------------------------
 
 local rows = AUI.WorldMapData()

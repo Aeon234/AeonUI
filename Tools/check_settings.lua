@@ -628,7 +628,9 @@ local sectionIDs = {}
 for index, section in ipairs(markersPage.sections) do
 	sectionIDs[index] = section.id
 end
-Equal("sections: places, travel, town, display", table.concat(sectionIDs, " "), "places travel town display")
+Equal("sections: places, travel, town, minimap, display", table.concat(sectionIDs, " "),
+	"places travel town minimap display")
+Equal("a minimap switch for each group", #markersPage.sections.minimap.settings, #AUI.WorldMapMarkers.MINIMAP)
 Equal("the cities-only switch sits in Town", markersPage.sections.town.settings.capitalsOnly.path,
 	"worldMap.markers.capitalsOnly")
 local switches = 0

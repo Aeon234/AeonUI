@@ -112,6 +112,22 @@ function SettingsWorldMap:Declare(window)
 		end
 	end
 
+	local minimap = page:Section("minimap", L["Minimap Pins"])
+	local MINIMAP_LABELS = { mailboxes = L["Mailboxes"], spiritHealers = L["Spirit Healers"], docks = L["Docks"] }
+
+	for _, entry in ipairs(Markers.MINIMAP) do
+		local path = Markers:MinimapPath(entry.key)
+
+		minimap:Checkbox({
+			id = "minimap_" .. entry.key,
+			label = MINIMAP_LABELS[entry.key],
+			path = path,
+			default = Settings:Default(path),
+		})
+	end
+
+	minimap:Note(L["The nearest ones around you, on the minimap; they follow you as you move."])
+
 	local markers = page:Section("display", L["Display"])
 
 	markers:Checkbox({

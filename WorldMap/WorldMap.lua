@@ -556,6 +556,8 @@ function WorldMap:Apply()
 			WorldMapFrame:RemoveDataProvider(provider)
 		end
 
+		AUI.WorldMapMinimap:Apply(false)
+
 		return
 	end
 
@@ -587,6 +589,8 @@ function WorldMap:Apply()
 	if WorldMapFrame:IsShown() then
 		provider:RefreshAllData()
 	end
+
+	AUI.WorldMapMinimap:Apply(true)
 end
 
 ---Starts the module at login on a client with marker data.

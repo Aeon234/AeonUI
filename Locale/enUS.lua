@@ -193,6 +193,10 @@ L["Zeppelins"] = "Zeppelins"
 L["Skyships"] = "Skyships"
 L["Trams"] = "Trams"
 L["Portals"] = "Portals"
+L["Minimap Pins"] = "Minimap Pins"
+L["Docks"] = "Docks"
+L["The nearest ones around you, on the minimap; they follow you as you move."] =
+	"The nearest ones around you, on the minimap; they follow you as you move."
 L["Display"] = "Display"
 L["Show Other Faction"] = "Show Other Faction"
 L["Also marks the other faction's boats, zeppelins, trams and battleground entrances."] =

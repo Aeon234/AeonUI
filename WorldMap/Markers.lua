@@ -64,15 +64,18 @@ local ICONS = "Interface\\Icons\\"
 ---@field markers AUIWorldMapMarker[]
 ---@field rotation number? an exit's arrow rotation, in radians
 
----@class AUIWorldMapQuery
----@field mapID number the shown map
----@field mapType integer its `Enum.UIMapType`
+---@class AUIWorldMapFilter
+---@field mapID number? the shown map, for the capitals-only rule
 ---@field shown table<string, boolean> the categories turned on
 ---@field faction string? the player's faction; markers of the other are left out unless `otherFaction`
 ---@field otherFaction boolean? show the other faction's markers too
 ---@field race number? the player's race ID; markers for another race are left out
 ---@field class string? the player's class token; markers and categories for another class are left out
 ---@field capitalsOnly boolean? leave the capitals-only categories off maps other than a capital's
+
+---@class AUIWorldMapQuery: AUIWorldMapFilter
+---@field mapID number the shown map
+---@field mapType integer its `Enum.UIMapType`
 ---@field rect fun(from: number): number?, number?, number?, number? where a map lies on the shown one, as minX, maxX,
 ---minY and maxY, or nothing when it does not lie on it
 
@@ -350,7 +353,7 @@ function Markers:IsIndexed()
 end
 
 ---@param marker AUIWorldMapMarker
----@param query AUIWorldMapQuery
+---@param query AUIWorldMapFilter
 ---@return boolean shown the marker's category is on and the marker is for the player's faction and race
 function Markers:IsShown(marker, query)
 	if not query.shown[marker.category] then
@@ -367,7 +370,7 @@ function Markers:IsShown(marker, query)
 		return false
 	end
 
-	if category.capitalsOnly and query.capitalsOnly and not self.CAPITALS[query.mapID] then
+	if category.capitalsOnly and query.capitalsOnly and not self.CAPITALS[query.mapID or 0] then
 		return false
 	end
 
@@ -451,15 +454,23 @@ end
 ---@return string? file the icon's file, when the category draws one in place of an atlas
 ---@return boolean? crop the file is a square icon whose edge is cut off
 function Markers:Icon(group)
-	local category = group.category
-	local kind = category.kinds and category.kinds[group.markers[1].kind or ""]
+	return self:MarkerIcon(group.category, group.markers[1])
+end
+
+---@param category AUIWorldMapCategory
+---@param marker AUIWorldMapMarker
+---@return string? atlas
+---@return string? file the icon's file, when the category draws one in place of an atlas
+---@return boolean? crop the file is a square icon whose edge is cut off
+function Markers:MarkerIcon(category, marker)
+	local kind = category.kinds and category.kinds[marker.kind or ""]
 
 	if kind then
 		return kind.atlas, kind.file, kind.crop
 	end
 
 	if category.textures then
-		local faction = group.markers[1].faction
+		local faction = marker.faction
 
 		return nil, category.textures[faction or "Alliance"]
 	end
@@ -525,4 +536,59 @@ function Markers:ExitRotation(x, y, zone, destination)
 	local dy = (destination[3] + destination[4]) / 2 - fromY
 
 	return math.atan2(-dx, -dy)
+end
+
+---The minimap's marker groups, each with its switch and the categories it shows.
+Markers.MINIMAP = {
+	{ key = "mailboxes", categories = { "mailboxes" } },
+	{ key = "spiritHealers", categories = { "spiritHealers" } },
+	{ key = "docks", categories = { "boats", "zeppelins", "skyships" } },
+}
+
+---@param key string a minimap group's key
+---@return string path its switch
+function Markers:MinimapPath(key)
+	return "worldMap.minimap." .. key
+end
+
+for _, entry in ipairs(Markers.MINIMAP) do
+	Schema:Boolean(Markers:MinimapPath(entry.key), true)
+end
+
+---Where a marker sits on the minimap against the player, in yards: right and up from the player. A rotating minimap
+---turns with the player's facing, so the direction faced points up.
+---@param north number how far north of the player the marker is
+---@param west number how far west
+---@param facing number? the player's facing in radians, counterclockwise from north, when the minimap rotates
+---@return number right
+---@return number up
+function Markers:MinimapOffset(north, west, facing)
+	local right, up = -west, north
+
+	if facing then
+		local cos, sin = math.cos(facing), math.sin(facing)
+
+		right, up = right * cos + up * sin, up * cos - right * sin
+	end
+
+	return right, up
+end
+
+---@class AUIMinimapShape
+---@field radius number? a round minimap's radius
+---@field halfWidth number? a rectangular minimap's half width, in place of a radius
+---@field halfHeight number?
+
+---@param x number right of the minimap's middle
+---@param y number up from it
+---@param shape AUIMinimapShape the visible area, already shrunk by the pin's half size
+---@return boolean inside the point lies on the visible minimap
+function Markers:OnMinimap(x, y, shape)
+	local radius = shape.radius
+
+	if radius then
+		return x * x + y * y <= radius * radius
+	end
+
+	return math.abs(x) <= (shape.halfWidth or 0) and math.abs(y) <= (shape.halfHeight or 0)
 end
