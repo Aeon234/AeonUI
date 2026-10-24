@@ -52,6 +52,14 @@ StaticPopupDialogs[RESET_POPUP] = {
 	EditBoxOnTextChanged = function(editBox)
 		StaticPopup_StandardConfirmationTextHandler(editBox, CONFIRM_WORD)
 	end,
+	-- Enter accepts only once the word matches, as the Reset button does.
+	EditBoxOnEnterPressed = function(editBox)
+		local dialog = editBox:GetParent()
+
+		if dialog:GetButton1():IsEnabled() then
+			StaticPopup_OnClick(dialog, 1)
+		end
+	end,
 	EditBoxOnEscapePressed = StaticPopup_StandardEditBoxOnEscapePressed,
 	OnAccept = function()
 		Recovery:Reset()

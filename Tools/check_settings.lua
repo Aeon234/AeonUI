@@ -552,6 +552,24 @@ Equal("then asks for the word", popups[#popups].which, "AEONUI_RESET_SAVED_SETTI
 local resetPopup = StaticPopupDialogs.AEONUI_RESET_SAVED_SETTINGS
 resetPopup.EditBoxOnTextChanged("box")
 Equal("the word is RESET", confirmations[#confirmations].expected, "RESET")
+local clicked, matches = {}, false
+local resetDialog = { GetButton1 = function()
+	return { IsEnabled = function()
+		return matches
+	end }
+end }
+local resetBox = { GetParent = function()
+	return resetDialog
+end }
+function StaticPopup_OnClick(dialog, index)
+	clicked[#clicked + 1] = { dialog = dialog, index = index }
+end
+resetPopup.EditBoxOnEnterPressed(resetBox)
+Equal("Enter does nothing before the word matches", #clicked, 0)
+matches = true
+resetPopup.EditBoxOnEnterPressed(resetBox)
+Equal("then Enter presses Reset", #clicked == 1 and clicked[1].dialog == resetDialog and clicked[1].index == 1, true)
+StaticPopup_OnClick = nil
 resetPopup.OnAccept()
 Equal("reset leaves recovery", Profile.mode, "normal")
 Equal("reset saves a new store", AeonUIDB, Profile.root)
