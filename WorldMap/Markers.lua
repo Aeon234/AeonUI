@@ -23,6 +23,9 @@ local NODE_SCALES = { [ZONE] = 0.8 }
 ---@field scales table<integer, number> each `Enum.UIMapType` the category shows on, with its markers' size there
 ---@field race number? the race ID the category's markers are for; its switch is offered only to that race
 ---@field name string? the locale key that names each marker of the category
+---@field label string the locale key of one marker's kind, as its tooltip names it
+---@field transport boolean? its markers take the player somewhere: clicks open their destinations' maps
+---@field instance boolean? its markers are instance entrances, which open in the journal
 
 ---@class AUIWorldMapMarker
 ---@field category string a category key
@@ -68,22 +71,80 @@ local NODE_SCALES = { [ZONE] = 0.8 }
 ---@field maps number[]? those maps in ascending order, so every query walks them alike
 local Markers = {
 	CATEGORIES = {
-		{ key = "dungeons", atlas = "Dungeon", group = "instance", scales = INSTANCE_SCALES },
-		{ key = "raids", atlas = "Raid", group = "instance", scales = INSTANCE_SCALES },
-		{ key = "worldBosses", atlas = "vignettekillboss", group = "boss", scales = INSTANCE_SCALES },
+		{
+			key = "dungeons",
+			label = "Dungeon",
+			atlas = "Dungeon",
+			group = "instance",
+			scales = INSTANCE_SCALES,
+			instance = true,
+		},
+		{
+			key = "raids",
+			label = "Raid",
+			atlas = "Raid",
+			group = "instance",
+			scales = INSTANCE_SCALES,
+			instance = true,
+		},
+		{
+			key = "worldBosses",
+			label = "World Boss",
+			atlas = "vignettekillboss",
+			group = "boss",
+			scales = INSTANCE_SCALES,
+		},
 		{
 			key = "battlegrounds",
+			label = "Battleground",
 			textures = { Alliance = MARKERS .. "AllianceBattleground", Horde = MARKERS .. "HordeBattleground" },
 			group = "battleground",
 			scales = INSTANCE_SCALES,
 		},
-		{ key = "boats", atlas = "flightmasterferry", group = "transport", scales = TRANSPORT_SCALES },
-		{ key = "zeppelins", atlas = "vehicle-air-horde", group = "transport", scales = TRANSPORT_SCALES },
-		{ key = "skyships", atlas = "vehicle-air-alliance", group = "transport", scales = TRANSPORT_SCALES },
-		{ key = "trams", atlas = "vehicle-alliancecart", group = "transport", scales = TRANSPORT_SCALES },
-		{ key = "portals", atlas = "mageportalalliance", group = "transport", scales = TRANSPORT_SCALES, race = 95 },
+		{
+			key = "boats",
+			label = "Boat",
+			atlas = "flightmasterferry",
+			group = "transport",
+			scales = TRANSPORT_SCALES,
+			transport = true,
+		},
+		{
+			key = "zeppelins",
+			label = "Zeppelin",
+			atlas = "vehicle-air-horde",
+			group = "transport",
+			scales = TRANSPORT_SCALES,
+			transport = true,
+		},
+		{
+			key = "skyships",
+			label = "Skyship",
+			atlas = "vehicle-air-alliance",
+			group = "transport",
+			scales = TRANSPORT_SCALES,
+			transport = true,
+		},
+		{
+			key = "trams",
+			label = "Tram",
+			atlas = "vehicle-alliancecart",
+			group = "transport",
+			scales = TRANSPORT_SCALES,
+			transport = true,
+		},
+		{
+			key = "portals",
+			label = "Portal",
+			atlas = "mageportalalliance",
+			group = "transport",
+			scales = TRANSPORT_SCALES,
+			transport = true,
+			race = 95,
+		},
 		{
 			key = "leyLines",
+			label = "Ley Line",
 			texture = MARKERS .. "LeyLine",
 			group = "leyLine",
 			scales = NODE_SCALES,
@@ -92,6 +153,7 @@ local Markers = {
 		},
 		{
 			key = "convergences",
+			label = "Elemental Convergence",
 			texture = MARKERS .. "Convergence",
 			group = "convergence",
 			scales = NODE_SCALES,
@@ -267,4 +329,39 @@ function Markers:Icon(group)
 	end
 
 	return category.atlas, category.texture
+end
+
+---Every destination of a group's markers, each once, in the markers' order.
+---@param group AUIWorldMapGroup
+---@return number[][] stops each `{ uiMapID, areaID? }`
+function Markers:Destinations(group)
+	local stops, seen = {}, {}
+
+	for _, marker in ipairs(group.markers) do
+		for _, stop in ipairs(marker.to or {}) do
+			local key = stop[1] .. ":" .. tostring(stop[2])
+
+			if not seen[key] then
+				seen[key] = true
+				stops[#stops + 1] = stop
+			end
+		end
+	end
+
+	return stops
+end
+
+---@param group AUIWorldMapGroup
+---@param mapID number
+---@return boolean leads whether one of the group's markers takes the player to the map
+function Markers:LeadsTo(group, mapID)
+	for _, marker in ipairs(group.markers) do
+		for _, stop in ipairs(marker.to or {}) do
+			if stop[1] == mapID then
+				return true
+			end
+		end
+	end
+
+	return false
 end

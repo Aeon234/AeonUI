@@ -233,6 +233,27 @@ L["Arathi Basin"] = "Arathi Basin"
 L["Ley Line"] = "Ley Line"
 L["Elemental Convergence"] = "Elemental Convergence"
 
+-- World map marker tooltips (World Map)
+L["Dungeon"] = "Dungeon"
+L["Raid"] = "Raid"
+L["World Boss"] = "World Boss"
+L["Battleground"] = "Battleground"
+L["Boat"] = "Boat"
+L["Zeppelin"] = "Zeppelin"
+L["Skyship"] = "Skyship"
+L["Tram"] = "Tram"
+L["Portal"] = "Portal"
+L["Raid, %d players"] = "Raid, %d players"
+L["Level %d"] = "Level %d"
+L["Level %d-%d"] = "Level %d-%d"
+L["To %s"] = "To %s"
+L["Left-click: show %s"] = "Left-click: show %s"
+L["Right-click: show %s"] = "Right-click: show %s"
+L["Click: choose a destination"] = "Click: choose a destination"
+L["Left-click: %s"] = "Left-click: %s"
+L["Shift-click: set a waypoint"] = "Shift-click: set a waypoint"
+L["Shift-click: remove the waypoint"] = "Shift-click: remove the waypoint"
+
 -- Profiles page (Settings)
 L["Keep different setups of AeonUI, and share them as text."] =
 	"Keep different setups of AeonUI, and share them as text."

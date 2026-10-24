@@ -164,6 +164,41 @@ local atlas, file = Markers:Icon(battleground)
 Equal("a battleground draws its faction's file", atlas == nil and file:match("HordeBattleground$") ~= nil, true)
 Equal("a dungeon draws its atlas", (Markers:Icon({ category = Markers.byKey.dungeons, markers = {} })), "Dungeon")
 
+-- Destinations ----------------------------------------------------------------------------------------------
+
+local dock = { category = Markers.byKey.boats, markers = {
+	{ to = { { 1, 11 }, { 2 } } },
+	{ to = { { 2 }, { 3, 33 } } },
+} }
+local stops = Markers:Destinations(dock)
+Equal("each destination once, in order", #stops, 3)
+Equal("the first stop keeps its area", stops[1][2], 11)
+Equal("the shared stop comes once", stops[2][1], 2)
+Equal("then the second marker's own", stops[3][1], 3)
+Equal("the dock leads to a destination", Markers:LeadsTo(dock, 3), true)
+Equal("and not elsewhere", Markers:LeadsTo(dock, 4), false)
+Equal("a dungeon leads nowhere", Markers:LeadsTo({ markers = { {} } }, 1), false)
+
+-- Every category's kind and name are in the English locale file.
+local english = assert(io.open(root .. "Locale/enUS.lua", "rb")):read("*a")
+for _, category in ipairs(Markers.CATEGORIES) do
+	Equal(category.key .. " names its kind in English", english:find('L["' .. category.label .. '"]', 1, true) ~= nil,
+		true)
+	if category.name then
+		Equal(category.key .. " names its markers in English", english:find('L["' .. category.name .. '"]', 1, true)
+			~= nil, true)
+	end
+end
+for _, list in pairs(AUI.WorldMapData()) do
+	for _, rows in pairs(list) do
+		for _, row in ipairs(rows) do
+			if row.name then
+				Equal(row.name .. " is in English", english:find('L["' .. row.name .. '"]', 1, true) ~= nil, true)
+			end
+		end
+	end
+end
+
 -- Forever's data ----------------------------------------------------------------------------------------------
 
 local rows = AUI.WorldMapData()

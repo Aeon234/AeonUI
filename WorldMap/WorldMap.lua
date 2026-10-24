@@ -21,6 +21,11 @@ local WING_LABELS = {
 	lower = L["Lower"],
 }
 
+-- How near a dungeon entrance Blizzard lists must be to a marker, in map fractions, to be taken as the same place.
+local ENTRANCE_DISTANCE = 0.05
+-- How near the user waypoint must be to a marker to count as set on it.
+local WAYPOINT_DISTANCE = 0.005
+
 ---The World Map module: puts the markers on Blizzard's world map through a data provider, and takes the provider off
 ---again while the markers are switched off. Nothing of Blizzard's map is hooked or changed.
 ---@class AUIWorldMap
@@ -37,6 +42,8 @@ local WING_LABELS = {
 ---@field groups table<number, AUIWorldMapGroup[]> each map's pins for the current revision
 ---@field groupsRevision integer the revision `groups` was built for
 ---@field passthroughPending boolean pins made in combat wait for it to end to pass the right button through
+---@field flashFrom number? after a transport click, the map it was clicked on: the pins leading back there flash
+---@field journal table<AUIWorldMapMarker, number|false> each instance marker's journal instance, false when none
 local WorldMap = {
 	active = false,
 	attached = false,
@@ -49,6 +56,7 @@ local WorldMap = {
 	groups = {},
 	groupsRevision = -1,
 	passthroughPending = false,
+	journal = {},
 }
 AUI.WorldMap = WorldMap
 
@@ -127,28 +135,15 @@ function WorldMap:Groups(mapID)
 end
 
 ---@param marker AUIWorldMapMarker
----@return string name the place's name in the client's language: an instance's own, with its wing; a transport's
----destinations; otherwise the English name's translation
+---@return string name the place's name in the client's language: an instance's own, with its wing; otherwise the
+---English name's translation, or the category's kind
 function WorldMap:MarkerName(marker)
 	local name = marker.instance and GetRealZoneText(marker.instance)
 
 	if not name or name == "" then
-		local key = marker.name or Markers.byKey[marker.category].name
+		local category = Markers.byKey[marker.category]
 
-		name = key and L[key]
-	end
-
-	if not name and marker.to then
-		local stops = {}
-
-		for _, stop in ipairs(marker.to) do
-			local area = stop[2] and C_Map.GetAreaInfo(stop[2])
-			local info = not area and C_Map.GetMapInfo(stop[1])
-
-			stops[#stops + 1] = area or (info and info.name) or UNKNOWN
-		end
-
-		name = table.concat(stops, " / ")
+		name = L[marker.name or category.name or category.label]
 	end
 
 	if not name or name == "" then
@@ -158,6 +153,318 @@ function WorldMap:MarkerName(marker)
 	local wing = marker.wing and WING_LABELS[marker.wing]
 
 	return wing and ("%s (%s)"):format(name, wing) or name
+end
+
+---@param stop number[] `{ uiMapID, areaID? }`
+---@return string name the stop's area, or else its map, in the client's language
+function WorldMap:StopName(stop)
+	local area = stop[2] and C_Map.GetAreaInfo(stop[2])
+
+	if area and area ~= "" then
+		return area
+	end
+
+	local info = C_Map.GetMapInfo(stop[1])
+
+	return info and info.name or UNKNOWN
+end
+
+---The journal instance Blizzard lists for an instance marker's entrance: the entrance with the instance's name on the
+---marker's map, or else the nearest one close enough. Worked out once per marker.
+---@param marker AUIWorldMapMarker
+---@return number? journalInstanceID
+function WorldMap:JournalInstance(marker)
+	local found = self.journal[marker]
+
+	if found == nil then
+		found = false
+
+		local name = marker.instance and GetRealZoneText(marker.instance)
+		local nearest = ENTRANCE_DISTANCE
+
+		for _, entrance in ipairs(C_EncounterJournal.GetDungeonEntrancesForMap(marker.map) or {}) do
+			local x, y = entrance.position:GetXY()
+			local distance = math.max(math.abs(x - marker.x), math.abs(y - marker.y))
+
+			if name and name ~= "" and entrance.name == name then
+				found = entrance.journalInstanceID
+
+				break
+			elseif distance <= nearest then
+				found, nearest = entrance.journalInstanceID, distance
+			end
+		end
+
+		self.journal[marker] = found
+	end
+
+	return found or nil
+end
+
+---@return boolean available the client's journal can open
+function WorldMap:CanOpenJournal()
+	return EncounterJournal_LoadUI ~= nil and not GameRulesUtil.EJIsDisabled()
+end
+
+---@param journalInstanceID number
+function WorldMap:OpenJournal(journalInstanceID)
+	EncounterJournal_LoadUI()
+
+	if EncounterJournal_OpenJournal then
+		EncounterJournal_OpenJournal(nil, journalInstanceID)
+	end
+end
+
+---@param marker AUIWorldMapMarker
+---@return boolean set the user waypoint is on the marker
+function WorldMap:HasWaypoint(marker)
+	local point = C_Map.HasUserWaypoint() and C_Map.GetUserWaypoint()
+
+	if not point or point.uiMapID ~= marker.map then
+		return false
+	end
+
+	local x, y = point.position:GetXY()
+
+	return math.abs(x - marker.x) <= WAYPOINT_DISTANCE and math.abs(y - marker.y) <= WAYPOINT_DISTANCE
+end
+
+---Sets the user waypoint on a marker and tracks it, or clears it when it is already there.
+---@param marker AUIWorldMapMarker
+function WorldMap:ToggleWaypoint(marker)
+	if self:HasWaypoint(marker) then
+		C_Map.ClearUserWaypoint()
+
+		return
+	end
+
+	if C_Map.CanSetUserWaypointOnMap(marker.map) then
+		C_Map.SetUserWaypoint(UiMapPoint.CreateFromCoordinates(marker.map, marker.x, marker.y))
+		C_SuperTrack.SetSuperTrackedUserWaypoint(true)
+	end
+end
+
+---Shows a transport's destination on the map. The pins leading back to the map it was clicked on flash; a stop on the
+---same map flashes its own pin.
+---@param stop number[]
+---@param from AeonUIWorldMapPinMixin the clicked pin
+function WorldMap:Travel(stop, from)
+	local here = WorldMapFrame:GetMapID()
+
+	if stop[1] == here then
+		AUI.WorldMapProvider:EachPin(function(pin)
+			if pin ~= from and pin.group and Markers:LeadsTo(pin.group, here) then
+				pin:Flash()
+			end
+		end)
+
+		return
+	end
+
+	self.flashFrom = here
+	WorldMapFrame:SetMapID(stop[1])
+end
+
+---Flashes the pins that lead back to the map a transport was clicked on, once the destination's pins are drawn.
+function WorldMap:FlashReturn()
+	local from = self.flashFrom
+
+	if not from then
+		return
+	end
+
+	self.flashFrom = nil
+	AUI.WorldMapProvider:EachPin(function(pin)
+		if pin.group and Markers:LeadsTo(pin.group, from) then
+			pin:Flash()
+		end
+	end)
+end
+
+---@param pin AeonUIWorldMapPinMixin
+---@param stops number[][]
+function WorldMap:ChooseStop(pin, stops)
+	MenuUtil.CreateContextMenu(pin, function(_, root)
+		for _, stop in ipairs(stops) do
+			root:CreateButton(WorldMap:StopName(stop), function()
+				WorldMap:Travel(stop, pin)
+			end)
+		end
+	end)
+end
+
+---A click on a pin: Shift toggles the waypoint on its first marker; a transport shows its first destination on the
+---left button and its second on the right, or offers a menu for more; an instance opens in the journal.
+---@param pin AeonUIWorldMapPinMixin
+---@param button string
+function WorldMap:Click(pin, button)
+	local group = pin.group --[[@as AUIWorldMapGroup]]
+	local marker = group.markers[1]
+
+	if IsShiftKeyDown() then
+		self:ToggleWaypoint(marker)
+
+		return
+	end
+
+	if group.category.transport then
+		local stops = Markers:Destinations(group)
+
+		if #stops > 2 then
+			self:ChooseStop(pin, stops)
+		elseif button == "RightButton" then
+			if stops[2] then
+				self:Travel(stops[2], pin)
+			else
+				WorldMapFrame:NavigateToParentMap()
+			end
+		elseif stops[1] then
+			self:Travel(stops[1], pin)
+		end
+
+		return
+	end
+
+	local journal = group.category.instance and self:CanOpenJournal() and self:JournalInstance(marker)
+
+	if button == "LeftButton" and journal then
+		self:OpenJournal(journal)
+	end
+end
+
+---@param levels number[] `{ min, max }`
+---@return table color the range's color against the player's level, as Blizzard's map labels color zones
+local function LevelColor(levels)
+	local level = AUI:Readable(UnitLevel("player"), 0)
+
+	if level < levels[1] then
+		return GetQuestDifficultyColor(levels[1])
+	elseif level > levels[2] then
+		return GetQuestDifficultyColor(levels[2] - 2)
+	end
+
+	return QuestDifficultyColors.difficult
+end
+
+---Adds one marker's lines: its name, kind, level range, faction and destinations.
+---@param marker AUIWorldMapMarker
+---@param first boolean the marker heads the tooltip
+function WorldMap:AddMarkerLines(marker, first)
+	local category = Markers.byKey[marker.category]
+	local name = self:MarkerName(marker)
+
+	if first then
+		GameTooltip_SetTitle(GameTooltip, name)
+	else
+		GameTooltip_AddBlankLineToTooltip(GameTooltip)
+		GameTooltip_AddNormalLine(GameTooltip, name)
+	end
+
+	-- A transport's name is its kind; its destinations follow.
+	if not category.transport then
+		local kind = marker.players and L["Raid, %d players"]:format(marker.players) or L[category.label]
+
+		GameTooltip_AddHighlightLine(GameTooltip, kind)
+	end
+
+	local levels = marker.levels
+
+	if levels then
+		local text = levels[1] == levels[2] and L["Level %d"]:format(levels[1])
+			or L["Level %d-%d"]:format(levels[1], levels[2])
+
+		GameTooltip_AddColoredLine(GameTooltip, text, LevelColor(levels))
+	end
+
+	if marker.faction then
+		local alliance = marker.faction == "Alliance"
+
+		GameTooltip_AddColoredLine(GameTooltip, alliance and FACTION_ALLIANCE or FACTION_HORDE,
+			PLAYER_FACTION_COLORS[alliance and 1 or 0])
+	end
+
+	for _, stop in ipairs(marker.to or {}) do
+		GameTooltip_AddHighlightLine(GameTooltip, L["To %s"]:format(self:StopName(stop)))
+	end
+end
+
+---Adds what clicking the pin does.
+---@param group AUIWorldMapGroup
+function WorldMap:AddHints(group)
+	local marker = group.markers[1]
+	local hints = {}
+
+	if group.category.transport then
+		local stops = Markers:Destinations(group)
+
+		if #stops > 2 then
+			hints[#hints + 1] = L["Click: choose a destination"]
+		else
+			if stops[1] then
+				hints[#hints + 1] = L["Left-click: show %s"]:format(self:StopName(stops[1]))
+			end
+
+			if stops[2] then
+				hints[#hints + 1] = L["Right-click: show %s"]:format(self:StopName(stops[2]))
+			end
+		end
+	elseif group.category.instance and self:CanOpenJournal() and self:JournalInstance(marker) then
+		hints[#hints + 1] = L["Left-click: %s"]:format(ENCOUNTER_JOURNAL)
+	end
+
+	if C_Map.CanSetUserWaypointOnMap(marker.map) then
+		hints[#hints + 1] = self:HasWaypoint(marker) and L["Shift-click: remove the waypoint"]
+			or L["Shift-click: set a waypoint"]
+	end
+
+	if #hints > 0 then
+		GameTooltip_AddBlankLineToTooltip(GameTooltip)
+	end
+
+	for _, hint in ipairs(hints) do
+		GameTooltip_AddInstructionLine(GameTooltip, hint)
+	end
+end
+
+---@param a Frame
+---@param b Frame
+---@return boolean touching the two pins overlap on screen
+local function Touching(a, b)
+	local ax, ay = a:GetCenter()
+	local bx, by = b:GetCenter()
+
+	if not (ax and ay and bx and by) then
+		return false
+	end
+
+	local scaleA, scaleB = a:GetEffectiveScale(), b:GetEffectiveScale()
+	local reach = (a:GetWidth() * scaleA + b:GetWidth() * scaleB) / 2
+
+	return math.abs(ax * scaleA - bx * scaleB) < reach and math.abs(ay * scaleA - by * scaleB) < reach
+end
+
+---Shows the tooltip for a pin and every pin touching it on screen, with the hovered pin's click hints.
+---@param pin AeonUIWorldMapPinMixin
+function WorldMap:ShowTooltip(pin)
+	local group = pin.group --[[@as AUIWorldMapGroup]]
+	local first = true
+
+	local function Add(shown)
+		for _, marker in ipairs(shown.markers) do
+			self:AddMarkerLines(marker, first)
+			first = false
+		end
+	end
+
+	GameTooltip:SetOwner(pin, "ANCHOR_RIGHT")
+	Add(group)
+	AUI.WorldMapProvider:EachPin(function(other)
+		if other ~= pin and other.group and Touching(pin, other) then
+			Add(other.group)
+		end
+	end)
+	self:AddHints(group)
+	GameTooltip:Show()
 end
 
 ---Gives pins made in combat their right-button passthrough once combat ends.
@@ -174,9 +481,9 @@ function WorldMap:OnCombatEnded()
 	AUI.Events:Unregister("PLAYER_REGEN_ENABLED", self)
 	self.passthroughPending = false
 
-	for pin in WorldMapFrame:EnumeratePinsByTemplate(AUI.WorldMapProvider.TEMPLATE) do
+	AUI.WorldMapProvider:EachPin(function(pin)
 		pin:SetPassthrough()
-	end
+	end)
 end
 
 ---Applies marker changes once per frame, however many arrive.

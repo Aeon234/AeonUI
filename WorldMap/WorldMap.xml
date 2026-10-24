@@ -12,5 +12,21 @@
 				<Texture parentKey="Icon" />
 			</Layer>
 		</Layers>
+		<Animations>
+			<AnimationGroup parentKey="Pulse">
+				<Scale childKey="Icon" scaleX="1.6" scaleY="1.6" duration="0.3" order="1" smoothing="OUT" />
+				<Scale childKey="Icon" scaleX="0.625" scaleY="0.625" duration="0.3" order="2" smoothing="IN" />
+				<Scale childKey="Icon" scaleX="1.6" scaleY="1.6" duration="0.3" order="3" smoothing="OUT" />
+				<Scale childKey="Icon" scaleX="0.625" scaleY="0.625" duration="0.3" order="4" smoothing="IN" />
+				<Scale childKey="Icon" scaleX="1.6" scaleY="1.6" duration="0.3" order="5" smoothing="OUT" />
+				<Scale childKey="Icon" scaleX="0.625" scaleY="0.625" duration="0.3" order="6" smoothing="IN" />
+			</AnimationGroup>
+		</Animations>
+	</Button>
+
+	<Button name="AeonUIWorldMapTransportPinTemplate" inherits="AeonUIWorldMapPinTemplate" virtual="true">
+		<KeyValues>
+			<KeyValue key="handlesRightButton" value="true" type="boolean" />
+		</KeyValues>
 	</Button>
 </Ui>

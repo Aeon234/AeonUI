@@ -1,10 +1,15 @@
 local AUI = select(2, ...)
 
 ---A marker pin on Blizzard's world map: one group of markers at one spot, drawn with its first category's icon at a
----constant size on screen whatever the map's zoom. Pooled by the map canvas per template.
+---constant size on screen whatever the map's zoom. Pooled by the map canvas per template: the plain template passes
+---the right button through to the map, so a right click zooms out; the transport template keeps it for a second
+---destination.
 ---@class AeonUIWorldMapPinMixin
+---@field Icon Texture
+---@field Pulse AnimationGroup draws the eye to the pin after a transport click
+---@field handlesRightButton boolean? set by the transport template
 ---@field group AUIWorldMapGroup? the markers the pin shows, while acquired
----@field passthroughSet boolean? the right button passes through to the map, so a right click still zooms out
+---@field passthroughSet boolean? the right button passes through to the map
 AeonUIWorldMapPinMixin = CreateFromMixins(MapCanvasPinMixin)
 
 local Pin = AeonUIWorldMapPinMixin
@@ -34,13 +39,14 @@ end
 
 function Pin:OnReleased()
 	MapCanvasPinMixin.OnReleased(self)
+	self.Pulse:Stop()
 	self.group = nil
 end
 
 ---Replaces Blizzard's call on every acquire, which reaches the protected `SetPassThroughButtons` and is blocked in
 ---combat: the passthrough is set once per pin, and a pin made in combat gets it when combat ends.
 function Pin:CheckMouseButtonPassthrough()
-	if self.passthroughSet then
+	if self.passthroughSet or self.handlesRightButton then
 		return
 	end
 
@@ -55,32 +61,29 @@ end
 
 ---Lets the right button through to the map. Out of combat only.
 function Pin:SetPassthrough()
-	if not self.passthroughSet then
+	if not self.passthroughSet and not self.handlesRightButton then
 		self.passthroughSet = true
 		self:SetPassThroughButtons("RightButton")
 	end
 end
 
+function Pin:Flash()
+	self.Pulse:Restart()
+end
+
 function Pin:OnMouseEnter()
-	local group = self.group
-
-	if not group then
-		return
+	if self.group then
+		AUI.WorldMap:ShowTooltip(self)
 	end
-
-	GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-
-	for index, marker in ipairs(group.markers) do
-		if index == 1 then
-			GameTooltip:SetText(AUI.WorldMap:MarkerName(marker))
-		else
-			GameTooltip:AddLine(AUI.WorldMap:MarkerName(marker), 1, 1, 1)
-		end
-	end
-
-	GameTooltip:Show()
 end
 
 function Pin:OnMouseLeave()
 	GameTooltip:Hide()
+end
+
+---@param button string
+function Pin:OnMouseClickAction(button)
+	if self.group then
+		AUI.WorldMap:Click(self, button)
+	end
 end
