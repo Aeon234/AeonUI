@@ -233,6 +233,25 @@ function Dev:PlaceElement(line)
 	AUI:Print("row: %s %s", key, ok and "placed" or tostring(problem))
 end
 
+---Prints the player's position as a world map marker row, ready to paste into WorldMap/Data.lua under its map.
+---@param note string anything typed after the command, printed beside the row
+function Dev:Mark(note)
+	local mapID = C_Map.GetBestMapForUnit("player")
+	local position = mapID and C_Map.GetPlayerMapPosition(mapID, "player")
+
+	if not position then
+		AUI:Print("mark: no map position here (inside an instance, or no map)")
+
+		return
+	end
+
+	local x, y = position:GetXY()
+	local info = C_Map.GetMapInfo(mapID)
+
+	AUI:Print("mark: [%d] = { -- %s", mapID, info and info.name or "?")
+	AUI:Print("  { %.1f, %.1f },%s", x * 100, y * 100, note ~= "" and (" -- " .. note) or "")
+end
+
 ---@param line string the words after `/aui dev`, lowercased
 function Dev:Command(line)
 	local command, rest = line:match("^(%S*)%s*(.-)$")
@@ -276,11 +295,17 @@ function Dev:Command(line)
 		return
 	end
 
+	if command == "mark" then
+		self:Mark(rest)
+
+		return
+	end
+
 	if command == "worldmap" and self.WorldMapProbe then
 		self.WorldMapProbe:Command(rest)
 
 		return
 	end
 
-	AUI:Print("dev commands: codec, map, atlas [names], row, preview, minimap, worldmap")
+	AUI:Print("dev commands: codec, map, atlas [names], row, preview, minimap, worldmap, mark [note]")
 end

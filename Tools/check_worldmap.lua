@@ -1,6 +1,7 @@
 -- Checks the World Map module's arithmetic outside the game: the marker settings and their bounds, indexing the
 -- marker rows by map, which markers a zone map draws, placing a zone's markers on its continent through the map
--- rectangles, the map types each category shows on, turning a category off, and grouping markers that meet.
+-- rectangles, the map types each category shows on, turning a category off, leaving out the other faction's and
+-- other races' markers, grouping markers that meet, each category's icon, and the shape of Forever's marker data.
 -- Run from any directory with Lua 5.1: lua Tools/check_worldmap.lua
 -- Loads the real files against stubbed globals. It proves the logic, not the drawing.
 
@@ -42,6 +43,7 @@ Equal("markers default on", Schema:Field(Markers.ENABLED_PATH).default, true)
 Equal("size defaults to 100%", Schema:Field(Markers.SCALE_PATH).default, 100)
 Equal("size refuses below 50%", (Schema:CheckValue(Markers.SCALE_PATH, 40)), false)
 Equal("size refuses above 200%", (Schema:CheckValue(Markers.SCALE_PATH, 210)), false)
+Equal("the other faction is hidden by default", Schema:Field(Markers.OTHER_FACTION_PATH).default, false)
 for _, category in ipairs(Markers.CATEGORIES) do
 	Equal(category.key .. " defaults on", Schema:Field(Markers:CategoryPath(category.key)).default, true)
 	Equal(category.key .. " is listed by key", Markers.byKey[category.key], category)
@@ -55,10 +57,10 @@ Equal("an unindexed query draws nothing", #Markers:Groups({ mapID = 1, mapType =
 
 Markers:Index({
 	dungeons = {
-		[10] = { { 50, 50, 101 }, { 50.5, 50.5, 102 }, { 10, 90, 103 } },
-		[20] = { { 25, 75, 201 } },
+		[10] = { { 50, 50, instance = 101 }, { 50.5, 50.5, instance = 102 }, { 10, 90, instance = 103 } },
+		[20] = { { 25, 75, instance = 201 } },
 	},
-	unknown = { [30] = { { 1, 1, 301 } } },
+	unknown = { [30] = { { 1, 1, instance = 301 } } },
 })
 
 Equal("indexed", Markers:IsIndexed(), true)
@@ -117,21 +119,99 @@ Equal("dungeons do not show on the world map", #Markers:Groups({ mapID = 0, mapT
 		return 0, 1, 0, 1
 	end }), 0)
 
+-- Faction, race and grouping ---------------------------------------------------------------------------------
+
+Markers:Index({
+	boats = { [10] = { { 50, 50 }, { 20, 20, faction = "Alliance" }, { 80, 80, faction = "Horde" } } },
+	dungeons = { [10] = { { 50.2, 50.2, instance = 1 } } },
+	leyLines = { [10] = { { 30, 30, race = 95 } } },
+	battlegrounds = { [10] = { { 70, 30, faction = "Horde", instance = 2 } } },
+})
+
+local shownAll = {}
+for _, category in ipairs(Markers.CATEGORIES) do
+	shownAll[category.key] = true
+end
+
+local function Count(query)
+	query.mapID, query.mapType, query.shown = 10, TYPES.ZONE, shownAll
+	query.rect = function() end
+
+	local markers = 0
+
+	for _, group in ipairs(Markers:Groups(query)) do
+		markers = markers + #group.markers
+	end
+
+	return markers, #Markers:Groups(query)
+end
+
+Equal("an Alliance player sees neutral and Alliance markers, not Horde ones", Count({ faction = "Alliance" }), 3)
+Equal("Show Other Faction brings the Horde ones back", Count({ faction = "Alliance", otherFaction = true }), 5)
+Equal("another race does not see ley lines", Count({ faction = "Horde", race = 1 }), 4)
+Equal("their race does", Count({ faction = "Horde", race = 95 }), 5)
+local _, pins = Count({ faction = "Alliance", otherFaction = true })
+Equal("a dock and a dungeon at one spot keep their own pins", pins, 5)
+
+local battleground
+for _, group in ipairs(Markers:Groups({ mapID = 10, mapType = TYPES.ZONE, shown = shownAll, faction = "Horde",
+	rect = function() end })) do
+	if group.category.key == "battlegrounds" then
+		battleground = group
+	end
+end
+local atlas, file = Markers:Icon(battleground)
+Equal("a battleground draws its faction's file", atlas == nil and file:match("HordeBattleground$") ~= nil, true)
+Equal("a dungeon draws its atlas", (Markers:Icon({ category = Markers.byKey.dungeons, markers = {} })), "Dungeon")
+
 -- Forever's data ----------------------------------------------------------------------------------------------
 
 local rows = AUI.WorldMapData()
+local FIELDS = { instance = "number", name = "string", wing = "string", levels = "table", players = "number",
+	faction = "string", to = "table", race = "number" }
+local TRANSPORTS = { boats = true, zeppelins = true, skyships = true, trams = true, portals = true }
+local total = 0
 
 for key in pairs(rows) do
 	Equal("data category " .. key .. " is defined", Markers.byKey[key] ~= nil, true)
 end
 
-for mapID, list in pairs(rows.dungeons) do
-	for index, row in ipairs(list) do
-		local where = ("dungeon %d on %d"):format(index, mapID)
+for _, category in ipairs(Markers.CATEGORIES) do
+	Equal(category.key .. " has data", rows[category.key] ~= nil, true)
 
-		Equal(where .. " lies on its map", row[1] >= 0 and row[1] <= 100 and row[2] >= 0 and row[2] <= 100, true)
-		Equal(where .. " names its instance", type(row[3]), "number")
+	for mapID, list in pairs(rows[category.key]) do
+		for index, row in ipairs(list) do
+			local where = ("%s %d on %d"):format(category.key, index, mapID)
+
+			total = total + 1
+			Equal(where .. " lies on its map", row[1] >= 0 and row[1] <= 100 and row[2] >= 0 and row[2] <= 100, true)
+
+			for field, value in pairs(row) do
+				if type(field) == "string" then
+					Equal(where .. " field " .. field .. " is known", FIELDS[field], type(value))
+				end
+			end
+
+			if row.faction then
+				Equal(where .. " names a faction", row.faction == "Alliance" or row.faction == "Horde", true)
+			end
+
+			if category.key == "dungeons" or category.key == "raids" or category.key == "worldBosses"
+				or category.key == "battlegrounds" then
+				Equal(where .. " can be named", row.instance ~= nil or row.name ~= nil, true)
+			end
+
+			if TRANSPORTS[category.key] then
+				Equal(where .. " has a destination", #row.to > 0, true)
+			end
+
+			if row.levels then
+				Equal(where .. " has a level range", row.levels[1] <= row.levels[2], true)
+			end
+		end
 	end
 end
+
+Equal("every marker of the merged sources is here", total, 285)
 
 io.stdout:write(("check_worldmap: %d checks passed\n"):format(checks))

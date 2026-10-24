@@ -20,6 +20,8 @@ BACKGROUND = "Background"
 MINIMAP_LABEL = "Minimap"
 WORLDMAP_BUTTON = "World Map"
 DUNGEONS = "Dungeons"
+RAIDS = "Raids"
+BATTLEGROUNDS = "Battlegrounds"
 MAIL_LABEL = "Mail"
 TRACKING = "Tracking"
 ZONE = "Zone"
@@ -622,16 +624,30 @@ local markersPage = window.pages.worldMapMarkers
 Equal("Map Markers sits under the World Map header", markersPage.info.under, "worldMapHeader")
 Equal("Map Markers carries the markers' switch", markersPage.info.switch.path, "worldMap.markers.enabled")
 Equal("which defaults on", markersPage.info.switch.default, true)
-Equal("a switch for each category, then the size", #markersPage.sections.markers.settings,
-	#AUI.WorldMapMarkers.CATEGORIES + 1)
-for _, setting in ipairs(markersPage.sections.markers.settings) do
-	local field = AUI.Schema:Field(setting.path)
+Equal("sections: places, travel, display", markersPage.sections[1].id .. " " .. markersPage.sections[2].id .. " " ..
+	markersPage.sections[3].id, "places travel display")
+local switches = 0
+for _, section in ipairs(markersPage.sections) do
+	for _, setting in ipairs(section.settings) do
+		local field = AUI.Schema:Field(setting.path)
 
-	Equal(setting.id .. " names a setting", field ~= nil, true)
-	Equal(setting.id .. " carries its default", setting.default, field.default)
-	Equal(setting.id .. " has a label", type(setting.label), "string")
+		switches = switches + (setting.id:match("^marker_") and 1 or 0)
+		Equal(setting.id .. " names a setting", field ~= nil, true)
+		Equal(setting.id .. " carries its default", setting.default, field.default)
+		Equal(setting.id .. " has a label", type(setting.label), "string")
+	end
 end
-Equal("marker size is a percentage", markersPage.sections.markers.settings.markerSize.format, "percent")
+Equal("a switch for every category", switches, #AUI.WorldMapMarkers.CATEGORIES)
+local display = markersPage.sections.display.settings
+Equal("marker size is a percentage", display.markerSize.format, "percent")
+Equal("the other faction stays hidden by default", display.otherFaction.default, false)
+local leyLines = markersPage.sections.places.settings.marker_leyLines
+AUI.WorldMap = { race = 1 }
+Equal("ley lines are offered only to their race", leyLines.show(), false)
+AUI.WorldMap.race = 95
+Equal("which sees them", leyLines.show(), true)
+Equal("dungeons are offered to everyone", markersPage.sections.places.settings.marker_dungeons.show, nil)
+AUI.WorldMap = nil
 Equal("the page is listed as the World Map's", AUI.SettingsWorldMap.pageIDs.worldMapMarkers, true)
 AUI.can.worldMapMarkers = nil
 

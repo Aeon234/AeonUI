@@ -1,6 +1,25 @@
 local AUI = select(2, ...)
 
+local L = AUI.L
 local Markers = AUI.WorldMapMarkers
+
+-- What each wing or entrance key in the marker data is called after the instance's name.
+local WING_LABELS = {
+	main = L["Main Entrance"],
+	back = L["Back Entrance"],
+	sewer = L["Sewer Tunnel"],
+	gate = L["Main Gate"],
+	service = L["Service Entrance"],
+	north = L["North"],
+	east = L["East"],
+	west = L["West"],
+	graveyard = L["Graveyard"],
+	library = L["Library"],
+	armory = L["Armory"],
+	cathedral = L["Cathedral"],
+	upper = L["Upper"],
+	lower = L["Lower"],
+}
 
 ---The World Map module: puts the markers on Blizzard's world map through a data provider, and takes the provider off
 ---again while the markers are switched off. Nothing of Blizzard's map is hooked or changed.
@@ -10,6 +29,9 @@ local Markers = AUI.WorldMapMarkers
 ---@field revision integer counts the applied marker settings; the provider redraws when it changes
 ---@field size number the markers' size setting as a factor
 ---@field shown table<string, boolean> the categories turned on
+---@field otherFaction boolean the other faction's markers show too
+---@field faction string? the player's faction, read when the module starts
+---@field race number? the player's race ID, read when the module starts
 ---@field mapTypes table<number, integer|false> each map's `Enum.UIMapType`, false when the map is unknown
 ---@field rects table<string, number[]|false> where one map lies on another, false when it does not
 ---@field groups table<number, AUIWorldMapGroup[]> each map's pins for the current revision
@@ -21,6 +43,7 @@ local WorldMap = {
 	revision = 0,
 	size = 1,
 	shown = {},
+	otherFaction = false,
 	mapTypes = {},
 	rects = {},
 	groups = {},
@@ -91,6 +114,9 @@ function WorldMap:Groups(mapID)
 		mapID = mapID,
 		mapType = mapType,
 		shown = self.shown,
+		faction = self.faction,
+		otherFaction = self.otherFaction,
+		race = self.race,
 		rect = function(from)
 			return WorldMap:Rect(from, mapID)
 		end,
@@ -101,15 +127,37 @@ function WorldMap:Groups(mapID)
 end
 
 ---@param marker AUIWorldMapMarker
----@return string name the place's name in the client's language
+---@return string name the place's name in the client's language: an instance's own, with its wing; a transport's
+---destinations; otherwise the English name's translation
 function WorldMap:MarkerName(marker)
 	local name = marker.instance and GetRealZoneText(marker.instance)
+
+	if not name or name == "" then
+		local key = marker.name or Markers.byKey[marker.category].name
+
+		name = key and L[key]
+	end
+
+	if not name and marker.to then
+		local stops = {}
+
+		for _, stop in ipairs(marker.to) do
+			local area = stop[2] and C_Map.GetAreaInfo(stop[2])
+			local info = not area and C_Map.GetMapInfo(stop[1])
+
+			stops[#stops + 1] = area or (info and info.name) or UNKNOWN
+		end
+
+		name = table.concat(stops, " / ")
+	end
 
 	if not name or name == "" then
 		return UNKNOWN
 	end
 
-	return name
+	local wing = marker.wing and WING_LABELS[marker.wing]
+
+	return wing and ("%s (%s)"):format(name, wing) or name
 end
 
 ---Gives pins made in combat their right-button passthrough once combat ends.
@@ -162,6 +210,7 @@ function WorldMap:Apply()
 	end
 
 	self.size = Profile:Get(Markers.SCALE_PATH) / 100
+	self.otherFaction = Profile:Get(Markers.OTHER_FACTION_PATH) == true
 
 	for _, category in ipairs(Markers.CATEGORIES) do
 		self.shown[category.key] = Profile:Get(Markers:CategoryPath(category.key)) == true
@@ -186,6 +235,8 @@ function WorldMap:Start()
 	end
 
 	self.active = true
+	self.faction = AUI:Readable(UnitFactionGroup("player"))
+	self.race = AUI:Readable(select(3, UnitRace("player")))
 	AUI.Callbacks:Register("Profile", self, self.OnProfileChanged)
 	self:Apply()
 end

@@ -17,7 +17,16 @@ end
 ---@param size number the pin's size against its template: the markers' setting times the map type's size
 function Pin:OnAcquired(group, size)
 	self.group = group
-	self.Icon:SetAtlas(group.category.atlas)
+
+	local atlas, file = AUI.WorldMapMarkers:Icon(group)
+
+	if atlas then
+		self.Icon:SetAtlas(atlas)
+	else
+		self.Icon:SetTexture(file)
+		self.Icon:SetTexCoord(0, 1, 0, 1)
+	end
+
 	self:SetScalingLimits(1, size, size)
 	self:SetPosition(group.x, group.y)
 	self:ApplyCurrentScale()
