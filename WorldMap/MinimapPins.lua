@@ -95,7 +95,13 @@ function Layer:WorldPosition(marker)
 	return position or nil
 end
 
----@return AUIWorldPosition? player the player's world position, nil where the game gives none (instances)
+-- Reused on every placement while moving, so the ticker makes no garbage.
+local here = { north = 0, west = 0, continent = 0 }
+local rectangle = { halfWidth = 0, halfHeight = 0 }
+local round = { radius = 0 }
+
+---@return AUIWorldPosition? player the player's world position, nil where the game gives none (instances); the same
+---table on every call
 local function PlayerPosition()
 	local north, west, _, continent = UnitPosition("player")
 
@@ -105,7 +111,9 @@ local function PlayerPosition()
 		return nil
 	end
 
-	return { north = north, west = west, continent = continent }
+	here.north, here.west, here.continent = north, west, continent
+
+	return here
 end
 
 ---Collects the markers of the minimap groups switched on that the player's faction and race see.
@@ -189,10 +197,10 @@ function Layer:Gather(player)
 		self.pins[marker] = pin
 	end
 
-	self.gatheredAt = player
+	self.gatheredAt = { north = player.north, west = player.west, continent = player.continent }
 end
 
----@return AUIMinimapShape shape the visible minimap less half a pin
+---@return AUIMinimapShape shape the visible minimap less half a pin; the same table on every call
 ---@return number? facing the player's facing when the minimap turns with the player
 function Layer:Shape()
 	local margin = PIN_SIZE / 2
@@ -200,12 +208,16 @@ function Layer:Shape()
 	local geometry = map.active and map.geometry
 
 	if geometry then
-		return { halfWidth = geometry.width / 2 - margin, halfHeight = geometry.height / 2 - margin }
+		rectangle.halfWidth, rectangle.halfHeight = geometry.width / 2 - margin, geometry.height / 2 - margin
+
+		return rectangle
 	end
 
 	local facing = C_CVar.GetCVarBool("rotateMinimap") and AUI:Readable(GetPlayerFacing()) or nil
 
-	return { radius = Minimap:GetWidth() / 2 - margin }, facing
+	round.radius = Minimap:GetWidth() / 2 - margin
+
+	return round, facing
 end
 
 ---Places the gathered pins around the player, gathering again once the player has moved far enough.

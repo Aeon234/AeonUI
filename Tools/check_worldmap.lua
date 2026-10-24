@@ -4,7 +4,8 @@
 -- other races' markers, grouping markers that meet, each category's icon, the town markers' class and capital rules,
 -- exit arrows' rotation, the shape of Forever's marker and town data, and the Map Options: their settings, which
 -- areas are unexplored, splitting an area into the art's tiles, the range text and Fishing colors, and their data;
--- and the dungeon maps: tile paths and layout, fitting the picture, the opening floor, pins, and their data.
+-- and the dungeon maps: tile paths and layout, fitting the picture, the opening floor, pins, and their data; and that
+-- every name and label the data looks up is an English locale key.
 -- Run from any directory with Lua 5.1: lua Tools/check_worldmap.lua
 -- Loads the real files against stubbed globals. It proves the logic, not the drawing.
 
@@ -13,8 +14,8 @@ local root = (arg and arg[0] or ""):match("^(.-)[^/\\]*$") .. "../"
 -- Environment ---------------------------------------------------------------------------------------------
 
 local AUI = {}
-for _, file in ipairs({ "Profile/Schema.lua", "WorldMap/Markers.lua", "WorldMap/Data.lua", "WorldMap/TownData.lua",
-	"WorldMap/Options.lua", "WorldMap/OptionsData.lua", "WorldMap/Dungeons.lua", "WorldMap/DungeonData.lua" }) do
+for _, file in ipairs({ "Locale/enUS.lua", "Profile/Schema.lua", "WorldMap/Markers.lua", "WorldMap/Data.lua",
+	"WorldMap/TownData.lua", "WorldMap/Options.lua", "WorldMap/OptionsData.lua", "WorldMap/Dungeons.lua", "WorldMap/DungeonData.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 
@@ -486,6 +487,26 @@ for _, category in ipairs(Markers.CATEGORIES) do
 end
 
 Equal("every marker and exit of the merged sources is here", total, 392)
+
+local L = AUI.L
+for _, category in ipairs(Markers.CATEGORIES) do
+	Equal(category.key .. "'s label is a locale key", rawget(L, category.label) ~= nil, true)
+	Equal(category.key .. "'s name, if any, is a locale key", category.name == nil or rawget(L, category.name) ~= nil,
+		true)
+	for kind, info in pairs(category.kinds or {}) do
+		Equal(category.key .. " kind " .. kind .. "'s label is a locale key", rawget(L, info.label) ~= nil, true)
+	end
+end
+for key, list in pairs(AUI.WorldMapData()) do
+	for mapID, markers in pairs(list) do
+		for index, row in ipairs(markers) do
+			if row.name then
+				Equal(("%s %d on %d's name is a locale key"):format(key, index, mapID), rawget(L, row.name) ~= nil,
+					true)
+			end
+		end
+	end
+end
 Equal("every town marker is here", town, 1725)
 
 io.stdout:write(("check_worldmap: %d checks passed\n"):format(checks))

@@ -115,8 +115,8 @@ end
 
 ---@param skill number? the player's Fishing skill with its modifiers, nil without Fishing
 ---@param range number[] the zone's `{ min, max }` Fishing skill
----@return string difficulty the key in `QuestDifficultyColors`: below the range red, inside it yellow, at its top green,
----gray without Fishing
+---@return string difficulty the key in `QuestDifficultyColors`: below the range red, inside it yellow, at its top
+---green, gray without Fishing
 function Options:FishingDifficulty(skill, range)
 	if not skill then
 		return "trivial"
