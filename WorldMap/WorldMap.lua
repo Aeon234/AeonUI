@@ -37,6 +37,8 @@ local WAYPOINT_DISTANCE = 0.005
 ---@field otherFaction boolean the other faction's markers show too
 ---@field faction string? the player's faction, read when the module starts
 ---@field race number? the player's race ID, read when the module starts
+---@field class string? the player's class token, read when the module starts
+---@field capitalsOnly boolean vendors and trainers show on capitals' maps only
 ---@field mapTypes table<number, integer|false> each map's `Enum.UIMapType`, false when the map is unknown
 ---@field rects table<string, number[]|false> where one map lies on another, false when it does not
 ---@field groups table<number, AUIWorldMapGroup[]> each map's pins for the current revision
@@ -51,6 +53,7 @@ local WorldMap = {
 	size = 1,
 	shown = {},
 	otherFaction = false,
+	capitalsOnly = true,
 	mapTypes = {},
 	rects = {},
 	groups = {},
@@ -82,11 +85,8 @@ end
 
 ---@param from number
 ---@param to number
----@return number? minX
----@return number? maxX
----@return number? minY
----@return number? maxY
-function WorldMap:Rect(from, to)
+---@return number[]? rect where `from` lies on `to`, `{ minX, maxX, minY, maxY }`, cached; nil when it does not
+function WorldMap:RectOn(from, to)
 	local key = from .. ":" .. to
 	local rect = self.rects[key]
 
@@ -97,8 +97,50 @@ function WorldMap:Rect(from, to)
 		self.rects[key] = rect
 	end
 
+	return rect or nil
+end
+
+---@param from number
+---@param to number
+---@return number? minX
+---@return number? maxX
+---@return number? minY
+---@return number? maxY
+function WorldMap:Rect(from, to)
+	local rect = self:RectOn(from, to)
+
 	if rect then
 		return rect[1], rect[2], rect[3], rect[4]
+	end
+end
+
+---Points each exit's arrow toward the zone it leads to, both zones placed on the shown zone's continent.
+---@param mapID number the shown map
+---@param groups AUIWorldMapGroup[]
+function WorldMap:RotateExits(mapID, groups)
+	local info = C_Map.GetMapInfo(mapID)
+	local continent = info and info.parentMapID
+
+	if not continent or continent == 0 then
+		return
+	end
+
+	local zone = self:RectOn(mapID, continent)
+
+	if not zone then
+		return
+	end
+
+	for _, group in ipairs(groups) do
+		local marker = group.markers[1]
+
+		if group.category.exit and marker.to then
+			local destination = self:RectOn(marker.to[1][1], continent)
+
+			if destination then
+				group.rotation = Markers:ExitRotation(group.x, group.y, zone, destination)
+			end
+		end
 	end
 end
 
@@ -125,10 +167,13 @@ function WorldMap:Groups(mapID)
 		faction = self.faction,
 		otherFaction = self.otherFaction,
 		race = self.race,
+		class = self.class,
+		capitalsOnly = self.capitalsOnly,
 		rect = function(from)
 			return WorldMap:Rect(from, mapID)
 		end,
 	}) or {}
+	self:RotateExits(mapID, groups)
 	self.groups[mapID] = groups
 
 	return groups
@@ -360,9 +405,11 @@ function WorldMap:AddMarkerLines(marker, first)
 		GameTooltip_AddNormalLine(GameTooltip, name)
 	end
 
-	-- A transport's name is its kind; its destinations follow.
-	if not category.transport then
-		local kind = marker.players and L["Raid, %d players"]:format(marker.players) or L[category.label]
+	-- A transport's name is its kind, as is an unnamed town marker's; a transport's destinations follow.
+	local unnamed = not marker.name and not marker.instance and not category.name
+
+	if not category.transport and not unnamed then
+		local kind = marker.players and L["Raid, %d players"]:format(marker.players) or L[Markers:Label(marker)]
 
 		GameTooltip_AddHighlightLine(GameTooltip, kind)
 	end
@@ -513,11 +560,18 @@ function WorldMap:Apply()
 	end
 
 	if not Markers:IsIndexed() then
-		Markers:Index(AUI.WorldMapData())
+		local rows = AUI.WorldMapData()
+
+		for key, list in pairs(AUI.WorldMapTownData()) do
+			rows[key] = list
+		end
+
+		Markers:Index(rows)
 	end
 
 	self.size = Profile:Get(Markers.SCALE_PATH) / 100
 	self.otherFaction = Profile:Get(Markers.OTHER_FACTION_PATH) == true
+	self.capitalsOnly = Profile:Get(Markers.CAPITALS_PATH) == true
 
 	for _, category in ipairs(Markers.CATEGORIES) do
 		self.shown[category.key] = Profile:Get(Markers:CategoryPath(category.key)) == true
@@ -544,6 +598,7 @@ function WorldMap:Start()
 	self.active = true
 	self.faction = AUI:Readable(UnitFactionGroup("player"))
 	self.race = AUI:Readable(select(3, UnitRace("player")))
+	self.class = AUI:Readable(select(2, UnitClass("player")))
 	AUI.Callbacks:Register("Profile", self, self.OnProfileChanged)
 	self:Apply()
 end

@@ -13,12 +13,16 @@ local WORLD, CONTINENT, ZONE = 1, 2, 3
 local INSTANCE_SCALES = { [ZONE] = 1, [CONTINENT] = 0.75 }
 local TRANSPORT_SCALES = { [ZONE] = 1, [CONTINENT] = 0.75, [WORLD] = 0.6 }
 local NODE_SCALES = { [ZONE] = 0.8 }
+local TOWN_SCALES = { [ZONE] = 0.75 }
+local EXIT_SCALES = { [ZONE] = 0.9 }
+local ICONS = "Interface\\Icons\\"
 
 ---@class AUIWorldMapCategory
 ---@field key string
 ---@field atlas string? the icon's atlas
 ---@field textures table<string, string>? the icon's file by the marker's faction, in place of an atlas
 ---@field texture string? the icon's file, in place of an atlas
+---@field kinds table<string, AUIWorldMapIcon>? the icon by the marker's `kind`, in place of the above
 ---@field group string markers of categories with the same group share a pin when they meet
 ---@field scales table<integer, number> each `Enum.UIMapType` the category shows on, with its markers' size there
 ---@field race number? the race ID the category's markers are for; its switch is offered only to that race
@@ -26,6 +30,15 @@ local NODE_SCALES = { [ZONE] = 0.8 }
 ---@field label string the locale key of one marker's kind, as its tooltip names it
 ---@field transport boolean? its markers take the player somewhere: clicks open their destinations' maps
 ---@field instance boolean? its markers are instance entrances, which open in the journal
+---@field capitalsOnly boolean? its markers show only on a capital's map while Vendors and Trainers in Cities Only is on
+---@field class string? the class token the category is for; its switch is offered only to that class
+---@field exit boolean? its markers point along the road toward the zone they lead to
+
+---@class AUIWorldMapIcon
+---@field atlas string?
+---@field file string? in place of an atlas
+---@field label string the locale key naming the kind
+---@field crop boolean? the file is a square icon whose edge is cut off
 
 ---@class AUIWorldMapMarker
 ---@field category string a category key
@@ -40,6 +53,8 @@ local NODE_SCALES = { [ZONE] = 0.8 }
 ---@field faction string? "Alliance" or "Horde"; nil for neutral markers
 ---@field to number[][]? a transport's destinations, each `{ uiMapID, areaID? }`
 ---@field race number? the race ID the marker is shown to
+---@field kind string? which kind of its category's service a town marker is
+---@field class string? the class token a class trainer teaches
 
 ---@class AUIWorldMapGroup
 ---@field x number 0 to 1 across the shown map
@@ -47,6 +62,7 @@ local NODE_SCALES = { [ZONE] = 0.8 }
 ---@field scale number the markers' size on this map type
 ---@field category AUIWorldMapCategory the first marker's, whose icon the pin shows
 ---@field markers AUIWorldMapMarker[]
+---@field rotation number? an exit's arrow rotation, in radians
 
 ---@class AUIWorldMapQuery
 ---@field mapID number the shown map
@@ -55,6 +71,8 @@ local NODE_SCALES = { [ZONE] = 0.8 }
 ---@field faction string? the player's faction; markers of the other are left out unless `otherFaction`
 ---@field otherFaction boolean? show the other faction's markers too
 ---@field race number? the player's race ID; markers for another race are left out
+---@field class string? the player's class token; markers and categories for another class are left out
+---@field capitalsOnly boolean? leave the capitals-only categories off maps other than a capital's
 ---@field rect fun(from: number): number?, number?, number?, number? where a map lies on the shown one, as minX, maxX,
 ---minY and maxY, or nothing when it does not lie on it
 
@@ -67,6 +85,8 @@ local NODE_SCALES = { [ZONE] = 0.8 }
 ---@field ENABLED_PATH string the markers' switch
 ---@field SCALE_PATH string the markers' size, in percent
 ---@field OTHER_FACTION_PATH string show the other faction's markers
+---@field CAPITALS_PATH string vendors and trainers on capitals' maps only
+---@field CAPITALS table<number, true> the capitals' uiMapIDs
 ---@field byMap table<number, AUIWorldMapMarker[]>? every marker by the map it is placed on, built on first use
 ---@field maps number[]? those maps in ascending order, so every query walks them alike
 local Markers = {
@@ -160,11 +180,110 @@ local Markers = {
 			race = 96,
 			name = "Elemental Convergence",
 		},
+		{
+			key = "innkeepers",
+			label = "Innkeeper",
+			atlas = "Innkeeper",
+			group = "innkeepers",
+			scales = TOWN_SCALES,
+		},
+		{
+			key = "mailboxes",
+			label = "Mailbox",
+			atlas = "Mailbox",
+			group = "mailboxes",
+			scales = TOWN_SCALES,
+		},
+		{
+			key = "spiritHealers",
+			label = "Spirit Healer",
+			atlas = "poi-soulspiritghost",
+			group = "spiritHealers",
+			scales = TOWN_SCALES,
+		},
+		{
+			key = "classTrainers",
+			label = "Class Trainer",
+			atlas = "Class",
+			group = "classTrainers",
+			scales = TOWN_SCALES,
+			capitalsOnly = true,
+		},
+		{
+			key = "professionTrainers",
+			label = "Profession Trainer",
+			atlas = "Profession",
+			group = "professionTrainers",
+			scales = TOWN_SCALES,
+			capitalsOnly = true,
+		},
+		{
+			key = "banks",
+			label = "Banker",
+			kinds = {
+				bank = { atlas = "Banker", label = "Banker" },
+				auction = { atlas = "Auctioneer", label = "Auctioneer" },
+			},
+			group = "banks",
+			scales = TOWN_SCALES,
+			capitalsOnly = true,
+		},
+		{
+			key = "repairs",
+			label = "Repairs",
+			atlas = "Repair",
+			group = "repairs",
+			scales = TOWN_SCALES,
+			capitalsOnly = true,
+		},
+		{
+			key = "supplies",
+			label = "Reagents",
+			kinds = {
+				reagents = { atlas = "Reagents", label = "Reagents" },
+				ammo = { atlas = "Ammunition", label = "Ammunition" },
+				food = { atlas = "Food", label = "Food & Drink" },
+			},
+			group = "supplies",
+			scales = TOWN_SCALES,
+			capitalsOnly = true,
+		},
+		{
+			key = "stableMasters",
+			label = "Stable Master",
+			atlas = "StableMaster",
+			group = "stableMasters",
+			scales = TOWN_SCALES,
+			class = "HUNTER",
+		},
+		{
+			key = "vendors",
+			label = "Vendor",
+			kinds = {
+				trade = { file = ICONS .. "INV_Fabric_Linen_01", label = "Trade Goods", crop = true },
+				vendor = { file = ICONS .. "INV_Misc_Bag_07", label = "Vendor", crop = true },
+			},
+			group = "vendors",
+			scales = TOWN_SCALES,
+			capitalsOnly = true,
+		},
+		{
+			key = "zoneExits",
+			label = "Zone Exit",
+			atlas = "poi-traveldirections-arrow",
+			group = "exit",
+			scales = EXIT_SCALES,
+			transport = true,
+			exit = true,
+		},
 	},
 	byKey = {},
 	ENABLED_PATH = "worldMap.markers.enabled",
 	SCALE_PATH = "worldMap.markers.scale",
 	OTHER_FACTION_PATH = "worldMap.markers.otherFaction",
+	CAPITALS_PATH = "worldMap.markers.capitalsOnly",
+	CAPITALS = { [1453] = true, [1454] = true, [1455] = true, [1456] = true, [1457] = true, [1458] = true,
+		[2482] = true, [2521] = true },
 	GROUP_DISTANCE = GROUP_DISTANCE,
 	MAP_TYPES = { WORLD = WORLD, CONTINENT = CONTINENT, ZONE = ZONE },
 }
@@ -183,6 +302,7 @@ end
 Schema:Boolean(Markers.ENABLED_PATH, true)
 Schema:Number(Markers.SCALE_PATH, 100, 50, 200, true)
 Schema:Boolean(Markers.OTHER_FACTION_PATH, false)
+Schema:Boolean(Markers.CAPITALS_PATH, true)
 
 for _, category in ipairs(Markers.CATEGORIES) do
 	Schema:Boolean(Markers:CategoryPath(category.key), true)
@@ -238,6 +358,16 @@ function Markers:IsShown(marker, query)
 	end
 
 	if marker.race and marker.race ~= query.race then
+		return false
+	end
+
+	local category = self.byKey[marker.category]
+
+	if (category.class and category.class ~= query.class) or (marker.class and marker.class ~= query.class) then
+		return false
+	end
+
+	if category.capitalsOnly and query.capitalsOnly and not self.CAPITALS[query.mapID] then
 		return false
 	end
 
@@ -319,8 +449,14 @@ end
 ---@param group AUIWorldMapGroup
 ---@return string? atlas
 ---@return string? file the icon's file, when the category draws one in place of an atlas
+---@return boolean? crop the file is a square icon whose edge is cut off
 function Markers:Icon(group)
 	local category = group.category
+	local kind = category.kinds and category.kinds[group.markers[1].kind or ""]
+
+	if kind then
+		return kind.atlas, kind.file, kind.crop
+	end
 
 	if category.textures then
 		local faction = group.markers[1].faction
@@ -364,4 +500,29 @@ function Markers:LeadsTo(group, mapID)
 	end
 
 	return false
+end
+
+---@param marker AUIWorldMapMarker
+---@return string label the locale key naming the marker's kind
+function Markers:Label(marker)
+	local category = self.byKey[marker.category]
+	local kind = category.kinds and category.kinds[marker.kind or ""]
+
+	return kind and kind.label or category.label
+end
+
+---The rotation of an exit's arrow, which points up unrotated: toward the middle of the zone it leads to, both zones
+---placed on their continent.
+---@param x number the exit on its zone, 0 to 1
+---@param y number
+---@param zone number[] the exit's zone on the continent: `{ minX, maxX, minY, maxY }`
+---@param destination number[] the zone it leads to on the continent
+---@return number radians counterclockwise
+function Markers:ExitRotation(x, y, zone, destination)
+	local fromX = zone[1] + x * (zone[2] - zone[1])
+	local fromY = zone[3] + y * (zone[4] - zone[3])
+	local dx = (destination[1] + destination[2]) / 2 - fromX
+	local dy = (destination[3] + destination[4]) / 2 - fromY
+
+	return math.atan2(-dx, -dy)
 end

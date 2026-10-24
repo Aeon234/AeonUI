@@ -1,7 +1,8 @@
 -- Checks the World Map module's arithmetic outside the game: the marker settings and their bounds, indexing the
 -- marker rows by map, which markers a zone map draws, placing a zone's markers on its continent through the map
 -- rectangles, the map types each category shows on, turning a category off, leaving out the other faction's and
--- other races' markers, grouping markers that meet, each category's icon, and the shape of Forever's marker data.
+-- other races' markers, grouping markers that meet, each category's icon, the town markers' class and capital rules,
+-- exit arrows' rotation, and the shape of Forever's marker and town data.
 -- Run from any directory with Lua 5.1: lua Tools/check_worldmap.lua
 -- Loads the real files against stubbed globals. It proves the logic, not the drawing.
 
@@ -10,7 +11,7 @@ local root = (arg and arg[0] or ""):match("^(.-)[^/\\]*$") .. "../"
 -- Environment ---------------------------------------------------------------------------------------------
 
 local AUI = {}
-for _, file in ipairs({ "Profile/Schema.lua", "WorldMap/Markers.lua", "WorldMap/Data.lua" }) do
+for _, file in ipairs({ "Profile/Schema.lua", "WorldMap/Markers.lua", "WorldMap/Data.lua", "WorldMap/TownData.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 
@@ -188,6 +189,10 @@ for _, category in ipairs(Markers.CATEGORIES) do
 		Equal(category.key .. " names its markers in English", english:find('L["' .. category.name .. '"]', 1, true)
 			~= nil, true)
 	end
+	for kind, icon in pairs(category.kinds or {}) do
+		Equal(category.key .. " names its kind " .. kind .. " in English",
+			english:find('L["' .. icon.label .. '"]', 1, true) ~= nil, true)
+	end
 end
 for _, list in pairs(AUI.WorldMapData()) do
 	for _, rows in pairs(list) do
@@ -199,13 +204,66 @@ for _, list in pairs(AUI.WorldMapData()) do
 	end
 end
 
+-- Towns and exits --------------------------------------------------------------------------------------------
+
+Markers:Index({
+	classTrainers = { [1454] = { { 10, 10, class = "WARRIOR" }, { 20, 20, class = "MAGE" } },
+		[1411] = { { 30, 30, class = "WARRIOR" } } },
+	innkeepers = { [1411] = { { 40, 40 } } },
+	stableMasters = { [1411] = { { 50, 50 } } },
+	banks = { [1454] = { { 60, 60, kind = "auction" } } },
+	vendors = { [1454] = { { 70, 70, kind = "vendor" } } },
+})
+
+local function Town(mapID, query)
+	query.mapID, query.mapType, query.shown = mapID, TYPES.ZONE, shownAll
+	query.rect = function() end
+
+	local keys = {}
+
+	for _, group in ipairs(Markers:Groups(query)) do
+		keys[#keys + 1] = group.category.key
+	end
+
+	table.sort(keys)
+
+	return table.concat(keys, " ")
+end
+
+Equal("a warrior sees the warrior trainer and the city's services", Town(1454, { class = "WARRIOR",
+	capitalsOnly = true }), "banks classTrainers vendors")
+Equal("trainers stay off a zone outside the capitals", Town(1411, { class = "WARRIOR", capitalsOnly = true }),
+	"innkeepers")
+Equal("unless the cities-only switch is off", Town(1411, { class = "WARRIOR", capitalsOnly = false }),
+	"classTrainers innkeepers")
+Equal("a hunter sees the stable master", Town(1411, { class = "HUNTER", capitalsOnly = true }),
+	"innkeepers stableMasters")
+local auction = Markers:Groups({ mapID = 1454, mapType = TYPES.ZONE, shown = { banks = true }, rect = function() end })
+Equal("an auctioneer draws its own atlas", (Markers:Icon(auction[1])), "Auctioneer")
+Equal("and names its own kind", Markers:Label(auction[1].markers[1]), "Auctioneer")
+local vendor = Markers:Groups({ mapID = 1454, mapType = TYPES.ZONE, shown = { vendors = true }, rect = function() end })
+local _, vendorFile, crop = Markers:Icon(vendor[1])
+Equal("a vendor draws a cropped icon file", vendorFile:match("INV_Misc_Bag_07$") ~= nil and crop, true)
+Equal("a dungeon names its category's kind", Markers:Label({ category = "dungeons" }), "Dungeon")
+
+-- An exit at the middle of the zone's left half, toward a zone straight above, points up; to the right, a quarter
+-- turn clockwise.
+local zone, above, right = { 0, 0.5, 0.5, 1 }, { 0, 0.5, 0, 0.5 }, { 0.5, 1, 0.5, 1 }
+Near("an exit toward a zone above points up", Markers:ExitRotation(0.5, 0.5, zone, above), 0)
+Near("toward a zone to the right it turns clockwise", Markers:ExitRotation(0.5, 0.5, zone, right), -math.pi / 2)
+
 -- Forever's data ----------------------------------------------------------------------------------------------
 
 local rows = AUI.WorldMapData()
+for key, list in pairs(AUI.WorldMapTownData()) do
+	Equal("town category " .. key .. " is new", rows[key], nil)
+	rows[key] = list
+end
 local FIELDS = { instance = "number", name = "string", wing = "string", levels = "table", players = "number",
-	faction = "string", to = "table", race = "number" }
-local TRANSPORTS = { boats = true, zeppelins = true, skyships = true, trams = true, portals = true }
-local total = 0
+	faction = "string", to = "table", race = "number", kind = "string", class = "string" }
+local total, town = 0, 0
+local TOWN = { innkeepers = true, mailboxes = true, spiritHealers = true, classTrainers = true,
+	professionTrainers = true, banks = true, repairs = true, supplies = true, stableMasters = true, vendors = true }
 
 for key in pairs(rows) do
 	Equal("data category " .. key .. " is defined", Markers.byKey[key] ~= nil, true)
@@ -218,7 +276,11 @@ for _, category in ipairs(Markers.CATEGORIES) do
 		for index, row in ipairs(list) do
 			local where = ("%s %d on %d"):format(category.key, index, mapID)
 
-			total = total + 1
+			if TOWN[category.key] then
+				town = town + 1
+			else
+				total = total + 1
+			end
 			Equal(where .. " lies on its map", row[1] >= 0 and row[1] <= 100 and row[2] >= 0 and row[2] <= 100, true)
 
 			for field, value in pairs(row) do
@@ -236,8 +298,16 @@ for _, category in ipairs(Markers.CATEGORIES) do
 				Equal(where .. " can be named", row.instance ~= nil or row.name ~= nil, true)
 			end
 
-			if TRANSPORTS[category.key] then
+			if category.transport then
 				Equal(where .. " has a destination", #row.to > 0, true)
+			end
+
+			if category.kinds then
+				Equal(where .. " names a kind of its category", category.kinds[row.kind or ""] ~= nil, true)
+			end
+
+			if category.key == "classTrainers" then
+				Equal(where .. " names its class", type(row.class), "string")
 			end
 
 			if row.levels then
@@ -247,6 +317,7 @@ for _, category in ipairs(Markers.CATEGORIES) do
 	end
 end
 
-Equal("every marker of the merged sources is here", total, 285)
+Equal("every marker and exit of the merged sources is here", total, 392)
+Equal("every town marker is here", town, 1725)
 
 io.stdout:write(("check_worldmap: %d checks passed\n"):format(checks))

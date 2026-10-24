@@ -15,24 +15,41 @@ local CATEGORY_LABELS = {
 	portals = L["Portals"],
 	leyLines = L["Ley Lines"],
 	convergences = L["Elemental Convergences"],
+	zoneExits = L["Zone Exits"],
+	innkeepers = L["Innkeepers"],
+	mailboxes = L["Mailboxes"],
+	spiritHealers = L["Spirit Healers"],
+	classTrainers = L["Class Trainers"],
+	professionTrainers = L["Profession Trainers"],
+	banks = L["Bank & Auction House"],
+	repairs = L["Repairs"],
+	supplies = L["Reagents, Ammo & Food"],
+	stableMasters = L["Stable Masters"],
+	vendors = L["Other Vendors"],
 }
 
 -- The page's sections of category switches, each listing its categories in order.
 local SECTIONS = {
 	{ id = "places", title = L["Places"], keys = { "dungeons", "raids", "worldBosses", "battlegrounds", "leyLines",
 		"convergences" } },
-	{ id = "travel", title = L["Travel"], keys = { "boats", "zeppelins", "skyships", "trams", "portals" } },
+	{ id = "travel", title = L["Travel"], keys = { "boats", "zeppelins", "skyships", "trams", "portals",
+		"zoneExits" } },
+	{ id = "town", title = L["Town"], keys = { "innkeepers", "mailboxes", "spiritHealers", "classTrainers",
+		"professionTrainers", "banks", "repairs", "supplies", "stableMasters", "vendors" } },
 }
 
----@param race number? the race a category is for
----@return (fun(): boolean)? show offers the switch only to that race
-local function ForRace(race)
-	if not race then
+---@param category AUIWorldMapCategory
+---@return (fun(): boolean)? show offers the category's switch only to the race or class it is for
+local function ForPlayer(category)
+	if not category.race and not category.class then
 		return nil
 	end
 
 	return function()
-		return AUI.WorldMap.race == race
+		local module = AUI.WorldMap
+
+		return (not category.race or module.race == category.race)
+			and (not category.class or module.class == category.class)
 	end
 end
 
@@ -80,7 +97,17 @@ function SettingsWorldMap:Declare(window)
 				label = CATEGORY_LABELS[key],
 				path = path,
 				default = Settings:Default(path),
-				show = ForRace(Markers.byKey[key].race),
+				show = ForPlayer(Markers.byKey[key]),
+			})
+		end
+
+		if info.id == "town" then
+			section:Checkbox({
+				id = "capitalsOnly",
+				label = L["Vendors and Trainers in Cities Only"],
+				description = L["Keeps vendors, trainers and the bank to the capitals' maps; innkeepers, mailboxes and spirit healers show everywhere."],
+				path = Markers.CAPITALS_PATH,
+				default = Settings:Default(Markers.CAPITALS_PATH),
 			})
 		end
 	end

@@ -624,8 +624,13 @@ local markersPage = window.pages.worldMapMarkers
 Equal("Map Markers sits under the World Map header", markersPage.info.under, "worldMapHeader")
 Equal("Map Markers carries the markers' switch", markersPage.info.switch.path, "worldMap.markers.enabled")
 Equal("which defaults on", markersPage.info.switch.default, true)
-Equal("sections: places, travel, display", markersPage.sections[1].id .. " " .. markersPage.sections[2].id .. " " ..
-	markersPage.sections[3].id, "places travel display")
+local sectionIDs = {}
+for index, section in ipairs(markersPage.sections) do
+	sectionIDs[index] = section.id
+end
+Equal("sections: places, travel, town, display", table.concat(sectionIDs, " "), "places travel town display")
+Equal("the cities-only switch sits in Town", markersPage.sections.town.settings.capitalsOnly.path,
+	"worldMap.markers.capitalsOnly")
 local switches = 0
 for _, section in ipairs(markersPage.sections) do
 	for _, setting in ipairs(section.settings) do
@@ -642,10 +647,13 @@ local display = markersPage.sections.display.settings
 Equal("marker size is a percentage", display.markerSize.format, "percent")
 Equal("the other faction stays hidden by default", display.otherFaction.default, false)
 local leyLines = markersPage.sections.places.settings.marker_leyLines
-AUI.WorldMap = { race = 1 }
+local stables = markersPage.sections.town.settings.marker_stableMasters
+AUI.WorldMap = { race = 1, class = "MAGE" }
 Equal("ley lines are offered only to their race", leyLines.show(), false)
-AUI.WorldMap.race = 95
+Equal("stable masters only to hunters", stables.show(), false)
+AUI.WorldMap.race, AUI.WorldMap.class = 95, "HUNTER"
 Equal("which sees them", leyLines.show(), true)
+Equal("a hunter sees stable masters", stables.show(), true)
 Equal("dungeons are offered to everyone", markersPage.sections.places.settings.marker_dungeons.show, nil)
 AUI.WorldMap = nil
 Equal("the page is listed as the World Map's", AUI.SettingsWorldMap.pageIDs.worldMapMarkers, true)

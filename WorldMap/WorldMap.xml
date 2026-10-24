@@ -1,6 +1,7 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/">
 	<Script file="Markers.lua" />
 	<Script file="Data.lua" />
+	<Script file="TownData.lua" />
 	<Script file="Pin.lua" />
 	<Script file="Provider.lua" />
 	<Script file="WorldMap.lua" />

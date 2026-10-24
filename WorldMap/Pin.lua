@@ -1,5 +1,8 @@
 local AUI = select(2, ...)
 
+-- How much of each side of a square item icon's file is cut off, leaving out its edge.
+local ICON_CROP = 0.08
+
 ---A marker pin on Blizzard's world map: one group of markers at one spot, drawn with its first category's icon at a
 ---constant size on screen whatever the map's zoom. Pooled by the map canvas per template: the plain template passes
 ---the right button through to the map, so a right click zooms out; the transport template keeps it for a second
@@ -23,14 +26,18 @@ end
 function Pin:OnAcquired(group, size)
 	self.group = group
 
-	local atlas, file = AUI.WorldMapMarkers:Icon(group)
+	local atlas, file, crop = AUI.WorldMapMarkers:Icon(group)
 
 	if atlas then
 		self.Icon:SetAtlas(atlas)
 	else
+		local edge = crop and ICON_CROP or 0
+
 		self.Icon:SetTexture(file)
-		self.Icon:SetTexCoord(0, 1, 0, 1)
+		self.Icon:SetTexCoord(edge, 1 - edge, edge, 1 - edge)
 	end
+
+	self.Icon:SetRotation(group.rotation or 0)
 
 	self:SetScalingLimits(1, size, size)
 	self:SetPosition(group.x, group.y)
