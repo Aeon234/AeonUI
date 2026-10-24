@@ -13,6 +13,7 @@ AUI.Capabilities = Capabilities
 ---@field foreverArt boolean the client draws Forever's art for shared atlases, which places some differently
 ---@field dielCycle boolean the client reports day and night itself (`C_DateAndTime.IsDayTime`, Forever)
 ---@field craftingOrders boolean the minimap shows personal crafting orders (Retail)
+---@field worldMapMarkers boolean the world map takes data providers and AeonUI has marker data for this world (Forever)
 AUI.can = {}
 
 ---The only place a client difference is detected. Runs once at login.
@@ -26,6 +27,8 @@ function Capabilities:Resolve()
 	can.dielCycle = C_DateAndTime ~= nil and C_DateAndTime.IsDayTime ~= nil
 	can.craftingOrders = MinimapCluster ~= nil and MinimapCluster.IndicatorFrame ~= nil
 		and MinimapCluster.IndicatorFrame.CraftingOrderFrame ~= nil and C_CraftingOrders ~= nil
+	can.worldMapMarkers = WorldMapFrame ~= nil and WorldMapFrame.AddDataProvider ~= nil
+		and WOW_PROJECT_ID == WOW_PROJECT_CAMELOT
 
 	self.resolved = true
 

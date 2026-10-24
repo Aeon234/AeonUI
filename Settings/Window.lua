@@ -26,6 +26,12 @@ local function DeclareSidebar(window)
 	window:Divider()
 	AUI.SettingsMinimap:Declare(window)
 	window:Divider()
+
+	if AUI.SettingsWorldMap:IsAvailable() then
+		AUI.SettingsWorldMap:Declare(window)
+		window:Divider()
+	end
+
 	AUI.SettingsProfiles:Declare(window)
 end
 

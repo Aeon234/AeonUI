@@ -19,6 +19,7 @@ Profile\Profile.xml
 Media\Media.xml
 UI\UI.xml
 Minimap\Minimap.xml
+WorldMap\WorldMap.xml
 Settings\Settings.xml
 
 #@do-not-package@

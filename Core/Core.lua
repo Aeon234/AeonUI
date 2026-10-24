@@ -15,6 +15,7 @@ local addonName = ...
 ---@field Broker AUIBroker
 ---@field Border AUIBorderFactory
 ---@field Minimap AUIMinimap the Minimap module (not Blizzard's `Minimap` frame)
+---@field WorldMap AUIWorldMap the World Map module (not Blizzard's `WorldMapFrame`)
 ---@field EditTargets AUIEditTargets
 ---@field Codec AUICodec
 ---@field Dev AUIDev? development self-tests, present only in unpackaged builds

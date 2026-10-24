@@ -142,6 +142,13 @@ L["Follower"] = "추종자"
 L["Delves"] = "구렁"
 L["Story"] = "이야기"
 
+-- Map Markers page (Settings)
+L["Map Markers"] = "지도 표시"
+L["Dungeons and other places marked on the world map. Hover a marker for its name."] = "세계 지도에 표시된 던전과 다른 장소입니다. 표시에 마우스를 올리면 이름이 보입니다."
+L["Markers"] = "표시"
+L["Marker Size"] = "표시 크기"
+L["Markers keep this size on screen as the map zooms, smaller on continent maps."] = "지도를 확대하거나 축소해도 화면에서 이 크기를 유지하며, 대륙 지도에서는 더 작게 표시됩니다."
+
 -- Profiles page (Settings)
 L["Keep different setups of AeonUI, and share them as text."] = "AeonUI 설정을 여러 개 보관하고 텍스트로 공유합니다."
 L["AeonUI profile \"%s\"."] = "AeonUI 프로필 \"%s\"."

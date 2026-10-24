@@ -142,6 +142,13 @@ L["Follower"] = "Begleiter"
 L["Delves"] = "Tiefen"
 L["Story"] = "Story"
 
+-- Map Markers page (Settings)
+L["Map Markers"] = "Kartenmarkierungen"
+L["Dungeons and other places marked on the world map. Hover a marker for its name."] = "Dungeons und andere Orte, auf der Weltkarte markiert. Fahre über eine Markierung, um ihren Namen zu sehen."
+L["Markers"] = "Markierungen"
+L["Marker Size"] = "Markierungsgröße"
+L["Markers keep this size on screen as the map zooms, smaller on continent maps."] = "Markierungen behalten diese Größe auf dem Bildschirm, wenn die Karte zoomt, auf Kontinentkarten kleiner."
+
 -- Profiles page (Settings)
 L["Keep different setups of AeonUI, and share them as text."] = "Verschiedene Einstellungen von AeonUI behalten und als Text teilen."
 L["AeonUI profile \"%s\"."] = "AeonUI-Profil „%s“."

@@ -18,6 +18,8 @@ CLOSE = "Close"
 NONE = "None"
 BACKGROUND = "Background"
 MINIMAP_LABEL = "Minimap"
+WORLDMAP_BUTTON = "World Map"
+DUNGEONS = "Dungeons"
 MAIL_LABEL = "Mail"
 TRACKING = "Tracking"
 ZONE = "Zone"
@@ -316,8 +318,8 @@ end })
 for _, file in ipairs({ "Core/Callbacks.lua", "Core/Capabilities.lua", "Core/Broker.lua", "Profile/Schema.lua",
 	"Profile/Store.lua", "Profile/Profile.lua", "UI/Border.lua", "Minimap/Layout.lua", "Minimap/Elements.lua",
 	"Minimap/Rows.lua", "Minimap/Fade.lua", "Minimap/Text.lua", "Minimap/Difficulty.lua",
-	"Minimap/Buttons.lua", "Minimap/Map.lua", "Settings/Window.lua", "Settings/MinimapEditor.lua",
-	"Settings/General.lua", "Settings/Minimap.lua", "Settings/Profiles.lua", "Settings/Recovery.lua",
+	"Minimap/Buttons.lua", "Minimap/Map.lua", "WorldMap/Markers.lua", "Settings/Window.lua", "Settings/MinimapEditor.lua",
+	"Settings/General.lua", "Settings/Minimap.lua", "Settings/WorldMap.lua", "Settings/Profiles.lua", "Settings/Recovery.lua",
 	"Settings/EditTargets.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
@@ -608,6 +610,30 @@ Equal("crafting orders get a page after mail", window.order[11], "minimapCraftin
 Equal("which turns the element on or off", window.pages.minimapCraftingOrders.info.switch.path,
 	"minimap.elements.craftingOrders.enabled")
 AUI.can.craftingOrders = nil
+
+-- World Map, on a client with marker data -------------------------------------------------------------------------
+
+Equal("no World Map header without marker data", table.concat(window.order, " "):find("worldMap", 1, true), nil)
+AUI.can.worldMapMarkers = true
+window = Load(nil)
+Equal("the World Map header follows the Minimap's", table.concat(window.order, " "):match("minimapCompartment (.*)$"),
+	"- #worldMapHeader worldMapMarkers - profiles")
+local markersPage = window.pages.worldMapMarkers
+Equal("Map Markers sits under the World Map header", markersPage.info.under, "worldMapHeader")
+Equal("Map Markers carries the markers' switch", markersPage.info.switch.path, "worldMap.markers.enabled")
+Equal("which defaults on", markersPage.info.switch.default, true)
+Equal("a switch for each category, then the size", #markersPage.sections.markers.settings,
+	#AUI.WorldMapMarkers.CATEGORIES + 1)
+for _, setting in ipairs(markersPage.sections.markers.settings) do
+	local field = AUI.Schema:Field(setting.path)
+
+	Equal(setting.id .. " names a setting", field ~= nil, true)
+	Equal(setting.id .. " carries its default", setting.default, field.default)
+	Equal(setting.id .. " has a label", type(setting.label), "string")
+end
+Equal("marker size is a percentage", markersPage.sections.markers.settings.markerSize.format, "percent")
+Equal("the page is listed as the World Map's", AUI.SettingsWorldMap.pageIDs.worldMapMarkers, true)
+AUI.can.worldMapMarkers = nil
 
 -- Minimap button -------------------------------------------------------------------------------------------------
 

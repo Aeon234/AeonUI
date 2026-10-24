@@ -142,6 +142,13 @@ L["Follower"] = "追随者"
 L["Delves"] = "地下堡"
 L["Story"] = "剧情"
 
+-- Map Markers page (Settings)
+L["Map Markers"] = "地图标记"
+L["Dungeons and other places marked on the world map. Hover a marker for its name."] = "在世界地图上标出的地下城和其他地点。将鼠标悬停在标记上可查看名称。"
+L["Markers"] = "标记"
+L["Marker Size"] = "标记大小"
+L["Markers keep this size on screen as the map zooms, smaller on continent maps."] = "地图缩放时标记在屏幕上保持此大小，在大陆地图上较小。"
+
 -- Profiles page (Settings)
 L["Keep different setups of AeonUI, and share them as text."] = "保存 AeonUI 的不同配置，并以文本形式分享。"
 L["AeonUI profile \"%s\"."] = "AeonUI 配置文件“%s”。"

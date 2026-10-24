@@ -1,0 +1,16 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+	<Script file="Markers.lua" />
+	<Script file="Data.lua" />
+	<Script file="Pin.lua" />
+	<Script file="Provider.lua" />
+	<Script file="WorldMap.lua" />
+
+	<Button name="AeonUIWorldMapPinTemplate" mixin="AeonUIWorldMapPinMixin" enableMouse="true" virtual="true">
+		<Size x="20" y="20" />
+		<Layers>
+			<Layer level="ARTWORK">
+				<Texture parentKey="Icon" />
+			</Layer>
+		</Layers>
+	</Button>
+</Ui>
