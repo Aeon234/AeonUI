@@ -368,8 +368,44 @@ L["The player's mount, with a mark for whether you have it."] =
 L["Aura Caster Names"] = "Aura Caster Names"
 L["Aura tooltips name who cast the aura."] = "Aura tooltips name who cast the aura."
 
--- Unit tooltips (Tooltip)
+L["Details"] = "Details"
+L["Lines added to item, spell, aura, unit and other tooltips: an item's details, and IDs."] =
+	"Lines added to item, spell, aura, unit and other tooltips: an item's details, and IDs."
+L["The expansion an item comes from."] = "The expansion an item comes from."
+L["Category and Type"] = "Category and Type"
+L["An item's category and type, such as Armor / Plate."] = "An item's category and type, such as Armor / Plate."
+L["How many of an item fit in one stack."] = "How many of an item fit in one stack."
+L["Blank Line Before"] = "Blank Line Before"
+L["Keeps a blank line between the tooltip and the added lines."] =
+	"Keeps a blank line between the tooltip and the added lines."
+L["IDs"] = "IDs"
+L["Modifier"] = "Modifier"
+L["The key to hold for the ID lines. With None they always show."] =
+	"The key to hold for the ID lines. With None they always show."
+L["Items and toys."] = "Items and toys."
+L["Spells, auras, pet actions and a mount's spell."] = "Spells, auras, pet actions and a mount's spell."
+L["The icons of items, spells and auras."] = "The icons of items, spells and auras."
+L["Creatures and vehicles."] = "Creatures and vehicles."
+L["Spawn Age"] = "Spawn Age"
+L["How long ago an NPC spawned."] = "How long ago an NPC spawned."
+L["Currencies."] = "Currencies."
+L["Mounts."] = "Mounts."
+L["Quests, in the quest log and on the map too."] = "Quests, in the quest log and on the map too."
+L["Macros"] = "Macros"
+L["The spell or item a macro uses."] = "The spell or item a macro uses."
+
+-- Tooltip lines (Tooltip; the ID labels also name the Details page's checkboxes)
 L["Rare"] = "Rare"
+L["Max Stack"] = "Max Stack"
+L["Item ID"] = "Item ID"
+L["Spell ID"] = "Spell ID"
+L["Icon ID"] = "Icon ID"
+L["NPC ID"] = "NPC ID"
+L["Currency ID"] = "Currency ID"
+L["Mount ID"] = "Mount ID"
+L["Quest ID"] = "Quest ID"
+L["Spawned"] = "Spawned"
+L["%s ago"] = "%s ago"
 
 -- Profiles page (Settings)
 L["Keep different setups of AeonUI, and share them as text."] =

@@ -32,6 +32,7 @@ function Tooltip:Apply()
 
 	AUI.TooltipAppearance:Apply(on)
 	AUI.TooltipUnits:Apply(on)
+	AUI.TooltipDetails:Apply(on)
 end
 
 function Tooltip:Start()
@@ -43,5 +44,10 @@ function Tooltip:Start()
 	AUI.Callbacks:Register("Profile", self, self.OnProfileChanged)
 	AUI.TooltipAppearance:Hook()
 	AUI.TooltipUnits:Hook()
+	AUI.TooltipDetails:Hook()
+	-- The client settles its session CVars after login, over a write made before.
+	AUI.Events:Register("PLAYER_ENTERING_WORLD", self, function()
+		Tooltip:Apply()
+	end)
 	self:Apply()
 end

@@ -371,7 +371,7 @@ Equal("registered under the addon's name", window.name, "AeonUI")
 Equal("named root frame", declaration.frameName, "AeonUISettings")
 Equal("sidebar order", table.concat(window.order, " "), "general - #minimapHeader minimap minimapBorder minimapRows " ..
 	"minimapZone minimapDifficulty minimapClock minimapMail minimapTracking minimapCoordinates minimapCalendar " ..
-	"minimapCompartment - #tooltipHeader tooltipAppearance tooltipUnits - profiles")
+	"minimapCompartment - #tooltipHeader tooltipAppearance tooltipUnits tooltipDetails - profiles")
 Equal("Settings:Window reuses the window", Settings:Window(), window)
 Equal("the store is the active config", declaration.store(), Profile.config)
 Equal("account settings are the store's", declaration.account(), AeonUIDB.global)
@@ -508,6 +508,18 @@ AUI.can.mythicPlus, AUI.can.auraCasterNames = mythicPlus, auraCasterNames
 Equal("the Target line is offered everywhere", unitAdded.showTarget.show, nil)
 Equal("titles are hidden by default", window.pages.tooltipUnits.sections.tooltipUnitLines.settings.showTitles.default,
 	false)
+local details = window.pages.tooltipDetails
+local detailIDs = details.sections.tooltipDetailIDs.settings
+Equal("the Details page has a preview", details.preview ~= nil, true)
+Equal("every modifier is offered", #detailIDs.idModifier.options, #TooltipOptions.MODIFIERS)
+Equal("one checkbox per ID line", #details.sections.tooltipDetailIDs.settings, #TooltipOptions.ID_KEYS + 1)
+Equal("ID lines default on", detailIDs.showSpellID.default, true)
+Equal("with no modifier", detailIDs.idModifier.default, "NONE")
+local expansions = AUI.can.expansions
+AUI.can.expansions = nil
+Equal("the expansion is offered only where items have one",
+	details.sections.tooltipDetailLines.settings.showExpansion.show(), false)
+AUI.can.expansions = expansions
 
 -- Edit mode ----------------------------------------------------------------------------------------------------
 
@@ -686,7 +698,7 @@ Equal("no World Map header without marker data", table.concat(window.order, " ")
 AUI.can.worldMapMarkers = true
 window = Load(nil)
 Equal("the World Map header follows the Minimap's", table.concat(window.order, " "):match("minimapCompartment (.*)$"),
-	"- #worldMapHeader worldMapOptions worldMapMarkers - #tooltipHeader tooltipAppearance tooltipUnits - profiles")
+	"- #worldMapHeader worldMapOptions worldMapMarkers - #tooltipHeader tooltipAppearance tooltipUnits tooltipDetails - profiles")
 local optionsPage = window.pages.worldMapOptions
 Equal("Map Options sits under the World Map header", optionsPage.info.under, "worldMapHeader")
 Equal("with no page switch", optionsPage.info.switch, nil)

@@ -28,6 +28,14 @@ local STRIP_INSET, STRIP_GAP = 3, 1
 ---@field MOUNT_PATH string player tooltips add the player's mount
 ---@field RATING_PATH string player tooltips add the Mythic+ rating, where the client has one
 ---@field AURA_CASTERS_PATH string aura tooltips name who cast the aura, where the client offers it
+---@field EXPANSION_PATH string item tooltips add the item's expansion, where the client has expansions
+---@field ITEM_TYPE_PATH string item tooltips add the item's category and type
+---@field MAX_STACK_PATH string item tooltips add how many stack in one slot
+---@field BLANK_LINE_PATH string a blank line separates the tooltip from AeonUI's detail lines
+---@field ID_MODIFIER_PATH string a `tooltipModifier` choice: the key that must be held for the ID lines
+---@field ID_PATHS table<string, string> each ID line's setting, by its key in `ID_KEYS`
+---@field ID_KEYS string[] the ID lines, in the order the page lists them
+---@field MODIFIERS string[]
 ---@field BAR_STYLES string[]
 ---@field BLIZZARD_BAR_HEIGHT number the height Blizzard gives the bar
 local Options = {
@@ -48,6 +56,16 @@ local Options = {
 	MOUNT_PATH = "tooltip.units.mount",
 	RATING_PATH = "tooltip.units.rating",
 	AURA_CASTERS_PATH = "tooltip.units.auraCasters",
+	EXPANSION_PATH = "tooltip.details.expansion",
+	ITEM_TYPE_PATH = "tooltip.details.itemType",
+	MAX_STACK_PATH = "tooltip.details.maxStack",
+	BLANK_LINE_PATH = "tooltip.details.blankLine",
+	ID_MODIFIER_PATH = "tooltip.details.modifier",
+	-- item: items and toys; spell: spells, auras, pet actions and a mount's spell; macro: the spell or item a macro
+	-- uses; age: how long an NPC has been spawned.
+	ID_KEYS = { "item", "spell", "icon", "npc", "age", "currency", "mount", "quest", "macro" },
+	ID_PATHS = {},
+	MODIFIERS = { "NONE", "SHIFT", "CTRL", "ALT" },
 	-- BLIZZARD: under the tooltip, where Blizzard puts it. STRIP: along the inside of its bottom edge.
 	BAR_STYLES = { "BLIZZARD", "STRIP" },
 	BLIZZARD_BAR_HEIGHT = BAR_HEIGHT,
@@ -73,6 +91,17 @@ Schema:Boolean(Options.TARGET_PATH, true)
 Schema:Boolean(Options.MOUNT_PATH, true)
 Schema:Boolean(Options.RATING_PATH, true)
 Schema:Boolean(Options.AURA_CASTERS_PATH, true)
+Schema:Choices("tooltipModifier", Options.MODIFIERS)
+Schema:Boolean(Options.EXPANSION_PATH, true)
+Schema:Boolean(Options.ITEM_TYPE_PATH, true)
+Schema:Boolean(Options.MAX_STACK_PATH, true)
+Schema:Boolean(Options.BLANK_LINE_PATH, true)
+Schema:Choice(Options.ID_MODIFIER_PATH, "tooltipModifier", "NONE")
+
+for _, key in ipairs(Options.ID_KEYS) do
+	Options.ID_PATHS[key] = "tooltip.details.ids." .. key
+	Schema:Boolean(Options.ID_PATHS[key], true)
+end
 
 ---@param kind "header"|"body"|"small"
 ---@param scale number the font scale, in percent

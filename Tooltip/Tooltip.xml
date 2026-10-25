@@ -3,5 +3,6 @@
 	<Script file="Format.lua" />
 	<Script file="Appearance.lua" />
 	<Script file="Units.lua" />
+	<Script file="Details.lua" />
 	<Script file="Tooltip.lua" />
 </Ui>

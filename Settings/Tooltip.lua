@@ -7,6 +7,28 @@ local BAR_STYLE_LABELS = {
 	BLIZZARD = L["Blizzard"],
 	STRIP = L["Strip"],
 }
+local MODIFIER_LABELS = {
+	NONE = NONE,
+	SHIFT = SHIFT_KEY_TEXT,
+	CTRL = CTRL_KEY_TEXT,
+	ALT = ALT_KEY_TEXT,
+}
+-- Each ID line's checkbox, by its key in `TooltipOptions.ID_KEYS`.
+local ID_LINES = {
+	item = { id = "showItemID", label = L["Item ID"], description = L["Items and toys."] },
+	spell = { id = "showSpellID", label = L["Spell ID"],
+		description = L["Spells, auras, pet actions and a mount's spell."] },
+	icon = { id = "showIconID", label = L["Icon ID"], description = L["The icons of items, spells and auras."] },
+	npc = { id = "showNPCID", label = L["NPC ID"], description = L["Creatures and vehicles."] },
+	age = { id = "showSpawnAge", label = L["Spawn Age"], description = L["How long ago an NPC spawned."] },
+	currency = { id = "showCurrencyID", label = L["Currency ID"], description = L["Currencies."] },
+	mount = { id = "showMountID", label = L["Mount ID"], description = L["Mounts."] },
+	quest = { id = "showQuestID", label = L["Quest ID"], description = L["Quests, in the quest log and on the map too."] },
+	macro = { id = "showMacroIDs", label = L["Macros"], description = L["The spell or item a macro uses."] },
+}
+local DETAILS_SAMPLE_ITEM = 6948 -- Hearthstone, cached on every character
+local DETAILS_SAMPLE_SPELL = 8690 -- Hearthstone's spell
+local DETAILS_PREVIEW_GAP = 12
 
 ---The Tooltip header and its pages, each carrying the module's switch. Changes take effect at once.
 ---@class AUISettingsTooltip
@@ -174,9 +196,107 @@ function SettingsTooltip:DeclareUnits(window)
 		end)
 end
 
+---Two real tooltips, a sample item and a sample spell, built by the client and given the chosen lines by the Details
+---post-calls, which treat them as previews.
+local DetailsPreview = {
+	---@param canvas Frame
+	create = function(canvas)
+		AUI.TooltipDetails.previews = {
+			CreateFrame("GameTooltip", "AeonUITooltipPreviewItem", canvas, "GameTooltipTemplate"),
+			CreateFrame("GameTooltip", "AeonUITooltipPreviewSpell", canvas, "GameTooltipTemplate"),
+		}
+	end,
+	---@param canvas Frame
+	---@return number width
+	---@return number height
+	refresh = function(canvas)
+		local item, spell = unpack(AUI.TooltipDetails.previews)
+
+		for _, tooltip in ipairs(AUI.TooltipDetails.previews) do
+			tooltip:SetOwner(canvas, "ANCHOR_NONE")
+			tooltip:SetFrameStrata(canvas:GetFrameStrata())
+			tooltip:SetFrameLevel(canvas:GetFrameLevel() + 1)
+		end
+
+		item:SetItemByID(DETAILS_SAMPLE_ITEM)
+		spell:SetSpellByID(DETAILS_SAMPLE_SPELL)
+		item:ClearAllPoints()
+		item:SetPoint("TOPLEFT", canvas, "TOPLEFT")
+		spell:ClearAllPoints()
+		spell:SetPoint("TOPLEFT", item, "TOPRIGHT", DETAILS_PREVIEW_GAP, 0)
+
+		return item:GetWidth() + DETAILS_PREVIEW_GAP + spell:GetWidth(), math.max(item:GetHeight(), spell:GetHeight())
+	end,
+	stop = function()
+		for _, tooltip in ipairs(AUI.TooltipDetails.previews or {}) do
+			tooltip:Hide()
+		end
+	end,
+}
+
+---@param window table
+function SettingsTooltip:DeclareDetails(window)
+	local Settings, Options = AUI.Settings, AUI.TooltipOptions
+	local page = window:Page("tooltipDetails", {
+		title = L["Details"],
+		description = L["Lines added to item, spell, aura, unit and other tooltips: an item's details, and IDs."],
+		under = "tooltipHeader",
+		switch = { path = Options.ENABLED_PATH, default = Settings:Default(Options.ENABLED_PATH) },
+	})
+
+	if not page then
+		return
+	end
+
+	self.pageIDs.tooltipDetails = true
+	page:Preview({
+		height = 140,
+		create = DetailsPreview.create,
+		refresh = DetailsPreview.refresh,
+		stop = DetailsPreview.stop,
+	})
+
+	local lines = page:Section("tooltipDetailLines", L["Lines"])
+
+	Checkbox(lines, "showExpansion", EXPANSION_FILTER_TEXT, L["The expansion an item comes from."],
+		Options.EXPANSION_PATH, function()
+			return AUI.can.expansions == true
+		end)
+	Checkbox(lines, "showItemType", L["Category and Type"], L["An item's category and type, such as Armor / Plate."],
+		Options.ITEM_TYPE_PATH)
+	Checkbox(lines, "showMaxStack", L["Max Stack"], L["How many of an item fit in one stack."], Options.MAX_STACK_PATH)
+	Checkbox(lines, "blankLine", L["Blank Line Before"], L["Keeps a blank line between the tooltip and the added lines."],
+		Options.BLANK_LINE_PATH)
+
+	local ids = page:Section("tooltipDetailIDs", L["IDs"])
+	local modifiers = {}
+
+	for index, modifier in ipairs(Options.MODIFIERS) do
+		modifiers[index] = { value = modifier, text = MODIFIER_LABELS[modifier] }
+	end
+
+	ids:Dropdown({
+		id = "idModifier",
+		label = L["Modifier"],
+		description = L["The key to hold for the ID lines. With None they always show."],
+		path = Options.ID_MODIFIER_PATH,
+		default = Settings:Default(Options.ID_MODIFIER_PATH),
+		options = modifiers,
+	})
+
+	for _, key in ipairs(Options.ID_KEYS) do
+		local line = ID_LINES[key]
+
+		if line then
+			Checkbox(ids, line.id, line.label, line.description, Options.ID_PATHS[key])
+		end
+	end
+end
+
 ---@param window table
 function SettingsTooltip:Declare(window)
 	window:Header("tooltipHeader", L["Tooltip"])
 	self:DeclareAppearance(window)
 	self:DeclareUnits(window)
+	self:DeclareDetails(window)
 end
