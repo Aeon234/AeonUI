@@ -330,20 +330,22 @@ L["Appearance"] = "Appearance"
 L["The tooltip's text and health bar. Blizzard's background and border stay as they are."] =
 	"The tooltip's text and health bar. Blizzard's background and border stay as they are."
 L["Custom Font"] = "Custom Font"
-L["Draws every tooltip's text in the font below instead of Blizzard's."] =
-	"Draws every tooltip's text in the font below instead of Blizzard's."
-L["Title Size"] = "Title Size"
-L["The first line: the name of the unit, item or spell."] = "The first line: the name of the unit, item or spell."
-L["Text Size"] = "Text Size"
-L["Every other line. Blizzard's smaller text stays a little smaller."] =
-	"Every other line. Blizzard's smaller text stays a little smaller."
+L["Font Scale"] = "Font Scale"
+L["Scales Blizzard's text sizes: 14 for the title, 12 for the other lines."] =
+	"Scales Blizzard's text sizes: 14 for the title, 12 for the other lines."
+L["Draws every tooltip's text in the font and outline below instead of Blizzard's."] =
+	"Draws every tooltip's text in the font and outline below instead of Blizzard's."
 L["Health Bar"] = "Health Bar"
+L["Show Health Bar"] = "Show Health Bar"
+L["The health bar on unit tooltips."] = "The health bar on unit tooltips."
 L["Style"] = "Style"
 L["Blizzard's place under the tooltip, or a strip along the inside of its bottom edge."] =
 	"Blizzard's place under the tooltip, or a strip along the inside of its bottom edge."
 L["Blizzard"] = "Blizzard"
 L["Strip"] = "Strip"
 L["Texture"] = "Texture"
+L["A strip keeps room above it, so the tooltip's lines never reach it."] =
+	"A strip keeps room above it, so the tooltip's lines never reach it."
 
 -- Profiles page (Settings)
 L["Keep different setups of AeonUI, and share them as text."] =

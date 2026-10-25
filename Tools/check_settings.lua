@@ -489,15 +489,13 @@ end
 
 local tooltipBar = window.pages.tooltipAppearance.sections.tooltipHealthBar.settings
 Equal("every bar style is offered", #tooltipBar.barStyle.options, #TooltipOptions.BAR_STYLES)
-Equal("Blizzard's place shows its height", tooltipBar.barHeight.show(), true)
-Equal("the strip's height waits for the strip", tooltipBar.stripHeight.show(), false)
-Profile:Set(TooltipOptions.BAR_STYLE_PATH, "STRIP")
-Equal("the strip shows its height", tooltipBar.stripHeight.show(), true)
-Equal("and hides Blizzard's", tooltipBar.barHeight.show(), false)
-Profile:Set(TooltipOptions.BAR_STYLE_PATH, "BLIZZARD")
+Equal("one height for both styles", tooltipBar.barHeight.path, TooltipOptions.BAR_HEIGHT_PATH)
+Equal("no second height", tooltipBar.stripHeight, nil)
 local tooltipFont = window.pages.tooltipAppearance.sections.tooltipFont.settings
 Equal("the font follows Custom Font", tooltipFont.fontFace.depends, "customFont")
-Equal("so do the sizes", tooltipFont.bodySize.depends, "customFont")
+Equal("the scale stands on its own", tooltipFont.fontScale.depends, nil)
+Equal("the bar's style follows Show Health Bar", tooltipBar.barStyle.depends, "showHealthBar")
+Equal("so does its height", tooltipBar.barHeight.depends, "showHealthBar")
 
 -- Edit mode ----------------------------------------------------------------------------------------------------
 

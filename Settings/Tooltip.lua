@@ -16,14 +16,6 @@ local SettingsTooltip = {
 }
 AUI.SettingsTooltip = SettingsTooltip
 
----@param style string
----@return fun(): boolean shown while the health bar has that style
-local function WithBarStyle(style)
-	return function()
-		return AUI.Profile:Get(AUI.TooltipOptions.BAR_STYLE_PATH) == style
-	end
-end
-
 ---@param window table
 function SettingsTooltip:DeclareAppearance(window)
 	local Settings, Options = AUI.Settings, AUI.TooltipOptions
@@ -42,10 +34,22 @@ function SettingsTooltip:DeclareAppearance(window)
 
 	local font = page:Section("tooltipFont", L["Text"])
 
+	font:Slider({
+		id = "fontScale",
+		resettable = true,
+		label = L["Font Scale"],
+		description = L["Scales Blizzard's text sizes: 14 for the title, 12 for the other lines."],
+		path = Options.FONT_SCALE_PATH,
+		default = Settings:Default(Options.FONT_SCALE_PATH),
+		min = 70,
+		max = 150,
+		step = 5,
+		format = "percent",
+	})
 	font:Checkbox({
 		id = "customFont",
 		label = L["Custom Font"],
-		description = L["Draws every tooltip's text in the font below instead of Blizzard's."],
+		description = L["Draws every tooltip's text in the font and outline below instead of Blizzard's."],
 		path = Options.FONT_CUSTOM_PATH,
 		default = Settings:Default(Options.FONT_CUSTOM_PATH),
 	})
@@ -56,30 +60,6 @@ function SettingsTooltip:DeclareAppearance(window)
 		default = Settings:Default(Options.FONT_FACE_PATH),
 		depends = "customFont",
 		picker = "font",
-	})
-	font:Slider({
-		id = "headerSize",
-		resettable = true,
-		label = L["Title Size"],
-		description = L["The first line: the name of the unit, item or spell."],
-		path = Options.FONT_HEADER_PATH,
-		default = Settings:Default(Options.FONT_HEADER_PATH),
-		depends = "customFont",
-		min = 8,
-		max = 24,
-		step = 1,
-	})
-	font:Slider({
-		id = "bodySize",
-		resettable = true,
-		label = L["Text Size"],
-		description = L["Every other line. Blizzard's smaller text stays a little smaller."],
-		path = Options.FONT_BODY_PATH,
-		default = Settings:Default(Options.FONT_BODY_PATH),
-		depends = "customFont",
-		min = 8,
-		max = 20,
-		step = 1,
 	})
 	font:Dropdown({
 		id = "fontOutline",
@@ -98,12 +78,20 @@ function SettingsTooltip:DeclareAppearance(window)
 
 	local bar = page:Section("tooltipHealthBar", L["Health Bar"])
 
+	bar:Checkbox({
+		id = "showHealthBar",
+		label = L["Show Health Bar"],
+		description = L["The health bar on unit tooltips."],
+		path = Options.BAR_SHOWN_PATH,
+		default = Settings:Default(Options.BAR_SHOWN_PATH),
+	})
 	bar:Dropdown({
 		id = "barStyle",
 		label = L["Style"],
 		description = L["Blizzard's place under the tooltip, or a strip along the inside of its bottom edge."],
 		path = Options.BAR_STYLE_PATH,
 		default = Settings:Default(Options.BAR_STYLE_PATH),
+		depends = "showHealthBar",
 		options = styles,
 	})
 	bar:Dropdown({
@@ -111,28 +99,19 @@ function SettingsTooltip:DeclareAppearance(window)
 		label = L["Texture"],
 		path = Options.BAR_TEXTURE_PATH,
 		default = Settings:Default(Options.BAR_TEXTURE_PATH),
+		depends = "showHealthBar",
 		picker = "texture",
 	})
 	bar:Slider({
 		id = "barHeight",
 		resettable = true,
 		label = L["Height"],
+		description = L["A strip keeps room above it, so the tooltip's lines never reach it."],
 		path = Options.BAR_HEIGHT_PATH,
 		default = Settings:Default(Options.BAR_HEIGHT_PATH),
-		show = WithBarStyle("BLIZZARD"),
-		min = 2,
-		max = 16,
-		step = 1,
-	})
-	bar:Slider({
-		id = "stripHeight",
-		resettable = true,
-		label = L["Height"],
-		path = Options.STRIP_HEIGHT_PATH,
-		default = Settings:Default(Options.STRIP_HEIGHT_PATH),
-		show = WithBarStyle("STRIP"),
+		depends = "showHealthBar",
 		min = 1,
-		max = 8,
+		max = 16,
 		step = 1,
 	})
 end

@@ -38,5 +38,6 @@ function Tooltip:Start()
 
 	self.active = true
 	AUI.Callbacks:Register("Profile", self, self.OnProfileChanged)
+	AUI.TooltipAppearance:Hook()
 	self:Apply()
 end
