@@ -20,6 +20,7 @@ Media\Media.xml
 UI\UI.xml
 Minimap\Minimap.xml
 WorldMap\WorldMap.xml
+Tooltip\Tooltip.xml
 Settings\Settings.xml
 
 #@do-not-package@

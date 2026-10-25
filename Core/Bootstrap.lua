@@ -51,6 +51,7 @@ frame:SetScript("OnEvent", function(self, event)
 		AUI.Broker:Create()
 		AUI.Minimap:Start()
 		AUI.WorldMap:Start()
+		AUI.Tooltip:Start()
 		AUI.EditTargets:Register()
 	end
 end)

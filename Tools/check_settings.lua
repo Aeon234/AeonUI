@@ -297,7 +297,14 @@ function icon:AddButtonToCompartment(name)
 	self.compartment[name] = true
 end
 
-local LIBRARIES = { ["LibAeonSettings-1.0"] = lib, ["LibDataBroker-1.1"] = LDB, ["LibDBIcon-1.0"] = icon }
+local LSM = {
+	MediaType = { FONT = "font", STATUSBAR = "statusbar" },
+	Register = function() end,
+	Fetch = function() end,
+}
+
+local LIBRARIES = { ["LibAeonSettings-1.0"] = lib, ["LibDataBroker-1.1"] = LDB, ["LibDBIcon-1.0"] = icon,
+	["LibSharedMedia-3.0"] = LSM }
 function LibStub(name)
 	return assert(LIBRARIES[name], name)
 end
@@ -318,10 +325,11 @@ AUI.L = setmetatable({}, { __index = function(_, key)
 	return key
 end })
 for _, file in ipairs({ "Core/Callbacks.lua", "Core/Capabilities.lua", "Core/Broker.lua", "Profile/Schema.lua",
-	"Profile/Store.lua", "Profile/Profile.lua", "UI/Border.lua", "Minimap/Layout.lua", "Minimap/Elements.lua",
-	"Minimap/Rows.lua", "Minimap/Fade.lua", "Minimap/Text.lua", "Minimap/Difficulty.lua",
-	"Minimap/Buttons.lua", "Minimap/Map.lua", "WorldMap/Markers.lua", "WorldMap/Options.lua", "Settings/Window.lua", "Settings/MinimapEditor.lua",
-	"Settings/General.lua", "Settings/Minimap.lua", "Settings/WorldMap.lua", "Settings/Profiles.lua", "Settings/Recovery.lua",
+	"Profile/Store.lua", "Profile/Profile.lua", "Media/Media.lua", "UI/Border.lua", "Minimap/Layout.lua",
+	"Minimap/Elements.lua", "Minimap/Rows.lua", "Minimap/Fade.lua", "Minimap/Text.lua", "Minimap/Difficulty.lua",
+	"Minimap/Buttons.lua", "Minimap/Map.lua", "WorldMap/Markers.lua", "WorldMap/Options.lua", "Tooltip/Options.lua",
+	"Settings/Window.lua", "Settings/MinimapEditor.lua", "Settings/General.lua", "Settings/Minimap.lua",
+	"Settings/WorldMap.lua", "Settings/Tooltip.lua", "Settings/Profiles.lua", "Settings/Recovery.lua",
 	"Settings/EditTargets.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
@@ -363,7 +371,7 @@ Equal("registered under the addon's name", window.name, "AeonUI")
 Equal("named root frame", declaration.frameName, "AeonUISettings")
 Equal("sidebar order", table.concat(window.order, " "), "general - #minimapHeader minimap minimapBorder minimapRows " ..
 	"minimapZone minimapDifficulty minimapClock minimapMail minimapTracking minimapCoordinates minimapCalendar " ..
-	"minimapCompartment - profiles")
+	"minimapCompartment - #tooltipHeader tooltipAppearance - profiles")
 Equal("Settings:Window reuses the window", Settings:Window(), window)
 Equal("the store is the active config", declaration.store(), Profile.config)
 Equal("account settings are the store's", declaration.account(), AeonUIDB.global)
@@ -459,6 +467,37 @@ Profile:Set("minimap.border.style", "METAL")
 local resetSlider = minimapPage.sections.zoom.settings.zoomReset
 Equal("a zero reset reads Never", resetSlider.format(0), "Never")
 Equal("a reset reads in seconds", resetSlider.format(15), "15 s")
+
+-- Tooltip pages -------------------------------------------------------------------------------------------------
+
+local TooltipOptions = AUI.TooltipOptions
+
+for id in pairs(AUI.SettingsTooltip.pageIDs) do
+	local page = window.pages[id]
+
+	Equal(id .. " sits under the Tooltip header", page.info.under, "tooltipHeader")
+	Equal(id .. " carries the module's switch", page.info.switch.path, TooltipOptions.ENABLED_PATH)
+	Equal(id .. " switch defaults on", page.info.switch.default, true)
+
+	for _, section in ipairs(page.sections) do
+		for _, setting in ipairs(section.settings) do
+			Equal(setting.id .. " names a setting", AUI.Schema:Field(setting.path) ~= nil, true)
+			Equal(setting.id .. " carries its default", setting.default, AUI.Schema:Field(setting.path).default)
+		end
+	end
+end
+
+local tooltipBar = window.pages.tooltipAppearance.sections.tooltipHealthBar.settings
+Equal("every bar style is offered", #tooltipBar.barStyle.options, #TooltipOptions.BAR_STYLES)
+Equal("Blizzard's place shows its height", tooltipBar.barHeight.show(), true)
+Equal("the strip's height waits for the strip", tooltipBar.stripHeight.show(), false)
+Profile:Set(TooltipOptions.BAR_STYLE_PATH, "STRIP")
+Equal("the strip shows its height", tooltipBar.stripHeight.show(), true)
+Equal("and hides Blizzard's", tooltipBar.barHeight.show(), false)
+Profile:Set(TooltipOptions.BAR_STYLE_PATH, "BLIZZARD")
+local tooltipFont = window.pages.tooltipAppearance.sections.tooltipFont.settings
+Equal("the font follows Custom Font", tooltipFont.fontFace.depends, "customFont")
+Equal("so do the sizes", tooltipFont.bodySize.depends, "customFont")
 
 -- Edit mode ----------------------------------------------------------------------------------------------------
 
@@ -637,7 +676,7 @@ Equal("no World Map header without marker data", table.concat(window.order, " ")
 AUI.can.worldMapMarkers = true
 window = Load(nil)
 Equal("the World Map header follows the Minimap's", table.concat(window.order, " "):match("minimapCompartment (.*)$"),
-	"- #worldMapHeader worldMapOptions worldMapMarkers - profiles")
+	"- #worldMapHeader worldMapOptions worldMapMarkers - #tooltipHeader tooltipAppearance - profiles")
 local optionsPage = window.pages.worldMapOptions
 Equal("Map Options sits under the World Map header", optionsPage.info.under, "worldMapHeader")
 Equal("with no page switch", optionsPage.info.switch, nil)

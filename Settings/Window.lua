@@ -32,6 +32,9 @@ local function DeclareSidebar(window)
 		window:Divider()
 	end
 
+	AUI.SettingsTooltip:Declare(window)
+	window:Divider()
+
 	AUI.SettingsProfiles:Declare(window)
 end
 

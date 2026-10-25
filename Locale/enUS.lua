@@ -45,6 +45,12 @@ L["Click: open settings"] = "Click: open settings"
 L["Profiles"] = "Profiles"
 L["Recovery"] = "Recovery"
 
+-- Shared settings labels (Settings)
+L["Text"] = "Text"
+L["Font"] = "Font"
+L["Outline"] = "Outline"
+L["Height"] = "Height"
+
 -- General page (Settings)
 L["Settings for AeonUI as a whole. Each feature has its own page."] =
 	"Settings for AeonUI as a whole. Each feature has its own page."
@@ -87,7 +93,6 @@ L["Map"] = "Map"
 L["Turning the minimap on or off takes effect after a /reload. While it is off, Blizzard's minimap is left as it is."] =
 	"Turning the minimap on or off takes effect after a /reload. While it is off, Blizzard's minimap is left as it is."
 L["Width"] = "Width"
-L["Height"] = "Height"
 L["Kept within 3:2 of the width either way."] = "Kept within 3:2 of the width either way."
 L["Scale"] = "Scale"
 L["The map stays north up while AeonUI's minimap is on, whatever the Rotate Minimap option says."] =
@@ -119,9 +124,6 @@ L["Compared with the row's height."] = "Compared with the row's height."
 L["Needs Show Day and Night."] = "Needs Show Day and Night."
 L["Coordinates"] = "Coordinates"
 L["Instance Difficulty"] = "Instance Difficulty"
-L["Text"] = "Text"
-L["Font"] = "Font"
-L["Outline"] = "Outline"
 L["All Rows"] = "All Rows"
 L["Text Color"] = "Text Color"
 L["For the clock, coordinates and the addon count; the zone and instance difficulty have colors of their own."] =
@@ -321,6 +323,27 @@ L["Down to %s"] = "Down to %s"
 L["Entrance"] = "Entrance"
 L["Optional"] = "Optional"
 L["Right-click: back to the map"] = "Right-click: back to the map"
+
+-- Tooltip pages (Settings)
+L["Tooltip"] = "Tooltip"
+L["Appearance"] = "Appearance"
+L["The tooltip's text and health bar. Blizzard's background and border stay as they are."] =
+	"The tooltip's text and health bar. Blizzard's background and border stay as they are."
+L["Custom Font"] = "Custom Font"
+L["Draws every tooltip's text in the font below instead of Blizzard's."] =
+	"Draws every tooltip's text in the font below instead of Blizzard's."
+L["Title Size"] = "Title Size"
+L["The first line: the name of the unit, item or spell."] = "The first line: the name of the unit, item or spell."
+L["Text Size"] = "Text Size"
+L["Every other line. Blizzard's smaller text stays a little smaller."] =
+	"Every other line. Blizzard's smaller text stays a little smaller."
+L["Health Bar"] = "Health Bar"
+L["Style"] = "Style"
+L["Blizzard's place under the tooltip, or a strip along the inside of its bottom edge."] =
+	"Blizzard's place under the tooltip, or a strip along the inside of its bottom edge."
+L["Blizzard"] = "Blizzard"
+L["Strip"] = "Strip"
+L["Texture"] = "Texture"
 
 -- Profiles page (Settings)
 L["Keep different setups of AeonUI, and share them as text."] =

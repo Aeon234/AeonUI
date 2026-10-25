@@ -48,6 +48,8 @@ end
 
 Equal("stripes registered", registered["statusbar:AeonUI Thin Stripes"] ~= nil, true)
 Equal("Blizzard shield registered", registered["statusbar:Blizzard Shield"], "Interface\\RaidFrame\\Shield-Fill")
+Equal("Blizzard tooltip fill registered", registered["statusbar:Blizzard Tooltip"],
+	"Interface\\TargetingFrame\\UI-TargetingFrame-BarFill")
 
 Equal("no outline", Media:FontFlags("NONE"), "")
 Equal("outline", Media:FontFlags("OUTLINE"), "OUTLINE")

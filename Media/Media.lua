@@ -10,14 +10,17 @@ local FLAT_BASE = "Interface\\TargetingFrame\\UI-StatusBar"
 ---@field FLAT string the texture choice meaning AeonUI's flat fill
 ---@field STRIPED string LibSharedMedia's name for AeonUI's thin stripes
 ---@field SHIELD string LibSharedMedia's name for Blizzard's shield fill
+---@field TOOLTIP_BAR string LibSharedMedia's name for the fill of Blizzard's tooltip health bar
 ---@field files table<string, string> the files of the bar textures AeonUI registers, by name
 local Media = {
 	FLAT = "flat",
 	STRIPED = "AeonUI Thin Stripes",
 	SHIELD = "Blizzard Shield",
+	TOOLTIP_BAR = "Blizzard Tooltip",
 	files = {
 		["AeonUI Thin Stripes"] = "Interface\\AddOns\\AeonUI\\Media\\Textures\\ThinStripes.png",
 		["Blizzard Shield"] = "Interface\\RaidFrame\\Shield-Fill",
+		["Blizzard Tooltip"] = "Interface\\TargetingFrame\\UI-TargetingFrame-BarFill",
 	},
 }
 AUI.Media = Media
