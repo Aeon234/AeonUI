@@ -20,6 +20,14 @@ local STRIP_INSET, STRIP_GAP = 3, 1
 ---@field BAR_STYLE_PATH string a `tooltipBarStyle` choice
 ---@field BAR_TEXTURE_PATH string a LibSharedMedia bar texture name
 ---@field BAR_HEIGHT_PATH string the bar's height, in either style
+---@field TITLES_PATH string player titles stay on the name line
+---@field GUILD_RANK_PATH string the guild line carries the player's rank
+---@field LEVEL_COLOR_PATH string the level is drawn in its difficulty color with its classification mark
+---@field MUTED_LINES_PATH string owner and corpse lines are grayed and battle-pet names take their reaction color
+---@field TARGET_PATH string unit tooltips add whom the unit targets
+---@field MOUNT_PATH string player tooltips add the player's mount
+---@field RATING_PATH string player tooltips add the Mythic+ rating, where the client has one
+---@field AURA_CASTERS_PATH string aura tooltips name who cast the aura, where the client offers it
 ---@field BAR_STYLES string[]
 ---@field BLIZZARD_BAR_HEIGHT number the height Blizzard gives the bar
 local Options = {
@@ -32,6 +40,14 @@ local Options = {
 	BAR_STYLE_PATH = "tooltip.healthBar.style",
 	BAR_TEXTURE_PATH = "tooltip.healthBar.texture",
 	BAR_HEIGHT_PATH = "tooltip.healthBar.height",
+	TITLES_PATH = "tooltip.units.titles",
+	GUILD_RANK_PATH = "tooltip.units.guildRank",
+	LEVEL_COLOR_PATH = "tooltip.units.levelColor",
+	MUTED_LINES_PATH = "tooltip.units.mutedLines",
+	TARGET_PATH = "tooltip.units.target",
+	MOUNT_PATH = "tooltip.units.mount",
+	RATING_PATH = "tooltip.units.rating",
+	AURA_CASTERS_PATH = "tooltip.units.auraCasters",
 	-- BLIZZARD: under the tooltip, where Blizzard puts it. STRIP: along the inside of its bottom edge.
 	BAR_STYLES = { "BLIZZARD", "STRIP" },
 	BLIZZARD_BAR_HEIGHT = BAR_HEIGHT,
@@ -49,6 +65,14 @@ Schema:Boolean(Options.BAR_SHOWN_PATH, false)
 Schema:Choice(Options.BAR_STYLE_PATH, "tooltipBarStyle", "BLIZZARD")
 Schema:String(Options.BAR_TEXTURE_PATH, AUI.Media.TOOLTIP_BAR, 64)
 Schema:Number(Options.BAR_HEIGHT_PATH, BAR_HEIGHT, 1, 16, true)
+Schema:Boolean(Options.TITLES_PATH, false)
+Schema:Boolean(Options.GUILD_RANK_PATH, true)
+Schema:Boolean(Options.LEVEL_COLOR_PATH, true)
+Schema:Boolean(Options.MUTED_LINES_PATH, true)
+Schema:Boolean(Options.TARGET_PATH, true)
+Schema:Boolean(Options.MOUNT_PATH, true)
+Schema:Boolean(Options.RATING_PATH, true)
+Schema:Boolean(Options.AURA_CASTERS_PATH, true)
 
 ---@param kind "header"|"body"|"small"
 ---@param scale number the font scale, in percent

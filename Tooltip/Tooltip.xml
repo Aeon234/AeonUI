@@ -1,5 +1,7 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/">
 	<Script file="Options.lua" />
+	<Script file="Format.lua" />
 	<Script file="Appearance.lua" />
+	<Script file="Units.lua" />
 	<Script file="Tooltip.lua" />
 </Ui>

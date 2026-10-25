@@ -28,7 +28,10 @@ function Tooltip:OnProfileChanged(path)
 end
 
 function Tooltip:Apply()
-	AUI.TooltipAppearance:Apply(self:IsEnabled())
+	local on = self:IsEnabled()
+
+	AUI.TooltipAppearance:Apply(on)
+	AUI.TooltipUnits:Apply(on)
 end
 
 function Tooltip:Start()
@@ -39,5 +42,6 @@ function Tooltip:Start()
 	self.active = true
 	AUI.Callbacks:Register("Profile", self, self.OnProfileChanged)
 	AUI.TooltipAppearance:Hook()
+	AUI.TooltipUnits:Hook()
 	self:Apply()
 end

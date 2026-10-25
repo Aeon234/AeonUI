@@ -14,6 +14,9 @@ AUI.Capabilities = Capabilities
 ---@field dielCycle boolean the client reports day and night itself (`C_DateAndTime.IsDayTime`, Forever)
 ---@field craftingOrders boolean the minimap shows personal crafting orders (Retail)
 ---@field worldMapMarkers boolean the world map takes data providers and AeonUI has marker data for this world (Forever)
+---@field mythicPlus boolean players have a Mythic+ rating (Retail)
+---@field auraCasterNames boolean the client can name an aura's caster in its tooltip (`tooltipShowAuraCasterNames`)
+---@field surnames boolean player names carry a surname instead of a realm (Forever)
 AUI.can = {}
 
 ---The only place a client difference is detected. Runs once at login.
@@ -29,6 +32,10 @@ function Capabilities:Resolve()
 		and MinimapCluster.IndicatorFrame.CraftingOrderFrame ~= nil and C_CraftingOrders ~= nil
 	can.worldMapMarkers = WorldMapFrame ~= nil and WorldMapFrame.AddDataProvider ~= nil
 		and WOW_PROJECT_ID == WOW_PROJECT_CAMELOT
+	can.mythicPlus = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE and C_PlayerInfo ~= nil
+		and C_PlayerInfo.GetPlayerMythicPlusRatingSummary ~= nil and C_ChallengeMode ~= nil
+	can.auraCasterNames = C_CVar.GetCVar("tooltipShowAuraCasterNames") ~= nil
+	can.surnames = WOW_PROJECT_ID == WOW_PROJECT_CAMELOT and Constants.CharacterNameSeparatorConsts ~= nil
 
 	self.resolved = true
 

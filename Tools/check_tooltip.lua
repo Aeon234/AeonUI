@@ -1,7 +1,8 @@
 -- Checks the Tooltip module outside the game: its settings and their bounds, the scaled font sizes and the health
 -- bar's place in each style, the tooltip font objects taking the font settings and getting Blizzard's fonts back, the
 -- health bar's showing, place, height and texture with the module on and off, the room a tooltip keeps for the strip, and which profile
--- changes re-apply the module.
+-- changes re-apply the module; the unit text (names, guild, level and marks) and the unit tooltips' edited and added
+-- lines, the health bar's color, secret values left alone, and the aura caster names CVar.
 -- Run from any directory with Lua 5.1: lua Tools/check_tooltip.lua
 -- Loads the real files against stubbed globals. It proves the logic, not the drawing.
 
@@ -10,6 +11,7 @@ local root = (arg and arg[0] or ""):match("^(.-)[^/\\]*$") .. "../"
 -- Environment ---------------------------------------------------------------------------------------------
 
 UNKNOWN = "Unknown"
+TOOLTIP_UNIT_LEVEL = "Level %s"
 SlashCmdList = {}
 C_AddOns = {
 	GetAddOnMetadata = function() end,
@@ -66,8 +68,13 @@ GameTooltipHeaderText = FontObject("Fonts\\FRIZQT__.TTF", 14)
 GameTooltipText = FontObject("Fonts\\FRIZQT__.TTF", 12)
 GameTooltipTextSmall = FontObject("Fonts\\FRIZQT__.TTF", 10)
 
-function issecretvalue()
-	return false
+-- Stands in for a secret value; `issecretvalue` knows it.
+local SECRET = setmetatable({}, { __tostring = function()
+	return "secret"
+end })
+
+function issecretvalue(value)
+	return value == SECRET
 end
 
 local hooks = {}
@@ -76,17 +83,35 @@ function hooksecurefunc(object, method, handler)
 	assert(object[method], method)
 end
 
-Enum = { TooltipDataType = { Unit = 2, Object = 4 } }
+Enum = {
+	TooltipDataType = { Unit = 2, Object = 4 },
+	TooltipDataLineType = { None = 0, UnitName = 2, UnitOwner = 16, UnitLevel = 47 },
+}
 local postCalls = {}
 TooltipDataProcessor = {
 	AddTooltipPostCall = function(kind, handler)
-		postCalls[kind] = handler
+		postCalls[kind] = postCalls[kind] or {}
+		table.insert(postCalls[kind], handler)
 	end,
 }
 
 local forbidden = false
 local padding = { right = 0, bottom = 0, left = 0, top = 0 }
 local scripts = {}
+local added = {}
+
+local function HookScript(_, script, handler)
+	scripts[script] = scripts[script] or {}
+	table.insert(scripts[script], handler)
+end
+
+---Runs every handler hooked to a script.
+local function Fire(script, ...)
+	for _, handler in ipairs(scripts[script]) do
+		handler(...)
+	end
+end
+
 GameTooltip = Widget("GameTooltip", {
 	IsForbidden = function()
 		return forbidden
@@ -97,8 +122,9 @@ GameTooltip = Widget("GameTooltip", {
 	SetPadding = function(_, right, bottom, left, top)
 		padding.right, padding.bottom, padding.left, padding.top = right, bottom, left or 0, top or 0
 	end,
-	HookScript = function(_, script, handler)
-		scripts[script] = handler
+	HookScript = HookScript,
+	AddDoubleLine = function(_, left, right, lr, lg, lb, rr, rg, rb)
+		added[#added + 1] = { left = left, right = right, label = { lr, lg, lb }, color = { rr, rg, rb } }
 	end,
 })
 
@@ -134,6 +160,10 @@ GameTooltipStatusBar = Widget("StatusBar", {
 	SetAlpha = function(_, alpha)
 		bar.alpha = alpha
 	end,
+	SetStatusBarColor = function(_, r, g, b)
+		bar.color = { r, g, b }
+	end,
+	HookScript = HookScript,
 })
 
 local AUI = {}
@@ -141,8 +171,9 @@ assert(loadfile(root .. "Core/Core.lua"))("AeonUI", AUI)
 AUI.L = setmetatable({}, { __index = function(_, key)
 	return key
 end })
+AUI.can = {}
 for _, file in ipairs({ "Profile/Schema.lua", "Media/Media.lua", "Minimap/Elements.lua", "Tooltip/Options.lua",
-	"Tooltip/Appearance.lua", "Tooltip/Tooltip.lua" }) do
+	"Tooltip/Format.lua", "Tooltip/Appearance.lua", "Tooltip/Units.lua", "Tooltip/Tooltip.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 
@@ -331,9 +362,9 @@ Equal("the flat fill is a plain color", bar.colored, true)
 
 -- Room for the strip ------------------------------------------------------------------------------------------
 
-local Pad = postCalls[Enum.TooltipDataType.Unit]
+local Pad = postCalls[Enum.TooltipDataType.Unit][1]
 Equal("unit tooltips are padded", Pad ~= nil, true)
-Equal("and object tooltips", postCalls[Enum.TooltipDataType.Object], Pad)
+Equal("and object tooltips", postCalls[Enum.TooltipDataType.Object][1], Pad)
 Pad(GameTooltip)
 Equal("no room while the bar is hidden", padding.bottom, 0)
 bar.shown = true
@@ -343,16 +374,16 @@ Equal("room below the last line", padding.bottom, 6)
 Equal("the other sides are kept", padding.right, 5)
 Pad(GameTooltip)
 Equal("added once per content", padding.bottom, 6)
-scripts.OnTooltipCleared(GameTooltip)
+Fire("OnTooltipCleared", GameTooltip)
 Equal("taken back when the lines clear", padding.bottom, 2)
 Pad({})
 Equal("other tooltips are left alone", padding.bottom, 2)
 Pad(GameTooltip)
-scripts.OnHide()
+Fire("OnHide", GameTooltip)
 padding.bottom = 0
 Pad(GameTooltip)
 Equal("after Blizzard clears it on hide, added afresh", padding.bottom, 4)
-scripts.OnTooltipCleared(GameTooltip)
+Fire("OnTooltipCleared", GameTooltip)
 values[Options.BAR_STYLE_PATH] = "BLIZZARD"
 Tooltip:Apply()
 Pad(GameTooltip)
@@ -386,5 +417,354 @@ forbidden = true
 Tooltip:Apply()
 Equal("a forbidden tooltip is not touched", bar.calls, calls)
 forbidden = false
+
+-- Unit text ----------------------------------------------------------------------------------------------------
+
+local Format = AUI.TooltipFormat
+
+Equal("colors become escape sequences", Format:Wrap("x", Format.FRIENDLY_LEVEL), "|cffffd000x|r")
+Equal("a name alone", Format:FullName("Aeon", nil), "Aeon")
+Equal("an empty realm is no realm", Format:FullName("Aeon", ""), "Aeon")
+Equal("Name-Realm", Format:FullName("Aeon", "Argent Dawn"), "Aeon-Argent Dawn")
+Equal("a surname takes the separator", Format:FullName("Aeon", "Storm", " "), "Aeon Storm")
+Equal("the guild in brackets", Format:Guild("Aeon Guild"), "<Aeon Guild>")
+Equal("brackets are not doubled", Format:Guild("<Aeon Guild>", "Officer"), "<Aeon Guild> [Officer]")
+Equal("an empty rank is left out", Format:Guild("Aeon Guild", ""), "<Aeon Guild>")
+Equal("the level pattern is the text before the level", Format:LevelPattern("Level %s"), "^Level ")
+Equal("its magic characters are escaped", Format:LevelPattern("Niv. %s"), "^Niv%. ")
+Equal("a normal unit has no mark", Format:Mark("normal", "Rare", "Boss"), "")
+Equal("an elite is +", Format:Mark("elite", "Rare", "Boss"), Format:Wrap("+", Format.MARKS.elite))
+Equal("a rare elite is + Rare", Format:Mark("rareelite", "Rare", "Boss"),
+	Format:Wrap("+", Format.MARKS.elite) .. Format:Wrap(" Rare", Format.MARKS.rare))
+Equal("a world boss is Boss", Format:Mark("worldboss", "Rare", "Boss"), Format:Wrap(" Boss", Format.MARKS.boss))
+local white = { r = 1, g = 1, b = 1 }
+Equal("the level is colored in place", Format:Level("Level 80 Human", 80, white, "+"),
+	"Level " .. Format:Wrap("80", white) .. "+ Human")
+Equal("an unknown level is ??", Format:Level("Level ?? Elite", -1, white), "Level " .. Format:Wrap("??", white) .. " Elite")
+Equal("a level inside a longer number is not taken", Format:Level("Level 80", 8, white), nil)
+
+-- Unit tooltips ------------------------------------------------------------------------------------------------
+
+local LineType = Enum.TooltipDataLineType
+local CLASS = { MAGE = { r = 0.25, g = 0.78, b = 0.92 }, PALADIN = { r = 0.96, g = 0.55, b = 0.73 } }
+local DIFFICULTY = { [1] = { r = 0.25, g = 0.75, b = 0.25 }, [3] = { r = 1, g = 0.5, b = 0.25 } }
+local REACTION = { [2] = { r = 1, g = 0, b = 0 }, [4] = { r = 1, g = 1, b = 0 }, [5] = { r = 0, g = 1, b = 0 } }
+local units, auras, cvars = {}, {}, {}
+local now, combat, aurasSecret, identitySecret, collected = 100, false, false, false, true
+
+local function Unit(token)
+	return units[token] or {}
+end
+
+function UnitTokenFromGUID(guid)
+	for token, unit in pairs(units) do
+		if unit.guid == guid and token ~= "mouseover" then
+			return unit.secretToken and SECRET or token
+		end
+	end
+end
+function UnitGUID(token) return Unit(token).guid end
+function GetPlayerInfoByGUID(guid)
+	for _, unit in pairs(units) do
+		if unit.guid == guid and unit.player then
+			return "Class", unit.class
+		end
+	end
+end
+function UnitNameFromGUID(guid)
+	for _, unit in pairs(units) do
+		if unit.guid == guid then
+			return unit.name, unit.realm
+		end
+	end
+end
+C_ClassColor = { GetClassColor = function(class) return CLASS[class] end }
+function UnitTreatAsPlayerForDisplay(token) return Unit(token).treatAsPlayer == true end
+function UnitClass(token) return "Class", Unit(token).class end
+function UnitIsBattlePet(token) return Unit(token).pet == true end
+function UnitIsMinion(token) return Unit(token).minion == true end
+function UnitSelectionColor() return 0.3, 0.6, 0.9, 1 end
+function UnitReaction(token) return Unit(token).reaction end
+FACTION_BAR_COLORS = REACTION
+function UnitEffectiveLevel(token) return Unit(token).level end
+function UnitIsFriend(token) return Unit(token).friend == true end
+C_PlayerInfo = {
+	GetContentDifficultyCreatureForPlayer = function(token) return Unit(token).difficulty end,
+	GetPlayerMythicPlusRatingSummary = function(token) return { currentSeasonScore = Unit(token).score or 0 } end,
+}
+function GetDifficultyColor(difficulty) return DIFFICULTY[difficulty] or DIFFICULTY[3] end
+function UnitClassification(token) return Unit(token).classification or "normal" end
+function GetGuildInfo(token) return Unit(token).guild, Unit(token).rank end
+function UnitIsInMyGuild(token) return Unit(token).myGuild == true end
+function UnitName(token) return Unit(token).name end
+function UnitExists(token) return units[token] ~= nil end
+function UnitIsUnit(a, b) return a == b or (units[a] ~= nil and units[a] == units[b]) end
+function UnitIsPlayer(token) return Unit(token).player == true end
+C_Secrets = {
+	ShouldUnitIdentityBeSecret = function() return identitySecret end,
+	ShouldAurasBeSecret = function() return aurasSecret end,
+}
+C_ChallengeMode = { GetDungeonScoreRarityColor = function() return { r = 1, g = 0.5, b = 0 } end }
+function InCombatLockdown() return combat end
+C_UnitAuras = { GetAuraDataByIndex = function(_, index) return auras[index] end }
+C_MountJournal = {
+	GetMountFromSpell = function(spellID) return spellID == 999 and 42 or nil end,
+	GetMountInfoByID = function()
+		return "Swift Gryphon", 999, 0, false, true, 0, false, false, nil, false, collected
+	end,
+}
+function CreateAtlasMarkup(atlas) return "|A:" .. atlas .. "|a" end
+function GetTime() return now end
+C_CVar = {
+	GetCVar = function(name) return cvars[name] end,
+	SetCVar = function(name, value) cvars[name] = value end,
+}
+YOU, TARGET, MOUNT, DUNGEON_SCORE, BOSS, CORPSE = "You", "Target", "Mount", "Mythic+ Rating", "Boss", "Corpse"
+NORMAL_FONT_COLOR = { r = 1, g = 0.82, b = 0 }
+Constants = { CharacterNameSeparatorConsts = { CHARACTERNAME_SURNAME_SEPARATOR = " " } }
+
+---@param count number
+local function FontStrings(count)
+	local strings = {}
+
+	for index = 1, count do
+		local line = { color = { 1, 1, 1 } }
+
+		strings[index] = line
+		_G["GameTooltipTextLeft" .. index] = Widget("FontString", {
+			SetText = function(_, text)
+				line.text = text
+			end,
+			SetTextColor = function(_, r, g, b)
+				line.color = { r, g, b }
+			end,
+			GetTextColor = function()
+				return line.color[1], line.color[2], line.color[3]
+			end,
+		})
+	end
+
+	return strings
+end
+
+---Builds the tooltip data for the lines given as { type, text }, each drawn at its own index, and runs the unit
+---post-calls on it.
+local function Show(guid, lines, tooltip)
+	local data = { guid = guid, lines = {} }
+	local strings = FontStrings(#lines)
+
+	for index, line in ipairs(lines) do
+		data.lines[index] = { type = line[1], leftText = line[2], lineIndex = index }
+		strings[index].text = line[2]
+	end
+
+	for index = #added, 1, -1 do
+		added[index] = nil
+	end
+
+	Fire("OnTooltipCleared", GameTooltip)
+
+	for _, handler in ipairs(postCalls[Enum.TooltipDataType.Unit]) do
+		handler(tooltip or GameTooltip, data)
+	end
+
+	return strings
+end
+
+local function Find(label)
+	for _, line in ipairs(added) do
+		if line.left == label then
+			return line
+		end
+	end
+
+	return nil
+end
+
+local function Added(label)
+	return Find(label) or error("no " .. label .. " line", 2)
+end
+
+local function Rgb(color)
+	return ("%.2f %.2f %.2f"):format(color[1] or color.r, color[2] or color.g, color[3] or color.b)
+end
+
+units.mouseover = { guid = "Player-1", name = "Aeon", realm = "", player = true, class = "MAGE", level = 80,
+	friend = true, guild = "Aeon Guild", rank = "Officer", score = 2500 }
+units.mouseovertarget = units.mouseover
+units.player = units.mouseover
+auras[1] = { spellId = 1 }
+auras[2] = { spellId = 999 }
+units.mouseover.secretToken = true
+
+local playerLines = {
+	{ LineType.UnitName, "Archmage Aeon" },
+	{ LineType.None, "Aeon Guild" },
+	{ LineType.UnitLevel, "Level 80 Human Mage (Player)" },
+}
+local lines = Show("Player-1", playerLines)
+Equal("titles are hidden by default", lines[1].text, "Aeon")
+Equal("a player's name in its class color", Rgb(lines[1].color), Rgb(CLASS.MAGE))
+Equal("the guild in brackets with its rank", lines[2].text, "<Aeon Guild> [Officer]")
+Equal("another guild in green", Rgb(lines[2].color), Rgb(Format.GUILD))
+Equal("a friendly player's level in gold", lines[3].text,
+	"Level " .. Format:Wrap("80", Format.FRIENDLY_LEVEL) .. " Human Mage (Player)")
+Equal("the bar takes the name's color", Rgb(bar.color), Rgb(CLASS.MAGE))
+Equal("a unit targeting the player shows You", Added("Target").right, "You")
+Equal("in green", Rgb(Added("Target").color), Rgb(Format.YOU))
+Equal("labels in gold", Rgb(Added("Target").label), Rgb(NORMAL_FONT_COLOR))
+Equal("no rating outside Retail", Find("Mythic+ Rating"), nil)
+Equal("the mount, marked as yours", Added("Mount").right, "Swift Gryphon |A:common-icon-checkmark|a")
+
+GameTooltipStatusBar:SetStatusBarColor(0, 1, 0)
+Fire("OnValueChanged", GameTooltipStatusBar)
+Equal("a health change keeps the name's color", Rgb(bar.color), Rgb(CLASS.MAGE))
+Fire("OnTooltipCleared", GameTooltip)
+GameTooltipStatusBar:SetStatusBarColor(0, 1, 0)
+Fire("OnValueChanged", GameTooltipStatusBar)
+Equal("cleared lines give Blizzard's color back", Rgb(bar.color), "0.00 1.00 0.00")
+
+units.mouseover.myGuild = true
+units.mouseover.realm = "Argent Dawn"
+AUI.can.mythicPlus = true
+collected = false
+now = now + 5
+lines = Show("Player-1", playerLines)
+Equal("your own guild in blue", Rgb(lines[2].color), Rgb(Format.OWN_GUILD))
+Equal("another realm is Name-Realm", lines[1].text, "Aeon-Argent Dawn")
+Equal("the rating on Retail", Added("Mythic+ Rating").right, "2500")
+Equal("in its rarity color", Rgb(Added("Mythic+ Rating").color), "1.00 0.50 0.00")
+Equal("a mount you lack is marked", Added("Mount").right, "Swift Gryphon |A:common-icon-redx|a")
+
+values[Options.TITLES_PATH] = true
+lines = Show("Player-1", playerLines)
+Equal("titles shown keep Blizzard's line, with the realm", lines[1].text, "Archmage Aeon-Argent Dawn")
+lines = Show("Player-1", { { LineType.UnitName, "Archmage Aeon-Argent Dawn" } })
+Equal("a realm already there is not added again", lines[1].text, "Archmage Aeon-Argent Dawn")
+AUI.can.surnames = true
+units.mouseover.realm = "Storm"
+lines = Show("Player-1", playerLines)
+Equal("titles shown keep Forever's line as it is", lines[1].text, "Archmage Aeon")
+values[Options.TITLES_PATH] = nil
+lines = Show("Player-1", playerLines)
+Equal("Forever's name and surname", lines[1].text, "Aeon Storm")
+AUI.can.surnames = nil
+units.mouseover.realm = ""
+
+values[Options.GUILD_RANK_PATH] = false
+values[Options.LEVEL_COLOR_PATH] = false
+values[Options.TARGET_PATH] = false
+values[Options.RATING_PATH] = false
+values[Options.MOUNT_PATH] = false
+lines = Show("Player-1", playerLines)
+Equal("the rank can be left out", lines[2].text, "<Aeon Guild>")
+Equal("the level can stay Blizzard's", lines[3].text, "Level 80 Human Mage (Player)")
+Equal("no added lines while they are off", #added, 0)
+for _, path in ipairs({ Options.GUILD_RANK_PATH, Options.LEVEL_COLOR_PATH, Options.TARGET_PATH, Options.RATING_PATH,
+	Options.MOUNT_PATH }) do
+	values[path] = nil
+end
+
+now = now + 5
+combat = true
+Show("Player-1", playerLines)
+Equal("auras are not read in combat", Find("Mount"), nil)
+combat = false
+now = now + 5
+aurasSecret = true
+Show("Player-1", playerLines)
+Equal("or while they are secret", Find("Mount"), nil)
+aurasSecret = false
+Show("Player-1", playerLines)
+Equal("the mount is kept for a moment", Find("Mount"), nil)
+now = now + 5
+Show("Player-1", playerLines)
+Equal("then read again", Find("Mount") ~= nil, true)
+
+identitySecret = true
+Show("Player-1", playerLines)
+Equal("no Target line when its identity is secret", Find("Target"), nil)
+identitySecret = false
+
+units.mouseover = { guid = "Creature-1", name = "Old Murk-Eye", level = 62, difficulty = 1,
+	classification = "rareelite", reaction = 2 }
+units.mouseovertarget = { guid = "Creature-2", name = "Gnoll", reaction = 4 }
+lines = Show("Creature-1", {
+	{ LineType.UnitName, "Old Murk-Eye" },
+	{ LineType.None, "Level 62 Murloc" },
+	{ LineType.UnitOwner, "Aeon's Minion" },
+	{ LineType.None, "Corpse" },
+})
+Equal("an NPC keeps Blizzard's name color", Rgb(lines[1].color), "1.00 1.00 1.00")
+Equal("an untagged level line is found by its text", lines[2].text, "Level " .. Format:Wrap("62", DIFFICULTY[1])
+	.. Format:Mark("rareelite", "Rare", "Boss") .. " Murloc")
+Equal("owner lines are gray", Rgb(lines[3].color), Rgb(Format.MUTED))
+Equal("corpse lines are gray", Rgb(lines[4].color), Rgb(Format.MUTED))
+Equal("an NPC target in its reaction color", Rgb(Added("Target").color), Rgb(REACTION[4]))
+Equal("no player lines on an NPC", Find("Mount"), nil)
+Equal("the bar takes Blizzard's name color", Rgb(bar.color), "1.00 1.00 1.00")
+
+units.mouseover.level = -1
+units.mouseover.classification = "worldboss"
+lines = Show("Creature-1", { { LineType.UnitLevel, "Level ?? Elite" } })
+Equal("a boss of unknown level", lines[1].text, "Level " .. Format:Wrap("??", DIFFICULTY[1]) .. Format:Wrap(" Boss",
+	Format.MARKS.boss) .. " Elite")
+
+values[Options.MUTED_LINES_PATH] = false
+lines = Show("Creature-1", { { LineType.UnitOwner, "Aeon's Minion" } })
+Equal("owner lines can stay Blizzard's", Rgb(lines[1].color), "1.00 1.00 1.00")
+values[Options.MUTED_LINES_PATH] = nil
+
+units.mouseover = { guid = "Pet-1", name = "Fuzzy", pet = true, reaction = 5 }
+lines = Show("Pet-1", { { LineType.UnitName, "Fuzzy" }, { LineType.None, "Fuzzy" } })
+Equal("a battle pet's name in its reaction color", Rgb(lines[1].color), Rgb(REACTION[5]))
+Equal("on each line that names it", Rgb(lines[2].color), Rgb(REACTION[5]))
+
+units.mouseover = { guid = "Pet-2", name = "Water Elemental", minion = true }
+lines = Show("Pet-2", { { LineType.UnitName, "Water Elemental" } })
+Equal("a minion in its selection color", Rgb(lines[1].color), "0.30 0.60 0.90")
+
+units.mouseover = { guid = "Player-2", name = "Kael", realm = "", player = false, treatAsPlayer = true,
+	class = "PALADIN" }
+lines = Show("Player-2", { { LineType.UnitName, "Kael" } })
+Equal("an NPC shown as a player takes its class color", Rgb(lines[1].color), Rgb(CLASS.PALADIN))
+
+units.mouseover = { guid = "Player-1", name = "Aeon", realm = "", player = true, class = "MAGE", level = 80 }
+units.mouseovertarget = nil
+lines = Show("Player-1", { { LineType.UnitName, SECRET }, { LineType.UnitLevel, "Level 80 Human" } })
+Equal("a secret line is left as it is", lines[1].text, SECRET)
+Equal("the other lines are still edited", lines[2].text ~= "Level 80 Human", true)
+lines = Show(SECRET, playerLines)
+Equal("a secret GUID leaves every line", lines[1].text, "Archmage Aeon")
+units.mouseover.level = SECRET
+lines = Show("Player-1", playerLines)
+Equal("a secret level leaves the level line", lines[3].text, "Level 80 Human Mage (Player)")
+units.mouseover.level = 80
+lines = Show("Player-1", playerLines, {})
+Equal("other tooltips are left alone", lines[1].text, "Archmage Aeon")
+forbidden = true
+lines = Show("Player-1", playerLines)
+Equal("a forbidden tooltip is left alone", lines[1].text, "Archmage Aeon")
+forbidden = false
+
+Equal("the aura caster names default on", Schema:Field(Options.AURA_CASTERS_PATH).default, true)
+Tooltip:Apply()
+Equal("no CVar is written where the client lacks it", next(cvars), nil)
+AUI.can.auraCasterNames = true
+cvars.tooltipShowAuraCasterNames = "0"
+Tooltip:Apply()
+Equal("the CVar takes the setting", cvars.tooltipShowAuraCasterNames, "1")
+values[Options.AURA_CASTERS_PATH] = false
+Tooltip:Apply()
+Equal("and is turned off with it", cvars.tooltipShowAuraCasterNames, "0")
+
+values[Options.ENABLED_PATH] = false
+values[Options.AURA_CASTERS_PATH] = nil
+Tooltip:Apply()
+Equal("the module off leaves the CVar", cvars.tooltipShowAuraCasterNames, "0")
+lines = Show("Player-1", playerLines)
+Equal("the module off leaves unit lines", lines[1].text, "Archmage Aeon")
+Equal("and adds none", #added, 0)
+values[Options.ENABLED_PATH] = true
 
 print(("check_tooltip: %d checks passed"):format(checks))

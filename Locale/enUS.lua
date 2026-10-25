@@ -346,6 +346,30 @@ L["Strip"] = "Strip"
 L["Texture"] = "Texture"
 L["A strip keeps room above it, so the tooltip's lines never reach it."] =
 	"A strip keeps room above it, so the tooltip's lines never reach it."
+L["Units"] = "Units"
+L["What unit tooltips show and the colors of their lines. Blizzard's lines all stay."] =
+	"What unit tooltips show and the colors of their lines. Blizzard's lines all stay."
+L["Lines"] = "Lines"
+L["Show Titles"] = "Show Titles"
+L["Player titles on the name line."] = "Player titles on the name line."
+L["Show Guild Rank"] = "Show Guild Rank"
+L["The player's rank after the guild's name."] = "The player's rank after the guild's name."
+L["Color Levels"] = "Color Levels"
+L["The level in its difficulty color, followed by + for elite, Rare or Boss."] =
+	"The level in its difficulty color, followed by + for elite, Rare or Boss."
+L["Color Owners and Pets"] = "Color Owners and Pets"
+L["Owner and corpse lines in gray, and battle-pet names in their reaction color."] =
+	"Owner and corpse lines in gray, and battle-pet names in their reaction color."
+L["Added Lines"] = "Added Lines"
+L["Whom the unit is targeting."] = "Whom the unit is targeting."
+L["The player's Mythic+ rating, in its color."] = "The player's Mythic+ rating, in its color."
+L["The player's mount, with a mark for whether you have it."] =
+	"The player's mount, with a mark for whether you have it."
+L["Aura Caster Names"] = "Aura Caster Names"
+L["Aura tooltips name who cast the aura."] = "Aura tooltips name who cast the aura."
+
+-- Unit tooltips (Tooltip)
+L["Rare"] = "Rare"
 
 -- Profiles page (Settings)
 L["Keep different setups of AeonUI, and share them as text."] =

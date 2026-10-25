@@ -116,8 +116,67 @@ function SettingsTooltip:DeclareAppearance(window)
 	})
 end
 
+---@param section table
+---@param id string
+---@param label string
+---@param description string
+---@param path string
+---@param show (fun(): boolean)?
+local function Checkbox(section, id, label, description, path, show)
+	section:Checkbox({
+		id = id,
+		label = label,
+		description = description,
+		path = path,
+		default = AUI.Settings:Default(path),
+		show = show,
+	})
+end
+
+---@param window table
+function SettingsTooltip:DeclareUnits(window)
+	local Settings, Options = AUI.Settings, AUI.TooltipOptions
+	local page = window:Page("tooltipUnits", {
+		title = L["Units"],
+		description = L["What unit tooltips show and the colors of their lines. Blizzard's lines all stay."],
+		under = "tooltipHeader",
+		switch = { path = Options.ENABLED_PATH, default = Settings:Default(Options.ENABLED_PATH) },
+	})
+
+	if not page then
+		return
+	end
+
+	self.pageIDs.tooltipUnits = true
+
+	local lines = page:Section("tooltipUnitLines", L["Lines"])
+
+	Checkbox(lines, "showTitles", L["Show Titles"], L["Player titles on the name line."], Options.TITLES_PATH)
+	Checkbox(lines, "showGuildRank", L["Show Guild Rank"], L["The player's rank after the guild's name."],
+		Options.GUILD_RANK_PATH)
+	Checkbox(lines, "colorLevels", L["Color Levels"],
+		L["The level in its difficulty color, followed by + for elite, Rare or Boss."], Options.LEVEL_COLOR_PATH)
+	Checkbox(lines, "mutedLines", L["Color Owners and Pets"],
+		L["Owner and corpse lines in gray, and battle-pet names in their reaction color."], Options.MUTED_LINES_PATH)
+
+	local added = page:Section("tooltipUnitAdded", L["Added Lines"])
+
+	Checkbox(added, "showTarget", TARGET, L["Whom the unit is targeting."], Options.TARGET_PATH)
+	Checkbox(added, "showRating", DUNGEON_SCORE, L["The player's Mythic+ rating, in its color."], Options.RATING_PATH,
+		function()
+			return AUI.can.mythicPlus == true
+		end)
+	Checkbox(added, "showMount", MOUNT, L["The player's mount, with a mark for whether you have it."],
+		Options.MOUNT_PATH)
+	Checkbox(added, "auraCasters", L["Aura Caster Names"], L["Aura tooltips name who cast the aura."],
+		Options.AURA_CASTERS_PATH, function()
+			return AUI.can.auraCasterNames == true
+		end)
+end
+
 ---@param window table
 function SettingsTooltip:Declare(window)
 	window:Header("tooltipHeader", L["Tooltip"])
 	self:DeclareAppearance(window)
+	self:DeclareUnits(window)
 end
