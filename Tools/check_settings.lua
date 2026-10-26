@@ -760,6 +760,21 @@ AUI.WorldMap = nil
 Equal("the page is listed as the World Map's", AUI.SettingsWorldMap.pageIDs.worldMapMarkers, true)
 AUI.can.worldMapMarkers = nil
 
+-- Tooltip upgrades, on a client with upgrade tracks ---------------------------------------------------------------
+
+Equal("no Upgrades page without upgrade tracks", window.pages.tooltipUpgrades, nil)
+AUI.can.upgrades = true
+window = Load(nil)
+Equal("Upgrades follows Details", table.concat(window.order, " "):match("tooltipDetails (%S+)"), "tooltipUpgrades")
+local upgrades = window.pages.tooltipUpgrades
+Equal("Upgrades carries the module's switch", upgrades.info.switch.path, TooltipOptions.ENABLED_PATH)
+local upgradeLine = upgrades.sections.tooltipUpgradeLine.settings
+Equal("the range color follows the range", upgradeLine.upgradeRangeColor.depends, "upgradeRange")
+Equal("the range color defaults to white", upgradeLine.upgradeRangeColor.default.g, 1)
+Equal("every upgrade part is on by default", upgradeLine.upgradeCrest.default and upgradeLine.upgradeRank.default,
+	true)
+AUI.can.upgrades = nil
+
 -- Minimap button -------------------------------------------------------------------------------------------------
 
 window = Load(nil)

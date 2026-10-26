@@ -36,6 +36,10 @@ local STRIP_INSET, STRIP_GAP = 3, 1
 ---@field ID_PATHS table<string, string> each ID line's setting, by its key in `ID_KEYS`
 ---@field ID_KEYS string[] the ID lines, in the order the page lists them
 ---@field MODIFIERS string[]
+---@field UPGRADE_RANK_PATH string the upgrade line's track and rank take the track's color
+---@field UPGRADE_RANGE_PATH string the upgrade line adds the track's item-level range
+---@field UPGRADE_RANGE_COLOR_PATH string the range's color
+---@field UPGRADE_CREST_PATH string the upgrade line adds the crest the next upgrade costs
 ---@field BAR_STYLES string[]
 ---@field BLIZZARD_BAR_HEIGHT number the height Blizzard gives the bar
 local Options = {
@@ -66,6 +70,10 @@ local Options = {
 	ID_KEYS = { "item", "spell", "icon", "npc", "age", "currency", "mount", "quest", "macro" },
 	ID_PATHS = {},
 	MODIFIERS = { "NONE", "SHIFT", "CTRL", "ALT" },
+	UPGRADE_RANK_PATH = "tooltip.upgrades.rank",
+	UPGRADE_RANGE_PATH = "tooltip.upgrades.range",
+	UPGRADE_RANGE_COLOR_PATH = "tooltip.upgrades.rangeColor",
+	UPGRADE_CREST_PATH = "tooltip.upgrades.crest",
 	-- BLIZZARD: under the tooltip, where Blizzard puts it. STRIP: along the inside of its bottom edge.
 	BAR_STYLES = { "BLIZZARD", "STRIP" },
 	BLIZZARD_BAR_HEIGHT = BAR_HEIGHT,
@@ -97,6 +105,11 @@ Schema:Boolean(Options.ITEM_TYPE_PATH, true)
 Schema:Boolean(Options.MAX_STACK_PATH, true)
 Schema:Boolean(Options.BLANK_LINE_PATH, true)
 Schema:Choice(Options.ID_MODIFIER_PATH, "tooltipModifier", "NONE")
+
+Schema:Boolean(Options.UPGRADE_RANK_PATH, true)
+Schema:Boolean(Options.UPGRADE_RANGE_PATH, true)
+Schema:Color(Options.UPGRADE_RANGE_COLOR_PATH, { r = 1, g = 1, b = 1 })
+Schema:Boolean(Options.UPGRADE_CREST_PATH, true)
 
 for _, key in ipairs(Options.ID_KEYS) do
 	Options.ID_PATHS[key] = "tooltip.details.ids." .. key

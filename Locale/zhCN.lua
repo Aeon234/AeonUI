@@ -333,6 +333,16 @@ L["Quests, in the quest log and on the map too."] = "任务，任务日志和地
 L["Macros"] = "宏"
 L["The spell or item a macro uses."] = "宏使用的法术或物品。"
 
+L["Upgrades"] = "升级"
+L["The upgrade line on items: the track's color, its item levels and the next upgrade's crest."] = "物品的升级行：升级路线的颜色、其物品等级和下次升级所需的纹章。"
+L["Rank"] = "等级"
+L["Colors the track and rank, such as Hero 3/6."] = "为阶段和等级着色，例如英雄 3/6。"
+L["Item Level Range"] = "物品等级范围"
+L["The track's lowest and highest item level."] = "该阶段的最低和最高物品等级。"
+L["Range Color"] = "范围颜色"
+L["Next Crest"] = "下一纹章"
+L["The crest the next upgrade costs, and whether it is discounted."] = "下次升级所需的纹章，以及是否打折。"
+
 -- Tooltip lines (Tooltip; the ID labels also name the Details page's checkboxes)
 L["Rare"] = "稀有"
 L["Max Stack"] = "最大堆叠"
@@ -345,6 +355,8 @@ L["Mount ID"] = "坐骑ID"
 L["Quest ID"] = "任务ID"
 L["Spawned"] = "已刷新"
 L["%s ago"] = "%s前"
+L["%s Crest"] = "%s纹章"
+L["(discounted)"] = "（打折）"
 
 -- Profiles page (Settings)
 L["Keep different setups of AeonUI, and share them as text."] = "保存 AeonUI 的不同配置，并以文本形式分享。"

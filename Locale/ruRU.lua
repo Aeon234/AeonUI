@@ -333,6 +333,16 @@ L["Quests, in the quest log and on the map too."] = "Задания, в том �
 L["Macros"] = "Макросы"
 L["The spell or item a macro uses."] = "Заклинание или предмет, который использует макрос."
 
+L["Upgrades"] = "Улучшения"
+L["The upgrade line on items: the track's color, its item levels and the next upgrade's crest."] = "Строка улучшения предметов: цвет ветки, её уровни предметов и герб следующего улучшения."
+L["Rank"] = "Ранг"
+L["Colors the track and rank, such as Hero 3/6."] = "Окрашивает ступень и ранг, например Герой 3/6."
+L["Item Level Range"] = "Диапазон уровня предметов"
+L["The track's lowest and highest item level."] = "Наименьший и наибольший уровень предметов ступени."
+L["Range Color"] = "Цвет диапазона"
+L["Next Crest"] = "Следующий герб"
+L["The crest the next upgrade costs, and whether it is discounted."] = "Герб, который стоит следующее улучшение, и есть ли скидка."
+
 -- Tooltip lines (Tooltip; the ID labels also name the Details page's checkboxes)
 L["Rare"] = "Редкий"
 L["Max Stack"] = "Макс. в стопке"
@@ -345,6 +355,8 @@ L["Mount ID"] = "ID средства передвижения"
 L["Quest ID"] = "ID задания"
 L["Spawned"] = "Появился"
 L["%s ago"] = "%s назад"
+L["%s Crest"] = "Герб: %s"
+L["(discounted)"] = "(со скидкой)"
 
 -- Profiles page (Settings)
 L["Keep different setups of AeonUI, and share them as text."] = "Храните разные наборы настроек AeonUI и делитесь ими в виде текста."

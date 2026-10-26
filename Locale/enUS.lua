@@ -394,6 +394,18 @@ L["Quests, in the quest log and on the map too."] = "Quests, in the quest log an
 L["Macros"] = "Macros"
 L["The spell or item a macro uses."] = "The spell or item a macro uses."
 
+L["Upgrades"] = "Upgrades"
+L["The upgrade line on items: the track's color, its item levels and the next upgrade's crest."] =
+	"The upgrade line on items: the track's color, its item levels and the next upgrade's crest."
+L["Rank"] = "Rank"
+L["Colors the track and rank, such as Hero 3/6."] = "Colors the track and rank, such as Hero 3/6."
+L["Item Level Range"] = "Item Level Range"
+L["The track's lowest and highest item level."] = "The track's lowest and highest item level."
+L["Range Color"] = "Range Color"
+L["Next Crest"] = "Next Crest"
+L["The crest the next upgrade costs, and whether it is discounted."] =
+	"The crest the next upgrade costs, and whether it is discounted."
+
 -- Tooltip lines (Tooltip; the ID labels also name the Details page's checkboxes)
 L["Rare"] = "Rare"
 L["Max Stack"] = "Max Stack"
@@ -406,6 +418,8 @@ L["Mount ID"] = "Mount ID"
 L["Quest ID"] = "Quest ID"
 L["Spawned"] = "Spawned"
 L["%s ago"] = "%s ago"
+L["%s Crest"] = "%s Crest"
+L["(discounted)"] = "(discounted)"
 
 -- Profiles page (Settings)
 L["Keep different setups of AeonUI, and share them as text."] =

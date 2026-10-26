@@ -333,6 +333,16 @@ L["Quests, in the quest log and on the map too."] = "퀘스트입니다. 퀘스�
 L["Macros"] = "매크로"
 L["The spell or item a macro uses."] = "매크로가 사용하는 주문이나 아이템입니다."
 
+L["Upgrades"] = "강화"
+L["The upgrade line on items: the track's color, its item levels and the next upgrade's crest."] = "아이템의 강화 줄입니다: 강화 단계의 색상, 아이템 레벨 범위, 다음 강화에 드는 문장."
+L["Rank"] = "등급"
+L["Colors the track and rank, such as Hero 3/6."] = "영웅 3/6처럼 단계와 등급에 색을 입힙니다."
+L["Item Level Range"] = "아이템 레벨 범위"
+L["The track's lowest and highest item level."] = "단계의 최저 및 최고 아이템 레벨입니다."
+L["Range Color"] = "범위 색상"
+L["Next Crest"] = "다음 문장"
+L["The crest the next upgrade costs, and whether it is discounted."] = "다음 강화에 드는 문장과 할인 여부입니다."
+
 -- Tooltip lines (Tooltip; the ID labels also name the Details page's checkboxes)
 L["Rare"] = "희귀"
 L["Max Stack"] = "최대 묶음"
@@ -345,6 +355,8 @@ L["Mount ID"] = "탈것 ID"
 L["Quest ID"] = "퀘스트 ID"
 L["Spawned"] = "생성"
 L["%s ago"] = "%s 전"
+L["%s Crest"] = "%s 문장"
+L["(discounted)"] = "(할인)"
 
 -- Profiles page (Settings)
 L["Keep different setups of AeonUI, and share them as text."] = "AeonUI 설정을 여러 개 보관하고 텍스트로 공유합니다."

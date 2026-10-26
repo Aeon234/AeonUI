@@ -94,7 +94,7 @@ end
 Enum = {
 	TooltipDataType = { Item = 0, Spell = 1, Unit = 2, Corpse = 3, Object = 4, Currency = 5, UnitAura = 7, Mount = 10,
 		PetAction = 11, Toy = 19, Quest = 23, Macro = 25 },
-	TooltipDataLineType = { None = 0, UnitName = 2, UnitOwner = 16, UnitLevel = 47 },
+	TooltipDataLineType = { None = 0, UnitName = 2, UnitOwner = 16, ItemUpgradeLevel = 32, UnitLevel = 47 },
 }
 local postCalls = {}
 TooltipDataProcessor = {
@@ -224,7 +224,8 @@ AUI.L = setmetatable({}, { __index = function(_, key)
 end })
 AUI.can = {}
 for _, file in ipairs({ "Profile/Schema.lua", "Media/Media.lua", "Minimap/Elements.lua", "Tooltip/Options.lua",
-	"Tooltip/Format.lua", "Tooltip/Appearance.lua", "Tooltip/Units.lua", "Tooltip/Details.lua", "Tooltip/Tooltip.lua" }) do
+	"Tooltip/Format.lua", "Tooltip/Appearance.lua", "Tooltip/Units.lua", "Tooltip/Details.lua", "Tooltip/UpgradeSeasons.lua",
+	"Tooltip/Upgrades.lua", "Tooltip/Tooltip.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 
@@ -1041,6 +1042,132 @@ Equal("the module off turns them off again", cvars.tooltipShowAuraSpellIDs, "0")
 cvars.tooltipShowAuraSpellIDs = "1"
 Tooltip:Apply()
 Equal("a CVar AeonUI did not set is left alone", cvars.tooltipShowAuraSpellIDs, "1")
+values[Options.ENABLED_PATH] = nil
+
+-- Upgrade line ----------------------------------------------------------------------------------------------------
+
+local Upgrades = AUI.TooltipUpgrades
+local seasons = AUI.TooltipUpgradeSeasons
+local QUALITY = { [1] = { 1, 1, 1 }, [3] = { 0, 0.44, 0.87 }, [4] = { 0.64, 0.21, 0.93 }, [5] = { 1, 0.5, 0 } }
+local upgradeItem = { level = 311, quality = 4, character = 315, account = 0 }
+local crests = { [3445] = { name = "Hero Mistcrest", iconFileID = 5000 } }
+
+ITEM_UPGRADE_TOOLTIP_FORMAT_STRING = "Upgrade Level: %s %d/%d"
+function GetBuildInfo() return "12.1.5", "70575", "", 120105 end
+C_Item.GetItemQualityColor = function(quality)
+	local color = QUALITY[quality] or QUALITY[1]
+
+	return color[1], color[2], color[3], "ff"
+end
+C_Item.GetDetailedItemLevelInfo = function(link) return link == "item:1" and upgradeItem.level or nil end
+C_Item.GetItemLinkByGUID = function(guid) return guid == "Item-1" and "item:1" or nil end
+local itemInfo = C_Item.GetItemInfo
+C_Item.GetItemInfo = function(id)
+	if id == "item:1" then
+		return "Sword", "item:1", upgradeItem.quality
+	end
+
+	return itemInfo(id)
+end
+C_ItemUpgrade = {
+	GetHighWatermarkForItem = function() return upgradeItem.character, upgradeItem.account end,
+}
+C_CurrencyInfo = { GetCurrencyInfo = function(id) return crests[id] end }
+
+local function InQuality(quality, text)
+	local color = QUALITY[quality]
+
+	return Format:Wrap(text, { r = color[1], g = color[2], b = color[3] })
+end
+
+Equal("the running season is the newest not above the client", Upgrades.SeasonFor(seasons, 120105), seasons[120100])
+Equal("an earlier client takes the earlier season", Upgrades.SeasonFor(seasons, 120050), seasons[120001])
+Equal("a client before every season has none", Upgrades.SeasonFor(seasons, 16001), nil)
+local season2 = seasons[120100]
+Equal("a Hero item by its level and rank", Upgrades.FindTrack(season2, 311, 3, 6), season2[2])
+Equal("overlapping tracks: the closest expected level wins", Upgrades.FindTrack(season2, 305, 5, 6), season2[1])
+Equal("the same level at rank 1 is Hero", Upgrades.FindTrack(season2, 305, 1, 6), season2[2])
+Equal("another number of ranks matches no track", Upgrades.FindTrack(season2, 311, 3, 8), nil)
+Equal("a level no track has matches none", Upgrades.FindTrack(season2, 250, 3, 6), nil)
+local capture = Upgrades.CapturePattern(ITEM_UPGRADE_TOOLTIP_FORMAT_STRING)
+local label, track, rank, ranks = ("Upgrade Level: Hero 3/6"):match(capture)
+Equal("the line's label, track, rank and ranks", table.concat({ label, track, rank, ranks }, "|"),
+	"Upgrade Level: |Hero|3|6")
+
+AUI.can.upgrades = true
+Upgrades:Hook()
+Equal("the post-call is installed where the client has tracks", Upgrades.capture, capture)
+
+local rightText = {}
+GameTooltipTextRight2 = Widget("FontString", {
+	SetText = function(_, text)
+		rightText.text = text
+	end,
+	Show = function()
+		rightText.shown = true
+	end,
+})
+
+---Shows an item tooltip whose second line is the upgrade line, returning the left and right texts after the post-calls.
+local function Upgrade(text, data)
+	local strings = FontStrings(2)
+
+	strings[2].text = text
+	rightText.text, rightText.shown = nil, nil
+	data = data or { guid = "Item-1" }
+	data.lines = { { type = Enum.TooltipDataLineType.None, leftText = "Sword", lineIndex = 1 },
+		{ type = Enum.TooltipDataLineType.ItemUpgradeLevel, leftText = text, lineIndex = 2 } }
+	Post("Item", data)
+
+	return strings[2].text, rightText.text
+end
+
+left, right = Upgrade("Upgrade Level: Hero 3/6")
+Equal("the rank in its track's color, then the range", left,
+	"Upgrade Level: " .. InQuality(4, "Hero 3/6") .. " " .. Format:Wrap("(305-321)", white))
+Equal("the next crest on the right, discounted below the watermark", right,
+	"|T5000:0|t " .. InQuality(4, "Hero Mistcrest") .. " (discounted)")
+Equal("the right text is shown", rightText.shown, true)
+upgradeItem.character = 300
+left, right = Upgrade("Upgrade Level: Hero 3/6")
+Equal("no discount at or above the watermark", right, "|T5000:0|t " .. InQuality(4, "Hero Mistcrest"))
+upgradeItem.level = 321
+left, right = Upgrade("Upgrade Level: Hero 6/6")
+Equal("nothing to pay at the last rank", right, nil)
+upgradeItem.level = 311
+crests[3445] = nil
+left, right = Upgrade("Upgrade Level: Hero 3/6")
+Equal("without the currency the crest is named from the track", right, InQuality(4, "Hero Crest"))
+upgradeItem.level, upgradeItem.quality = 240, 3
+left, right = Upgrade("Upgrade Level: Veteran 3/6")
+Equal("a track the season lacks takes the item's quality", left, "Upgrade Level: " .. InQuality(3, "Veteran 3/6"))
+Equal("with no range or crest", right, nil)
+upgradeItem.level, upgradeItem.quality = 311, 4
+
+values[Options.UPGRADE_RANGE_COLOR_PATH] = { r = 1, g = 0.5, b = 0 }
+values[Options.UPGRADE_CREST_PATH] = false
+left, right = Upgrade("Upgrade Level: Hero 3/6")
+Equal("the range in its color", left:sub(-#Format:Wrap("(305-321)", values[Options.UPGRADE_RANGE_COLOR_PATH])),
+	Format:Wrap("(305-321)", values[Options.UPGRADE_RANGE_COLOR_PATH]))
+Equal("the crest can be left out", right, nil)
+values[Options.UPGRADE_RANK_PATH] = false
+values[Options.UPGRADE_RANGE_PATH] = false
+left = Upgrade("Upgrade Level: Hero 3/6")
+Equal("the rank and range can stay Blizzard's", left, "Upgrade Level: Hero 3/6")
+for _, path in ipairs({ Options.UPGRADE_RANGE_COLOR_PATH, Options.UPGRADE_CREST_PATH, Options.UPGRADE_RANK_PATH,
+	Options.UPGRADE_RANGE_PATH }) do
+	values[path] = nil
+end
+
+left = Upgrade("Upgrade Level: Hero 3/6", { hyperlink = "item:1" })
+Equal("a linked item is read from its link", left ~= "Upgrade Level: Hero 3/6", true)
+left = Upgrade("Upgrade Level: Hero 3/6", { hyperlink = "item:2" })
+Equal("an item with no level is left alone", left, "Upgrade Level: Hero 3/6")
+left = Upgrade(SECRET)
+Equal("a secret line is left alone", left, SECRET)
+values[Options.ENABLED_PATH] = false
+left = Upgrade("Upgrade Level: Hero 3/6")
+Equal("the module off leaves the line", left, "Upgrade Level: Hero 3/6")
 values[Options.ENABLED_PATH] = nil
 
 print(("check_tooltip: %d checks passed"):format(checks))

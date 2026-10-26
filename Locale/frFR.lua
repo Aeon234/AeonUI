@@ -333,6 +333,16 @@ L["Quests, in the quest log and on the map too."] = "Quêtes, aussi dans le jour
 L["Macros"] = "Macros"
 L["The spell or item a macro uses."] = "Le sort ou l'objet qu'utilise une macro."
 
+L["Upgrades"] = "Améliorations"
+L["The upgrade line on items: the track's color, its item levels and the next upgrade's crest."] = "La ligne d'amélioration des objets : la couleur de la voie, ses niveaux d'objet et l'écu de la prochaine amélioration."
+L["Rank"] = "Rang"
+L["Colors the track and rank, such as Hero 3/6."] = "Colore la piste et le rang, comme Héros 3/6."
+L["Item Level Range"] = "Plage de niveaux d'objet"
+L["The track's lowest and highest item level."] = "Les niveaux d'objet minimal et maximal de la piste."
+L["Range Color"] = "Couleur de la plage"
+L["Next Crest"] = "Prochain écu"
+L["The crest the next upgrade costs, and whether it is discounted."] = "L'écu que coûte la prochaine amélioration, et si elle est réduite."
+
 -- Tooltip lines (Tooltip; the ID labels also name the Details page's checkboxes)
 L["Rare"] = "Rare"
 L["Max Stack"] = "Pile max."
@@ -345,6 +355,8 @@ L["Mount ID"] = "ID de monture"
 L["Quest ID"] = "ID de quête"
 L["Spawned"] = "Apparu"
 L["%s ago"] = "il y a %s"
+L["%s Crest"] = "Écu %s"
+L["(discounted)"] = "(réduit)"
 
 -- Profiles page (Settings)
 L["Keep different setups of AeonUI, and share them as text."] = "Conservez différentes configurations d'AeonUI et partagez-les sous forme de texte."

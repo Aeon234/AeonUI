@@ -20,6 +20,7 @@ AUI.Capabilities = Capabilities
 ---@field expansions boolean items name the expansion they come from (Retail)
 ---@field auraSpellIDs boolean the client can draw aura spell IDs in their tooltips (`tooltipShowAuraSpellIDs`)
 ---@field macroItems boolean a macro's item can be read from its name (`GetMacroItem`)
+---@field upgrades boolean items have upgrade tracks, shown on an "Upgrade Level" tooltip line (Retail)
 AUI.can = {}
 
 ---The only place a client difference is detected. Runs once at login.
@@ -42,6 +43,9 @@ function Capabilities:Resolve()
 	can.expansions = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE
 	can.auraSpellIDs = C_CVar.GetCVar("tooltipShowAuraSpellIDs") ~= nil
 	can.macroItems = GetMacroItem ~= nil and C_ActionBar ~= nil and C_ActionBar.GetActionText ~= nil
+	can.upgrades = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE and C_ItemUpgrade ~= nil
+		and C_ItemUpgrade.GetHighWatermarkForItem ~= nil and Enum.TooltipDataLineType.ItemUpgradeLevel ~= nil
+		and ITEM_UPGRADE_TOOLTIP_FORMAT_STRING ~= nil
 
 	self.resolved = true
 

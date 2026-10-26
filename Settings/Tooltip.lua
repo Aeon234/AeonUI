@@ -293,10 +293,50 @@ function SettingsTooltip:DeclareDetails(window)
 	end
 end
 
+---Declared only where the client has upgrade tracks.
+---@param window table
+function SettingsTooltip:DeclareUpgrades(window)
+	local Settings, Options = AUI.Settings, AUI.TooltipOptions
+
+	if not AUI.can.upgrades then
+		return
+	end
+
+	local page = window:Page("tooltipUpgrades", {
+		title = L["Upgrades"],
+		description = L["The upgrade line on items: the track's color, its item levels and the next upgrade's crest."],
+		under = "tooltipHeader",
+		switch = { path = Options.ENABLED_PATH, default = Settings:Default(Options.ENABLED_PATH) },
+	})
+
+	if not page then
+		return
+	end
+
+	self.pageIDs.tooltipUpgrades = true
+
+	local line = page:Section("tooltipUpgradeLine", L["Lines"])
+
+	Checkbox(line, "upgradeRank", L["Rank"], L["Colors the track and rank, such as Hero 3/6."], Options.UPGRADE_RANK_PATH)
+	Checkbox(line, "upgradeRange", L["Item Level Range"], L["The track's lowest and highest item level."],
+		Options.UPGRADE_RANGE_PATH)
+	line:Color({
+		id = "upgradeRangeColor",
+		resettable = true,
+		label = L["Range Color"],
+		path = Options.UPGRADE_RANGE_COLOR_PATH,
+		default = Settings:Default(Options.UPGRADE_RANGE_COLOR_PATH),
+		depends = "upgradeRange",
+	})
+	Checkbox(line, "upgradeCrest", L["Next Crest"], L["The crest the next upgrade costs, and whether it is discounted."],
+		Options.UPGRADE_CREST_PATH)
+end
+
 ---@param window table
 function SettingsTooltip:Declare(window)
 	window:Header("tooltipHeader", L["Tooltip"])
 	self:DeclareAppearance(window)
 	self:DeclareUnits(window)
 	self:DeclareDetails(window)
+	self:DeclareUpgrades(window)
 end

@@ -45,6 +45,7 @@ function Tooltip:Start()
 	AUI.TooltipAppearance:Hook()
 	AUI.TooltipUnits:Hook()
 	AUI.TooltipDetails:Hook()
+	AUI.TooltipUpgrades:Hook()
 	-- The client settles its session CVars after login, over a write made before.
 	AUI.Events:Register("PLAYER_ENTERING_WORLD", self, function()
 		Tooltip:Apply()

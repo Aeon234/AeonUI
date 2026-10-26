@@ -4,5 +4,7 @@
 	<Script file="Appearance.lua" />
 	<Script file="Units.lua" />
 	<Script file="Details.lua" />
+	<Script file="UpgradeSeasons.lua" />
+	<Script file="Upgrades.lua" />
 	<Script file="Tooltip.lua" />
 </Ui>
