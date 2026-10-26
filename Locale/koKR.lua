@@ -307,6 +307,8 @@ L["Added Lines"] = "추가 줄"
 L["Whom the unit is targeting."] = "대상이 노리고 있는 대상입니다."
 L["The player's Mythic+ rating, in its color."] = "플레이어의 쐐기돌 평점을 해당 색상으로 표시합니다."
 L["The player's mount, with a mark for whether you have it."] = "플레이어의 탈것과 보유 여부 표시입니다."
+L["The player's average item level, inspected once the cursor rests on them."] = "플레이어의 평균 아이템 레벨입니다. 커서를 올려 두면 살펴보기로 확인합니다."
+L["The player's specialization and role, from an inspect or shared by their addons."] = "플레이어의 전문화와 역할입니다. 살펴보기나 플레이어의 애드온이 공유한 정보로 확인합니다."
 L["Aura Caster Names"] = "오라 시전자 이름"
 L["Aura tooltips name who cast the aura."] = "오라 툴팁에 오라를 건 시전자를 표시합니다."
 

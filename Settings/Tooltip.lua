@@ -190,6 +190,13 @@ function SettingsTooltip:DeclareUnits(window)
 		end)
 	Checkbox(added, "showMount", MOUNT, L["The player's mount, with a mark for whether you have it."],
 		Options.MOUNT_PATH)
+	Checkbox(added, "showItemLevel", STAT_AVERAGE_ITEM_LEVEL,
+		L["The player's average item level, inspected once the cursor rests on them."], Options.ITEM_LEVEL_PATH)
+	Checkbox(added, "showSpecialization", SPECIALIZATION,
+		L["The player's specialization and role, from an inspect or shared by their addons."],
+		Options.SPECIALIZATION_PATH, function()
+			return AUI.can.specializations == true
+		end)
 	Checkbox(added, "auraCasters", L["Aura Caster Names"], L["Aura tooltips name who cast the aura."],
 		Options.AURA_CASTERS_PATH, function()
 			return AUI.can.auraCasterNames == true

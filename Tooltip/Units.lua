@@ -355,6 +355,10 @@ function Units:OnTooltip(tooltip, data)
 		if player and Profile:Get(Options.MOUNT_PATH) == true then
 			self:AddMount(tooltip, guid, unit)
 		end
+
+		if player then
+			AUI.TooltipInspect:AddLines(tooltip, guid, unit)
+		end
 	end
 
 	if nameLine then

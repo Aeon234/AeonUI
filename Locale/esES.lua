@@ -307,6 +307,8 @@ L["Added Lines"] = "Líneas añadidas"
 L["Whom the unit is targeting."] = "A quién tiene como objetivo la unidad."
 L["The player's Mythic+ rating, in its color."] = "La puntuación de Mítica+ del jugador, en su color."
 L["The player's mount, with a mark for whether you have it."] = "La montura del jugador, con una marca según si la tienes."
+L["The player's average item level, inspected once the cursor rests on them."] = "El nivel de objeto medio del jugador, inspeccionado cuando el cursor se detiene sobre él."
+L["The player's specialization and role, from an inspect or shared by their addons."] = "La especialización y el rol del jugador, de una inspección o compartidos por sus accesorios."
 L["Aura Caster Names"] = "Lanzadores de auras"
 L["Aura tooltips name who cast the aura."] = "Las descripciones emergentes de auras indican quién lanzó el aura."
 

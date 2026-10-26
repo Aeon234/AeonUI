@@ -11,7 +11,8 @@ local function Color(r, g, b)
 end
 
 ---The frame-free text of tooltips: names, the guild line, the level and its classification mark, and the colors they
----are drawn in; an item's type, and what a creature's GUID tells (its NPC ID and how long it has been spawned).
+---are drawn in; an item's type, what a creature's GUID tells (its NPC ID and how long it has been spawned), and an
+---inspected player's item level, averaged from their gear when the client does not say, and its grade.
 ---@class AUITooltipFormat
 ---@field GUILD AUITooltipColor another guild's line
 ---@field OWN_GUILD AUITooltipColor the player's own guild's line
@@ -20,6 +21,8 @@ end
 ---@field YOU AUITooltipColor the Target line's value when the unit targets the player
 ---@field VALUE AUITooltipColor an added line's value with no color of its own
 ---@field MARKS table<string, AUITooltipColor> each classification mark's color
+---@field GRADES AUITooltipColor[] item-level grades, from the highest upgrade track's first level down
+---@field BELOW AUITooltipColor an item level below every track
 local Format = {
 	GUILD = Color(0, 1, 0.1),
 	OWN_GUILD = Color(0, 0.565, 1),
@@ -32,11 +35,22 @@ local Format = {
 		rare = Color(0, 0.565, 1),
 		boss = Color(0.941, 0.098, 0.098),
 	},
+	GRADES = {
+		Color(1, 0.82, 0),
+		Color(1, 0.5, 0),
+		Color(0.64, 0.21, 0.93),
+		Color(0, 0.44, 0.87),
+		Color(0.12, 1, 0),
+	},
+	BELOW = Color(0.62, 0.62, 0.62),
 }
 AUI.TooltipFormat = Format
 
 -- A spawn UID's low 23 bits are the spawn time, in seconds since the epoch modulo 2^23.
 local SPAWN_PERIOD = 2 ^ 23
+-- Weapons that take both hands, whose item level counts for the empty off hand too.
+local TWO_HANDED = { INVTYPE_2HWEAPON = true, INVTYPE_RANGED = true, INVTYPE_RANGEDRIGHT = true }
+local MAIN_HAND, OFF_HAND = 16, 17
 -- The keys `MODIFIER_STATE_CHANGED` reports for each modifier choice.
 local MODIFIER_KEYS = {
 	SHIFT = { LSHIFT = true, RSHIFT = true },
@@ -194,3 +208,57 @@ function Format:IsModifierKey(modifier, key)
 
 	return keys ~= nil and keys[key] == true
 end
+
+---@param tracks { minLevel: number }[]? the season's upgrade tracks
+---@param itemLevel number
+---@return AUITooltipColor? color the grade of the highest track whose first level the item level reaches, gray below
+---every track; nil without tracks
+function Format:Grade(tracks, itemLevel)
+	if not tracks or #tracks == 0 then
+		return nil
+	end
+
+	local levels = {}
+
+	for index, track in ipairs(tracks) do
+		levels[index] = track.minLevel
+	end
+
+	table.sort(levels, function(a, b)
+		return a > b
+	end)
+
+	for index, level in ipairs(levels) do
+		if itemLevel >= level then
+			return self.GRADES[math.min(index, #self.GRADES)]
+		end
+	end
+
+	return self.BELOW
+end
+
+---@param slots integer[] the equipment slots that count
+---@param levels table<integer, number> each equipped slot's item level; a missing slot is empty
+---@param mainHandType string? the main hand's equip location, such as "INVTYPE_2HWEAPON"
+---@return number? average the slots' average, a two-handed main hand counting for the empty off hand too; nil with
+---nothing equipped
+function Format:GearAverage(slots, levels, mainHandType)
+	local total, worn = 0, 0
+
+	for _, slot in ipairs(slots) do
+		local level = levels[slot]
+
+		if level then
+			total, worn = total + level, worn + 1
+		elseif slot == OFF_HAND and levels[MAIN_HAND] and TWO_HANDED[mainHandType or ""] then
+			total = total + levels[MAIN_HAND]
+		end
+	end
+
+	if worn == 0 then
+		return nil
+	end
+
+	return total / #slots
+end
+

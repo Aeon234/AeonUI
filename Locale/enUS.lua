@@ -365,6 +365,10 @@ L["Whom the unit is targeting."] = "Whom the unit is targeting."
 L["The player's Mythic+ rating, in its color."] = "The player's Mythic+ rating, in its color."
 L["The player's mount, with a mark for whether you have it."] =
 	"The player's mount, with a mark for whether you have it."
+L["The player's average item level, inspected once the cursor rests on them."] =
+	"The player's average item level, inspected once the cursor rests on them."
+L["The player's specialization and role, from an inspect or shared by their addons."] =
+	"The player's specialization and role, from an inspect or shared by their addons."
 L["Aura Caster Names"] = "Aura Caster Names"
 L["Aura tooltips name who cast the aura."] = "Aura tooltips name who cast the aura."
 

@@ -11,6 +11,7 @@ local root = (arg and arg[0] or ""):match("^(.-)[^/\\]*$") .. "../"
 -- Environment ---------------------------------------------------------------------------------------------
 
 UNKNOWN = "Unknown"
+INVSLOT_HEAD, INVSLOT_BODY, INVSLOT_MAINHAND, INVSLOT_OFFHAND, INVSLOT_RANGED = 1, 4, 16, 17, 18
 local questCallbacks = {}
 EventRegistry = {
 	RegisterCallback = function(_, event, handler, owner)
@@ -42,8 +43,22 @@ local LSM = {
 	end,
 }
 
-function LibStub()
-	return LSM
+-- LibSpecialization's callbacks, as AeonUI registers them.
+local libSpec = { group = {}, guild = {}, guildRequests = 0 }
+local LIBSPEC = {
+	RegisterGroup = function(owner, handler)
+		libSpec.group[owner] = handler
+	end,
+	RegisterGuild = function(owner, handler)
+		libSpec.guild[owner] = handler
+	end,
+	RequestGuildSpecialization = function()
+		libSpec.guildRequests = libSpec.guildRequests + 1
+	end,
+}
+
+function LibStub(name)
+	return name == "LibSpecialization" and LIBSPEC or LSM
 end
 
 -- A widget stub: calling a method its widget type lacks is an error.
@@ -87,8 +102,25 @@ end
 
 local hooks = {}
 function hooksecurefunc(object, method, handler)
+	if type(object) == "string" then
+		hooks[object] = method
+		assert(_G[object], object)
+
+		return
+	end
+
 	hooks[method] = handler
 	assert(object[method], method)
+end
+
+local inspects = { asked = {}, cleared = 0 }
+function NotifyInspect(unit)
+	inspects.asked[#inspects.asked + 1] = unit
+	hooks.NotifyInspect()
+end
+function InspectUnit() end
+function ClearInspectPlayer()
+	inspects.cleared = inspects.cleared + 1
 end
 
 Enum = {
@@ -225,7 +257,7 @@ end })
 AUI.can = {}
 for _, file in ipairs({ "Profile/Schema.lua", "Media/Media.lua", "Minimap/Elements.lua", "Tooltip/Options.lua",
 	"Tooltip/Format.lua", "Tooltip/Appearance.lua", "Tooltip/Units.lua", "Tooltip/Details.lua", "Tooltip/UpgradeSeasons.lua",
-	"Tooltip/Upgrades.lua", "Tooltip/Tooltip.lua" }) do
+	"Tooltip/Upgrades.lua", "Tooltip/Inspect.lua", "Tooltip/Tooltip.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 
@@ -242,6 +274,9 @@ AUI.Profile = {
 		return Schema:Field(path).default
 	end,
 }
+-- Item level and specialization lines stay off until their own checks, so the unit checks see only their lines.
+values[Options.ITEM_LEVEL_PATH] = false
+values[Options.SPECIALIZATION_PATH] = false
 AUI.Settings = {
 	Default = function(_, path)
 		return Schema:Field(path).default
@@ -249,12 +284,24 @@ AUI.Settings = {
 }
 
 local coalesced = {}
-local events = {}
+local events, eventHandlers = {}, {}
 AUI.Events = {
 	Register = function(_, event, owner, handler)
+		eventHandlers[event] = eventHandlers[event] or {}
+		eventHandlers[event][owner] = handler
 		events[event] = function(...)
-			handler(owner, event, ...)
+			for registered, registeredHandler in pairs(eventHandlers[event]) do
+				registeredHandler(registered, event, ...)
+			end
 		end
+	end,
+	Unregister = function(_, event, owner)
+		if eventHandlers[event] then
+			eventHandlers[event][owner] = nil
+		end
+	end,
+	Merge = function(_, _, _, handler)
+		handler()
 	end,
 	Coalesce = function(_, key, handler)
 		coalesced[#coalesced + 1] = key
@@ -335,7 +382,9 @@ Equal("a strip keeps its height and a pixel", Options:StripPadding(3), 4)
 
 -- Fonts ---------------------------------------------------------------------------------------------------------
 
+AUI.can.specializations = true
 Tooltip:Start()
+AUI.can.specializations = nil
 Equal("starting applies at once", coalesced[1], nil)
 Equal("Blizzard's fonts are left alone by default", GameTooltipText.state.sets, 0)
 Equal("the bar goes to Blizzard's place", #bar.points, 2)
@@ -1169,5 +1218,215 @@ values[Options.ENABLED_PATH] = false
 left = Upgrade("Upgrade Level: Hero 3/6")
 Equal("the module off leaves the line", left, "Upgrade Level: Hero 3/6")
 values[Options.ENABLED_PATH] = nil
+
+-- Item level text -------------------------------------------------------------------------------------------------
+
+local SLOTS16 = { 1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17 }
+local full = {}
+for _, slot in ipairs(SLOTS16) do
+	full[slot] = 300
+end
+Equal("no tracks, no grade", Format:Grade(nil, 300), nil)
+Equal("the highest track reached", Format:Grade(season2, 320), Format.GRADES[1])
+Equal("the next track down", Format:Grade(season2, 312), Format.GRADES[2])
+Equal("below every track", Format:Grade(season2, 250), Format.BELOW)
+Equal("a full set's average", Format:GearAverage(SLOTS16, full), 300)
+full[17] = nil
+Equal("an empty off hand counts as nothing", Format:GearAverage(SLOTS16, full, "INVTYPE_WEAPON"), 300 * 15 / 16)
+Equal("a two-handed weapon counts for it", Format:GearAverage(SLOTS16, full, "INVTYPE_2HWEAPON"), 300)
+Equal("nothing worn, no average", Format:GearAverage(SLOTS16, {}), nil)
+
+-- Inspected players ---------------------------------------------------------------------------------------------
+
+local Inspect = AUI.TooltipInspect
+local inspected, gear, itemLevels, equipLocs = {}, {}, {}, {}
+local timers = {}
+local reach, party, guilded = true, {}, true
+local SPECS = { [257] = { "Holy", "HEALER" }, [62] = { "Arcane", "DAMAGER" }, [65] = { "Holy", "HEALER" } }
+local rights = {}
+
+C_Timer = { After = function(delay, handler) timers[#timers + 1] = { delay, handler } end }
+local function RunTimers()
+	local due = timers
+
+	timers = {}
+
+	for _, timer in ipairs(due) do
+		timer[2]()
+	end
+
+	return #due
+end
+C_PaperDollInfo = {
+	GetInspectItemLevel = function(unit) return (inspected[UnitGUID(unit)] or {}).level end,
+}
+C_SpecializationInfo = {
+	GetInspectSpecialization = function(unit) return (inspected[UnitGUID(unit)] or {}).spec end,
+	GetSpecialization = function() return 2 end,
+	GetSpecializationInfo = function(index) return index == 2 and 62 or nil end,
+}
+function GetSpecializationInfoByID(id)
+	local spec = SPECS[id]
+
+	if spec then
+		return id, spec[1], "", 0, spec[2]
+	end
+end
+function GetAverageItemLevel() return 280.4, 280.6 end
+function GetInventoryItemLink(unit, slot) return (gear[UnitGUID(unit)] or {})[slot] end
+local detailed, info = C_Item.GetDetailedItemLevelInfo, C_Item.GetItemInfo
+C_Item.GetDetailedItemLevelInfo = function(link) return itemLevels[link] or detailed(link) end
+C_Item.GetItemInfo = function(id)
+	if equipLocs[id] then
+		return "Weapon", id, 4, nil, nil, nil, nil, nil, equipLocs[id]
+	end
+
+	return info(id)
+end
+function CanInspect() return true end
+function CheckInteractDistance() return reach end
+function UnitInParty(unit) return party[UnitGUID(unit)] == true end
+function UnitInRaid() return nil end
+function IsInGuild() return guilded end
+STAT_AVERAGE_ITEM_LEVEL, SPECIALIZATION = "Item Level", "Specialization"
+GameTooltip.NumLines = function() return #added end
+for index = 1, 12 do
+	local line = {}
+
+	rights[index] = line
+	_G["GameTooltipTextRight" .. index] = Widget("FontString", {
+		SetText = function(_, text)
+			line.text = text
+		end,
+		SetTextColor = function(_, r, g, b)
+			line.color = { r, g, b }
+		end,
+	})
+end
+
+values[Options.ITEM_LEVEL_PATH], values[Options.SPECIALIZATION_PATH] = nil, nil
+values[Options.MOUNT_PATH], values[Options.TARGET_PATH] = false, false
+AUI.can.specializations = true
+
+---Hovers a player: GUID `guid`, the unit "mouseover".
+local function Hover(guid, name)
+	units.mouseover = { guid = guid, name = name or "Kael", realm = "", player = true, class = "MAGE", level = 80 }
+	units.mouseovertarget = nil
+	Post("Unit", { guid = guid, lines = {} })
+end
+
+now = 1000
+Hover("Player-9")
+Equal("an unknown player waits with ...", Added("Item Level").right, "...")
+Equal("and so does the specialization", Added("Specialization").right, "...")
+Equal("labels in gold", Rgb(Added("Item Level").label), Rgb(NORMAL_FONT_COLOR))
+Equal("nothing is asked before the cursor rests", #inspects.asked, 0)
+now = now + 1
+RunTimers()
+Equal("then the player is inspected", inspects.asked[1], "mouseover")
+inspected["Player-9"] = { level = 312.4, spec = 257 }
+local showsBefore = shown.shows
+events.INSPECT_READY("Player-9")
+Equal("the answer fills the item level in place", rights[Inspect.shown.itemLevel].text, "312")
+Equal("in its grade", Rgb(rights[Inspect.shown.itemLevel].color), Rgb(Format.GRADES[2]))
+Equal("and the specialization, with its role", rights[Inspect.shown.spec].text, "|A:roleicon-tiny-healer|a Holy")
+Equal("the tooltip is resized", shown.shows, showsBefore + 1)
+Equal("AeonUI's own inspect is cleared", inspects.cleared, 1)
+Hover("Player-9")
+Equal("a known player shows at once", Added("Item Level").right, "312")
+RunTimers()
+Equal("without asking again", #inspects.asked, 1)
+
+now = now + 3
+Hover("Player-10")
+inspected["Player-10"] = { level = 0, spec = 62 }
+gear["Player-10"] = { [1] = "item:head" }
+itemLevels["item:head"] = 320
+now = now + 1
+RunTimers()
+events.INSPECT_READY("Player-10")
+Equal("an item level the client lacks is averaged from the gear", rights[Inspect.shown.itemLevel].text, "20")
+
+now = now + 3
+Hover("Player-11")
+inspected["Player-11"] = { level = 0 }
+gear["Player-11"] = { [1] = "item:late" }
+now = now + 1
+RunTimers()
+events.INSPECT_READY("Player-11")
+Equal("gear still loading keeps waiting", rights[Inspect.shown.itemLevel].text, "...")
+itemLevels["item:late"] = 320
+events.GET_ITEM_INFO_RECEIVED(1, true)
+Equal("and is averaged once it arrives", rights[Inspect.shown.itemLevel].text, "20")
+
+RunTimers()
+combat = true
+now = now + 3
+Hover("Player-12")
+Equal("in combat an unknown player gets no lines", Find("Item Level"), nil)
+Equal("and nothing is asked", #timers, 0)
+combat = false
+
+local asked = #inspects.asked
+now = now + 3
+party["Player-13"] = true
+hooks.NotifyInspect()
+Hover("Player-13")
+now = now + 1
+RunTimers()
+Equal("a group member waits while another addon polls the group", #inspects.asked, asked)
+now = now + 10
+RunTimers()
+Equal("then is inspected", #inspects.asked, asked + 1)
+inspected["Player-13"] = { level = 300 }
+events.INSPECT_READY("Player-13")
+
+now = now + 3
+Hover("Player-14")
+inspected["Player-14"] = { level = 290 }
+local cleared = inspects.cleared
+events.INSPECT_READY("Player-14")
+Equal("another addon's answer is kept", rights[Inspect.shown.itemLevel].text, "290")
+Equal("and its inspect is left to it", inspects.cleared, cleared)
+RunTimers()
+Equal("so the player needs no request", #inspects.asked, asked + 1)
+
+now = now + 3
+reach = false
+Hover("Player-15")
+now = now + 1
+RunTimers()
+Equal("a player out of reach is not asked", #inspects.asked, asked + 1)
+Equal("but tried again", #timers, 1)
+reach = true
+Post("Unit", { guid = "Player-0", lines = {} })
+units.mouseover = nil
+RunTimers()
+Equal("not once the tooltip shows someone else", #inspects.asked, asked + 1)
+
+units.mouseover = units.player
+Post("Unit", { guid = "Player-1", lines = {} })
+Equal("the player's own item level needs no inspect", Added("Item Level").right, "281")
+Equal("nor their specialization", Added("Specialization").right, "|A:roleicon-tiny-dps|a Arcane")
+
+libSpec.group[Inspect](65, "HEALER", "RANGED", "Lor")
+now = now + 3
+Hover("Player-16", "Lor")
+Equal("a shared specialization shows at once", Added("Specialization").right, "|A:roleicon-tiny-healer|a Holy")
+Equal("while the item level waits", Added("Item Level").right, "...")
+events.PLAYER_ENTERING_WORLD()
+events.PLAYER_ENTERING_WORLD()
+Equal("guild members are asked to share once", libSpec.guildRequests, 1)
+
+AUI.can.specializations = nil
+Hover("Player-9")
+Equal("no specialization line where the client has none", Find("Specialization"), nil)
+values[Options.ITEM_LEVEL_PATH] = false
+Hover("Player-9")
+Equal("the item level can be turned off", Find("Item Level"), nil)
+values[Options.ITEM_LEVEL_PATH] = nil
+Fire("OnHide", GameTooltip)
+Equal("a hidden tooltip shows nobody", Inspect.shown.guid, nil)
+RunTimers()
 
 print(("check_tooltip: %d checks passed"):format(checks))

@@ -307,6 +307,8 @@ L["Added Lines"] = "Добавленные строки"
 L["Whom the unit is targeting."] = "Чья цель у этого существа."
 L["The player's Mythic+ rating, in its color."] = "Рейтинг эпохальных+ подземелий игрока в его цвете."
 L["The player's mount, with a mark for whether you have it."] = "Средство передвижения игрока с отметкой о том, есть ли оно у вас."
+L["The player's average item level, inspected once the cursor rests on them."] = "Средний уровень предметов игрока; осмотр начинается, когда курсор задерживается на нём."
+L["The player's specialization and role, from an inspect or shared by their addons."] = "Специализация и роль игрока по осмотру или из данных, которыми делятся его модификации."
 L["Aura Caster Names"] = "Заклинатели эффектов"
 L["Aura tooltips name who cast the aura."] = "Подсказки эффектов называют того, кто наложил эффект."
 

@@ -28,6 +28,8 @@ local STRIP_INSET, STRIP_GAP = 3, 1
 ---@field MOUNT_PATH string player tooltips add the player's mount
 ---@field RATING_PATH string player tooltips add the Mythic+ rating, where the client has one
 ---@field AURA_CASTERS_PATH string aura tooltips name who cast the aura, where the client offers it
+---@field ITEM_LEVEL_PATH string player tooltips add the player's item level
+---@field SPECIALIZATION_PATH string player tooltips add the player's specialization, where the client has them
 ---@field EXPANSION_PATH string item tooltips add the item's expansion, where the client has expansions
 ---@field ITEM_TYPE_PATH string item tooltips add the item's category and type
 ---@field MAX_STACK_PATH string item tooltips add how many stack in one slot
@@ -60,6 +62,8 @@ local Options = {
 	MOUNT_PATH = "tooltip.units.mount",
 	RATING_PATH = "tooltip.units.rating",
 	AURA_CASTERS_PATH = "tooltip.units.auraCasters",
+	ITEM_LEVEL_PATH = "tooltip.units.itemLevel",
+	SPECIALIZATION_PATH = "tooltip.units.specialization",
 	EXPANSION_PATH = "tooltip.details.expansion",
 	ITEM_TYPE_PATH = "tooltip.details.itemType",
 	MAX_STACK_PATH = "tooltip.details.maxStack",
@@ -99,6 +103,8 @@ Schema:Boolean(Options.TARGET_PATH, true)
 Schema:Boolean(Options.MOUNT_PATH, true)
 Schema:Boolean(Options.RATING_PATH, true)
 Schema:Boolean(Options.AURA_CASTERS_PATH, true)
+Schema:Boolean(Options.ITEM_LEVEL_PATH, true)
+Schema:Boolean(Options.SPECIALIZATION_PATH, true)
 Schema:Choices("tooltipModifier", Options.MODIFIERS)
 Schema:Boolean(Options.EXPANSION_PATH, true)
 Schema:Boolean(Options.ITEM_TYPE_PATH, true)

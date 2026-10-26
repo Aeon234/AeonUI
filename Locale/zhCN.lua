@@ -307,6 +307,8 @@ L["Added Lines"] = "添加的行"
 L["Whom the unit is targeting."] = "该单位的目标。"
 L["The player's Mythic+ rating, in its color."] = "玩家的史诗钥石评分，以其颜色显示。"
 L["The player's mount, with a mark for whether you have it."] = "玩家的坐骑，并标记你是否拥有。"
+L["The player's average item level, inspected once the cursor rests on them."] = "玩家的平均物品等级，鼠标停留在其身上时进行观察。"
+L["The player's specialization and role, from an inspect or shared by their addons."] = "玩家的专精和职责，来自观察或其插件共享的信息。"
 L["Aura Caster Names"] = "光环施放者名字"
 L["Aura tooltips name who cast the aura."] = "光环鼠标提示显示施放该光环的人。"
 
