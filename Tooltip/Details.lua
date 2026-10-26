@@ -13,6 +13,8 @@ local QUEST_EVENTS = {
 	"MapCanvas.QuestPin.OnEnter",
 	"TaskPOI.TooltipShown",
 }
+-- The sample tooltip's values, for the lines of tooltips the settings preview cannot build.
+local SAMPLE = { npc = 3100, age = 754, currency = 3008, mount = 6, quest = 86, macro = 8690 }
 
 ---@param value any
 ---@return number? id a readable number, or nil
@@ -283,6 +285,49 @@ function Details:OnTooltip(tooltip, kind, data)
 	end
 
 	self:Finish(tooltip)
+end
+
+---Fills the settings preview's sample tooltip with the chosen lines of tooltips the preview cannot build (creatures,
+---currencies, mounts, quests and macros), with sample values. A mount's Spell ID is left to the sample spell.
+---@param tooltip GameTooltip owned and cleared
+---@return boolean filled it has lines; with none it is left empty
+function Details:Sample(tooltip)
+	self.count = 0
+
+	if self:Shows("npc") then
+		self:Add(L["NPC ID"], SAMPLE.npc)
+	end
+
+	if self:Shows("age") then
+		self:Add(L["Spawned"], L["%s ago"]:format(SecondsToTime(SAMPLE.age, false, false, 2)))
+	end
+
+	if self:Shows("currency") then
+		self:Add(L["Currency ID"], SAMPLE.currency)
+	end
+
+	if self:Shows("mount") then
+		self:Add(L["Mount ID"], SAMPLE.mount)
+	end
+
+	if self:Shows("quest") then
+		self:Add(L["Quest ID"], SAMPLE.quest)
+	end
+
+	if self:Shows("macro") then
+		self:Add(L["Spell ID"], SAMPLE.macro)
+	end
+
+	if self.count == 0 then
+		return false
+	end
+
+	local title = HIGHLIGHT_FONT_COLOR
+
+	tooltip:AddLine(L["Other Tooltips"], title.r, title.g, title.b)
+	self:Finish(tooltip)
+
+	return true
 end
 
 ---The Quest ID on `GameTooltip` where Blizzard shows a quest without quest tooltip data.

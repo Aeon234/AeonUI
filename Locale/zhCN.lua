@@ -391,6 +391,7 @@ L["Spawned"] = "已刷新"
 L["%s ago"] = "%s前"
 L["%s Crest"] = "%s纹章"
 L["(discounted)"] = "（打折）"
+L["Other Tooltips"] = "其他鼠标提示"
 
 -- Profiles page (Settings)
 L["Keep different setups of AeonUI, and share them as text."] = "保存 AeonUI 的不同配置，并以文本形式分享。"

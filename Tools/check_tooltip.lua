@@ -1128,6 +1128,32 @@ values[Options.ID_PATHS.age] = nil
 Post("Unit", { guid = "Player-3061-0ABCDEF0", lines = {} })
 Equal("a player gets no NPC lines", Find("NPC ID"), nil)
 
+local SAMPLE_KEYS = { "npc", "age", "currency", "mount", "quest", "macro" }
+
+for index = #added, 1, -1 do
+	added[index] = nil
+end
+Equal("the preview's sample tooltip is filled", Details:Sample(NewTooltip("AeonUITooltipPreviewOther")), true)
+Equal("with the lines of the tooltips the preview cannot build", Labels(),
+	"[Other Tooltips] [ ] NPC ID=3100 Spawned=754 s ago Currency ID=3008 Mount ID=6 Quest ID=86 Spell ID=8690")
+for index = #added, 1, -1 do
+	added[index] = nil
+end
+values[Options.ID_PATHS.age] = false
+Details:Sample(NewTooltip("AeonUITooltipPreviewOther"))
+Equal("each follows its checkbox", Find("Spawned"), nil)
+for _, key in ipairs(SAMPLE_KEYS) do
+	values[Options.ID_PATHS[key]] = false
+end
+for index = #added, 1, -1 do
+	added[index] = nil
+end
+Equal("with none chosen it is not filled", Details:Sample(NewTooltip("AeonUITooltipPreviewOther")), false)
+Equal("and gets no lines", #added, 0)
+for _, key in ipairs(SAMPLE_KEYS) do
+	values[Options.ID_PATHS[key]] = nil
+end
+
 for index = #added, 1, -1 do
 	added[index] = nil
 end
@@ -1261,6 +1287,8 @@ local function Upgrade(text, data)
 	return strings[2].text, rightText.text
 end
 
+Equal("the next crest is off by default", Schema:Field(Options.UPGRADE_CREST_PATH).default, false)
+values[Options.UPGRADE_CREST_PATH] = true
 left, right = Upgrade("Upgrade Level: Hero 3/6")
 Equal("the rank in its track's color, then the range", left,
 	"Upgrade Level: " .. InQuality(4, "Hero 3/6") .. " " .. Format:Wrap("(305-321)", white))

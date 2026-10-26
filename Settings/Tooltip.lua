@@ -48,9 +48,11 @@ local GROWTH_LABELS = {
 	UP = L["Up"],
 	DOWN = L["Down"],
 }
-local DETAILS_SAMPLE_ITEM = 6948 -- Hearthstone, cached on every character
+local DETAILS_SAMPLE_ITEM = 2589 -- Linen Cloth: stacks, and its ID never changes
 local DETAILS_SAMPLE_SPELL = 8690 -- Hearthstone's spell
 local DETAILS_PREVIEW_GAP = 12
+-- Tall enough for the sample item with every line at full size.
+local DETAILS_PREVIEW_HEIGHT = 210
 
 ---The Tooltip header and its pages, each carrying the module's switch. Changes take effect at once.
 ---@class AUISettingsTooltip
@@ -339,21 +341,54 @@ function SettingsTooltip:DeclareUnits(window)
 end
 
 ---Two real tooltips, a sample item and a sample spell, built by the client and given the chosen lines by the Details
----post-calls, which treat them as previews.
+---post-calls, which treat them as previews, and a sample tooltip with the chosen lines of the tooltips the preview
+---cannot build, shown while it has any. A tooltip settles its size after it is built, and again when its data
+---arrives, so a size change measures the preview again on the next frame, without building the tooltips again.
+---@class AUIDetailsPreview
+---@field measuring boolean the preview is measured again, its tooltips left as they are
 local DetailsPreview = {
-	---@param canvas Frame
-	create = function(canvas)
-		AUI.TooltipDetails.previews = {
-			CreateFrame("GameTooltip", "AeonUITooltipPreviewItem", canvas, "GameTooltipTemplate"),
-			CreateFrame("GameTooltip", "AeonUITooltipPreviewSpell", canvas, "GameTooltipTemplate"),
-		}
-	end,
-	---@param canvas Frame
-	---@return number width
-	---@return number height
-	refresh = function(canvas)
-		local item, spell = unpack(AUI.TooltipDetails.previews)
+	measuring = false,
+}
 
+---@param canvas Frame
+function DetailsPreview:Create(canvas)
+	local tooltips = {
+		CreateFrame("GameTooltip", "AeonUITooltipPreviewItem", canvas, "GameTooltipTemplate"),
+		CreateFrame("GameTooltip", "AeonUITooltipPreviewSpell", canvas, "GameTooltipTemplate"),
+		CreateFrame("GameTooltip", "AeonUITooltipPreviewOther", canvas, "GameTooltipTemplate"),
+	}
+
+	AUI.TooltipDetails.previews = tooltips
+
+	for _, tooltip in ipairs(tooltips) do
+		tooltip:HookScript("OnSizeChanged", function()
+			AUI.Events:Merge("tooltipPreviewMeasure", 0, function()
+				DetailsPreview:Measure()
+			end)
+		end)
+	end
+end
+
+---Measures the preview again while the Details page shows it.
+function DetailsPreview:Measure()
+	local window = AUI.Settings.window
+
+	if self.measuring or not window or not window:IsShown() or window.page ~= "tooltipDetails" then
+		return
+	end
+
+	self.measuring = true
+	window:RefreshFixedArea()
+	self.measuring = false
+end
+
+---@param canvas Frame
+---@return number width
+---@return number height
+function DetailsPreview:Refresh(canvas)
+	local item, spell, other = unpack(AUI.TooltipDetails.previews)
+
+	if not self.measuring then
 		for _, tooltip in ipairs(AUI.TooltipDetails.previews) do
 			tooltip:SetOwner(canvas, "ANCHOR_NONE")
 			tooltip:SetFrameStrata(canvas:GetFrameStrata())
@@ -362,19 +397,38 @@ local DetailsPreview = {
 
 		item:SetItemByID(DETAILS_SAMPLE_ITEM)
 		spell:SetSpellByID(DETAILS_SAMPLE_SPELL)
+		other:ClearLines()
+
+		if AUI.TooltipDetails:Sample(other) then
+			other:Show()
+		else
+			other:Hide()
+		end
+
 		item:ClearAllPoints()
 		item:SetPoint("TOPLEFT", canvas, "TOPLEFT")
 		spell:ClearAllPoints()
 		spell:SetPoint("TOPLEFT", item, "TOPRIGHT", DETAILS_PREVIEW_GAP, 0)
+		other:ClearAllPoints()
+		other:SetPoint("TOPLEFT", spell, "TOPRIGHT", DETAILS_PREVIEW_GAP, 0)
+	end
 
-		return item:GetWidth() + DETAILS_PREVIEW_GAP + spell:GetWidth(), math.max(item:GetHeight(), spell:GetHeight())
-	end,
-	stop = function()
-		for _, tooltip in ipairs(AUI.TooltipDetails.previews or {}) do
-			tooltip:Hide()
-		end
-	end,
-}
+	local width = item:GetWidth() + DETAILS_PREVIEW_GAP + spell:GetWidth()
+	local height = math.max(item:GetHeight(), spell:GetHeight())
+
+	if other:IsShown() then
+		width = width + DETAILS_PREVIEW_GAP + other:GetWidth()
+		height = math.max(height, other:GetHeight())
+	end
+
+	return width, height
+end
+
+function DetailsPreview:Stop()
+	for _, tooltip in ipairs(AUI.TooltipDetails.previews or {}) do
+		tooltip:Hide()
+	end
+end
 
 ---@param window table
 function SettingsTooltip:DeclareDetails(window)
@@ -392,10 +446,16 @@ function SettingsTooltip:DeclareDetails(window)
 
 	self.pageIDs.tooltipDetails = true
 	page:Preview({
-		height = 140,
-		create = DetailsPreview.create,
-		refresh = DetailsPreview.refresh,
-		stop = DetailsPreview.stop,
+		height = DETAILS_PREVIEW_HEIGHT,
+		create = function(canvas)
+			DetailsPreview:Create(canvas)
+		end,
+		refresh = function(canvas)
+			return DetailsPreview:Refresh(canvas)
+		end,
+		stop = function()
+			DetailsPreview:Stop()
+		end,
 	})
 
 	local lines = page:Section("tooltipDetailLines", L["Lines"])

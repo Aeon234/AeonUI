@@ -391,6 +391,7 @@ L["Spawned"] = "Apareció"
 L["%s ago"] = "hace %s"
 L["%s Crest"] = "Emblema %s"
 L["(discounted)"] = "(con descuento)"
+L["Other Tooltips"] = "Otros tooltips"
 
 -- Profiles page (Settings)
 L["Keep different setups of AeonUI, and share them as text."] = "Guarda distintas configuraciones de AeonUI y compártelas como texto."

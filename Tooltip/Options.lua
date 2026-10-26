@@ -146,7 +146,7 @@ Schema:Choice(Options.ID_MODIFIER_PATH, "tooltipModifier", "NONE")
 Schema:Boolean(Options.UPGRADE_RANK_PATH, true)
 Schema:Boolean(Options.UPGRADE_RANGE_PATH, true)
 Schema:Color(Options.UPGRADE_RANGE_COLOR_PATH, { r = 1, g = 1, b = 1 })
-Schema:Boolean(Options.UPGRADE_CREST_PATH, true)
+Schema:Boolean(Options.UPGRADE_CREST_PATH, false)
 
 Schema:Choices("tooltipShowMode", Options.SHOW_MODES)
 Schema:Choices("tooltipCursorPoint", Options.CURSOR_POINTS)

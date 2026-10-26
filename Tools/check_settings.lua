@@ -790,8 +790,9 @@ Equal("Upgrades carries the module's switch", upgrades.info.switch.path, Tooltip
 local upgradeLine = upgrades.sections.tooltipUpgradeLine.settings
 Equal("the range color follows the range", upgradeLine.upgradeRangeColor.depends, "upgradeRange")
 Equal("the range color defaults to white", upgradeLine.upgradeRangeColor.default.g, 1)
-Equal("every upgrade part is on by default", upgradeLine.upgradeCrest.default and upgradeLine.upgradeRank.default,
+Equal("the rank and range are on by default", upgradeLine.upgradeRank.default and upgradeLine.upgradeRange.default,
 	true)
+Equal("the next crest is off", upgradeLine.upgradeCrest.default, false)
 AUI.can.upgrades = nil
 
 -- Minimap button -------------------------------------------------------------------------------------------------

@@ -391,6 +391,7 @@ L["Spawned"] = "생성"
 L["%s ago"] = "%s 전"
 L["%s Crest"] = "%s 문장"
 L["(discounted)"] = "(할인)"
+L["Other Tooltips"] = "기타 툴팁"
 
 -- Profiles page (Settings)
 L["Keep different setups of AeonUI, and share them as text."] = "AeonUI 설정을 여러 개 보관하고 텍스트로 공유합니다."
