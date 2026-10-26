@@ -13,6 +13,7 @@ AUI.EditTargets = EditTargets
 -- Each target's position setting, by key.
 local PATHS = {
 	minimap = "minimap.position",
+	tooltip = "tooltip.position",
 }
 
 ---@return table[] targets the frames that exist this session, in the library's form
@@ -27,6 +28,22 @@ function EditTargets:Targets()
 			frame = minimap.holder,
 			default = minimap.DEFAULT_POSITION,
 			settings = { page = "minimap" },
+		}
+	end
+
+	local Anchor = AUI.TooltipAnchor
+
+	-- A tooltip riding the cursor has no place to move.
+	if AUI.Tooltip.active and not Anchor:Cursor() then
+		targets[#targets + 1] = {
+			key = "tooltip",
+			label = AUI.L["Tooltip"],
+			frame = Anchor:Box(),
+			default = Anchor:DefaultPosition(),
+			settings = { page = "tooltipPosition", section = "tooltipPlace" },
+			place = function(position)
+				Anchor:Place(position)
+			end,
 		}
 	end
 

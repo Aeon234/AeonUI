@@ -328,6 +328,7 @@ for _, file in ipairs({ "Core/Callbacks.lua", "Core/Capabilities.lua", "Core/Bro
 	"Profile/Store.lua", "Profile/Profile.lua", "Media/Media.lua", "UI/Border.lua", "Minimap/Layout.lua",
 	"Minimap/Elements.lua", "Minimap/Rows.lua", "Minimap/Fade.lua", "Minimap/Text.lua", "Minimap/Difficulty.lua",
 	"Minimap/Buttons.lua", "Minimap/Map.lua", "WorldMap/Markers.lua", "WorldMap/Options.lua", "Tooltip/Options.lua",
+	"Tooltip/Tooltip.lua",
 	"Settings/Window.lua", "Settings/MinimapEditor.lua", "Settings/General.lua", "Settings/Minimap.lua",
 	"Settings/WorldMap.lua", "Settings/Tooltip.lua", "Settings/Profiles.lua", "Settings/Recovery.lua",
 	"Settings/EditTargets.lua" }) do
@@ -371,7 +372,7 @@ Equal("registered under the addon's name", window.name, "AeonUI")
 Equal("named root frame", declaration.frameName, "AeonUISettings")
 Equal("sidebar order", table.concat(window.order, " "), "general - #minimapHeader minimap minimapBorder minimapRows " ..
 	"minimapZone minimapDifficulty minimapClock minimapMail minimapTracking minimapCoordinates minimapCalendar " ..
-	"minimapCompartment - #tooltipHeader tooltipAppearance tooltipUnits tooltipDetails - profiles")
+	"minimapCompartment - #tooltipHeader tooltipAppearance tooltipPosition tooltipUnits tooltipDetails - profiles")
 Equal("Settings:Window reuses the window", Settings:Window(), window)
 Equal("the store is the active config", declaration.store(), Profile.config)
 Equal("account settings are the store's", declaration.account(), AeonUIDB.global)
@@ -481,8 +482,13 @@ for id in pairs(AUI.SettingsTooltip.pageIDs) do
 
 	for _, section in ipairs(page.sections) do
 		for _, setting in ipairs(section.settings) do
-			Equal(setting.id .. " names a setting", AUI.Schema:Field(setting.path) ~= nil, true)
-			Equal(setting.id .. " carries its default", setting.default, AUI.Schema:Field(setting.path).default)
+			if setting.path then
+				Equal(setting.id .. " names a setting", AUI.Schema:Field(setting.path) ~= nil, true)
+				Equal(setting.id .. " carries its default", setting.default, AUI.Schema:Field(setting.path).default)
+			else
+				Equal(setting.id .. " reads and writes its own value", type(setting.get) == "function"
+					and type(setting.set) == "function", true)
+			end
 		end
 	end
 end
@@ -508,6 +514,18 @@ AUI.can.mythicPlus, AUI.can.auraCasterNames = mythicPlus, auraCasterNames
 Equal("the Target line is offered everywhere", unitAdded.showTarget.show, nil)
 Equal("titles are hidden by default", window.pages.tooltipUnits.sections.tooltipUnitLines.settings.showTitles.default,
 	false)
+local position = window.pages.tooltipPosition
+local visibility = position.sections.tooltipVisibility.settings
+local place = position.sections.tooltipPlace.settings
+Equal("every show mode is offered", #visibility.showMode.options, #TooltipOptions.SHOW_MODES)
+Equal("tooltips show always by default", visibility.showMode.default, "ALWAYS")
+Equal("the show key needs a mode that hides", visibility.peekKey.blocked() ~= nil, true)
+Equal("Enhanced Tooltips is the game's, not the profile's", visibility.enhancedTooltips.path, nil)
+Equal("the cursor anchor starts off", place.anchorCursor.default, false)
+Equal("its place follows it", place.cursorPoint.depends, "anchorCursor")
+Equal("so do its offsets", place.cursorX.depends .. " " .. place.cursorY.depends, "anchorCursor anchorCursor")
+Equal("every place around the cursor is offered", #place.cursorPoint.options, #TooltipOptions.CURSOR_POINTS)
+Equal("growth is free while the tooltip has a place", place.growth.blocked(), nil)
 local details = window.pages.tooltipDetails
 local detailIDs = details.sections.tooltipDetailIDs.settings
 Equal("the Details page has a preview", details.preview ~= nil, true)
@@ -698,7 +716,8 @@ Equal("no World Map header without marker data", table.concat(window.order, " ")
 AUI.can.worldMapMarkers = true
 window = Load(nil)
 Equal("the World Map header follows the Minimap's", table.concat(window.order, " "):match("minimapCompartment (.*)$"),
-	"- #worldMapHeader worldMapOptions worldMapMarkers - #tooltipHeader tooltipAppearance tooltipUnits tooltipDetails - profiles")
+	"- #worldMapHeader worldMapOptions worldMapMarkers - #tooltipHeader tooltipAppearance tooltipPosition tooltipUnits "
+		.. "tooltipDetails - profiles")
 local optionsPage = window.pages.worldMapOptions
 Equal("Map Options sits under the World Map header", optionsPage.info.under, "worldMapHeader")
 Equal("with no page switch", optionsPage.info.switch, nil)

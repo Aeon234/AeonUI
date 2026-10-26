@@ -25,6 +25,11 @@ function Tooltip:OnProfileChanged(path)
 	AUI.Events:Coalesce("tooltipApply", function()
 		Tooltip:Apply()
 	end)
+
+	-- Riding the cursor takes the tooltip's mover out of edit mode, and a profile brings its own place.
+	if (path == nil or path == Options.CURSOR_PATH) and AUI.EditTargets then
+		AUI.EditTargets:Apply()
+	end
 end
 
 function Tooltip:Apply()
@@ -33,6 +38,8 @@ function Tooltip:Apply()
 	AUI.TooltipAppearance:Apply(on)
 	AUI.TooltipUnits:Apply(on)
 	AUI.TooltipDetails:Apply(on)
+	AUI.TooltipAnchor:Apply(on)
+	AUI.TooltipVisibility:Apply(on)
 end
 
 function Tooltip:Start()
@@ -47,6 +54,8 @@ function Tooltip:Start()
 	AUI.TooltipDetails:Hook()
 	AUI.TooltipUpgrades:Hook()
 	AUI.TooltipInspect:Hook()
+	AUI.TooltipAnchor:Hook()
+	AUI.TooltipVisibility:Hook()
 	-- The client settles its session CVars after login, over a write made before.
 	AUI.Events:Register("PLAYER_ENTERING_WORLD", self, function()
 		Tooltip:Apply()

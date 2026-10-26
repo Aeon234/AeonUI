@@ -100,17 +100,34 @@ function issecretvalue(value)
 	return value == SECRET
 end
 
-local hooks = {}
+-- Each hooked function's handlers, run in order by `hooks[name]`.
+local hooks, hookLists = {}, {}
+
+---@param key string
+---@param handler function
+local function AddHook(key, handler)
+	if not hookLists[key] then
+		hookLists[key] = {}
+		hooks[key] = function(...)
+			for _, hooked in ipairs(hookLists[key]) do
+				hooked(...)
+			end
+		end
+	end
+
+	table.insert(hookLists[key], handler)
+end
+
 function hooksecurefunc(object, method, handler)
 	if type(object) == "string" then
-		hooks[object] = method
 		assert(_G[object], object)
+		AddHook(object, method --[[@as function]])
 
 		return
 	end
 
-	hooks[method] = handler
 	assert(object[method], method)
+	AddHook(method, handler)
 end
 
 local inspects = { asked = {}, cleared = 0 }
@@ -129,10 +146,15 @@ Enum = {
 	TooltipDataLineType = { None = 0, UnitName = 2, UnitOwner = 16, ItemUpgradeLevel = 32, UnitLevel = 47 },
 }
 local postCalls = {}
+local preCalls = {}
 TooltipDataProcessor = {
 	AddTooltipPostCall = function(kind, handler)
 		postCalls[kind] = postCalls[kind] or {}
 		table.insert(postCalls[kind], handler)
+	end,
+	AddTooltipPreCall = function(kind, handler)
+		preCalls[kind] = preCalls[kind] or {}
+		table.insert(preCalls[kind], handler)
 	end,
 }
 
@@ -174,9 +196,47 @@ local function NewTooltip(name)
 	})
 end
 
+-- GameTooltip's points, owner, parent and strata, as the anchoring and visibility checks set and read them.
+local anchoring = { points = {}, parent = nil, strata = "TOOLTIP", owner = nil, hides = 0 }
+UIParent = { GetEffectiveScale = function() return 1 end, GetWidth = function() return 1920 end,
+	GetHeight = function() return 1080 end }
+anchoring.parent = UIParent
+
 GameTooltip = Widget("GameTooltip", {
 	IsForbidden = function()
 		return forbidden
+	end,
+	SetOwner = function(_, owner)
+		anchoring.owner = owner
+	end,
+	ClearAllPoints = function()
+		anchoring.points = {}
+	end,
+	SetPoint = function(_, point, relativeTo, relativePoint, x, y)
+		table.insert(anchoring.points, { point, relativeTo, relativePoint, x, y })
+	end,
+	GetPoint = function(_, index)
+		local point = anchoring.points[index]
+
+		if point then
+			return point[1], point[2], point[3], point[4], point[5]
+		end
+	end,
+	GetNumPoints = function()
+		return #anchoring.points
+	end,
+	GetParent = function()
+		return anchoring.parent
+	end,
+	SetParent = function(_, parent)
+		anchoring.parent = parent
+	end,
+	SetFrameStrata = function(_, strata)
+		anchoring.strata = strata
+	end,
+	FadeOut = function() end,
+	Hide = function()
+		anchoring.hides = anchoring.hides + 1
 	end,
 	GetName = function()
 		return "GameTooltip"
@@ -257,7 +317,8 @@ end })
 AUI.can = {}
 for _, file in ipairs({ "Profile/Schema.lua", "Media/Media.lua", "Minimap/Elements.lua", "Tooltip/Options.lua",
 	"Tooltip/Format.lua", "Tooltip/Appearance.lua", "Tooltip/Units.lua", "Tooltip/Details.lua", "Tooltip/UpgradeSeasons.lua",
-	"Tooltip/Upgrades.lua", "Tooltip/Inspect.lua", "Tooltip/Tooltip.lua" }) do
+	"Tooltip/Upgrades.lua", "Tooltip/Inspect.lua", "Tooltip/Anchor.lua", "Tooltip/Visibility.lua",
+	"Tooltip/Tooltip.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 
@@ -381,6 +442,35 @@ Equal("an unknown style is Blizzard's place", (Options:BarPlace("SIDE")).to, "BO
 Equal("a strip keeps its height and a pixel", Options:StripPadding(3), 4)
 
 -- Fonts ---------------------------------------------------------------------------------------------------------
+
+-- Blizzard's container for default-anchored tooltips, at the bottom right of a 1920 by 1080 screen.
+GameTooltipDefaultContainer = {
+	GetLeft = function() return 1500 end,
+	GetBottom = function() return 100 end,
+	GetWidth = function() return 300 end,
+	GetHeight = function() return 150 end,
+	GetEffectiveScale = function() return 1 end,
+}
+
+---As Blizzard's: owns the tooltip, then pins its corner to the container's; hooks run after it, as the client's do.
+function GameTooltip_SetDefaultAnchor(tooltip, owner)
+	tooltip:SetOwner(owner, "ANCHOR_NONE")
+	hooks.SetOwner(tooltip)
+	tooltip:ClearAllPoints()
+	tooltip:SetPoint("BOTTOMRIGHT", GameTooltipDefaultContainer, "BOTTOMRIGHT", 0, 0)
+	hooks.SetPoint(tooltip)
+	hooks.GameTooltip_SetDefaultAnchor(tooltip, owner)
+end
+
+local shopping = {}
+for index = 1, 2 do
+	_G["ShoppingTooltip" .. index] = Widget("GameTooltip", {
+		HookScript = function(_, script, handler)
+			shopping[script] = shopping[script] or {}
+			table.insert(shopping[script], handler)
+		end,
+	})
+end
 
 AUI.can.specializations = true
 Tooltip:Start()
@@ -1428,5 +1518,271 @@ values[Options.ITEM_LEVEL_PATH] = nil
 Fire("OnHide", GameTooltip)
 Equal("a hidden tooltip shows nobody", Inspect.shown.guid, nil)
 RunTimers()
+values[Options.MOUNT_PATH], values[Options.TARGET_PATH] = nil, nil
+
+-- Anchor arithmetic ---------------------------------------------------------------------------------------------
+
+Equal("above the cursor, the tooltip's bottom touches it", Options:CursorPoint("TOP"), "BOTTOM")
+Equal("below right, its top left", Options:CursorPoint("BOTTOMRIGHT"), "TOPLEFT")
+Equal("an unknown place sits above", Options:CursorPoint("SIDE"), "BOTTOM")
+Equal("growing down pins the top", Options:GrowthPoint("BOTTOMRIGHT", "DOWN"), "TOPRIGHT")
+Equal("growing up pins the bottom", Options:GrowthPoint("TOPLEFT", "UP"), "BOTTOMLEFT")
+Equal("a side-less point keeps no side", Options:GrowthPoint("TOP", "UP"), "BOTTOM")
+Equal("Default keeps Blizzard's corner", Options:GrowthPoint("TOPLEFT", "DEFAULT"), "TOPLEFT")
+Equal("a box low left grows from its bottom left", Options:FixedCorner(-100, -50, "DEFAULT"), "BOTTOMLEFT")
+Equal("high right from its top right", Options:FixedCorner(100, 50, "DEFAULT"), "TOPRIGHT")
+Equal("a growth direction sets the top or bottom", Options:FixedCorner(100, 50, "UP"), "BOTTOMRIGHT")
+local container = Options:ContainerPosition(1500, 100, 300, 150, 1920, 1080)
+Equal("Blizzard's container at the bottom right", container.point, "BOTTOMRIGHT")
+Equal("its offsets from that corner", container.x .. " " .. container.y, "-120 100")
+Equal("a container high left", Options:ContainerPosition(20, 900, 300, 150, 1920, 1080).point, "TOPLEFT")
+
+-- Anchoring ---------------------------------------------------------------------------------------------------
+
+local Anchor = AUI.TooltipAnchor
+local cursorAt = { x = 500, y = 400 }
+local frames = {}
+
+---@param point string
+---@return number h the point's place across a rectangle, 0 to 1
+---@return number v its place up it
+local function Fractions(point)
+	local v = point:match("TOP") and 1 or point:match("BOTTOM") and 0 or 0.5
+	local h = point:match("LEFT") and 0 or point:match("RIGHT") and 1 or 0.5
+
+	return h, v
+end
+
+---A frame stub that works out its left and bottom from one point set on UIParent.
+function CreateFrame(_, name)
+	local frame = { width = 0, height = 0, shown = true }
+	local widget = Widget("Frame", {
+		SetSize = function(_, width, height)
+			frame.width, frame.height = width, height
+		end,
+		EnableMouse = function() end,
+		ClearAllPoints = function()
+			frame.point = nil
+		end,
+		SetPoint = function(_, point, relativeTo, relativePoint, x, y)
+			frame.point = { point, relativeTo, relativePoint, x or 0, y or 0 }
+		end,
+		GetLeft = function()
+			local point = frame.point
+
+			if not point then
+				return nil
+			end
+
+			local h = Fractions(point[1])
+			local rh = Fractions(point[3])
+
+			return rh * 1920 + point[4] - h * frame.width
+		end,
+		GetBottom = function()
+			local point = frame.point
+
+			if not point then
+				return nil
+			end
+
+			local _, v = Fractions(point[1])
+			local _, rv = Fractions(point[3])
+
+			return rv * 1080 + point[5] - v * frame.height
+		end,
+		SetFrameStrata = function() end,
+		SetScript = function(_, script, handler)
+			frame[script] = handler
+		end,
+		Show = function()
+			frame.shown = true
+		end,
+		Hide = function()
+			frame.shown = false
+		end,
+		IsShown = function()
+			return frame.shown
+		end,
+		state = frame,
+	})
+
+	if name then
+		_G[name] = widget
+	end
+
+	frames[#frames + 1] = widget
+
+	return widget
+end
+function GetCursorPosition() return cursorAt.x, cursorAt.y end
+C_CVar.GetCVarBool = function(name) return cvars[name] == "1" end
+C_InstanceEncounter = { IsEncounterInProgress = function() return combat end }
+local comparisons = { cleared = 0 }
+TooltipComparisonManager = {
+	Clear = function()
+		comparisons.cleared = comparisons.cleared + 1
+	end,
+}
+function GameTooltip_SuppressAutomaticCompareItem(tooltip)
+	tooltip.suppressAutomaticCompareItem = true
+end
+local OWNER = { IsForbidden = function() return false end }
+
+local function Corner()
+	local point = anchoring.points[1]
+
+	return point and (tostring(point[1]) .. ">" .. (point[2] == GameTooltipDefaultContainer and "container"
+		or point[2] == Anchor.box and "box" or point[2] == Anchor.cursor and "cursor" or "other")) or "none"
+end
+
+GameTooltip_SetDefaultAnchor(GameTooltip, OWNER)
+Equal("Blizzard's place by default", Corner(), "BOTTOMRIGHT>container")
+Equal("and its one point", #anchoring.points, 1)
+values[Options.GROWTH_PATH] = "DOWN"
+GameTooltip_SetDefaultAnchor(GameTooltip, OWNER)
+Equal("growing down pins Blizzard's corner by its top", Corner(), "TOPRIGHT>container")
+GameTooltip:SetPoint("BOTTOMRIGHT", GameTooltipDefaultContainer, "BOTTOMRIGHT", 0, 0)
+hooks.SetPoint(GameTooltip)
+Equal("a later anchor from Blizzard is turned back", Corner(), "TOPRIGHT>container")
+Equal("leaving one point", #anchoring.points, 1)
+GameTooltip:SetOwner(OWNER, "ANCHOR_RIGHT")
+hooks.SetOwner(GameTooltip)
+GameTooltip:ClearAllPoints()
+GameTooltip:SetPoint("BOTTOMLEFT", OWNER, "TOPRIGHT", 0, 0)
+hooks.SetPoint(GameTooltip)
+Equal("a tooltip its owner anchors is left alone", Corner(), "BOTTOMLEFT>other")
+values[Options.GROWTH_PATH] = nil
+
+values[Options.POSITION_PATH] = { point = "CENTER", x = -400, y = -200 }
+Tooltip:Apply()
+Anchor:Box()
+GameTooltip_SetDefaultAnchor(GameTooltip, OWNER)
+Equal("a saved place pins the tooltip in AeonUI's box", Corner(), "BOTTOMLEFT>box")
+Equal("by the corner facing the screen's", anchoring.points[1][3], "BOTTOMLEFT")
+values[Options.GROWTH_PATH] = "DOWN"
+GameTooltip_SetDefaultAnchor(GameTooltip, OWNER)
+Equal("growing down from the box's top", Corner(), "TOPLEFT>box")
+values[Options.GROWTH_PATH] = nil
+anchoring.points = { { SECRET, SECRET, SECRET, 0, 0 } }
+Anchor:Enforce(GameTooltip)
+Equal("a secret point is replaced in the box", Corner(), "BOTTOMLEFT>box")
+anchoring.points = {}
+Anchor:OnDefaultAnchor(GameTooltip, { IsForbidden = function() return true end })
+Equal("a forbidden owner is left to Blizzard", #anchoring.points, 0)
+Equal("and its points are not kept", Anchor.armed, false)
+values[Options.POSITION_PATH] = nil
+Tooltip:Apply()
+local position = Anchor.box.state.point
+Equal("without a saved place the box sits where Blizzard's container is", position[1] .. " " .. position[4] .. " "
+	.. position[5], "BOTTOMRIGHT -120 100")
+
+values[Options.CURSOR_PATH] = true
+values[Options.CURSOR_POINT_PATH] = "TOPRIGHT"
+values[Options.CURSOR_X_PATH], values[Options.CURSOR_Y_PATH] = 10, -5
+values[Options.POSITION_PATH] = { point = "CENTER", x = 0, y = 0 }
+GameTooltip_SetDefaultAnchor(GameTooltip, OWNER)
+Equal("riding the cursor wins over a saved place", Corner(), "BOTTOMLEFT>cursor")
+Equal("with its offsets", tostring(anchoring.points[1][4]) .. " " .. tostring(anchoring.points[1][5]), "10 -5")
+Equal("the cursor point is at the cursor", Anchor.cursor.state.point[4] .. " " .. Anchor.cursor.state.point[5],
+	"500 400")
+cursorAt.x = 640
+Anchor.cursor.state.OnUpdate(Anchor.cursor)
+Equal("and follows it", Anchor.cursor.state.point[4], 640)
+local hides = anchoring.hides
+hooks.FadeOut(GameTooltip)
+Equal("a fading unit tooltip hides at once while riding the cursor", anchoring.hides, hides + 1)
+Fire("OnHide", GameTooltip)
+Equal("the cursor point stops with the tooltip", Anchor.cursor.state.shown, false)
+values[Options.CURSOR_PATH], values[Options.CURSOR_POINT_PATH] = nil, nil
+values[Options.CURSOR_X_PATH], values[Options.CURSOR_Y_PATH] = nil, nil
+values[Options.POSITION_PATH] = nil
+
+values[Options.ENABLED_PATH] = false
+values[Options.GROWTH_PATH] = "DOWN"
+GameTooltip_SetDefaultAnchor(GameTooltip, OWNER)
+Equal("the module off leaves Blizzard's anchor", Corner(), "BOTTOMRIGHT>container")
+values[Options.ENABLED_PATH], values[Options.GROWTH_PATH] = nil, nil
+
+cvars.UberTooltips = "0"
+Equal("Enhanced Tooltips reads the game's setting", Anchor:Enhanced(), false)
+Anchor:SetEnhanced(true)
+Equal("and writes it", cvars.UberTooltips, "1")
+
+AUI.Minimap = { active = false }
+assert(loadfile(root .. "Settings/EditTargets.lua"))("AeonUI", AUI)
+local targets = AUI.EditTargets:Targets()
+Equal("the tooltip has a mover", targets[1] and targets[1].key, "tooltip")
+Equal("around AeonUI's box", targets[1].frame, Anchor.box)
+Equal("whose default is Blizzard's place", targets[1].default.point, "BOTTOMRIGHT")
+Equal("linked to its settings", targets[1].settings.section, "tooltipPlace")
+targets[1].place({ point = "TOPLEFT", x = 30, y = -40 })
+Equal("which AeonUI places itself", Anchor.box.state.point[1] .. " " .. Anchor.box.state.point[4], "TOPLEFT 30")
+values[Options.CURSOR_PATH] = true
+Equal("no mover while riding the cursor", #AUI.EditTargets:Targets(), 0)
+values[Options.CURSOR_PATH] = nil
+
+-- Visibility --------------------------------------------------------------------------------------------------
+
+local Visibility = AUI.TooltipVisibility
+
+GameTooltip_SetDefaultAnchor(GameTooltip, OWNER)
+Equal("Always never hides the tooltip", anchoring.parent, UIParent)
+values[Options.SHOW_MODE_PATH] = "NEVER"
+Tooltip:Apply()
+GameTooltip_SetDefaultAnchor(GameTooltip, OWNER)
+Equal("Never keeps it in the hidden frame", anchoring.parent, Visibility.host)
+Equal("which is hidden", Visibility.host.state.shown, false)
+Equal("with comparisons turned off", GameTooltip.suppressAutomaticCompareItem, true)
+RunTimers()
+Equal("and cleared on the next frame", comparisons.cleared, 1)
+GameTooltip.suppressAutomaticCompareItem = false
+preCalls[Enum.TooltipDataType.Item][1](GameTooltip)
+Equal("an item's rebuild turns them off again", GameTooltip.suppressAutomaticCompareItem, true)
+shopping.OnShow[1]()
+RunTimers()
+Equal("a comparison shown while kept is cleared", comparisons.cleared, 2)
+
+values[Options.PEEK_PATH] = "SHIFT"
+keys.shift = true
+events.MODIFIER_STATE_CHANGED("LSHIFT", 1)
+Equal("the show key takes it out", anchoring.parent, UIParent)
+Equal("on top again", anchoring.strata, "TOOLTIP")
+keys.shift = false
+events.MODIFIER_STATE_CHANGED("LSHIFT", 0)
+Equal("and letting go puts it back", anchoring.parent, Visibility.host)
+events.MODIFIER_STATE_CHANGED("LCTRL", 1)
+Equal("another key does nothing", anchoring.parent, Visibility.host)
+GameTooltip:SetOwner(OWNER, "ANCHOR_RIGHT")
+keys.shift = true
+hooks.SetOwner(GameTooltip)
+Equal("a tooltip built while the key is held shows", anchoring.parent, UIParent)
+keys.shift = false
+values[Options.PEEK_PATH] = nil
+
+values[Options.SHOW_MODE_PATH] = "OUT_OF_COMBAT"
+Tooltip:Apply()
+GameTooltip_SetDefaultAnchor(GameTooltip, OWNER)
+Equal("Out of Combat shows it out of combat", anchoring.parent, UIParent)
+combat = true
+events.PLAYER_REGEN_DISABLED()
+Equal("and keeps a shown one hidden when combat starts", anchoring.parent, Visibility.host)
+combat = false
+events.PLAYER_REGEN_ENABLED()
+Equal("until its owner shows it again", anchoring.parent, Visibility.host)
+Fire("OnShow", GameTooltip)
+Equal("which it then does", anchoring.parent, UIParent)
+values[Options.SHOW_MODE_PATH] = "OUT_OF_BOSS_COMBAT"
+Tooltip:Apply()
+Equal("a mode watches only its own events", eventHandlers.PLAYER_REGEN_DISABLED[Visibility], nil)
+combat = true
+GameTooltip_SetDefaultAnchor(GameTooltip, OWNER)
+Equal("Out of Boss Combat hides it in an encounter", anchoring.parent, Visibility.host)
+combat = false
+values[Options.ENABLED_PATH] = false
+Tooltip:Apply()
+Equal("the module off shows it again", anchoring.parent, UIParent)
+values[Options.ENABLED_PATH], values[Options.SHOW_MODE_PATH] = nil, nil
+Tooltip:Apply()
 
 print(("check_tooltip: %d checks passed"):format(checks))

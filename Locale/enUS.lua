@@ -50,6 +50,8 @@ L["Text"] = "Text"
 L["Font"] = "Font"
 L["Outline"] = "Outline"
 L["Height"] = "Height"
+L["X Offset"] = "X Offset"
+L["Y Offset"] = "Y Offset"
 
 -- General page (Settings)
 L["Settings for AeonUI as a whole. Each feature has its own page."] =
@@ -130,7 +132,6 @@ L["For the clock, coordinates and the addon count; the zone and instance difficu
 	"For the clock, coordinates and the addon count; the zone and instance difficulty have colors of their own."
 L["Each element's page can change its own font, size, outline, offset and color."] =
 	"Each element's page can change its own font, size, outline, offset and color."
-L["Y Offset"] = "Y Offset"
 L["Raises the text, or lowers it below 0, to sit it in the middle of the row."] =
 	"Raises the text, or lowers it below 0, to sit it in the middle of the row."
 L["Colors"] = "Colors"
@@ -409,6 +410,41 @@ L["Range Color"] = "Range Color"
 L["Next Crest"] = "Next Crest"
 L["The crest the next upgrade costs, and whether it is discounted."] =
 	"The crest the next upgrade costs, and whether it is discounted."
+
+L["Position & Visibility"] = "Position & Visibility"
+L["When the game's tooltip shows, and where tooltips that have no place of their own appear."] =
+	"When the game's tooltip shows, and where tooltips that have no place of their own appear."
+L["Visibility"] = "Visibility"
+L["Show Tooltips"] = "Show Tooltips"
+L["Out of Combat"] = "Out of Combat"
+L["Out of Boss Combat"] = "Out of Boss Combat"
+L["Show While Held"] = "Show While Held"
+L["A key that shows a hidden tooltip while you hold it."] = "A key that shows a hidden tooltip while you hold it."
+L["Needs tooltips hidden at some time."] = "Needs tooltips hidden at some time."
+L["Blizzard's longer tooltips. A setting of the game, so profiles do not keep it."] =
+	"Blizzard's longer tooltips. A setting of the game, so profiles do not keep it."
+L["Position"] = "Position"
+L["Anchor to Cursor"] = "Anchor to Cursor"
+L["Tooltips with no place of their own follow the cursor."] = "Tooltips with no place of their own follow the cursor."
+L["Cursor Position"] = "Cursor Position"
+L["Where the tooltip sits around the cursor."] = "Where the tooltip sits around the cursor."
+L["Above"] = "Above"
+L["Below"] = "Below"
+L["Left"] = "Left"
+L["Right"] = "Right"
+L["Above Left"] = "Above Left"
+L["Above Right"] = "Above Right"
+L["Below Left"] = "Below Left"
+L["Below Right"] = "Below Right"
+L["Centered"] = "Centered"
+L["Growth Direction"] = "Growth Direction"
+L["Which way a tooltip grows as lines are added. Default lets Blizzard choose by its place."] =
+	"Which way a tooltip grows as lines are added. Default lets Blizzard choose by its place."
+L["Up"] = "Up"
+L["Down"] = "Down"
+L["Not while anchored to the cursor."] = "Not while anchored to the cursor."
+L["Move the tooltip in edit mode. Until it is moved, it keeps Blizzard's place."] =
+	"Move the tooltip in edit mode. Until it is moved, it keeps Blizzard's place."
 
 -- Tooltip lines (Tooltip; the ID labels also name the Details page's checkboxes)
 L["Rare"] = "Rare"

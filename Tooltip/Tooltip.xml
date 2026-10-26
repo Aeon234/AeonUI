@@ -7,5 +7,7 @@
 	<Script file="UpgradeSeasons.lua" />
 	<Script file="Upgrades.lua" />
 	<Script file="Inspect.lua" />
+	<Script file="Anchor.lua" />
+	<Script file="Visibility.lua" />
 	<Script file="Tooltip.lua" />
 </Ui>

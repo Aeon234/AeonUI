@@ -8,6 +8,11 @@ local SIZES = { header = 14, body = 12, small = 10 }
 local BAR_HEIGHT, BAR_INSET, BAR_GAP = 8, 2, 1
 -- How far the strip sits inside the tooltip's border, and the room kept above it besides its own height.
 local STRIP_INSET, STRIP_GAP = 3, 1
+-- The tooltip's corner that touches the cursor, for each place the tooltip can take around it.
+local CURSOR_POINTS = {
+	TOP = "BOTTOM", BOTTOM = "TOP", LEFT = "RIGHT", RIGHT = "LEFT", CENTER = "CENTER",
+	TOPLEFT = "BOTTOMRIGHT", TOPRIGHT = "BOTTOMLEFT", BOTTOMLEFT = "TOPRIGHT", BOTTOMRIGHT = "TOPLEFT",
+}
 
 ---The tooltip's settings and the frame-free arithmetic behind them: the font sizes and where the health bar sits.
 ---@class AUITooltipOptions
@@ -42,6 +47,19 @@ local STRIP_INSET, STRIP_GAP = 3, 1
 ---@field UPGRADE_RANGE_PATH string the upgrade line adds the track's item-level range
 ---@field UPGRADE_RANGE_COLOR_PATH string the range's color
 ---@field UPGRADE_CREST_PATH string the upgrade line adds the crest the next upgrade costs
+---@field SHOW_MODE_PATH string a `tooltipShowMode` choice: when `GameTooltip` may be seen
+---@field PEEK_PATH string a `tooltipModifier` choice: the key that shows a hidden tooltip while held
+---@field CURSOR_PATH string default-anchored tooltips follow the cursor
+---@field CURSOR_POINT_PATH string a `tooltipCursorPoint` choice: where the tooltip sits around the cursor
+---@field CURSOR_X_PATH string the cursor tooltip's horizontal offset
+---@field CURSOR_Y_PATH string its vertical offset
+---@field GROWTH_PATH string a `tooltipGrowth` choice: which way a default-anchored tooltip grows
+---@field POSITION_PATH string AeonUI's place for default-anchored tooltips; absent keeps Blizzard's
+---@field SHOW_MODES string[]
+---@field CURSOR_POINTS string[]
+---@field GROWTHS string[]
+---@field ANCHOR_WIDTH number the size of the box default-anchored tooltips are pinned inside
+---@field ANCHOR_HEIGHT number
 ---@field BAR_STYLES string[]
 ---@field BLIZZARD_BAR_HEIGHT number the height Blizzard gives the bar
 local Options = {
@@ -78,6 +96,19 @@ local Options = {
 	UPGRADE_RANGE_PATH = "tooltip.upgrades.range",
 	UPGRADE_RANGE_COLOR_PATH = "tooltip.upgrades.rangeColor",
 	UPGRADE_CREST_PATH = "tooltip.upgrades.crest",
+	SHOW_MODE_PATH = "tooltip.visibility.mode",
+	PEEK_PATH = "tooltip.visibility.peek",
+	CURSOR_PATH = "tooltip.cursor.enabled",
+	CURSOR_POINT_PATH = "tooltip.cursor.point",
+	CURSOR_X_PATH = "tooltip.cursor.x",
+	CURSOR_Y_PATH = "tooltip.cursor.y",
+	GROWTH_PATH = "tooltip.growth",
+	POSITION_PATH = "tooltip.position",
+	SHOW_MODES = { "ALWAYS", "OUT_OF_COMBAT", "OUT_OF_BOSS_COMBAT", "NEVER" },
+	CURSOR_POINTS = { "TOP", "BOTTOM", "LEFT", "RIGHT", "TOPLEFT", "TOPRIGHT", "BOTTOMLEFT", "BOTTOMRIGHT", "CENTER" },
+	GROWTHS = { "DEFAULT", "UP", "DOWN" },
+	ANCHOR_WIDTH = 280,
+	ANCHOR_HEIGHT = 165,
 	-- BLIZZARD: under the tooltip, where Blizzard puts it. STRIP: along the inside of its bottom edge.
 	BAR_STYLES = { "BLIZZARD", "STRIP" },
 	BLIZZARD_BAR_HEIGHT = BAR_HEIGHT,
@@ -117,6 +148,18 @@ Schema:Boolean(Options.UPGRADE_RANGE_PATH, true)
 Schema:Color(Options.UPGRADE_RANGE_COLOR_PATH, { r = 1, g = 1, b = 1 })
 Schema:Boolean(Options.UPGRADE_CREST_PATH, true)
 
+Schema:Choices("tooltipShowMode", Options.SHOW_MODES)
+Schema:Choices("tooltipCursorPoint", Options.CURSOR_POINTS)
+Schema:Choices("tooltipGrowth", Options.GROWTHS)
+Schema:Choice(Options.SHOW_MODE_PATH, "tooltipShowMode", "ALWAYS")
+Schema:Choice(Options.PEEK_PATH, "tooltipModifier", "NONE")
+Schema:Boolean(Options.CURSOR_PATH, false)
+Schema:Choice(Options.CURSOR_POINT_PATH, "tooltipCursorPoint", "TOP")
+Schema:Number(Options.CURSOR_X_PATH, 0, -200, 200, true)
+Schema:Number(Options.CURSOR_Y_PATH, 0, -200, 200, true)
+Schema:Choice(Options.GROWTH_PATH, "tooltipGrowth", "DEFAULT")
+Schema:Position(Options.POSITION_PATH)
+
 for _, key in ipairs(Options.ID_KEYS) do
 	Options.ID_PATHS[key] = "tooltip.details.ids." .. key
 	Schema:Boolean(Options.ID_PATHS[key], true)
@@ -153,3 +196,57 @@ end
 function Options:StripPadding(height)
 	return height + STRIP_GAP
 end
+
+---@param place string a `tooltipCursorPoint` choice
+---@return string point the tooltip's point set on the cursor
+function Options:CursorPoint(place)
+	return CURSOR_POINTS[place] or "BOTTOM"
+end
+
+---@param point string the corner a default-anchored tooltip is pinned by, such as "BOTTOMRIGHT"
+---@param growth string a `tooltipGrowth` choice
+---@return string point the same side, pinned at the top to grow down or at the bottom to grow up
+function Options:GrowthPoint(point, growth)
+	if growth ~= "UP" and growth ~= "DOWN" then
+		return point
+	end
+
+	local side = point:match("LEFT") or point:match("RIGHT") or ""
+
+	return (growth == "DOWN" and "TOP" or "BOTTOM") .. side
+end
+
+---@param centerX number the anchor box's center from the screen's center
+---@param centerY number
+---@param growth string a `tooltipGrowth` choice
+---@return string corner the box's corner nearest the screen's nearest corner, so the tooltip grows into the screen;
+---a growth choice sets its top or bottom
+function Options:FixedCorner(centerX, centerY, growth)
+	local vertical = centerY < 0 and "BOTTOM" or "TOP"
+
+	if growth == "UP" then
+		vertical = "BOTTOM"
+	elseif growth == "DOWN" then
+		vertical = "TOP"
+	end
+
+	return vertical .. (centerX < 0 and "LEFT" or "RIGHT")
+end
+
+---Where the anchor box sits so a tooltip pinned in it lands where Blizzard's container puts it.
+---@param left number the container's left edge, in UIParent units
+---@param bottom number
+---@param width number
+---@param height number
+---@param screenWidth number UIParent's size
+---@param screenHeight number
+---@return { point: string, x: number, y: number } position the box's corner on the same corner of the screen
+function Options:ContainerPosition(left, bottom, width, height, screenWidth, screenHeight)
+	local right = left + width / 2 >= screenWidth / 2
+	local top = bottom + height / 2 >= screenHeight / 2
+	local x = right and (left + width - screenWidth) or left
+	local y = top and (bottom + height - screenHeight) or bottom
+
+	return { point = (top and "TOP" or "BOTTOM") .. (right and "RIGHT" or "LEFT"), x = x, y = y }
+end
+

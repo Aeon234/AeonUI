@@ -26,6 +26,28 @@ local ID_LINES = {
 	quest = { id = "showQuestID", label = L["Quest ID"], description = L["Quests, in the quest log and on the map too."] },
 	macro = { id = "showMacroIDs", label = L["Macros"], description = L["The spell or item a macro uses."] },
 }
+local SHOW_MODE_LABELS = {
+	ALWAYS = ALWAYS,
+	OUT_OF_COMBAT = L["Out of Combat"],
+	OUT_OF_BOSS_COMBAT = L["Out of Boss Combat"],
+	NEVER = NEVER,
+}
+local CURSOR_POINT_LABELS = {
+	TOP = L["Above"],
+	BOTTOM = L["Below"],
+	LEFT = L["Left"],
+	RIGHT = L["Right"],
+	TOPLEFT = L["Above Left"],
+	TOPRIGHT = L["Above Right"],
+	BOTTOMLEFT = L["Below Left"],
+	BOTTOMRIGHT = L["Below Right"],
+	CENTER = L["Centered"],
+}
+local GROWTH_LABELS = {
+	DEFAULT = DEFAULT,
+	UP = L["Up"],
+	DOWN = L["Down"],
+}
 local DETAILS_SAMPLE_ITEM = 6948 -- Hearthstone, cached on every character
 local DETAILS_SAMPLE_SPELL = 8690 -- Hearthstone's spell
 local DETAILS_PREVIEW_GAP = 12
@@ -138,6 +160,19 @@ function SettingsTooltip:DeclareAppearance(window)
 	})
 end
 
+---@param values string[]
+---@param labels table<string, string>
+---@return { value: string, text: string }[] options
+local function Choices(values, labels)
+	local options = {}
+
+	for index, value in ipairs(values) do
+		options[index] = { value = value, text = labels[value] }
+	end
+
+	return options
+end
+
 ---@param section table
 ---@param id string
 ---@param label string
@@ -153,6 +188,106 @@ local function Checkbox(section, id, label, description, path, show)
 		default = AUI.Settings:Default(path),
 		show = show,
 	})
+end
+
+---@param window table
+function SettingsTooltip:DeclarePosition(window)
+	local Settings, Options = AUI.Settings, AUI.TooltipOptions
+	local page = window:Page("tooltipPosition", {
+		title = L["Position & Visibility"],
+		description = L["When the game's tooltip shows, and where tooltips that have no place of their own appear."],
+		under = "tooltipHeader",
+		switch = { path = Options.ENABLED_PATH, default = Settings:Default(Options.ENABLED_PATH) },
+	})
+
+	if not page then
+		return
+	end
+
+	self.pageIDs.tooltipPosition = true
+
+	local visibility = page:Section("tooltipVisibility", L["Visibility"])
+
+	visibility:Dropdown({
+		id = "showMode",
+		label = L["Show Tooltips"],
+		path = Options.SHOW_MODE_PATH,
+		default = Settings:Default(Options.SHOW_MODE_PATH),
+		options = Choices(Options.SHOW_MODES, SHOW_MODE_LABELS),
+	})
+	visibility:Dropdown({
+		id = "peekKey",
+		label = L["Show While Held"],
+		description = L["A key that shows a hidden tooltip while you hold it."],
+		path = Options.PEEK_PATH,
+		default = Settings:Default(Options.PEEK_PATH),
+		options = Choices(Options.MODIFIERS, MODIFIER_LABELS),
+		blocked = function()
+			if AUI.Profile:Get(Options.SHOW_MODE_PATH) == "ALWAYS" then
+				return L["Needs tooltips hidden at some time."]
+			end
+		end,
+	})
+	visibility:Checkbox({
+		id = "enhancedTooltips",
+		label = USE_UBERTOOLTIPS,
+		description = L["Blizzard's longer tooltips. A setting of the game, so profiles do not keep it."],
+		get = function()
+			return AUI.TooltipAnchor:Enhanced()
+		end,
+		set = function(value)
+			AUI.TooltipAnchor:SetEnhanced(value)
+		end,
+	})
+
+	local place = page:Section("tooltipPlace", L["Position"])
+
+	place:Checkbox({
+		id = "anchorCursor",
+		label = L["Anchor to Cursor"],
+		description = L["Tooltips with no place of their own follow the cursor."],
+		path = Options.CURSOR_PATH,
+		default = Settings:Default(Options.CURSOR_PATH),
+	})
+	place:Dropdown({
+		id = "cursorPoint",
+		label = L["Cursor Position"],
+		description = L["Where the tooltip sits around the cursor."],
+		path = Options.CURSOR_POINT_PATH,
+		default = Settings:Default(Options.CURSOR_POINT_PATH),
+		depends = "anchorCursor",
+		options = Choices(Options.CURSOR_POINTS, CURSOR_POINT_LABELS),
+	})
+
+	for _, axis in ipairs({ { id = "cursorX", label = L["X Offset"], path = Options.CURSOR_X_PATH },
+		{ id = "cursorY", label = L["Y Offset"], path = Options.CURSOR_Y_PATH } }) do
+		place:Slider({
+			id = axis.id,
+			resettable = true,
+			label = axis.label,
+			path = axis.path,
+			default = Settings:Default(axis.path),
+			depends = "anchorCursor",
+			min = -200,
+			max = 200,
+			step = 1,
+		})
+	end
+
+	place:Dropdown({
+		id = "growth",
+		label = L["Growth Direction"],
+		description = L["Which way a tooltip grows as lines are added. Default lets Blizzard choose by its place."],
+		path = Options.GROWTH_PATH,
+		default = Settings:Default(Options.GROWTH_PATH),
+		options = Choices(Options.GROWTHS, GROWTH_LABELS),
+		blocked = function()
+			if AUI.Profile:Get(Options.CURSOR_PATH) == true then
+				return L["Not while anchored to the cursor."]
+			end
+		end,
+	})
+	place:Note(L["Move the tooltip in edit mode. Until it is moved, it keeps Blizzard's place."])
 end
 
 ---@param window table
@@ -343,6 +478,7 @@ end
 function SettingsTooltip:Declare(window)
 	window:Header("tooltipHeader", L["Tooltip"])
 	self:DeclareAppearance(window)
+	self:DeclarePosition(window)
 	self:DeclareUnits(window)
 	self:DeclareDetails(window)
 	self:DeclareUpgrades(window)
