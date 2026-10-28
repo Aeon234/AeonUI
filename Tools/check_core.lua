@@ -1,5 +1,5 @@
--- Checks Core/Core.lua, Callbacks.lua and Events.lua outside the game: metadata, chat output, the slash command,
--- callback dispatch and isolation, event registration and coalescing.
+-- Checks Core/Core.lua, Callbacks.lua, Events.lua and GameMenu.lua outside the game: metadata, chat output, the slash
+-- command, callback dispatch and isolation, event registration and coalescing, the game menu section's place.
 -- Run from any directory with Lua 5.1: lua Tools/check_core.lua
 -- Loads the real Core files against stubbed globals. Exits non-zero on the first failed check.
 
@@ -78,6 +78,7 @@ end })
 assert(loadfile(root .. "Core/Core.lua"))("AeonUI", AUI)
 assert(loadfile(root .. "Core/Callbacks.lua"))("AeonUI", AUI)
 assert(loadfile(root .. "Core/Events.lua"))("AeonUI", AUI)
+assert(loadfile(root .. "Core/GameMenu.lua"))("AeonUI", AUI)
 
 -- Harness -------------------------------------------------------------------------------------------------
 
@@ -203,6 +204,33 @@ Equal("merge waits the given delay", timers[1].delay, 0.5)
 Events:Cancel("save")
 RunTimers()
 Equal("cancelled work does not run", runs[#runs], "b")
+
+-- Game menu ----------------------------------------------------------------------------------------------
+
+local Slot = AUI.GameMenu.Slot
+local slot, gap
+
+-- Retail: Options, Shop | Add-Ons, Edit Mode, Support, Macros | Log Out, Exit Game | Return to Game
+slot, gap = Slot({ 0, 0, 20, 0, 0, 0, 20, 0, 20 })
+Equal("goes above the logout section", slot, 7)
+Equal("keeps the menu's section gap", gap, 20)
+
+-- Forever with the gamepad interface: no close button
+slot = Slot({ 0, 0, 20, 0, 0, 20, 0 })
+Equal("goes above the last section without a close button", slot, 6)
+
+slot, gap = Slot({ 0, 0, 20, 0, 0, 0, 30, 0, 30 })
+Equal("keeps a custom section gap", gap, 30)
+
+slot, gap = Slot({ 0, 0, 0 })
+Equal("one section: goes below the last button", slot, nil)
+Equal("one section: the default gap", gap, 20)
+
+slot = Slot({ 0, 0, 20 })
+Equal("a lone close button: goes above it", slot, 3)
+
+slot = Slot({})
+Equal("no buttons: goes below", slot, nil)
 
 print = _G.print
 io.stdout:write(("check_core: %d checks passed\n"):format(checks))

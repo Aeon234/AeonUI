@@ -401,6 +401,14 @@ local function OwnSpec()
 	return index and Positive((C_SpecializationInfo.GetSpecializationInfo(index))) or nil
 end
 
+---@return number? itemLevel the player's own equipped average
+---@return number? specID the player's own
+function Inspect:Own()
+	local _, equipped = GetAverageItemLevel()
+
+	return Positive(equipped), OwnSpec()
+end
+
 ---@param guid string
 ---@return number? itemLevel
 ---@return number? specID
@@ -429,9 +437,7 @@ function Inspect:AddLines(tooltip, guid, unit)
 	local itemLevel, specID
 
 	if AUI:Readable(UnitIsUnit(unit, "player")) == true then
-		local _, equipped = GetAverageItemLevel()
-
-		itemLevel, specID = Positive(equipped), OwnSpec()
+		itemLevel, specID = self:Own()
 	else
 		itemLevel, specID = self:Known(guid)
 		specID = self:SharedSpec(unit) or specID
@@ -446,21 +452,36 @@ function Inspect:AddLines(tooltip, guid, unit)
 		end
 	end
 
+	shown.itemLevel, shown.spec = self:AddValues(tooltip, levels, specs, itemLevel, specID)
+end
+
+---Adds the Item Level and Specialization lines asked for; an unknown value shows as "...".
+---@param tooltip GameTooltip
+---@param levels boolean
+---@param specs boolean
+---@param itemLevel number?
+---@param specID number?
+---@return integer? itemLevelLine the Item Level line's index
+---@return integer? specLine the Specialization line's index
+function Inspect:AddValues(tooltip, levels, specs, itemLevel, specID)
 	local gold = NORMAL_FONT_COLOR
+	local itemLevelLine, specLine
 
 	if levels then
 		local text, color = self:ItemLevelText(itemLevel)
 
 		tooltip:AddDoubleLine(STAT_AVERAGE_ITEM_LEVEL, text, gold.r, gold.g, gold.b, color.r, color.g, color.b)
-		shown.itemLevel = tooltip:NumLines()
+		itemLevelLine = tooltip:NumLines()
 	end
 
 	if specs then
 		local white = HIGHLIGHT_FONT_COLOR
 
 		tooltip:AddDoubleLine(SPECIALIZATION, self:SpecText(specID), gold.r, gold.g, gold.b, white.r, white.g, white.b)
-		shown.spec = tooltip:NumLines()
+		specLine = tooltip:NumLines()
 	end
+
+	return itemLevelLine, specLine
 end
 
 ---Fills the shown player's lines in place when their answer changes.

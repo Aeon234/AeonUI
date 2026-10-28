@@ -569,7 +569,8 @@ local place = general.sections.tooltipPlace.settings
 Equal("every show mode is offered", #visibility.showMode.options, #TooltipOptions.SHOW_MODES)
 Equal("tooltips show always by default", visibility.showMode.default, "ALWAYS")
 Equal("the show key needs a mode that hides", visibility.peekKey.blocked() ~= nil, true)
-Equal("Enhanced Tooltips is the game's, not the profile's", visibility.enhancedTooltips.path, nil)
+Equal("Action Bar Tooltips Here is the game's, not the profile's", place.enhancedTooltips.path, nil)
+Equal("and is no longer a visibility setting", visibility.enhancedTooltips, nil)
 Equal("the cursor anchor starts off", place.anchorCursor.default, false)
 Equal("its place follows it", place.cursorPoint.depends, "anchorCursor")
 Equal("so do its offsets", place.cursorX.depends .. " " .. place.cursorY.depends, "anchorCursor anchorCursor")
@@ -578,6 +579,7 @@ Equal("growth is free while the tooltip has a place", place.growth.blocked(), ni
 local items = window.pages.tooltipItems
 local detailIDs = items.sections.tooltipDetailIDs.settings
 Equal("the Items page has the Details preview", items.preview ~= nil, true)
+Equal("the Units page has the samples' preview", window.pages.tooltipUnits.preview ~= nil, true)
 Equal("every modifier is offered", #detailIDs.idModifier.options, #TooltipOptions.MODIFIERS)
 Equal("the modifier has a card of its own", #items.sections.tooltipDetailIDs.settings, 1)
 local idLines = items.sections.tooltipDetailIDLines.settings

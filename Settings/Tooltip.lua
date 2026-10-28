@@ -53,6 +53,8 @@ local DETAILS_SAMPLE_SPELL = 8690 -- Hearthstone's spell
 local DETAILS_PREVIEW_GAP = 12
 -- Tall enough for the sample item with every line at full size.
 local DETAILS_PREVIEW_HEIGHT = 210
+-- Tall enough for the sample player with every line at full size.
+local UNITS_PREVIEW_HEIGHT = 170
 
 -- The module's switch, on the General page; the Units and Items pages' settings follow it.
 local SWITCH = "tooltipGeneral/enabled"
@@ -228,17 +230,6 @@ function SettingsTooltip:DeclarePosition(page)
 			end
 		end,
 	})
-	visibility:Checkbox({
-		id = "enhancedTooltips",
-		label = USE_UBERTOOLTIPS,
-		description = L["A game setting, so profiles do not keep it."],
-		get = function()
-			return AUI.TooltipAnchor:Enhanced()
-		end,
-		set = function(value)
-			AUI.TooltipAnchor:SetEnhanced(value)
-		end,
-	})
 
 	local place = page:Section("tooltipPlace", L["Position"])
 
@@ -286,6 +277,18 @@ function SettingsTooltip:DeclarePosition(page)
 			end
 		end,
 	})
+	place:Checkbox({
+		id = "enhancedTooltips",
+		label = L["Action Bar Tooltips Here"],
+		description = L["Action bar, pet and stance tooltips open here, not beside the button. A game setting, so "
+			.. "profiles do not keep it."],
+		get = function()
+			return AUI.TooltipAnchor:Enhanced()
+		end,
+		set = function(value)
+			AUI.TooltipAnchor:SetEnhanced(value)
+		end,
+	})
 	place:Note(L["Until moved, it keeps Blizzard's place."])
 end
 
@@ -313,61 +316,15 @@ function SettingsTooltip:DeclareGeneral(window)
 	self:DeclarePosition(page)
 end
 
----@param window table
-function SettingsTooltip:DeclareUnits(window)
-	local Options = AUI.TooltipOptions
-	local page = window:Page("tooltipUnits", {
-		title = L["Units"],
-		under = "tooltipHeader",
-		icon = AUI.Media.sidebar.tooltipUnits,
-		iconTint = true,
-	})
-
-	if not page then
-		return
-	end
-
-	self.pageIDs.tooltipUnits = true
-
-	local lines = page:Section("tooltipUnitLines", L["Lines"], { columns = 2 })
-
-	Choice(lines, "showTitles", L["Show Titles"], L["Player titles on the name line."], Options.TITLES_PATH)
-	Choice(lines, "showGuildRank", L["Show Guild Rank"], L["The player's rank after the guild's name."],
-		Options.GUILD_RANK_PATH)
-	Choice(lines, "colorLevels", L["Color Levels"],
-		L["The level in its difficulty color, followed by + for elite, Rare or Boss."], Options.LEVEL_COLOR_PATH)
-	Choice(lines, "mutedLines", L["Color Owners and Pets"],
-		L["Owner and corpse lines in gray, and battle-pet names in their reaction color."], Options.MUTED_LINES_PATH)
-
-	local added = page:Section("tooltipUnitAdded", L["Added Lines"], { columns = 2 })
-
-	Choice(added, "showTarget", TARGET, L["Whom the unit is targeting."], Options.TARGET_PATH)
-	Choice(added, "showRating", DUNGEON_SCORE, L["The player's Mythic+ rating, in its color."], Options.RATING_PATH,
-		function()
-			return AUI.can.mythicPlus == true
-		end)
-	Choice(added, "showMount", MOUNT, L["The player's mount, with a mark for whether you have it."],
-		Options.MOUNT_PATH)
-	Choice(added, "showItemLevel", STAT_AVERAGE_ITEM_LEVEL,
-		L["The player's average item level, inspected once the cursor rests on them."], Options.ITEM_LEVEL_PATH)
-	Choice(added, "showSpecialization", SPECIALIZATION,
-		L["The player's specialization and role, from an inspect or shared by their addons."],
-		Options.SPECIALIZATION_PATH, function()
-			return AUI.can.specializations == true
-		end)
-	Choice(added, "auraCasters", L["Aura Caster Names"], L["Aura tooltips name who cast the aura."],
-		Options.AURA_CASTERS_PATH, function()
-			return AUI.can.auraCasterNames == true
-		end)
-end
-
 ---Two real tooltips, a sample item and a sample spell, built by the client and given the chosen lines by the Details
 ---post-calls, which treat them as previews, and a sample tooltip with the chosen lines of the tooltips the preview
 ---cannot build, shown while it has any. A tooltip settles its size after it is built, and again when its data
 ---arrives, so a size change measures the preview again on the next frame, without building the tooltips again.
 ---@class AUIDetailsPreview
+---@field page string the page showing the preview
 ---@field measuring boolean the preview is measured again, its tooltips left as they are
 local DetailsPreview = {
+	page = "tooltipItems",
 	measuring = false,
 }
 
@@ -390,11 +347,11 @@ function DetailsPreview:Create(canvas)
 	end
 end
 
----Measures the preview again while the Items page shows it.
+---Measures the preview again while its page shows it.
 function DetailsPreview:Measure()
 	local window = AUI.Settings.window
 
-	if self.measuring or not window or not window:IsShown() or window.page ~= "tooltipItems" then
+	if self.measuring or not window or not window:IsShown() or window.page ~= self.page then
 		return
 	end
 
@@ -451,6 +408,136 @@ function DetailsPreview:Stop()
 	end
 end
 
+---Three sample tooltips, a player, a creature and a pet, filled by `TooltipUnits:Sample` with the chosen lines. A
+---tooltip settles its size after it is shown, so a size change measures the preview again on the next frame.
+---@class AUIUnitsPreview
+---@field page string
+---@field measuring boolean
+---@field tooltips GameTooltip[]
+local UnitsPreview = {
+	page = "tooltipUnits",
+	measuring = false,
+	tooltips = {},
+	Measure = DetailsPreview.Measure,
+}
+
+---@param canvas Frame
+function UnitsPreview:Create(canvas)
+	for index, kind in ipairs({ "Player", "Creature", "Pet" }) do
+		local tooltip = CreateFrame("GameTooltip", "AeonUITooltipPreview" .. kind, canvas, "GameTooltipTemplate")
+
+		self.tooltips[index] = tooltip
+		tooltip:HookScript("OnSizeChanged", function()
+			AUI.Events:Merge("tooltipUnitsPreviewMeasure", 0, function()
+				UnitsPreview:Measure()
+			end)
+		end)
+	end
+end
+
+---@param canvas Frame
+---@return number width
+---@return number height
+function UnitsPreview:Refresh(canvas)
+	local tooltips = self.tooltips
+
+	if not self.measuring then
+		for _, tooltip in ipairs(tooltips) do
+			tooltip:SetOwner(canvas, "ANCHOR_NONE")
+			tooltip:SetFrameStrata(canvas:GetFrameStrata())
+			tooltip:SetFrameLevel(canvas:GetFrameLevel() + 1)
+		end
+
+		AUI.TooltipUnits:Sample(tooltips[1], tooltips[2], tooltips[3])
+
+		for index, tooltip in ipairs(tooltips) do
+			tooltip:Show()
+			tooltip:ClearAllPoints()
+
+			if index == 1 then
+				tooltip:SetPoint("TOPLEFT", canvas, "TOPLEFT")
+			else
+				tooltip:SetPoint("TOPLEFT", tooltips[index - 1], "TOPRIGHT", DETAILS_PREVIEW_GAP, 0)
+			end
+		end
+	end
+
+	local width, height = 0, 0
+
+	for index, tooltip in ipairs(tooltips) do
+		width = width + (index > 1 and DETAILS_PREVIEW_GAP or 0) + tooltip:GetWidth()
+		height = math.max(height, tooltip:GetHeight())
+	end
+
+	return width, height
+end
+
+function UnitsPreview:Stop()
+	for _, tooltip in ipairs(self.tooltips) do
+		tooltip:Hide()
+	end
+end
+
+---@param window table
+function SettingsTooltip:DeclareUnits(window)
+	local Options = AUI.TooltipOptions
+	local page = window:Page("tooltipUnits", {
+		title = L["Units"],
+		under = "tooltipHeader",
+		icon = AUI.Media.sidebar.tooltipUnits,
+		iconTint = true,
+	})
+
+	if not page then
+		return
+	end
+
+	self.pageIDs.tooltipUnits = true
+	page:Preview({
+		height = UNITS_PREVIEW_HEIGHT,
+		create = function(canvas)
+			UnitsPreview:Create(canvas)
+		end,
+		refresh = function(canvas)
+			return UnitsPreview:Refresh(canvas)
+		end,
+		stop = function()
+			UnitsPreview:Stop()
+		end,
+	})
+
+	local lines = page:Section("tooltipUnitLines", L["Name, Guild and Level"], { columns = 2 })
+
+	Choice(lines, "showTitles", L["Show Titles"], L["Player titles on the name line."], Options.TITLES_PATH)
+	Choice(lines, "showGuildRank", L["Show Guild Rank"], L["The player's rank after the guild's name."],
+		Options.GUILD_RANK_PATH)
+	Choice(lines, "colorLevels", L["Color Levels"],
+		L["The level in its difficulty color, followed by + for elite, Rare or Boss."], Options.LEVEL_COLOR_PATH)
+	Choice(lines, "mutedLines", L["Color Owners and Pets"],
+		L["Owner and corpse lines in gray, and battle-pet names in their reaction color."], Options.MUTED_LINES_PATH)
+
+	local added = page:Section("tooltipUnitAdded", L["Extra Lines"], { columns = 2 })
+
+	Choice(added, "showTarget", TARGET, L["Whom the unit is targeting."], Options.TARGET_PATH)
+	Choice(added, "showRating", DUNGEON_SCORE, L["The player's Mythic+ rating, in its color."], Options.RATING_PATH,
+		function()
+			return AUI.can.mythicPlus == true
+		end)
+	Choice(added, "showMount", MOUNT, L["The player's mount, with a mark for whether you have it."],
+		Options.MOUNT_PATH)
+	Choice(added, "showItemLevel", STAT_AVERAGE_ITEM_LEVEL,
+		L["The player's average item level, inspected once the cursor rests on them."], Options.ITEM_LEVEL_PATH)
+	Choice(added, "showSpecialization", SPECIALIZATION,
+		L["The player's specialization and role, from an inspect or shared by their addons."],
+		Options.SPECIALIZATION_PATH, function()
+			return AUI.can.specializations == true
+		end)
+	Choice(added, "auraCasters", L["Aura Caster Names"], L["Aura tooltips name who cast the aura."],
+		Options.AURA_CASTERS_PATH, function()
+			return AUI.can.auraCasterNames == true
+		end)
+end
+
 ---The Items page: the Details preview, the item lines, the IDs and, where the client has upgrade tracks, the upgrade
 ---line.
 ---@param window table
@@ -481,7 +568,7 @@ function SettingsTooltip:DeclareItems(window)
 		end,
 	})
 
-	local lines = page:Section("tooltipDetailLines", L["Lines"], { columns = 2 })
+	local lines = page:Section("tooltipDetailLines", L["Item Details"], { columns = 2 })
 
 	Choice(lines, "showExpansion", EXPANSION_FILTER_TEXT, nil, Options.EXPANSION_PATH, function()
 			return AUI.can.expansions == true
@@ -491,7 +578,7 @@ function SettingsTooltip:DeclareItems(window)
 	Choice(lines, "showMaxStack", L["Max Stack"], nil, Options.MAX_STACK_PATH)
 	Choice(lines, "blankLine", L["Blank Line Before"], nil, Options.BLANK_LINE_PATH)
 
-	local ids = page:Section("tooltipDetailIDs", L["IDs"])
+	local ids = page:Section("tooltipDetailIDs", L["ID Lines"])
 	local modifiers = {}
 
 	for index, modifier in ipairs(Options.MODIFIERS) do

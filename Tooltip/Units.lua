@@ -8,6 +8,9 @@ local CASTER_NAMES_CVAR = "tooltipShowAuraCasterNames"
 local MOUNT_TTL = 3
 local MAX_AURAS = 255
 local ICON_SIZE = 14
+-- The Units preview's made-up values: a guild, its rank, a rating and a mount (Brown Horse), and how many levels the
+-- sample creature is above the player.
+local SAMPLE = { guild = "AeonUI", rating = 2500, mount = 6, creatureLevels = 2 }
 
 ---@param classFile string?
 ---@return AUITooltipColor?
@@ -383,6 +386,88 @@ function Units:ColorBar(nameLine)
 	color.r, color.g, color.b = r, g, b
 	self.barColored = true
 	bar:SetStatusBarColor(r, g, b)
+end
+
+---@param tooltip GameTooltip
+---@param text string
+---@param color AUITooltipColor
+local function AddText(tooltip, text, color)
+	tooltip:AddLine(text, color.r, color.g, color.b)
+end
+
+---@param text string the level line as Blizzard draws it
+---@param level number
+---@param color AUITooltipColor? the level's color; nil while levels are not colored
+---@param mark string?
+---@return string
+local function SampleLevel(text, level, color, mark)
+	return color and Format:Level(text, level, color, mark) or text
+end
+
+---Fills the Units preview's three sample tooltips with every line the settings choose, drawn as on a real tooltip: a
+---player (the character's own name, class, race, level, item level and specialization, with a made-up title, guild,
+---rating and mount), an elite creature targeting the player, and the player's pet.
+---@param player GameTooltip
+---@param creature GameTooltip
+---@param pet GameTooltip
+function Units:Sample(player, creature, pet)
+	local white = HIGHLIGHT_FONT_COLOR
+	local name = AUI:Readable(UnitName("player"))
+	local className, classFile = UnitClass("player")
+	local race = AUI:Readable(UnitRace("player"))
+	local level = AUI:Readable(UnitLevel("player"))
+	local levels = Options:Get(Options.LEVEL_COLOR_PATH) == true
+	-- Both are client strings no Lua file of the Forever client names, so a missing one leaves the bare value.
+	local levelText, ownerText = TOOLTIP_UNIT_LEVEL or "%s", UNITNAME_TITLE_PET or "%s"
+
+	name = type(name) == "string" and name or UNKNOWN
+	level = type(level) == "number" and level or 1
+
+	player:ClearLines()
+	AddText(player, Options:Get(Options.TITLES_PATH) == true and L["%s the Patient"]:format(name) or name,
+		ClassColor(AUI:Readable(classFile)) or white)
+	AddText(player, Format:Guild(SAMPLE.guild, Options:Get(Options.GUILD_RANK_PATH) == true and OFFICER or nil),
+		Format.GUILD)
+	AddText(player, SampleLevel(levelText:format(level) .. " " .. (race or "") .. " "
+		.. (AUI:Readable(className) or ""), level, levels and Format.FRIENDLY_LEVEL or nil), white)
+
+	if AUI.can.mythicPlus and Options:Get(Options.RATING_PATH) == true then
+		AddLine(player, DUNGEON_SCORE, tostring(SAMPLE.rating),
+			C_ChallengeMode.GetDungeonScoreRarityColor(SAMPLE.rating) or Format.VALUE)
+	end
+
+	if Options:Get(Options.MOUNT_PATH) == true then
+		local mount = AUI:Readable(C_MountJournal.GetMountInfoByID(SAMPLE.mount))
+
+		if type(mount) == "string" and mount ~= "" then
+			AddLine(player, MOUNT, mount .. " " .. CreateAtlasMarkup("common-icon-checkmark", ICON_SIZE, ICON_SIZE),
+				Format.VALUE)
+		end
+	end
+
+	local Inspect = AUI.TooltipInspect
+	local itemLevel, specID = Inspect:Own()
+
+	Inspect:AddValues(player, Options:Get(Options.ITEM_LEVEL_PATH) == true,
+		AUI.can.specializations == true and Options:Get(Options.SPECIALIZATION_PATH) == true, itemLevel, specID)
+
+	local creatureLevel = level + SAMPLE.creatureLevels
+
+	creature:ClearLines()
+	AddText(creature, L["Gnoll Brute"], FACTION_BAR_COLORS[2])
+	AddText(creature, SampleLevel(levelText:format(creatureLevel) .. " (" .. ELITE .. ")", creatureLevel,
+		levels and GetCreatureDifficultyColor(creatureLevel) or nil, Format:Mark("elite", L["Rare"], BOSS)), white)
+
+	if Options:Get(Options.TARGET_PATH) == true then
+		AddLine(creature, TARGET, YOU, Format.YOU)
+	end
+
+	pet:ClearLines()
+	AddText(pet, L["Wolf"], GREEN_FONT_COLOR)
+	AddText(pet, ownerText:format(name), Options:Get(Options.MUTED_LINES_PATH) == true and Format.MUTED
+		or white)
+	AddText(pet, SampleLevel(levelText:format(level), level,
+		levels and GetCreatureDifficultyColor(level) or nil), white)
 end
 
 ---Writes the aura caster names setting to its CVar while the module is on; the module off leaves the CVar as it is.

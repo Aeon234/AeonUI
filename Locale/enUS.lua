@@ -306,7 +306,7 @@ L["Texture"] = "Texture"
 L["A strip keeps room above it, so the tooltip's lines never reach it."] =
 	"A strip keeps room above it, so the tooltip's lines never reach it."
 L["Units"] = "Units"
-L["Lines"] = "Lines"
+L["Name, Guild and Level"] = "Name, Guild and Level"
 L["Show Titles"] = "Show Titles"
 L["Player titles on the name line."] = "Player titles on the name line."
 L["Show Guild Rank"] = "Show Guild Rank"
@@ -317,7 +317,7 @@ L["The level in its difficulty color, followed by + for elite, Rare or Boss."] =
 L["Color Owners and Pets"] = "Color Owners and Pets"
 L["Owner and corpse lines in gray, and battle-pet names in their reaction color."] =
 	"Owner and corpse lines in gray, and battle-pet names in their reaction color."
-L["Added Lines"] = "Added Lines"
+L["Extra Lines"] = "Extra Lines"
 L["Whom the unit is targeting."] = "Whom the unit is targeting."
 L["The player's Mythic+ rating, in its color."] = "The player's Mythic+ rating, in its color."
 L["The player's mount, with a mark for whether you have it."] =
@@ -329,10 +329,11 @@ L["The player's specialization and role, from an inspect or shared by their addo
 L["Aura Caster Names"] = "Aura Caster Names"
 L["Aura tooltips name who cast the aura."] = "Aura tooltips name who cast the aura."
 
+L["Item Details"] = "Item Details"
 L["Category and Type"] = "Category and Type"
 L["An item's category and type, such as Armor / Plate."] = "An item's category and type, such as Armor / Plate."
 L["Blank Line Before"] = "Blank Line Before"
-L["IDs"] = "IDs"
+L["ID Lines"] = "ID Lines"
 L["Modifier"] = "Modifier"
 L["The key to hold for the ID lines. With None they always show."] =
 	"The key to hold for the ID lines. With None they always show."
@@ -364,7 +365,6 @@ L["Out of Boss Combat"] = "Out of Boss Combat"
 L["Show While Held"] = "Show While Held"
 L["A key that shows a hidden tooltip while you hold it."] = "A key that shows a hidden tooltip while you hold it."
 L["Needs tooltips hidden at some time."] = "Needs tooltips hidden at some time."
-L["A game setting, so profiles do not keep it."] = "A game setting, so profiles do not keep it."
 L["Position"] = "Position"
 L["Anchor to Cursor"] = "Anchor to Cursor"
 L["Tooltips with no place of their own follow the cursor."] = "Tooltips with no place of their own follow the cursor."
@@ -383,9 +383,12 @@ L["Default lets Blizzard choose."] = "Default lets Blizzard choose."
 L["Up"] = "Up"
 L["Down"] = "Down"
 L["Not while anchored to the cursor."] = "Not while anchored to the cursor."
+L["Action Bar Tooltips Here"] = "Action Bar Tooltips Here"
+L["Action bar, pet and stance tooltips open here, not beside the button. A game setting, so profiles do not keep it."] =
+	"Action bar, pet and stance tooltips open here, not beside the button. A game setting, so profiles do not keep it."
 L["Until moved, it keeps Blizzard's place."] = "Until moved, it keeps Blizzard's place."
 
--- Tooltip lines (Tooltip; the ID labels also name the Details page's checkboxes)
+-- Tooltip lines (Tooltip; the ID labels also name the Details page's checkboxes, the samples fill the Units preview)
 L["Rare"] = "Rare"
 L["Max Stack"] = "Max Stack"
 L["Item ID"] = "Item ID"
@@ -400,6 +403,9 @@ L["%s ago"] = "%s ago"
 L["%s Crest"] = "%s Crest"
 L["(discounted)"] = "(discounted)"
 L["Other Tooltips"] = "Other Tooltips"
+L["%s the Patient"] = "%s the Patient"
+L["Gnoll Brute"] = "Gnoll Brute"
+L["Wolf"] = "Wolf"
 
 -- Profiles page (Settings)
 L["AeonUI profile \"%s\"."] = "AeonUI profile \"%s\"."

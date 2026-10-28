@@ -1847,4 +1847,95 @@ Tooltip:OnProfileChanged(nil)
 Equal("so does a whole-profile change", Options:Get(Options.TITLES_PATH), true)
 values[Options.TITLES_PATH] = nil
 
+-- The Units preview's samples ----------------------------------------------------------------------------------
+
+function UnitRace() return "Human" end
+function UnitLevel(token) return Unit(token).level end
+function GetCreatureDifficultyColor(level) return level > 80 and DIFFICULTY[3] or DIFFICULTY[1] end
+GREEN_FONT_COLOR = { r = 0.1, g = 1, b = 0.1 }
+OFFICER, ELITE, UNITNAME_TITLE_PET = "Officer", "Elite", "%s's Pet"
+
+-- A sample tooltip that keeps its lines' text and colors.
+local function SampleTooltip()
+	local lines = {}
+
+	return Widget("GameTooltip", {
+		lines = lines,
+		ClearLines = function()
+			for index = #lines, 1, -1 do
+				lines[index] = nil
+			end
+		end,
+		AddLine = function(_, text, r, g, b)
+			lines[#lines + 1] = { left = text, color = { r, g, b } }
+		end,
+		AddDoubleLine = function(_, left, right, _, _, _, r, g, b)
+			lines[#lines + 1] = { left = left, right = right, color = { r, g, b } }
+		end,
+		NumLines = function()
+			return #lines
+		end,
+	})
+end
+
+---@return string text each line as "left" or "left=right"
+local function SampleText(tooltip)
+	local parts = {}
+
+	for index, line in ipairs(tooltip.lines) do
+		parts[index] = line.right and (line.left .. "=" .. line.right) or line.left
+	end
+
+	return table.concat(parts, " | ")
+end
+
+local samplePlayer, sampleCreature, samplePet = SampleTooltip(), SampleTooltip(), SampleTooltip()
+local Units = AUI.TooltipUnits
+local sampleCan = { mythicPlus = AUI.can.mythicPlus, specializations = AUI.can.specializations }
+
+units.player = { name = "Aeon", class = "MAGE", level = 80 }
+AUI.can.mythicPlus, AUI.can.specializations = true, true
+collected = true
+
+for _, path in ipairs({ Options.TITLES_PATH, Options.GUILD_RANK_PATH, Options.LEVEL_COLOR_PATH, Options.MUTED_LINES_PATH,
+	Options.TARGET_PATH, Options.RATING_PATH, Options.MOUNT_PATH, Options.ITEM_LEVEL_PATH,
+	Options.SPECIALIZATION_PATH }) do
+	values[path] = true
+end
+
+Units:Sample(samplePlayer, sampleCreature, samplePet)
+Equal("the sample player has every line", SampleText(samplePlayer), "Aeon the Patient | <AeonUI> [Officer] | Level "
+	.. Format:Wrap("80", Format.FRIENDLY_LEVEL) .. " Human Class | Mythic+ Rating=2500"
+	.. " | Mount=Swift Gryphon |A:common-icon-checkmark|a | Item Level=281 | Specialization=|A:roleicon-tiny-dps|a Arcane")
+Equal("in the character's class color", samplePlayer.lines[1].color[1], CLASS.MAGE.r)
+Equal("the creature is elite, a level above and targeting the player", SampleText(sampleCreature), "Gnoll Brute | Level "
+	.. Format:Wrap("82", DIFFICULTY[3]) .. Format:Wrap("+", Format.MARKS.elite) .. " (Elite) | Target=You")
+Equal("the pet's owner line is grayed", SampleText(samplePet) .. " " .. samplePet.lines[2].color[1],
+	"Wolf | Aeon's Pet | Level " .. Format:Wrap("80", DIFFICULTY[1]) .. " " .. Format.MUTED.r)
+
+for _, path in ipairs({ Options.TITLES_PATH, Options.GUILD_RANK_PATH, Options.LEVEL_COLOR_PATH, Options.MUTED_LINES_PATH,
+	Options.TARGET_PATH, Options.RATING_PATH, Options.MOUNT_PATH, Options.ITEM_LEVEL_PATH,
+	Options.SPECIALIZATION_PATH }) do
+	values[path] = false
+end
+
+Units:Sample(samplePlayer, sampleCreature, samplePet)
+Equal("with every line off the player keeps Blizzard's", SampleText(samplePlayer),
+	"Aeon | <AeonUI> | Level 80 Human Class")
+Equal("as do the creature", SampleText(sampleCreature), "Gnoll Brute | Level 82 (Elite)")
+Equal("and the pet", SampleText(samplePet) .. " " .. samplePet.lines[2].color[1], "Wolf | Aeon's Pet | Level 80 1")
+AUI.can.mythicPlus = nil
+values[Options.RATING_PATH] = true
+Units:Sample(samplePlayer, sampleCreature, samplePet)
+Equal("no rating where players have none", SampleText(samplePlayer):find("Mythic", 1, true), nil)
+
+for _, path in ipairs({ Options.TITLES_PATH, Options.GUILD_RANK_PATH, Options.LEVEL_COLOR_PATH, Options.MUTED_LINES_PATH,
+	Options.TARGET_PATH, Options.RATING_PATH, Options.MOUNT_PATH, Options.ITEM_LEVEL_PATH,
+	Options.SPECIALIZATION_PATH }) do
+	values[path] = nil
+end
+
+units.player = nil
+AUI.can.mythicPlus, AUI.can.specializations = sampleCan.mythicPlus, sampleCan.specializations
+
 print(("check_tooltip: %d checks passed"):format(checks))
