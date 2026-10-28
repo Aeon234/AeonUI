@@ -38,12 +38,24 @@ L["Outline"] = "Contorno"
 L["Height"] = "Altezza"
 L["X Offset"] = "Scostamento X"
 L["Y Offset"] = "Scostamento Y"
+L["Scale"] = "Scala"
 
 -- General page (Settings)
 L["Access"] = "Accesso"
 L["Show Minimap Button"] = "Mostra pulsante della minimappa"
 L["Left-click opens settings."] = "Il clic sinistro apre le impostazioni."
 L["/aui and the addon compartment open settings too."] = "Anche /aui e lo scomparto degli addon aprono le impostazioni."
+L["Sets the scale of the whole interface, below the game's own minimum if needed. Turning it off takes a reload."] = "Imposta la scala di tutta l'interfaccia, sotto il minimo del gioco se serve. Disattivarla richiede un ricaricamento."
+L["%s manages the UI scale."] = "%s gestisce la scala dell'interfaccia."
+L["Pixel Perfect"] = "Pixel perfetto"
+L["The scale at which one interface unit is one pixel on this screen."] = "La scala alla quale un'unità d'interfaccia è un pixel su questo schermo."
+L["The pixel-perfect scale for a %s screen."] = "La scala pixel perfetta per uno schermo %s."
+L["Game Menu Scale"] = "Scala del menu di gioco"
+L["Scales the game menu that Escape opens."] = "Ridimensiona il menu di gioco aperto da Esc."
+
+-- UI scale reload popup (Interface)
+L["%s is off. Its change stays until the interface reloads."] = "%s è disattivato. La sua modifica resta fino al ricaricamento dell'interfaccia."
+L["Later"] = "Più tardi"
 
 -- Minimap page (Settings)
 L["Elements"] = "Elementi"
@@ -69,7 +81,6 @@ L["Map"] = "Mappa"
 L["Replaces Blizzard's minimap. Turning it on or off needs a reload."] = "Sostituisce la minimappa di Blizzard. Attivarla o disattivarla richiede un ricaricamento."
 L["Width"] = "Larghezza"
 L["Kept within 3:2 of the width either way."] = "Mantenuta entro 3:2 della larghezza in entrambi i sensi."
-L["Scale"] = "Scala"
 L["The map stays north up; Rotate Minimap is ignored."] = "La mappa resta orientata a nord; Ruota minimappa viene ignorato."
 L["Border"] = "Bordo"
 L["Border Style"] = "Stile del bordo"

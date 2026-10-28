@@ -48,8 +48,10 @@ frame:SetScript("OnEvent", function(self, event)
 			)
 		end
 
+		AUI.UIScale:Start()
 		AUI.Broker:Create()
 		AUI.GameMenu:Create()
+		AUI.GameMenuScale:Start()
 		AUI.Minimap:Start()
 		AUI.WorldMap:Start()
 		AUI.Tooltip:Start()

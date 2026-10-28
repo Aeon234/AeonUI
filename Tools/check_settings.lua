@@ -10,6 +10,9 @@ local root = (arg and arg[0] or ""):match("^(.-)[^/\\]*$") .. "../"
 -- Environment ---------------------------------------------------------------------------------------------
 
 UNKNOWN = "Unknown"
+APPLY = "Apply"
+RELOADUI = "Reload UI"
+UI_SCALE = "UI Scale"
 GENERAL = "General"
 DELETE = "Delete"
 RESET = "Reset"
@@ -38,7 +41,13 @@ SlashCmdList = {}
 StaticPopupDialogs = {}
 C_AddOns = {
 	GetAddOnMetadata = function() end,
+	IsAddOnLoaded = function() return false end,
 }
+UIParent = { GetScale = function() return 0.8 end }
+GameMenuFrame = { SetScale = function(self, scale) self.scale = scale end }
+function GetPhysicalScreenSize()
+	return 2560, 1440
+end
 
 function CallErrorHandler(message)
 	error(message, 0)
@@ -347,7 +356,7 @@ for _, file in ipairs({ "Core/Callbacks.lua", "Core/Capabilities.lua", "Core/Bro
 	"Profile/Store.lua", "Profile/Profile.lua", "Media/Media.lua", "UI/Border.lua", "Minimap/Layout.lua",
 	"Minimap/Elements.lua", "Minimap/Rows.lua", "Minimap/Fade.lua", "Minimap/Text.lua", "Minimap/Difficulty.lua",
 	"Minimap/Buttons.lua", "Minimap/Map.lua", "WorldMap/Markers.lua", "WorldMap/Options.lua", "Tooltip/Options.lua",
-	"Tooltip/Tooltip.lua",
+	"Tooltip/Tooltip.lua", "Interface/UIScale.lua", "Interface/GameMenuScale.lua",
 	"Settings/Window.lua", "Settings/MinimapEditor.lua", "Settings/General.lua", "Settings/Minimap.lua",
 	"Settings/WorldMap.lua", "Settings/Tooltip.lua", "Settings/Profiles.lua", "Settings/Recovery.lua",
 	"Settings/EditTargets.lua" }) do
@@ -911,5 +920,38 @@ Profile:Create("Keeps Button")
 Equal("a profile change keeps the button's table", AeonUIDB.global.minimapButton, icon.registered.AeonUI)
 checkbox.set(true)
 Equal("showing shows the button", icon.hidden.AeonUI, false)
+
+-- Scale section ----------------------------------------------------------------------------------------------
+
+window = Load(nil)
+local scale = window.pages.general.sections.scale
+local order = {}
+for _, setting in ipairs(scale.settings) do
+	order[#order + 1] = setting.id
+end
+Equal("the Scale section's order", table.concat(order, " "), "uiScale uiScaleValue uiScalePresetPixelPerfect " ..
+	"uiScalePreset1080p uiScalePreset1440p uiScalePreset4K gameMenuScale")
+Equal("the section follows Access", window.pages.general.sections[2], scale)
+Equal("UI Scale is on by default", scale.settings.uiScale.get(), true)
+Equal("the slider reads the current scale with nothing saved", scale.settings.uiScaleValue.get(), 80)
+for _, id in ipairs({ "uiScaleValue", "uiScalePresetPixelPerfect", "uiScalePreset1080p", "uiScalePreset4K" }) do
+	Equal(id .. " follows UI Scale", scale.settings[id].depends, "uiScale")
+	Equal(id .. " is not blocked", scale.settings[id].blocked(), nil)
+end
+scale.settings.uiScalePresetPixelPerfect.run()
+Equal("Pixel Perfect saves this screen's scale account-wide", math.floor(AeonUIDB.global.uiScale.scale * 100 + 0.5),
+	5333)
+scale.settings.uiScalePreset4K.run()
+Equal("4K saves its scale", math.floor(AeonUIDB.global.uiScale.scale * 100 + 0.5), 3556)
+scale.settings.uiScaleValue.set(75)
+Equal("the slider saves", AeonUIDB.global.uiScale.scale, 75)
+Profile:Create("Keeps Scale")
+Equal("a profile change keeps the scale", scale.settings.uiScaleValue.get(), 75)
+local menu = scale.settings.gameMenuScale
+Equal("the game menu reads 100% by default", menu.get(), 100)
+Equal("its default", menu.default, 100)
+menu.set(80)
+Equal("the game menu's scale is saved account-wide", AeonUIDB.global.gameMenuScale, 80)
+Equal("and applied", GameMenuFrame.scale, 0.8)
 
 io.stdout:write(("check_settings: %d checks passed\n"):format(checks))

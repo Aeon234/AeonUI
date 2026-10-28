@@ -21,6 +21,7 @@ UI\UI.xml
 Minimap\Minimap.xml
 WorldMap\WorldMap.xml
 Tooltip\Tooltip.xml
+Interface\Interface.xml
 Settings\Settings.xml
 
 #@do-not-package@

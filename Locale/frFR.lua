@@ -38,12 +38,24 @@ L["Outline"] = "Contour"
 L["Height"] = "Hauteur"
 L["X Offset"] = "Décalage X"
 L["Y Offset"] = "Décalage Y"
+L["Scale"] = "Échelle"
 
 -- General page (Settings)
 L["Access"] = "Accès"
 L["Show Minimap Button"] = "Afficher le bouton de la minicarte"
 L["Left-click opens settings."] = "Un clic gauche ouvre les paramètres."
 L["/aui and the addon compartment open settings too."] = "/aui et le compartiment d'addons ouvrent aussi les paramètres."
+L["Sets the scale of the whole interface, below the game's own minimum if needed. Turning it off takes a reload."] = "Règle l'échelle de toute l'interface, sous le minimum du jeu si besoin. La désactiver demande un rechargement."
+L["%s manages the UI scale."] = "%s gère l'échelle de l'interface."
+L["Pixel Perfect"] = "Pixel parfait"
+L["The scale at which one interface unit is one pixel on this screen."] = "L'échelle à laquelle une unité d'interface vaut un pixel sur cet écran."
+L["The pixel-perfect scale for a %s screen."] = "L'échelle au pixel près pour un écran %s."
+L["Game Menu Scale"] = "Échelle du menu du jeu"
+L["Scales the game menu that Escape opens."] = "Met à l'échelle le menu du jeu ouvert par Échap."
+
+-- UI scale reload popup (Interface)
+L["%s is off. Its change stays until the interface reloads."] = "%s est désactivé. Sa modification reste jusqu'au rechargement de l'interface."
+L["Later"] = "Plus tard"
 
 -- Minimap page (Settings)
 L["Elements"] = "Éléments"
@@ -69,7 +81,6 @@ L["Map"] = "Carte"
 L["Replaces Blizzard's minimap. Turning it on or off needs a reload."] = "Remplace la minicarte de Blizzard. L'activer ou la désactiver nécessite un rechargement."
 L["Width"] = "Largeur"
 L["Kept within 3:2 of the width either way."] = "Limitée à un rapport de 3:2 avec la largeur, dans les deux sens."
-L["Scale"] = "Échelle"
 L["The map stays north up; Rotate Minimap is ignored."] = "La carte reste orientée au nord ; Rotation de la minicarte est ignorée."
 L["Border"] = "Bordure"
 L["Border Style"] = "Style de bordure"

@@ -38,12 +38,24 @@ L["Outline"] = "외곽선"
 L["Height"] = "높이"
 L["X Offset"] = "X 오프셋"
 L["Y Offset"] = "Y 오프셋"
+L["Scale"] = "크기 비율"
 
 -- General page (Settings)
 L["Access"] = "접근"
 L["Show Minimap Button"] = "미니맵 버튼 표시"
 L["Left-click opens settings."] = "왼쪽 클릭으로 설정을 엽니다."
 L["/aui and the addon compartment open settings too."] = "/aui 명령어와 애드온 보관함으로도 설정을 열 수 있습니다."
+L["Sets the scale of the whole interface, below the game's own minimum if needed. Turning it off takes a reload."] = "필요하면 게임 최소값보다 작게 전체 인터페이스 크기를 정합니다. 끄려면 UI를 다시 불러와야 합니다."
+L["%s manages the UI scale."] = "%s 애드온이 UI 크기를 관리합니다."
+L["Pixel Perfect"] = "픽셀 퍼펙트"
+L["The scale at which one interface unit is one pixel on this screen."] = "이 화면에서 인터페이스 1단위가 1픽셀이 되는 크기입니다."
+L["The pixel-perfect scale for a %s screen."] = "%s 화면의 픽셀 퍼펙트 크기입니다."
+L["Game Menu Scale"] = "게임 메뉴 크기"
+L["Scales the game menu that Escape opens."] = "Esc로 여는 게임 메뉴의 크기를 조절합니다."
+
+-- UI scale reload popup (Interface)
+L["%s is off. Its change stays until the interface reloads."] = "%s 기능이 꺼졌습니다. UI를 다시 불러올 때까지 변경 사항이 유지됩니다."
+L["Later"] = "나중에"
 
 -- Minimap page (Settings)
 L["Elements"] = "요소"
@@ -69,7 +81,6 @@ L["Map"] = "지도"
 L["Replaces Blizzard's minimap. Turning it on or off needs a reload."] = "블리자드 미니맵을 대체합니다. 켜거나 끄면 UI를 다시 불러와야 합니다."
 L["Width"] = "너비"
 L["Kept within 3:2 of the width either way."] = "어느 방향이든 너비의 3:2 이내로 유지됩니다."
-L["Scale"] = "크기 비율"
 L["The map stays north up; Rotate Minimap is ignored."] = "지도는 북쪽이 위로 고정되며, 미니맵 회전은 무시됩니다."
 L["Border"] = "테두리"
 L["Border Style"] = "테두리 스타일"

@@ -38,12 +38,24 @@ L["Outline"] = "描边"
 L["Height"] = "高度"
 L["X Offset"] = "X偏移"
 L["Y Offset"] = "Y 偏移"
+L["Scale"] = "缩放比例"
 
 -- General page (Settings)
 L["Access"] = "访问"
 L["Show Minimap Button"] = "显示小地图按钮"
 L["Left-click opens settings."] = "左键点击打开设置。"
 L["/aui and the addon compartment open settings too."] = "/aui 和插件菜单也能打开设置。"
+L["Sets the scale of the whole interface, below the game's own minimum if needed. Turning it off takes a reload."] = "设置整个界面的缩放，必要时可低于游戏的最小值。关闭后需要重载界面。"
+L["%s manages the UI scale."] = "%s 正在管理界面缩放。"
+L["Pixel Perfect"] = "像素完美"
+L["The scale at which one interface unit is one pixel on this screen."] = "在此屏幕上一个界面单位等于一个像素时的缩放。"
+L["The pixel-perfect scale for a %s screen."] = "%s 屏幕的像素完美缩放。"
+L["Game Menu Scale"] = "游戏菜单缩放"
+L["Scales the game menu that Escape opens."] = "缩放按 Esc 打开的游戏菜单。"
+
+-- UI scale reload popup (Interface)
+L["%s is off. Its change stays until the interface reloads."] = "%s 已关闭。重载界面前其更改仍会保留。"
+L["Later"] = "稍后"
 
 -- Minimap page (Settings)
 L["Elements"] = "元素"
@@ -69,7 +81,6 @@ L["Map"] = "地图"
 L["Replaces Blizzard's minimap. Turning it on or off needs a reload."] = "替换暴雪的小地图。开启或关闭需要重载界面。"
 L["Width"] = "宽度"
 L["Kept within 3:2 of the width either way."] = "与宽度之比保持在 3:2 以内。"
-L["Scale"] = "缩放比例"
 L["The map stays north up; Rotate Minimap is ignored."] = "地图保持北方朝上；旋转小地图选项无效。"
 L["Border"] = "边框"
 L["Border Style"] = "边框样式"
