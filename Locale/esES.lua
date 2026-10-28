@@ -41,6 +41,7 @@ L["Recovery"] = "Recuperación"
 L["Maps"] = "Mapas"
 L["Quality of Life"] = "Calidad de vida"
 L["Automation"] = "Automatización"
+L["Player Menu"] = "Menú de jugador"
 
 -- Shared settings labels (Settings)
 L["Text"] = "Texto"
@@ -409,6 +410,13 @@ L["Not Managed"] = "No gestionado"
 L["Always On"] = "Siempre activado"
 L["Always Off"] = "Siempre desactivado"
 L["Blocked"] = "Bloqueado"
+
+-- Player Menu page (Settings)
+L["Guild Invite"] = "Invitar a la hermandad"
+
+-- Player menus (Menus; the title also names its card on the Player Menu page)
+L["External Links"] = "Enlaces externos"
+L["Press Ctrl+C to copy."] = "Pulsa Ctrl+C para copiar."
 
 -- Profiles page (Settings)
 L["AeonUI profile \"%s\"."] = "Perfil de AeonUI \"%s\"."

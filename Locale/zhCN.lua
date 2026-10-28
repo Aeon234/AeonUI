@@ -41,6 +41,7 @@ L["Recovery"] = "恢复"
 L["Maps"] = "地图"
 L["Quality of Life"] = "便利功能"
 L["Automation"] = "自动化"
+L["Player Menu"] = "玩家菜单"
 
 -- Shared settings labels (Settings)
 L["Text"] = "文字"
@@ -409,6 +410,13 @@ L["Not Managed"] = "不管理"
 L["Always On"] = "始终开启"
 L["Always Off"] = "始终关闭"
 L["Blocked"] = "已阻止"
+
+-- Player Menu page (Settings)
+L["Guild Invite"] = "公会邀请"
+
+-- Player menus (Menus; the title also names its card on the Player Menu page)
+L["External Links"] = "外部链接"
+L["Press Ctrl+C to copy."] = "按Ctrl+C复制。"
 
 -- Profiles page (Settings)
 L["AeonUI profile \"%s\"."] = "AeonUI 配置文件“%s”。"

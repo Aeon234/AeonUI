@@ -41,6 +41,7 @@ L["Recovery"] = "복구"
 L["Maps"] = "지도"
 L["Quality of Life"] = "편의 기능"
 L["Automation"] = "자동화"
+L["Player Menu"] = "플레이어 메뉴"
 
 -- Shared settings labels (Settings)
 L["Text"] = "글자"
@@ -409,6 +410,13 @@ L["Not Managed"] = "관리 안 함"
 L["Always On"] = "항상 켜기"
 L["Always Off"] = "항상 끄기"
 L["Blocked"] = "차단"
+
+-- Player Menu page (Settings)
+L["Guild Invite"] = "길드 초대"
+
+-- Player menus (Menus; the title also names its card on the Player Menu page)
+L["External Links"] = "외부 링크"
+L["Press Ctrl+C to copy."] = "Ctrl+C를 눌러 복사하세요."
 
 -- Profiles page (Settings)
 L["AeonUI profile \"%s\"."] = "AeonUI 프로필 \"%s\"."

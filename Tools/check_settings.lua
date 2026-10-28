@@ -10,6 +10,7 @@ local root = (arg and arg[0] or ""):match("^(.-)[^/\\]*$") .. "../"
 -- Environment ---------------------------------------------------------------------------------------------
 
 UNKNOWN = "Unknown"
+GUILD = "Guild"
 APPLY = "Apply"
 RELOADUI = "Reload UI"
 UI_SCALE = "UI Scale"
@@ -374,9 +375,9 @@ for _, file in ipairs({ "Core/Callbacks.lua", "Core/Capabilities.lua", "Core/Bro
 	"Minimap/Elements.lua", "Minimap/Rows.lua", "Minimap/Fade.lua", "Minimap/Text.lua", "Minimap/Difficulty.lua",
 	"Minimap/Buttons.lua", "Minimap/Map.lua", "WorldMap/Markers.lua", "WorldMap/Options.lua", "Tooltip/Options.lua",
 	"Tooltip/Tooltip.lua", "Interface/UIScale.lua", "Interface/GameMenuScale.lua",
-	"Automation/Options.lua", "Automation/GameSettings.lua",
+	"Automation/Options.lua", "Automation/GameSettings.lua", "Menus/Options.lua",
 	"Settings/Window.lua", "Settings/MinimapEditor.lua", "Settings/General.lua", "Settings/Minimap.lua",
-	"Settings/WorldMap.lua", "Settings/Tooltip.lua", "Settings/Automation.lua", "Settings/Profiles.lua", "Settings/Recovery.lua",
+	"Settings/WorldMap.lua", "Settings/Tooltip.lua", "Settings/Automation.lua", "Settings/PlayerMenu.lua", "Settings/Profiles.lua", "Settings/Recovery.lua",
 	"Settings/EditTargets.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
@@ -418,6 +419,28 @@ Equal("registered under the addon's name", window.name, "AeonUI")
 Equal("named root frame", declaration.frameName, "AeonUISettings")
 Equal("sidebar order", table.concat(window.order, " "), "general #mapsHeader minimap #tooltipHeader tooltipGeneral " ..
 	"tooltipUnits tooltipItems #qualityOfLifeHeader automation - profiles")
+AUI.can.playerMenus, AUI.can.guildInvite, AUI.can.raiderIOLinks, AUI.can.warcraftLogsLinks = true, true, true, true
+window = Load(nil)
+Equal("Player Menu follows Automation", table.concat(window.order, " "), "general #mapsHeader minimap " ..
+	"#tooltipHeader tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader automation playerMenu - profiles")
+local playerMenuPage = window.pages.playerMenu
+local playerMenuIDs = {}
+for _, section in ipairs(playerMenuPage.sections) do
+	for _, setting in ipairs(section.settings) do
+		playerMenuIDs[#playerMenuIDs + 1] = section.title .. ":" .. setting.id .. "=" .. tostring(setting.default)
+	end
+end
+Equal("cards named as the menu shows them, every entry on", table.concat(playerMenuIDs, " "),
+	"Guild:guildInvite=true External Links:raiderIOLink=true External Links:warcraftLogsLink=true")
+Equal("the links as a choice card", playerMenuPage.sections.playerMenuLinks.info.columns, 2)
+Equal("under the Quality of Life header", playerMenuPage.info.under, "qualityOfLifeHeader")
+AUI.can.raiderIOLinks, AUI.can.warcraftLogsLinks = nil, nil
+window = Load(nil)
+Equal("Forever: the Guild card alone", window.pages.playerMenu.sections[1].id .. " "
+	.. tostring(window.pages.playerMenu.sections.playerMenuLinks), "playerMenuGuild nil")
+AUI.can.playerMenus, AUI.can.guildInvite = nil, nil
+window = Load(nil)
+Equal("no Player Menu page without player menus", window.pages.playerMenu, nil)
 Equal("Settings:Window reuses the window", Settings:Window(), window)
 Equal("the store is the active config", declaration.store(), Profile.config)
 Equal("account settings are the store's", declaration.account(), AeonUIDB.global)

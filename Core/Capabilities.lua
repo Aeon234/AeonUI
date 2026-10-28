@@ -27,6 +27,12 @@ AUI.Capabilities = Capabilities
 ---@field expansionFilter boolean the Auction House offers Current Expansion Only (Retail)
 ---@field mail boolean the send-mail form's fields and functions the Mail helpers hook
 ---@field autoDeclineGuildInvites boolean guild invites can be declined automatically
+---@field playerMenus boolean right-click menus can be added to (`Menu.ModifyMenu`)
+---@field guildInvite boolean a player can be invited to your guild by name
+---@field battleNetFriends boolean a Battle.net friend's game account can be read
+---@field groupFinderMenus boolean the premade group finder can name an applicant and a listing's leader
+---@field raiderIOLinks boolean Raider.IO lists this client's characters (Retail)
+---@field warcraftLogsLinks boolean Warcraft Logs lists this client's characters (Retail)
 AUI.can = {}
 
 ---The only place a client difference is detected. Runs once at login.
@@ -63,6 +69,14 @@ function Capabilities:Resolve()
 	can.mail = SendMailNameEditBox ~= nil and SendMailSubjectEditBox ~= nil and SendMailMoney ~= nil
 		and SendMailFrame_SendMail ~= nil and SendMailFrame_Reset ~= nil and MoneyInputFrame_GetCopper ~= nil
 	can.autoDeclineGuildInvites = GetAutoDeclineGuildInvites ~= nil and SetAutoDeclineGuildInvites ~= nil
+	can.playerMenus = Menu ~= nil and Menu.ModifyMenu ~= nil
+	can.guildInvite = C_GuildInfo ~= nil and C_GuildInfo.Invite ~= nil and CanGuildInvite ~= nil
+	can.battleNetFriends = C_BattleNet ~= nil and C_BattleNet.GetAccountInfoByID ~= nil and BNET_CLIENT_WOW ~= nil
+	can.groupFinderMenus = C_LFGList ~= nil and C_LFGList.GetApplicantMemberInfo ~= nil
+		and C_LFGList.GetSearchResultInfo ~= nil
+	-- The sites list Retail characters by realm; Forever has no realms. Its support turns on here when a site adds it.
+	can.raiderIOLinks = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE
+	can.warcraftLogsLinks = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE
 
 	self.resolved = true
 

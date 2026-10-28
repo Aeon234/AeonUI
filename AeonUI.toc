@@ -23,6 +23,7 @@ WorldMap\WorldMap.xml
 Tooltip\Tooltip.xml
 Interface\Interface.xml
 Automation\Automation.xml
+Menus\Menus.xml
 Settings\Settings.xml
 
 #@do-not-package@

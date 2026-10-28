@@ -32,6 +32,10 @@ local function DeclareSidebar(window)
 
 	AUI.SettingsTooltip:Declare(window)
 	AUI.SettingsAutomation:Declare(window)
+
+	if AUI.SettingsPlayerMenu:IsAvailable() then
+		AUI.SettingsPlayerMenu:Declare(window)
+	end
 	window:Divider()
 	AUI.SettingsProfiles:Declare(window)
 end
