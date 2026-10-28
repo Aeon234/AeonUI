@@ -20,7 +20,7 @@ end
 
 ---@param tooltip GameTooltip
 local function OnTooltipShow(tooltip)
-	tooltip:AddLine(AUI.title)
+	tooltip:AddLine(AUI.brand)
 	tooltip:AddLine(L["Click: open settings"], 1, 1, 1)
 end
 

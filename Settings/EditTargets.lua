@@ -56,7 +56,7 @@ function EditTargets:Register()
 	end
 
 	self.registration = lib:Placement(ADDON_NAME, {
-		title = AUI.title,
+		title = AUI.brand,
 		get = function(key)
 			local path = PATHS[key]
 
