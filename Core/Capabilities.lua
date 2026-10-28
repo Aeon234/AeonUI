@@ -33,6 +33,8 @@ AUI.Capabilities = Capabilities
 ---@field groupFinderMenus boolean the premade group finder can name an applicant and a listing's leader
 ---@field raiderIOLinks boolean Raider.IO lists this client's characters (Retail)
 ---@field warcraftLogsLinks boolean Warcraft Logs lists this client's characters (Retail)
+---@field clickDown boolean action buttons can act on key down (`ActionButtonUseKeyDown`)
+---@field focusShortcut boolean a mouse button can be bound to a secure button (`SetOverrideBindingClick`)
 AUI.can = {}
 
 ---The only place a client difference is detected. Runs once at login.
@@ -77,6 +79,9 @@ function Capabilities:Resolve()
 	-- The sites list Retail characters by realm; Forever has no realms. Its support turns on here when a site adds it.
 	can.raiderIOLinks = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE
 	can.warcraftLogsLinks = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE
+	can.clickDown = C_CVar.GetCVarInfo("ActionButtonUseKeyDown") ~= nil
+	can.focusShortcut = SetOverrideBindingClick ~= nil and ClearOverrideBindings ~= nil and C_AddOns ~= nil
+		and C_AddOns.IsAddOnLoaded ~= nil
 
 	self.resolved = true
 

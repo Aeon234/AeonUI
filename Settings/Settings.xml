@@ -7,6 +7,7 @@
 	<Script file="Tooltip.lua" />
 	<Script file="Automation.lua" />
 	<Script file="PlayerMenu.lua" />
+	<Script file="Input.lua" />
 	<Script file="Profiles.lua" />
 	<Script file="Recovery.lua" />
 	<Script file="EditTargets.lua" />

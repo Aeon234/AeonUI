@@ -11,6 +11,8 @@ local root = (arg and arg[0] or ""):match("^(.-)[^/\\]*$") .. "../"
 
 UNKNOWN = "Unknown"
 GUILD = "Guild"
+ACTIONBARS_LABEL = "Action Bars"
+RAID_TARGET_8 = "Skull"
 APPLY = "Apply"
 RELOADUI = "Reload UI"
 UI_SCALE = "UI Scale"
@@ -57,9 +59,10 @@ TIMEMANAGER_24HOURMODE = "24 Hour Mode"
 TIMEMANAGER_LOCALTIME = "Use Local Time"
 SlashCmdList = {}
 StaticPopupDialogs = {}
+local cliqueLoaded = false
 C_AddOns = {
 	GetAddOnMetadata = function() end,
-	IsAddOnLoaded = function() return false end,
+	IsAddOnLoaded = function(name) return name == "Clique" and cliqueLoaded end,
 }
 UIParent = { GetScale = function() return 0.8 end }
 GameMenuFrame = { SetScale = function(self, scale) self.scale = scale end }
@@ -375,9 +378,11 @@ for _, file in ipairs({ "Core/Callbacks.lua", "Core/Capabilities.lua", "Core/Bro
 	"Minimap/Elements.lua", "Minimap/Rows.lua", "Minimap/Fade.lua", "Minimap/Text.lua", "Minimap/Difficulty.lua",
 	"Minimap/Buttons.lua", "Minimap/Map.lua", "WorldMap/Markers.lua", "WorldMap/Options.lua", "Tooltip/Options.lua",
 	"Tooltip/Tooltip.lua", "Interface/UIScale.lua", "Interface/GameMenuScale.lua",
-	"Automation/Options.lua", "Automation/GameSettings.lua", "Menus/Options.lua",
+	"Automation/Options.lua", "Automation/GameSettings.lua", "Menus/Options.lua", "Input/Options.lua",
+	"Input/FocusShortcut.lua",
 	"Settings/Window.lua", "Settings/MinimapEditor.lua", "Settings/General.lua", "Settings/Minimap.lua",
-	"Settings/WorldMap.lua", "Settings/Tooltip.lua", "Settings/Automation.lua", "Settings/PlayerMenu.lua", "Settings/Profiles.lua", "Settings/Recovery.lua",
+	"Settings/WorldMap.lua", "Settings/Tooltip.lua", "Settings/Automation.lua", "Settings/PlayerMenu.lua",
+	"Settings/Input.lua", "Settings/Profiles.lua", "Settings/Recovery.lua",
 	"Settings/EditTargets.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
@@ -441,6 +446,56 @@ Equal("Forever: the Guild card alone", window.pages.playerMenu.sections[1].id ..
 AUI.can.playerMenus, AUI.can.guildInvite = nil, nil
 window = Load(nil)
 Equal("no Player Menu page without player menus", window.pages.playerMenu, nil)
+AUI.can.clickDown, AUI.can.focusShortcut = true, true
+window = Load(nil)
+Equal("Input follows Player Menu's place", table.concat(window.order, " "), "general #mapsHeader minimap " ..
+	"#tooltipHeader tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader automation input - profiles")
+local inputPage = window.pages.input
+local inputIDs = {}
+for _, section in ipairs(inputPage.sections) do
+	for _, setting in ipairs(section.settings) do
+		inputIDs[#inputIDs + 1] = section.id .. ":" .. setting.id .. "=" .. tostring(setting.default)
+	end
+end
+Equal("a card for each, every setting at its default", table.concat(inputIDs, " "),
+	"inputClickDown:clickDown=UNMANAGED inputFocusShortcut:focusShortcut=false inputFocusShortcut:focusModifier=shift "
+	.. "inputFocusShortcut:focusButton=1 inputFocusShortcut:focusWorld=true inputFocusShortcut:focusMark=false "
+	.. "inputFocusShortcut:focusMarker=8")
+Equal("under the Quality of Life header", inputPage.info.under, "qualityOfLifeHeader")
+local clickDown = inputPage.sections.inputClickDown.settings.clickDown
+local clickDownTexts = {}
+for _, option in ipairs(clickDown.options) do
+	clickDownTexts[#clickDownTexts + 1] = option.value .. "=" .. option.text
+end
+Equal("Click Down's choices", table.concat(clickDownTexts, " "),
+	"UNMANAGED=Not Managed ON=Always On COMBAT=In Combat Only OFF=Always Off")
+Equal("named for what it does, with no second line", clickDown.label .. " " .. tostring(clickDown.description),
+	"Cast on Key Down nil")
+Equal("cards titled", inputPage.sections.inputClickDown.title .. " | " .. inputPage.sections.inputFocusShortcut.title,
+	"Action Bars | Focus Keybind")
+local focusCard = inputPage.sections.inputFocusShortcut.settings
+Equal("Focus Keybind is headed by its switch", focusCard.focusShortcut.kind .. " " .. focusCard.focusShortcut.label,
+	"Toggle Focus on Click")
+Equal("with no line while Clique is away", focusCard.focusShortcut.description, nil)
+Equal("its settings follow it", focusCard.focusModifier.depends .. " " .. focusCard.focusButton.depends .. " "
+	.. focusCard.focusWorld.depends .. " " .. focusCard.focusMark.depends, "focusShortcut focusShortcut focusShortcut "
+	.. "focusShortcut")
+Equal("the marker follows Mark Focus", focusCard.focusMarker.depends, "focusMark")
+Equal("markers by Blizzard's names", focusCard.focusMarker.options[8].text, "Skull")
+Equal("modifiers", #focusCard.focusModifier.options .. " " .. focusCard.focusModifier.options[4].text, "6 Ctrl + Shift")
+cliqueLoaded = true
+window = Load(nil)
+Equal("with Clique, the switch says where to bind Focus",
+	window.pages.input.sections.inputFocusShortcut.settings.focusShortcut.description,
+	"Clique handles unit frames; bind Focus there.")
+cliqueLoaded = false
+AUI.can.clickDown = nil
+window = Load(nil)
+Equal("without the console variable, Focus Shortcut alone", window.pages.input.sections[1].id .. " "
+	.. tostring(window.pages.input.sections.inputClickDown), "inputFocusShortcut nil")
+AUI.can.focusShortcut = nil
+window = Load(nil)
+Equal("no Input page without either", window.pages.input, nil)
 Equal("Settings:Window reuses the window", Settings:Window(), window)
 Equal("the store is the active config", declaration.store(), Profile.config)
 Equal("account settings are the store's", declaration.account(), AeonUIDB.global)

@@ -31,6 +31,7 @@ local Media = {
 		tooltipItems = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarTooltipItems.tga",
 		automation = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarAutomation.tga",
 		playerMenu = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarPlayerMenu.tga",
+		input = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarInput.tga",
 	},
 }
 AUI.Media = Media
