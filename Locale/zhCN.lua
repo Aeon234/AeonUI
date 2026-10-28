@@ -44,6 +44,7 @@ L["Automation"] = "自动化"
 L["Player Menu"] = "玩家菜单"
 L["Input"] = "输入"
 L["Alerts"] = "提醒"
+L["Interface"] = "界面"
 
 -- Shared settings labels (Settings)
 L["Text"] = "文字"
@@ -452,6 +453,16 @@ L["Whispers"] = "密语"
 L["Party Invites"] = "组队邀请"
 L["Boss Emotes"] = "首领表情"
 L["Also plays on the Master channel, so you hear them with sound effects off."] = "同时在主声道播放，关闭音效时也能听到。"
+
+-- Interface page (Settings)
+L["Extra Action Button"] = "额外动作按钮"
+L["Click-Through Art"] = "美术框点击穿透"
+L["Hide Art"] = "隐藏美术框"
+L["Help Tips"] = "帮助提示"
+L["Turning it off doesn't bring them back."] = "关闭后它们不会再出现。"
+L["Boss Banner"] = "首领横幅"
+L["Great Vault Overlay"] = "宏伟宝库遮罩"
+L["The cover shown when you open it away from the vault."] = "在宝库外打开时显示的遮罩。"
 
 -- Profiles page (Settings)
 L["AeonUI profile \"%s\"."] = "AeonUI 配置文件“%s”。"

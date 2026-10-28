@@ -12,6 +12,7 @@ local root = (arg and arg[0] or ""):match("^(.-)[^/\\]*$") .. "../"
 UNKNOWN = "Unknown"
 GUILD = "Guild"
 ACTIONBARS_LABEL = "Action Bars"
+HIDE = "Hide"
 RAID_TARGET_8 = "Skull"
 APPLY = "Apply"
 RELOADUI = "Reload UI"
@@ -379,10 +380,10 @@ for _, file in ipairs({ "Core/Callbacks.lua", "Core/Capabilities.lua", "Core/Bro
 	"Minimap/Buttons.lua", "Minimap/Map.lua", "WorldMap/Markers.lua", "WorldMap/Options.lua", "Tooltip/Options.lua",
 	"Tooltip/Tooltip.lua", "Interface/UIScale.lua", "Interface/GameMenuScale.lua",
 	"Automation/Options.lua", "Automation/GameSettings.lua", "Menus/Options.lua", "Input/Options.lua",
-	"Input/FocusShortcut.lua", "Alerts/Options.lua",
+	"Input/FocusShortcut.lua", "Alerts/Options.lua", "Interface/Options.lua",
 	"Settings/Window.lua", "Settings/MinimapEditor.lua", "Settings/General.lua", "Settings/Minimap.lua",
 	"Settings/WorldMap.lua", "Settings/Tooltip.lua", "Settings/Automation.lua", "Settings/PlayerMenu.lua",
-	"Settings/Input.lua", "Settings/Alerts.lua", "Settings/Profiles.lua", "Settings/Recovery.lua",
+	"Settings/Input.lua", "Settings/Alerts.lua", "Settings/Interface.lua", "Settings/Profiles.lua", "Settings/Recovery.lua",
 	"Settings/EditTargets.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
@@ -509,6 +510,30 @@ Equal("under the Quality of Life header, last", alertsPage.info.under .. " " .. 
 	"qualityOfLifeHeader alerts")
 Equal("its one footer, why it exists", alertsPage.sections.alertsSound.notes[1].text,
 	"Also plays on the Master channel, so you hear them with sound effects off.")
+AUI.can.extraActionButton, AUI.can.helpTips, AUI.can.bossBanner, AUI.can.vaultOverlay = true, true, true, true
+window = Load(nil)
+Equal("Interface follows Alerts", table.concat(window.order, " "), "general #mapsHeader minimap #tooltipHeader "
+	.. "tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader automation alerts interface - profiles")
+local interfacePage = window.pages.interface
+local interfaceIDs = {}
+for _, section in ipairs(interfacePage.sections) do
+	for _, setting in ipairs(section.settings) do
+		interfaceIDs[#interfaceIDs + 1] = section.title .. ":" .. setting.id .. "=" .. tostring(setting.default)
+			.. (setting.description and "+" or "")
+	end
+end
+Equal("two titled cards, everything off, lines only where justified", table.concat(interfaceIDs, " "),
+	"Extra Action Button:clickThroughArt=false Extra Action Button:hideArt=false Hide:hideHelpTips=false+ "
+	.. "Hide:hideBossBanner=false Hide:hideVaultOverlay=false+")
+Equal("the extra action button as a choice card", interfacePage.sections.interfaceExtraActionButton.info.columns, 2)
+Equal("under the Quality of Life header", interfacePage.info.under, "qualityOfLifeHeader")
+AUI.can.vaultOverlay, AUI.can.extraActionButton = nil, nil
+window = Load(nil)
+Equal("Forever: no vault, and no extra action card without its frame", window.pages.interface.sections[1].id .. " "
+	.. #window.pages.interface.sections.interfaceHide.settings, "interfaceHide 2")
+AUI.can.helpTips, AUI.can.bossBanner = nil, nil
+window = Load(nil)
+Equal("no Interface page without any of them", window.pages.interface, nil)
 Equal("Settings:Window reuses the window", Settings:Window(), window)
 Equal("the store is the active config", declaration.store(), Profile.config)
 Equal("account settings are the store's", declaration.account(), AeonUIDB.global)

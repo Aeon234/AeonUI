@@ -44,6 +44,7 @@ L["Automation"] = "자동화"
 L["Player Menu"] = "플레이어 메뉴"
 L["Input"] = "입력"
 L["Alerts"] = "알림"
+L["Interface"] = "인터페이스"
 
 -- Shared settings labels (Settings)
 L["Text"] = "글자"
@@ -452,6 +453,16 @@ L["Whispers"] = "귓속말"
 L["Party Invites"] = "파티 초대"
 L["Boss Emotes"] = "보스 감정 표현"
 L["Also plays on the Master channel, so you hear them with sound effects off."] = "주 음량 채널에서도 재생되어 효과음을 꺼도 들립니다."
+
+-- Interface page (Settings)
+L["Extra Action Button"] = "추가 행동 버튼"
+L["Click-Through Art"] = "장식 클릭 통과"
+L["Hide Art"] = "장식 숨기기"
+L["Help Tips"] = "도움말"
+L["Turning it off doesn't bring them back."] = "꺼도 다시 나타나지 않습니다."
+L["Boss Banner"] = "우두머리 배너"
+L["Great Vault Overlay"] = "위대한 금고 가림막"
+L["The cover shown when you open it away from the vault."] = "금고 밖에서 열 때 덮이는 가림막입니다."
 
 -- Profiles page (Settings)
 L["AeonUI profile \"%s\"."] = "AeonUI 프로필 \"%s\"."

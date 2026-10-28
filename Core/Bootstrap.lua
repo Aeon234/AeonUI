@@ -59,6 +59,7 @@ frame:SetScript("OnEvent", function(self, event)
 		AUI.Menus:Start()
 		AUI.Input:Start()
 		AUI.Alerts:Start()
+		AUI.Interface:Start()
 		AUI.EditTargets:Register()
 	end
 end)

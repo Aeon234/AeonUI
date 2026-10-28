@@ -44,6 +44,7 @@ L["Automation"] = "Автоматизация"
 L["Player Menu"] = "Меню игрока"
 L["Input"] = "Ввод"
 L["Alerts"] = "Оповещения"
+L["Interface"] = "Интерфейс"
 
 -- Shared settings labels (Settings)
 L["Text"] = "Текст"
@@ -452,6 +453,16 @@ L["Whispers"] = "Шепот"
 L["Party Invites"] = "Приглашения в группу"
 L["Boss Emotes"] = "Эмоции боссов"
 L["Also plays on the Master channel, so you hear them with sound effects off."] = "Звучит и в общем канале, чтобы вы слышали их с выключенными звуковыми эффектами."
+
+-- Interface page (Settings)
+L["Extra Action Button"] = "Кнопка особого действия"
+L["Click-Through Art"] = "Оформление пропускает щелчки"
+L["Hide Art"] = "Скрыть оформление"
+L["Help Tips"] = "Подсказки"
+L["Turning it off doesn't bring them back."] = "Если выключить, они не вернутся."
+L["Boss Banner"] = "Баннер босса"
+L["Great Vault Overlay"] = "Затемнение великого хранилища"
+L["The cover shown when you open it away from the vault."] = "Затемнение, когда вы открываете его вдали от хранилища."
 
 -- Profiles page (Settings)
 L["AeonUI profile \"%s\"."] = "Профиль AeonUI «%s»."

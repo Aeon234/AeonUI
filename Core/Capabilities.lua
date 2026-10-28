@@ -35,6 +35,10 @@ AUI.Capabilities = Capabilities
 ---@field warcraftLogsLinks boolean Warcraft Logs lists this client's characters (Retail)
 ---@field clickDown boolean action buttons can act on key down (`ActionButtonUseKeyDown`)
 ---@field focusShortcut boolean a mouse button can be bound to a secure button (`SetOverrideBindingClick`)
+---@field extraActionButton boolean the extra action button's frame exists (`ExtraActionBarFrame`)
+---@field helpTips boolean help tips are marked seen in a console variable's bits (`closedInfoFramesAccountWide`)
+---@field bossBanner boolean the boss banner exists (`BossBanner`)
+---@field vaultOverlay boolean the Great Vault covers itself away from the vault (Retail)
 AUI.can = {}
 
 ---The only place a client difference is detected. Runs once at login.
@@ -82,6 +86,10 @@ function Capabilities:Resolve()
 	can.clickDown = C_CVar.GetCVarInfo("ActionButtonUseKeyDown") ~= nil
 	can.focusShortcut = SetOverrideBindingClick ~= nil and ClearOverrideBindings ~= nil and C_AddOns ~= nil
 		and C_AddOns.IsAddOnLoaded ~= nil
+	can.extraActionButton = ExtraActionBarFrame ~= nil
+	can.helpTips = C_CVar.SetCVarBitfield ~= nil and C_CVar.GetCVarInfo("closedInfoFramesAccountWide") ~= nil
+	can.bossBanner = BossBanner ~= nil and BossBanner.UnregisterEvent ~= nil
+	can.vaultOverlay = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE and C_WeeklyRewards ~= nil
 
 	self.resolved = true
 

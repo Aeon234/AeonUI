@@ -60,6 +60,7 @@ L["Automation"] = "Automation"
 L["Player Menu"] = "Player Menu"
 L["Input"] = "Input"
 L["Alerts"] = "Alerts"
+L["Interface"] = "Interface"
 
 -- Shared settings labels (Settings)
 L["Text"] = "Text"
@@ -490,6 +491,16 @@ L["Whispers"] = "Whispers"
 L["Party Invites"] = "Party Invites"
 L["Boss Emotes"] = "Boss Emotes"
 L["Also plays on the Master channel, so you hear them with sound effects off."] = "Also plays on the Master channel, so you hear them with sound effects off."
+
+-- Interface page (Settings)
+L["Extra Action Button"] = "Extra Action Button"
+L["Click-Through Art"] = "Click-Through Art"
+L["Hide Art"] = "Hide Art"
+L["Help Tips"] = "Help Tips"
+L["Turning it off doesn't bring them back."] = "Turning it off doesn't bring them back."
+L["Boss Banner"] = "Boss Banner"
+L["Great Vault Overlay"] = "Great Vault Overlay"
+L["The cover shown when you open it away from the vault."] = "The cover shown when you open it away from the vault."
 
 -- Profiles page (Settings)
 L["AeonUI profile \"%s\"."] = "AeonUI profile \"%s\"."

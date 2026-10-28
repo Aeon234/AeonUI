@@ -44,6 +44,7 @@ L["Automation"] = "Automatización"
 L["Player Menu"] = "Menú de jugador"
 L["Input"] = "Entrada"
 L["Alerts"] = "Alertas"
+L["Interface"] = "Interfaz"
 
 -- Shared settings labels (Settings)
 L["Text"] = "Texto"
@@ -452,6 +453,16 @@ L["Whispers"] = "Susurros"
 L["Party Invites"] = "Invitaciones a grupo"
 L["Boss Emotes"] = "Emociones de jefe"
 L["Also plays on the Master channel, so you hear them with sound effects off."] = "También suena en el canal principal, para oírlas con los efectos de sonido desactivados."
+
+-- Interface page (Settings)
+L["Extra Action Button"] = "Botón de acción extra"
+L["Click-Through Art"] = "Arte sin clics"
+L["Hide Art"] = "Ocultar arte"
+L["Help Tips"] = "Consejos de ayuda"
+L["Turning it off doesn't bring them back."] = "Desactivarlo no los recupera."
+L["Boss Banner"] = "Estandarte de jefe"
+L["Great Vault Overlay"] = "Velo de la Gran Cámara"
+L["The cover shown when you open it away from the vault."] = "El velo que aparece al abrirla lejos de la cámara."
 
 -- Profiles page (Settings)
 L["AeonUI profile \"%s\"."] = "Perfil de AeonUI \"%s\"."

@@ -33,6 +33,7 @@ local Media = {
 		playerMenu = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarPlayerMenu.tga",
 		input = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarInput.tga",
 		alerts = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarAlerts.tga",
+		interface = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarInterface.tga",
 	},
 }
 AUI.Media = Media

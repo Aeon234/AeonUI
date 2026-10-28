@@ -1,4 +1,9 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/">
 	<Script file="UIScale.lua" />
 	<Script file="GameMenuScale.lua" />
+	<Script file="Options.lua" />
+	<Script file="ExtraActionButton.lua" />
+	<Script file="HelpTips.lua" />
+	<Script file="HideFrames.lua" />
+	<Script file="Interface.lua" />
 </Ui>
