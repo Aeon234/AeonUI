@@ -71,6 +71,28 @@ C_Timer = {
 	end,
 }
 
+-- LibAeonSettings, reduced to its springs and Reduce Motion: a spring records where it is sent and with what response,
+-- and arrives at once.
+local reduceMotion = false
+local settingsLibrary = {}
+function settingsLibrary:CreateSpring(value, onUpdate, options)
+	local spring = { value = value, target = value, damping = options and options.damping, moves = {} }
+
+	function spring:To(target)
+		self.moves[#self.moves + 1] = { target = target, response = self.response }
+		self.value, self.target = target, target
+		onUpdate(target)
+	end
+
+	return spring
+end
+function settingsLibrary:ReduceMotion()
+	return reduceMotion
+end
+function LibStub(name)
+	return assert(name == "LibAeonSettings-1.0" and settingsLibrary, name)
+end
+
 local inCombat = false
 function InCombatLockdown()
 	return inCombat
@@ -493,6 +515,43 @@ Equal("the lower opacity wins in combat", Fade:Target(fading, false, true), 0.3)
 fading.mouseover = false
 Equal("combat alone fades in combat", Fade:Target(fading, false, true), 0.5)
 Equal("and not out of it", Fade:Target(fading, false, false), 1)
+Equal("coming in answers quickly", Fade:Response(1, 0.3), 0.15)
+Equal("going out is slower", Fade:Response(0.3, 1), 0.35)
+
+local registered = AUI.Events.Register
+AUI.Events.Register = function() end
+local fadedAlpha
+Fade:Start({ SetAlpha = function(_, alpha)
+	fadedAlpha = alpha
+end })
+AUI.Events.Register = registered
+Equal("the spring settles without overshoot", Fade.spring.damping, 1)
+stored.minimap = { fade = { mouseover = true } }
+local fadeTimers = #timers
+Fade:SetHovered(true)
+Equal("the mouse brings it in at once", fadedAlpha, 1)
+Fade:SetHovered(false)
+Equal("leaving waits before fading", #timers, fadeTimers + 1)
+Equal("for the hold", timers[#timers].delay, 0.3)
+Equal("still shown while it waits", fadedAlpha, 1)
+Fade:SetHovered(true)
+Equal("coming back within the hold cancels it", timers[#timers].cancelled, true)
+Fade:SetHovered(false)
+timers[#timers].callback()
+Equal("after the hold it fades", fadedAlpha, 0.3)
+Equal("on the slower response", Fade.spring.moves[#Fade.spring.moves].response, 0.35)
+Fade:SetHovered(true)
+Equal("coming in again on the quicker one", Fade.spring.moves[#Fade.spring.moves].response, 0.15)
+Fade:SetHovered(false)
+timers[#timers].callback()
+local beforeCombat = #timers
+Fade.inCombat = true
+Fade:Refresh()
+Equal("a change of combat moves without a hold", #timers, beforeCombat)
+Fade.inCombat = false
+Fade:Refresh()
+stored.minimap = nil
+Fade.spring = nil
 Equal("metal draws its own cell divider", Border:CellDividerWidth("METAL", 100), 9)
 Equal("which follows the thickness", Border:CellDividerWidth("METAL", 200), 18)
 Equal("Forever Minimal divides with its band", Border:CellDividerWidth("FOREVER_MINIMAL", 100), 2)

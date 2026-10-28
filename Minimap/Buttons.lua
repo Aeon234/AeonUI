@@ -1,6 +1,7 @@
 local AUI = select(2, ...)
 
 local Elements = AUI.MinimapElements
+local lib = LibStub("LibAeonSettings-1.0")
 
 -- How far an icon moves down and right while pressed.
 local PRESS_OFFSET = 1
@@ -298,8 +299,8 @@ function Mail:FillTooltip(tooltip)
 	FormatUnreadMailTooltip(tooltip, #senders >= 1 and HAVE_MAIL_FROM or HAVE_MAIL, senders)
 end
 
----The calendar, drawn with Blizzard's gamepad calendar icon. Pending invites pulse the icon, and the first click
----opens the calendar on them; otherwise a click shows or hides the calendar.
+---The calendar, drawn with Blizzard's gamepad calendar icon. Pending invites pulse the icon, or with Reduce Motion
+---light it steadily, and the first click opens the calendar on them; otherwise a click shows or hides the calendar.
 ---@class AUIMinimapCalendar: AUIMinimapButtonElement
 ---@field invites integer? pending invites, as last counted
 ---@field dated boolean? the icon shows the day of the month, on a client without the gamepad icon
@@ -425,7 +426,10 @@ function Calendar:Update()
 
 	self.invites = invites
 
-	if invites > 0 then
+	if invites > 0 and lib:ReduceMotion() then
+		pulse:Stop()
+		;(self.pulseTexture --[[@as Texture]]):SetAlpha(PULSE_ALPHA)
+	elseif invites > 0 then
 		if not pulse:IsPlaying() then
 			pulse:Play()
 		end

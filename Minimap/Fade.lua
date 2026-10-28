@@ -1,9 +1,13 @@
 local AUI = select(2, ...)
 
 local Schema = AUI.Schema
+local lib = LibStub("LibAeonSettings-1.0")
 
--- Seconds a fade takes from fully shown to fully faded.
-local DURATION = 0.2
+-- Seconds a spring takes to reach its target: coming in answers the mouse at once, going out is slower.
+local RESPONSE_IN = 0.15
+local RESPONSE_OUT = 0.35
+-- Seconds the mouse must stay away before the minimap fades, so passing over it does not flicker.
+local HOLD = 0.3
 
 Schema:Boolean("minimap.fade.mouseover", false)
 Schema:Number("minimap.fade.mouseoverOpacity", 30, 0, 100, true)
@@ -17,18 +21,14 @@ Schema:Number("minimap.fade.combatOpacity", 50, 0, 100, true)
 ---@field combatOpacity number percent
 
 ---Fades the whole minimap, map, rows and border together, while the mouse is away or in combat. Fading only: nothing
----is hidden, so the map stays clickable. Runs an OnUpdate only while a fade is in progress.
+---is hidden, so the map stays clickable. The opacity moves on the settings library's critically damped spring, from
+---wherever it is, and jumps with Reduce Motion.
 ---@class AUIMinimapFade
----@field frame Frame? the faded frame
----@field alpha number
----@field target number
+---@field spring table? the opacity's spring, made by Start
 ---@field hovered boolean the mouse is over the minimap
 ---@field inCombat boolean
----@field driver Frame?
----@field OnUpdate fun(frame: Frame, elapsed: number)?
+---@field timer table? the hold before fading out
 local Fade = {
-	alpha = 1,
-	target = 1,
 	hovered = false,
 	inCombat = false,
 }
@@ -56,6 +56,13 @@ function Fade:Target(settings, hovered, inCombat)
 	return alpha
 end
 
+---@param target number
+---@param current number
+---@return number response the spring's response toward the target: quicker coming in than going out
+function Fade:Response(target, current)
+	return target >= current and RESPONSE_IN or RESPONSE_OUT
+end
+
 ---@return AUIMinimapFadeSettings
 function Fade:Settings()
 	local Profile = AUI.Profile
@@ -70,11 +77,9 @@ end
 
 ---@param frame Frame the minimap's root frame
 function Fade:Start(frame)
-	self.frame = frame
-	self.driver = CreateFrame("Frame")
-	self.OnUpdate = function(_, elapsed)
-		self:Step(elapsed)
-	end
+	self.spring = lib:CreateSpring(1, function(alpha)
+		frame:SetAlpha(alpha)
+	end, { damping = 1 })
 	self.inCombat = InCombatLockdown()
 
 	AUI.Events:Register("PLAYER_REGEN_DISABLED", self, function()
@@ -91,38 +96,42 @@ end
 function Fade:SetHovered(hovered)
 	if hovered ~= self.hovered then
 		self.hovered = hovered
-		self:Refresh()
+		self:Refresh(not hovered)
 	end
 end
 
----Sets the target opacity from the settings and starts the fade toward it.
-function Fade:Refresh()
-	local driver = self.driver
+---Sets the target opacity from the settings and moves toward it.
+---@param hold boolean? the mouse just left: wait HOLD seconds before fading out
+function Fade:Refresh(hold)
+	local spring = self.spring
 
-	if not driver then
+	if not spring then
 		return
 	end
 
-	self.target = self:Target(self:Settings(), self.hovered, self.inCombat)
-
-	if self.alpha ~= self.target then
-		driver:SetScript("OnUpdate", self.OnUpdate)
+	if self.timer then
+		self.timer:Cancel()
+		self.timer = nil
 	end
+
+	local target = self:Target(self:Settings(), self.hovered, self.inCombat)
+
+	if hold and target < spring.value then
+		self.timer = C_Timer.NewTimer(HOLD, function()
+			self.timer = nil
+			self:Move(target)
+		end)
+
+		return
+	end
+
+	self:Move(target)
 end
 
----@param elapsed number
-function Fade:Step(elapsed)
-	local step = elapsed / DURATION
+---@param target number
+function Fade:Move(target)
+	local spring = self.spring --[[@as table]]
 
-	if self.alpha < self.target then
-		self.alpha = math.min(self.target, self.alpha + step)
-	else
-		self.alpha = math.max(self.target, self.alpha - step)
-	end
-
-	(self.frame --[[@as Frame]]):SetAlpha(self.alpha)
-
-	if self.alpha == self.target then
-		(self.driver --[[@as Frame]]):SetScript("OnUpdate", nil)
-	end
+	spring.response = self:Response(target, spring.value)
+	spring:To(target)
 end
