@@ -365,7 +365,7 @@ function SettingsMinimap:DeclareRows(page)
 	local Editor = AUI.MinimapEditor
 
 	page:Preview({
-		height = 160,
+		height = Editor:Height(),
 		create = function(canvas)
 			Editor:Create(canvas)
 		end,

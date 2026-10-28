@@ -180,7 +180,7 @@ function SettingsWorldMap:DeclareMarkers(page)
 	})
 
 	for _, info in ipairs(SECTIONS) do
-		local section = page:Section(info.id, info.title, { show = Shown })
+		local section = page:Section(info.id, info.title, { show = Shown, columns = 2 })
 
 		for _, key in ipairs(info.keys) do
 			local path = Markers:CategoryPath(key)
@@ -195,7 +195,7 @@ function SettingsWorldMap:DeclareMarkers(page)
 		end
 	end
 
-	local minimap = page:Section("minimap", L["Minimap Pins"], { show = Shown })
+	local minimap = page:Section("minimap", L["Minimap Pins"], { show = Shown, columns = 2 })
 	local MINIMAP_LABELS = { mailboxes = L["Mailboxes"], spiritHealers = L["Spirit Healers"], docks = L["Docks"] }
 
 	for _, entry in ipairs(Markers.MINIMAP) do

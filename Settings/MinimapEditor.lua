@@ -371,6 +371,14 @@ function Editor:Draw()
 	return left + rowWidth + SIDE + MARGIN, y - ROW_SPACE + MARGIN
 end
 
+---The diagram's height: margins, the four rows and the map between them. Free of frame code.
+---@return number height
+function Editor:Height()
+	local rows = #AUI.MinimapLayout.ROWS
+
+	return 2 * MARGIN + rows * ROW_HEIGHT + (rows - 1) * ROW_SPACE + MAP_HEIGHT + ROW_SPACE
+end
+
 ---@return string caption the line under the diagram
 function Editor:Caption()
 	return L["Drag to move. × removes, + adds."]

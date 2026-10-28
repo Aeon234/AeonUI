@@ -579,14 +579,47 @@ local items = window.pages.tooltipItems
 local detailIDs = items.sections.tooltipDetailIDs.settings
 Equal("the Items page has the Details preview", items.preview ~= nil, true)
 Equal("every modifier is offered", #detailIDs.idModifier.options, #TooltipOptions.MODIFIERS)
-Equal("one checkbox per ID line", #items.sections.tooltipDetailIDs.settings, #TooltipOptions.ID_KEYS + 1)
-Equal("ID lines default on", detailIDs.showSpellID.default, true)
+Equal("the modifier has a card of its own", #items.sections.tooltipDetailIDs.settings, 1)
+local idLines = items.sections.tooltipDetailIDLines.settings
+Equal("one checkbox per ID line", #idLines, #TooltipOptions.ID_KEYS)
+Equal("ID lines default on", idLines.showSpellID.default, true)
+Equal("an ID line's scope is in its tooltip", idLines.showItemID.tooltip, "Items and toys.")
 Equal("with no modifier", detailIDs.idModifier.default, "NONE")
 local expansions = AUI.can.expansions
 AUI.can.expansions = nil
 Equal("the expansion is offered only where items have one",
 	items.sections.tooltipDetailLines.settings.showExpansion.show(), false)
 AUI.can.expansions = expansions
+
+-- Choice cards ---------------------------------------------------------------------------------------------------
+
+-- The library draws a section asking for two columns one to a line unless every row is a checkbox with no second
+-- line; the pages must keep to that.
+local function ChoiceCards(page)
+	local cards = {}
+
+	for _, section in ipairs(page.sections) do
+		if section.info and section.info.columns == 2 then
+			cards[#cards + 1] = section.id
+			Equal(section.id .. " has two or more choices", #section.settings >= 2, true)
+
+			for _, setting in ipairs(section.settings) do
+				Equal(setting.id .. " is a checkbox", setting.kind, "Checkbox")
+				Equal(setting.id .. " has no second line", setting.description, nil)
+			end
+		end
+	end
+
+	return table.concat(cards, " ")
+end
+
+Equal("the Units page's choice cards", ChoiceCards(window.pages.tooltipUnits), "tooltipUnitLines tooltipUnitAdded")
+Equal("the Items page's", ChoiceCards(window.pages.tooltipItems), "tooltipDetailLines tooltipDetailIDLines")
+Equal("a unit line says what it adds in its tooltip",
+	type(window.pages.tooltipUnits.sections.tooltipUnitLines.settings.colorLevels.tooltip), "string")
+Equal("the layout editor's stage is as tall as the diagram", window.pages.minimap.preview.height,
+	AUI.MinimapEditor:Height())
+Equal("which is its margins, four rows and the map", AUI.MinimapEditor:Height(), 180)
 
 -- Edit mode ----------------------------------------------------------------------------------------------------
 
@@ -787,6 +820,7 @@ for _, section in ipairs(worldMap.sections) do
 	end
 end
 Equal("a switch for every category", switches, #AUI.WorldMapMarkers.CATEGORIES)
+Equal("the categories and pins are choice cards", ChoiceCards(worldMap), "places travel town minimap")
 local darkness = worldMap.sections.unexplored.settings.darkness
 Equal("darkness is a percentage", darkness.format, "percent")
 Equal("which needs the unexplored areas on", darkness.depends, "unexplored")

@@ -182,6 +182,26 @@ local function Checkbox(section, id, label, description, path, show)
 	})
 end
 
+---A checkbox in a choice card on the Units or Items page, which follows the module's switch: what it adds is in its
+---label's tooltip, as a choice card's rows have no second line.
+---@param section table
+---@param id string
+---@param label string
+---@param tooltip string?
+---@param path string
+---@param show (fun(): boolean)?
+local function Choice(section, id, label, tooltip, path, show)
+	section:Checkbox({
+		id = id,
+		label = label,
+		tooltip = tooltip,
+		path = path,
+		default = AUI.Settings:Default(path),
+		depends = SWITCH,
+		show = show,
+	})
+end
+
 ---The General page's visibility and position.
 ---@param page table
 function SettingsTooltip:DeclarePosition(page)
@@ -309,33 +329,33 @@ function SettingsTooltip:DeclareUnits(window)
 
 	self.pageIDs.tooltipUnits = true
 
-	local lines = page:Section("tooltipUnitLines", L["Lines"])
+	local lines = page:Section("tooltipUnitLines", L["Lines"], { columns = 2 })
 
-	Checkbox(lines, "showTitles", L["Show Titles"], L["Player titles on the name line."], Options.TITLES_PATH)
-	Checkbox(lines, "showGuildRank", L["Show Guild Rank"], L["The player's rank after the guild's name."],
+	Choice(lines, "showTitles", L["Show Titles"], L["Player titles on the name line."], Options.TITLES_PATH)
+	Choice(lines, "showGuildRank", L["Show Guild Rank"], L["The player's rank after the guild's name."],
 		Options.GUILD_RANK_PATH)
-	Checkbox(lines, "colorLevels", L["Color Levels"],
+	Choice(lines, "colorLevels", L["Color Levels"],
 		L["The level in its difficulty color, followed by + for elite, Rare or Boss."], Options.LEVEL_COLOR_PATH)
-	Checkbox(lines, "mutedLines", L["Color Owners and Pets"],
+	Choice(lines, "mutedLines", L["Color Owners and Pets"],
 		L["Owner and corpse lines in gray, and battle-pet names in their reaction color."], Options.MUTED_LINES_PATH)
 
-	local added = page:Section("tooltipUnitAdded", L["Added Lines"])
+	local added = page:Section("tooltipUnitAdded", L["Added Lines"], { columns = 2 })
 
-	Checkbox(added, "showTarget", TARGET, L["Whom the unit is targeting."], Options.TARGET_PATH)
-	Checkbox(added, "showRating", DUNGEON_SCORE, L["The player's Mythic+ rating, in its color."], Options.RATING_PATH,
+	Choice(added, "showTarget", TARGET, L["Whom the unit is targeting."], Options.TARGET_PATH)
+	Choice(added, "showRating", DUNGEON_SCORE, L["The player's Mythic+ rating, in its color."], Options.RATING_PATH,
 		function()
 			return AUI.can.mythicPlus == true
 		end)
-	Checkbox(added, "showMount", MOUNT, L["The player's mount, with a mark for whether you have it."],
+	Choice(added, "showMount", MOUNT, L["The player's mount, with a mark for whether you have it."],
 		Options.MOUNT_PATH)
-	Checkbox(added, "showItemLevel", STAT_AVERAGE_ITEM_LEVEL,
+	Choice(added, "showItemLevel", STAT_AVERAGE_ITEM_LEVEL,
 		L["The player's average item level, inspected once the cursor rests on them."], Options.ITEM_LEVEL_PATH)
-	Checkbox(added, "showSpecialization", SPECIALIZATION,
+	Choice(added, "showSpecialization", SPECIALIZATION,
 		L["The player's specialization and role, from an inspect or shared by their addons."],
 		Options.SPECIALIZATION_PATH, function()
 			return AUI.can.specializations == true
 		end)
-	Checkbox(added, "auraCasters", L["Aura Caster Names"], L["Aura tooltips name who cast the aura."],
+	Choice(added, "auraCasters", L["Aura Caster Names"], L["Aura tooltips name who cast the aura."],
 		Options.AURA_CASTERS_PATH, function()
 			return AUI.can.auraCasterNames == true
 		end)
@@ -461,15 +481,15 @@ function SettingsTooltip:DeclareItems(window)
 		end,
 	})
 
-	local lines = page:Section("tooltipDetailLines", L["Lines"])
+	local lines = page:Section("tooltipDetailLines", L["Lines"], { columns = 2 })
 
-	Checkbox(lines, "showExpansion", EXPANSION_FILTER_TEXT, nil, Options.EXPANSION_PATH, function()
+	Choice(lines, "showExpansion", EXPANSION_FILTER_TEXT, nil, Options.EXPANSION_PATH, function()
 			return AUI.can.expansions == true
 		end)
-	Checkbox(lines, "showItemType", L["Category and Type"], L["An item's category and type, such as Armor / Plate."],
+	Choice(lines, "showItemType", L["Category and Type"], L["An item's category and type, such as Armor / Plate."],
 		Options.ITEM_TYPE_PATH)
-	Checkbox(lines, "showMaxStack", L["Max Stack"], nil, Options.MAX_STACK_PATH)
-	Checkbox(lines, "blankLine", L["Blank Line Before"], nil, Options.BLANK_LINE_PATH)
+	Choice(lines, "showMaxStack", L["Max Stack"], nil, Options.MAX_STACK_PATH)
+	Choice(lines, "blankLine", L["Blank Line Before"], nil, Options.BLANK_LINE_PATH)
 
 	local ids = page:Section("tooltipDetailIDs", L["IDs"])
 	local modifiers = {}
@@ -488,11 +508,13 @@ function SettingsTooltip:DeclareItems(window)
 		options = modifiers,
 	})
 
+	local idLines = page:Section("tooltipDetailIDLines", nil, { columns = 2 })
+
 	for _, key in ipairs(Options.ID_KEYS) do
 		local line = ID_LINES[key]
 
 		if line then
-			Checkbox(ids, line.id, line.label, line.description, Options.ID_PATHS[key])
+			Choice(idLines, line.id, line.label, line.description, Options.ID_PATHS[key])
 		end
 	end
 
