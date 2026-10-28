@@ -24,6 +24,9 @@ AUI.Capabilities = Capabilities
 ---@field upgrades boolean items have upgrade tracks, shown on an "Upgrade Level" tooltip line (Retail)
 ---@field specializations boolean players have named specializations (Retail; Forever has one per class)
 ---@field rangedSlot boolean characters have a ranged slot (Forever)
+---@field expansionFilter boolean the Auction House offers Current Expansion Only (Retail)
+---@field mail boolean the send-mail form's fields and functions the Mail helpers hook
+---@field autoDeclineGuildInvites boolean guild invites can be declined automatically
 AUI.can = {}
 
 ---The only place a client difference is detected. Runs once at login.
@@ -54,6 +57,12 @@ function Capabilities:Resolve()
 	can.specializations = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE and C_SpecializationInfo ~= nil
 		and GetSpecializationInfoByID ~= nil
 	can.rangedSlot = CharacterRangedSlot ~= nil
+	can.expansionFilter = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE and Enum.AuctionHouseFilter ~= nil
+		and Enum.AuctionHouseFilter.CurrentExpansionOnly ~= nil and C_AuctionHouse ~= nil
+		and C_AuctionHouse.GetFilterGroups ~= nil
+	can.mail = SendMailNameEditBox ~= nil and SendMailSubjectEditBox ~= nil and SendMailMoney ~= nil
+		and SendMailFrame_SendMail ~= nil and SendMailFrame_Reset ~= nil and MoneyInputFrame_GetCopper ~= nil
+	can.autoDeclineGuildInvites = GetAutoDeclineGuildInvites ~= nil and SetAutoDeclineGuildInvites ~= nil
 
 	self.resolved = true
 

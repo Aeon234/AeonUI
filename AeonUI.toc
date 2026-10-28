@@ -22,6 +22,7 @@ Minimap\Minimap.xml
 WorldMap\WorldMap.xml
 Tooltip\Tooltip.xml
 Interface\Interface.xml
+Automation\Automation.xml
 Settings\Settings.xml
 
 #@do-not-package@

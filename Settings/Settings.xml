@@ -5,6 +5,7 @@
 	<Script file="MinimapEditor.lua" />
 	<Script file="WorldMap.lua" />
 	<Script file="Tooltip.lua" />
+	<Script file="Automation.lua" />
 	<Script file="Profiles.lua" />
 	<Script file="Recovery.lua" />
 	<Script file="EditTargets.lua" />

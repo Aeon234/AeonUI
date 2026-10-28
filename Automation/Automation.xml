@@ -1,0 +1,8 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+	<Script file="Options.lua" />
+	<Script file="Merchant.lua" />
+	<Script file="ExpansionFilter.lua" />
+	<Script file="Mail.lua" />
+	<Script file="GameSettings.lua" />
+	<Script file="Automation.lua" />
+</Ui>

@@ -13,6 +13,18 @@ UNKNOWN = "Unknown"
 APPLY = "Apply"
 RELOADUI = "Reload UI"
 UI_SCALE = "UI Scale"
+MERCHANT = "Merchant"
+AUCTION_HOUSE_FILTER_CURRENTEXPANSION_ONLY = "Current Expansion Only"
+AUTO_LOOT_DEFAULT_TEXT = "Auto Loot"
+BLOCK_TRADES = "Block Trades"
+BLOCK_GUILD_INVITES = "Block Guild Invites"
+BLOCK_CHAT_CHANNEL_INVITE = "Block Chat Channel Invites"
+local cvars = { autoLootDefault = "0", weatherDensity = "3", blockTrades = "0", blockChannelInvites = "0" }
+C_CVar = {
+	GetCVarInfo = function(name)
+		return cvars[name]
+	end,
+}
 GENERAL = "General"
 DELETE = "Delete"
 RESET = "Reset"
@@ -357,8 +369,9 @@ for _, file in ipairs({ "Core/Callbacks.lua", "Core/Capabilities.lua", "Core/Bro
 	"Minimap/Elements.lua", "Minimap/Rows.lua", "Minimap/Fade.lua", "Minimap/Text.lua", "Minimap/Difficulty.lua",
 	"Minimap/Buttons.lua", "Minimap/Map.lua", "WorldMap/Markers.lua", "WorldMap/Options.lua", "Tooltip/Options.lua",
 	"Tooltip/Tooltip.lua", "Interface/UIScale.lua", "Interface/GameMenuScale.lua",
+	"Automation/Options.lua", "Automation/GameSettings.lua",
 	"Settings/Window.lua", "Settings/MinimapEditor.lua", "Settings/General.lua", "Settings/Minimap.lua",
-	"Settings/WorldMap.lua", "Settings/Tooltip.lua", "Settings/Profiles.lua", "Settings/Recovery.lua",
+	"Settings/WorldMap.lua", "Settings/Tooltip.lua", "Settings/Automation.lua", "Settings/Profiles.lua", "Settings/Recovery.lua",
 	"Settings/EditTargets.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
@@ -399,7 +412,7 @@ local declaration = window.declaration
 Equal("registered under the addon's name", window.name, "AeonUI")
 Equal("named root frame", declaration.frameName, "AeonUISettings")
 Equal("sidebar order", table.concat(window.order, " "), "general #mapsHeader minimap #tooltipHeader tooltipGeneral " ..
-	"tooltipUnits tooltipItems - profiles")
+	"tooltipUnits tooltipItems #qualityOfLifeHeader automation - profiles")
 Equal("Settings:Window reuses the window", Settings:Window(), window)
 Equal("the store is the active config", declaration.store(), Profile.config)
 Equal("account settings are the store's", declaration.account(), AeonUIDB.global)
@@ -953,5 +966,60 @@ Equal("its default", menu.default, 100)
 menu.set(80)
 Equal("the game menu's scale is saved account-wide", AeonUIDB.global.gameMenuScale, 80)
 Equal("and applied", GameMenuFrame.scale, 0.8)
+
+-- Automation page ------------------------------------------------------------------------------------------
+
+local function SettingIDs(section)
+	local ids = {}
+	for _, setting in ipairs(section.settings) do
+		ids[#ids + 1] = setting.id
+	end
+
+	return table.concat(ids, " ")
+end
+
+AUI.can.mail, AUI.can.expansionFilter, AUI.can.autoDeclineGuildInvites = true, true, true
+window = Load(nil)
+local automation = window.pages.automation
+Equal("under the Quality of Life header", automation.info.under, "qualityOfLifeHeader")
+Equal("with its icon", automation.info.icon, AUI.Media.sidebar.automation)
+local sectionIDs = {}
+for index, section in ipairs(automation.sections) do
+	sectionIDs[index] = section.id
+end
+Equal("the cards in order", table.concat(sectionIDs, " "), "automationMerchant automationMail automationAuctionHouse " ..
+	"automationGameSettings automationBlocks")
+local merchantCard = automation.sections.automationMerchant
+Equal("the merchant card", SettingIDs(merchantCard), "sellJunk reportSales autoRepair repairFunds")
+Equal("Report Sales follows Sell Junk", merchantCard.settings.reportSales.depends, "sellJunk")
+Equal("Funds follows Auto Repair", merchantCard.settings.repairFunds.depends, "autoRepair")
+Equal("selling is off by default", merchantCard.settings.sellJunk.default, false)
+Equal("repairing is off by default", merchantCard.settings.autoRepair.default, false)
+Equal("reports are on by default", merchantCard.settings.reportSales.default, true)
+Equal("guild funds first by default", merchantCard.settings.repairFunds.default, "GUILD_FIRST")
+Equal("three funds", #merchantCard.settings.repairFunds.options, 3)
+Equal("the filter's windows follow it", automation.sections.automationAuctionHouse.settings.expansionAuctionHouse.depends,
+	"expansionFilter")
+Equal("the game settings card", SettingIDs(automation.sections.automationGameSettings), "managedautoLoot managedweather")
+Equal("the blocks card", SettingIDs(automation.sections.automationBlocks),
+	"managedtrades managedguildInvites managedchannelInvites managedduels")
+local weather = automation.sections.automationGameSettings.settings.managedweather
+Equal("weather offers Not Managed and four levels", #weather.options, 5)
+Equal("managed settings start unmanaged", weather.default, "UNMANAGED")
+Equal("a Blizzard option names itself", automation.sections.automationBlocks.settings.managedtrades.description,
+	"Overrides Blizzard's Block Trades option.")
+Equal("a value is written to the profile", (declaration.write("automation.sellJunk", true)), true)
+Equal("and read back", Profile:Get("automation.sellJunk"), true)
+
+AUI.can.mail, AUI.can.expansionFilter, AUI.can.autoDeclineGuildInvites = nil, nil, nil
+cvars.weatherDensity = nil
+window = Load(nil)
+automation = window.pages.automation
+Equal("Forever: no Auction House card", automation.sections.automationAuctionHouse, nil)
+Equal("no Mail card without the send form", automation.sections.automationMail, nil)
+Equal("a setting the client lacks is left out", SettingIDs(automation.sections.automationGameSettings), "managedautoLoot")
+Equal("as is the guild-invite block", SettingIDs(automation.sections.automationBlocks),
+	"managedtrades managedchannelInvites managedduels")
+cvars.weatherDensity = "3"
 
 io.stdout:write(("check_settings: %d checks passed\n"):format(checks))

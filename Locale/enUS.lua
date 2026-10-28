@@ -25,6 +25,16 @@ L["saved settings are damaged, so AeonUI is using default settings and leaves th
 L["the active profile can't be used, so AeonUI is showing default settings until you choose another profile."] =
 	"the active profile can't be used, so AeonUI is showing default settings until you choose another profile."
 
+-- Chat messages (Automation)
+L["Sold 1 junk item for %s."] = "Sold 1 junk item for %s."
+L["Sold %d junk items for %s."] = "Sold %d junk items for %s."
+L["Repaired for %s."] = "Repaired for %s."
+L["Repaired for %s from guild funds."] = "Repaired for %s from guild funds."
+L["Not enough money to repair (%s)."] = "Not enough money to repair (%s)."
+L["Not enough guild funds to repair (%s)."] = "Not enough guild funds to repair (%s)."
+L["Nothing in the current expansion, so all expansions were searched."] =
+	"Nothing in the current expansion, so all expansions were searched."
+
 -- Profile names (Profile)
 L["A profile needs a name."] = "A profile needs a name."
 L["A profile name can be %d letters at most."] = "A profile name can be %d letters at most."
@@ -45,6 +55,8 @@ L["Click: open settings"] = "Click: open settings"
 L["Profiles"] = "Profiles"
 L["Recovery"] = "Recovery"
 L["Maps"] = "Maps"
+L["Quality of Life"] = "Quality of Life"
+L["Automation"] = "Automation"
 
 -- Shared settings labels (Settings)
 L["Text"] = "Text"
@@ -54,6 +66,7 @@ L["Height"] = "Height"
 L["X Offset"] = "X Offset"
 L["Y Offset"] = "Y Offset"
 L["Scale"] = "Scale"
+L["Crafting Orders"] = "Crafting Orders"
 
 -- General page (Settings)
 L["Access"] = "Access"
@@ -135,7 +148,6 @@ L["Colors"] = "Colors"
 L["Mythic, and Mythic+ with its keystone level."] = "Mythic, and Mythic+ with its keystone level."
 L["Timewalking, Follower, Delves, Story and PvP."] = "Timewalking, Follower, Delves, Story and PvP."
 L["Decimal Places"] = "Decimal Places"
-L["Crafting Orders"] = "Crafting Orders"
 L["The button keeps its place in the row; its icon shows only while you have unread mail."] =
 	"The button keeps its place in the row; its icon shows only while you have unread mail."
 L["The button keeps its place in the row; its icon shows only while you have personal orders."] =
@@ -419,6 +431,49 @@ L["Other Tooltips"] = "Other Tooltips"
 L["%s the Patient"] = "%s the Patient"
 L["Gnoll Brute"] = "Gnoll Brute"
 L["Wolf"] = "Wolf"
+
+-- Automation page (Settings)
+L["Sell Junk"] = "Sell Junk"
+L["Sells your junk when a merchant opens. Hold Shift as the merchant opens to skip it."] =
+	"Sells your junk when a merchant opens. Hold Shift as the merchant opens to skip it."
+L["Report Sales"] = "Report Sales"
+L["One chat line per visit with the number of items sold and what they earned."] =
+	"One chat line per visit with the number of items sold and what they earned."
+L["Auto Repair"] = "Auto Repair"
+L["Repairs your gear when a merchant who can repair opens. Hold Shift as the merchant opens to skip it."] =
+	"Repairs your gear when a merchant who can repair opens. Hold Shift as the merchant opens to skip it."
+L["Funds"] = "Funds"
+L["Guild First uses guild funds while the guild allows it, otherwise your own. Guild Only never spends your own money."] =
+	"Guild First uses guild funds while the guild allows it, otherwise your own. Guild Only never spends your own money."
+L["Personal"] = "Personal"
+L["Guild First"] = "Guild First"
+L["Guild Only"] = "Guild Only"
+L["Remember Recipient"] = "Remember Recipient"
+L["Keeps the last recipient in the To field after a mail is sent."] =
+	"Keeps the last recipient in the To field after a mail is sent."
+L["Money Subject"] = "Money Subject"
+L["Fills an empty subject with Money when you enter gold to send, so a mail with only gold can go."] =
+	"Fills an empty subject with Money when you enter gold to send, so a mail with only gold can go."
+L["Auction House"] = "Auction House"
+L["Turns on Current Expansion Only when the Auction House or the crafting orders window opens. Turning it off by hand lasts until the window closes. An Auction House search that finds nothing runs again across every expansion."] =
+	"Turns on Current Expansion Only when the Auction House or the crafting orders window opens. Turning it off by hand lasts until the window closes. An Auction House search that finds nothing runs again across every expansion."
+L["Game Settings"] = "Game Settings"
+L["Auto Loot"] = "Auto Loot"
+L["Weather"] = "Weather"
+L["The intensity of weather effects, from 0 (none) to 3."] = "The intensity of weather effects, from 0 (none) to 3."
+L["Blocks"] = "Blocks"
+L["Block Trades"] = "Block Trades"
+L["Block Guild Invites"] = "Block Guild Invites"
+L["Block Channel Invites"] = "Block Channel Invites"
+L["Block Duels"] = "Block Duels"
+L["Declines every duel request, including duels to the death."] =
+	"Declines every duel request, including duels to the death."
+L["Not Managed"] = "Not Managed"
+L["Always On"] = "Always On"
+L["Always Off"] = "Always Off"
+L["Blocked"] = "Blocked"
+L["Set To %s"] = "Set To %s"
+L["Overrides Blizzard's %s option."] = "Overrides Blizzard's %s option."
 
 -- Profiles page (Settings)
 L["AeonUI profile \"%s\"."] = "AeonUI profile \"%s\"."
