@@ -49,12 +49,12 @@ AUI.TooltipDetails = Details
 ---@param key string an `Options.ID_KEYS` entry
 ---@return boolean
 function Details:Shows(key)
-	return AUI.Profile:Get(Options.ID_PATHS[key]) == true
+	return Options:Get(Options.ID_PATHS[key]) == true
 end
 
 ---@return boolean held the ID lines' modifier is held, or none is needed
 function Details:Held()
-	local modifier = AUI.Profile:Get(Options.ID_MODIFIER_PATH)
+	local modifier = Options:Get(Options.ID_MODIFIER_PATH)
 
 	if modifier == "SHIFT" then
 		return IsShiftKeyDown()
@@ -70,7 +70,13 @@ end
 ---@param tooltip GameTooltip
 ---@return boolean
 function Details:IsPreview(tooltip)
-	for _, preview in ipairs(self.previews or {}) do
+	local previews = self.previews
+
+	if not previews then
+		return false
+	end
+
+	for _, preview in ipairs(previews) do
 		if preview == tooltip then
 			return true
 		end
@@ -95,7 +101,7 @@ function Details:Finish(tooltip)
 		return
 	end
 
-	if AUI.Profile:Get(Options.BLANK_LINE_PATH) == true then
+	if Options:Get(Options.BLANK_LINE_PATH) == true then
 		tooltip:AddLine(" ")
 	end
 
@@ -112,10 +118,18 @@ end
 ---@param id number
 ---@param ids boolean the ID lines show
 function Details:Item(id, ids)
-	local Profile = AUI.Profile
-	local _, _, _, _, _, itemType, subType, stack, _, _, _, _, _, _, expansion = C_Item.GetItemInfo(id)
+	local expansionLine = AUI.can.expansions and Options:Get(Options.EXPANSION_PATH) == true
+	local typeLine = Options:Get(Options.ITEM_TYPE_PATH) == true
+	local stackLine = Options:Get(Options.MAX_STACK_PATH) == true
+	local itemType, subType, stack, expansion
 
-	if AUI.can.expansions and Profile:Get(Options.EXPANSION_PATH) == true then
+	if expansionLine or typeLine or stackLine then
+		local _
+
+		_, _, _, _, _, itemType, subType, stack, _, _, _, _, _, _, expansion = C_Item.GetItemInfo(id)
+	end
+
+	if expansionLine then
 		local name = expansion and _G["EXPANSION_NAME" .. expansion]
 
 		if type(name) == "string" then
@@ -123,13 +137,13 @@ function Details:Item(id, ids)
 		end
 	end
 
-	local kind = Profile:Get(Options.ITEM_TYPE_PATH) == true and Format:ItemType(itemType, subType)
+	local kind = typeLine and Format:ItemType(itemType, subType)
 
 	if kind then
 		self:Add(TYPE, kind)
 	end
 
-	if Profile:Get(Options.MAX_STACK_PATH) == true and type(stack) == "number" and stack > 1 then
+	if stackLine and type(stack) == "number" and stack > 1 then
 		self:Add(L["Max Stack"], stack)
 	end
 
@@ -164,6 +178,10 @@ end
 
 ---@param guid string
 function Details:Creature(guid)
+	if not self:Shows("npc") and not self:Shows("age") then
+		return
+	end
+
 	local npcID = Format:NPCID(guid)
 
 	if not npcID then
@@ -354,7 +372,7 @@ end
 function Details:OnModifier(key)
 	local tooltip = GameTooltip
 
-	if InCombatLockdown() or not Format:IsModifierKey(AUI.Profile:Get(Options.ID_MODIFIER_PATH), key)
+	if InCombatLockdown() or not Format:IsModifierKey(Options:Get(Options.ID_MODIFIER_PATH), key)
 		or not AUI.Tooltip:IsEnabled() or tooltip:IsForbidden() or not tooltip:IsShown() then
 		return
 	end
@@ -373,8 +391,7 @@ function Details:Apply(on)
 		return
 	end
 
-	local Profile = AUI.Profile
-	local want = on and self:Shows("spell") and Profile:Get(Options.ID_MODIFIER_PATH) == "NONE"
+	local want = on and self:Shows("spell") and Options:Get(Options.ID_MODIFIER_PATH) == "NONE"
 
 	if want then
 		self.auraIDsSet = true

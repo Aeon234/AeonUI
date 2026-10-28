@@ -88,7 +88,7 @@ function Units:NameColor(unit, classFile, pet)
 
 		return ClassColor(AUI:Readable(token))
 	elseif pet then
-		return AUI.Profile:Get(Options.MUTED_LINES_PATH) == true and ReactionColor(unit) or nil
+		return Options:Get(Options.MUTED_LINES_PATH) == true and ReactionColor(unit) or nil
 	elseif AUI:Readable(UnitIsMinion(unit)) == true then
 		local r, g, b = UnitSelectionColor(unit, true)
 
@@ -120,7 +120,7 @@ function Units:Name(left, text, guid, player, color)
 		if type(name) == "string" then
 			local separator = AUI.can.surnames and Constants.CharacterNameSeparatorConsts.CHARACTERNAME_SURNAME_SEPARATOR
 
-			if AUI.Profile:Get(Options.TITLES_PATH) ~= true then
+			if Options:Get(Options.TITLES_PATH) ~= true then
 				left:SetText(Format:FullName(name, second, separator or nil))
 			elseif not separator and type(second) == "string" and second ~= "" and not text:find(second, 1, true) then
 				left:SetText(text .. "-" .. second)
@@ -170,7 +170,7 @@ end
 function Units:Guild(left, text, unit, rank)
 	local color = AUI:Readable(UnitIsInMyGuild(unit)) == true and Format.OWN_GUILD or Format.GUILD
 
-	left:SetText(Format:Guild(text, AUI.Profile:Get(Options.GUILD_RANK_PATH) == true and rank or nil))
+	left:SetText(Format:Guild(text, Options:Get(Options.GUILD_RANK_PATH) == true and rank or nil))
 	left:SetTextColor(color.r, color.g, color.b)
 end
 
@@ -290,7 +290,7 @@ function Units:OnTooltip(tooltip, data)
 		return
 	end
 
-	local Profile, LineType = AUI.Profile, Enum.TooltipDataLineType
+	local LineType = Enum.TooltipDataLineType
 	local unit = Token(guid)
 	local _, classFile = GetPlayerInfoByGUID(guid)
 
@@ -298,8 +298,8 @@ function Units:OnTooltip(tooltip, data)
 
 	local player = classFile ~= nil
 	local pet = unit ~= nil and AUI:Readable(UnitIsBattlePet(unit)) == true
-	local muted = Profile:Get(Options.MUTED_LINES_PATH) == true
-	local levels = unit ~= nil and Profile:Get(Options.LEVEL_COLOR_PATH) == true
+	local muted = Options:Get(Options.MUTED_LINES_PATH) == true
+	local levels = unit ~= nil and Options:Get(Options.LEVEL_COLOR_PATH) == true
 	local nameColor = self:NameColor(unit, classFile, pet)
 	local guild, rank, petName, nameLine
 
@@ -344,15 +344,15 @@ function Units:OnTooltip(tooltip, data)
 	end
 
 	if unit then
-		if Profile:Get(Options.TARGET_PATH) == true then
+		if Options:Get(Options.TARGET_PATH) == true then
 			self:AddTarget(tooltip, unit)
 		end
 
-		if player and AUI.can.mythicPlus and Profile:Get(Options.RATING_PATH) == true then
+		if player and AUI.can.mythicPlus and Options:Get(Options.RATING_PATH) == true then
 			self:AddRating(tooltip, unit)
 		end
 
-		if player and Profile:Get(Options.MOUNT_PATH) == true then
+		if player and Options:Get(Options.MOUNT_PATH) == true then
 			self:AddMount(tooltip, guid, unit)
 		end
 
@@ -396,7 +396,7 @@ function Units:Apply(on)
 		return
 	end
 
-	local value = AUI.Profile:Get(Options.AURA_CASTERS_PATH) == true and "1" or "0"
+	local value = Options:Get(Options.AURA_CASTERS_PATH) == true and "1" or "0"
 
 	if C_CVar.GetCVar(CASTER_NAMES_CVAR) ~= value then
 		C_CVar.SetCVar(CASTER_NAMES_CVAR, value)

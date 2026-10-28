@@ -324,8 +324,16 @@ end
 
 local Schema, Options, Tooltip = AUI.Schema, AUI.TooltipOptions, AUI.Tooltip
 
--- The profile owner, holding the settings' defaults until a check sets one.
-local values = {}
+-- The profile owner, holding the settings' defaults until a check sets one. Setting one empties the Tooltip settings
+-- cache, as the owner's change callback does in the game.
+local stored = {}
+local values = setmetatable({}, {
+	__index = stored,
+	__newindex = function(_, path, value)
+		stored[path] = value
+		Options:Forget()
+	end,
+})
 AUI.Profile = {
 	Get = function(_, path)
 		if values[path] ~= nil then
@@ -1543,6 +1551,17 @@ values[Options.ITEM_LEVEL_PATH] = false
 Hover("Player-9")
 Equal("the item level can be turned off", Find("Item Level"), nil)
 values[Options.ITEM_LEVEL_PATH] = nil
+now = now + 3
+Hover("Player-20")
+inspected["Player-20"] = { level = 0 }
+gear["Player-20"] = { [1] = "item:never" }
+now = now + 1
+RunTimers()
+events.INSPECT_READY("Player-20")
+Equal("gear that has not loaded keeps listening", eventHandlers.GET_ITEM_INFO_RECEIVED[Inspect] ~= nil, true)
+now = now + 301
+events.GET_ITEM_INFO_RECEIVED(2, true)
+Equal("and is given up on after the answer's lifetime", eventHandlers.GET_ITEM_INFO_RECEIVED[Inspect], nil)
 Fire("OnHide", GameTooltip)
 Equal("a hidden tooltip shows nobody", Inspect.shown.guid, nil)
 RunTimers()
@@ -1812,5 +1831,20 @@ Tooltip:Apply()
 Equal("the module off shows it again", anchoring.parent, UIParent)
 values[Options.ENABLED_PATH], values[Options.SHOW_MODE_PATH] = nil, nil
 Tooltip:Apply()
+
+-- The settings cache --------------------------------------------------------------------------------------------
+
+values[Options.TITLES_PATH] = true
+Equal("a setting is read through the cache", Options:Get(Options.TITLES_PATH), true)
+stored[Options.TITLES_PATH] = false
+Equal("and kept until a Tooltip setting changes", Options:Get(Options.TITLES_PATH), true)
+Tooltip:OnProfileChanged("minimap.width")
+Equal("another feature's change keeps it", Options:Get(Options.TITLES_PATH), true)
+Tooltip:OnProfileChanged(Options.TITLES_PATH)
+Equal("a Tooltip change reads it again", Options:Get(Options.TITLES_PATH), false)
+stored[Options.TITLES_PATH] = true
+Tooltip:OnProfileChanged(nil)
+Equal("so does a whole-profile change", Options:Get(Options.TITLES_PATH), true)
+values[Options.TITLES_PATH] = nil
 
 print(("check_tooltip: %d checks passed"):format(checks))

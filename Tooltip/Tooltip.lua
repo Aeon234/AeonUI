@@ -13,7 +13,7 @@ AUI.Tooltip = Tooltip
 
 ---@return boolean
 function Tooltip:IsEnabled()
-	return AUI.Profile:Get(Options.ENABLED_PATH) == true
+	return Options:Get(Options.ENABLED_PATH) == true
 end
 
 ---@param path string? the changed setting; nil when the whole profile changed
@@ -21,6 +21,8 @@ function Tooltip:OnProfileChanged(path)
 	if path ~= nil and path:sub(1, 8) ~= "tooltip." then
 		return
 	end
+
+	Options:Forget()
 
 	AUI.Events:Coalesce("tooltipApply", function()
 		Tooltip:Apply()

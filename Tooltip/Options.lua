@@ -165,6 +165,31 @@ for _, key in ipairs(Options.ID_KEYS) do
 	Schema:Boolean(Options.ID_PATHS[key], true)
 end
 
+-- The Tooltip settings read so far, by path: the tooltip post-calls read them on every tooltip, and reading the
+-- profile parses the path each time. Holds only plain values; Tooltip:OnProfileChanged empties it.
+local cache = {}
+
+---@param path string one of the paths above
+---@return any value the setting, read once until a Tooltip setting changes; a table value is the profile's fresh copy
+function Options:Get(path)
+	local value = cache[path]
+
+	if value == nil then
+		value = AUI.Profile:Get(path)
+
+		if type(value) ~= "table" then
+			cache[path] = value
+		end
+	end
+
+	return value
+end
+
+---Forgets the settings read so far, after a Tooltip setting or the whole profile changed.
+function Options:Forget()
+	cache = {}
+end
+
 ---@param kind "header"|"body"|"small"
 ---@param scale number the font scale, in percent
 ---@return number size Blizzard's size for that text, scaled and rounded to the nearest whole size

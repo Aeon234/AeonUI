@@ -138,6 +138,15 @@ function Inspect:UserInspecting()
 	return frame ~= nil and (frame:IsShown() or GetTime() - self.userAt < USER_WAIT)
 end
 
+-- An item's info arriving while some answer's gear is still loading: averaged again once a burst settles.
+local function ItemsSettled()
+	Inspect:ItemsLoaded()
+end
+
+local function ItemInfoReceived()
+	AUI.Events:Merge("tooltipInspectItems", LOAD_SETTLE, ItemsSettled)
+end
+
 ---Averages an entry's gear; gear still loading keeps its links and is averaged again once it arrives.
 ---@param entry AUIInspectEntry
 ---@return boolean complete
@@ -164,11 +173,7 @@ function Inspect:Average(entry)
 		entry.links = nil
 	elseif not self.loading then
 		self.loading = true
-		AUI.Events:Register("GET_ITEM_INFO_RECEIVED", self, function()
-			AUI.Events:Merge("tooltipInspectItems", LOAD_SETTLE, function()
-				Inspect:ItemsLoaded()
-			end)
-		end)
+		AUI.Events:Register("GET_ITEM_INFO_RECEIVED", self, ItemInfoReceived)
 	end
 
 	return complete
@@ -176,12 +181,17 @@ end
 
 ---Averages again every entry whose gear was loading, and stops listening once none is.
 function Inspect:ItemsLoaded()
-	local waiting = false
+	local waiting, now = false, GetTime()
 
 	for guid, entry in pairs(self.kept) do
 		if entry.links then
-			if not self:Average(entry) then
+			local complete = self:Average(entry)
+
+			-- Gear that has not loaded within the answer's lifetime is given up on, keeping the average so far.
+			if not complete and now - entry.at < KEEP then
 				waiting = true
+			elseif not complete then
+				entry.links = nil
 			end
 
 			self:Changed(guid)
@@ -406,9 +416,9 @@ end
 ---@param guid string
 ---@param unit string
 function Inspect:AddLines(tooltip, guid, unit)
-	local Profile, shown = AUI.Profile, self.shown
-	local levels = Profile:Get(Options.ITEM_LEVEL_PATH) == true
-	local specs = AUI.can.specializations and Profile:Get(Options.SPECIALIZATION_PATH) == true
+	local shown = self.shown
+	local levels = Options:Get(Options.ITEM_LEVEL_PATH) == true
+	local specs = AUI.can.specializations and Options:Get(Options.SPECIALIZATION_PATH) == true
 
 	shown.guid, shown.itemLevel, shown.spec = guid, nil, nil
 

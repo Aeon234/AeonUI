@@ -29,7 +29,7 @@ AUI.TooltipVisibility = Visibility
 
 ---@return boolean held the show key is chosen and held
 function Visibility:Peeking()
-	local key = AUI.Profile:Get(Options.PEEK_PATH)
+	local key = Options:Get(Options.PEEK_PATH)
 
 	if key == "SHIFT" then
 		return IsShiftKeyDown()
@@ -44,7 +44,7 @@ end
 
 ---@return string mode the show mode in force; "ALWAYS" while the module is off
 function Visibility:Mode()
-	return AUI.Tooltip:IsEnabled() and AUI.Profile:Get(Options.SHOW_MODE_PATH) or "ALWAYS"
+	return AUI.Tooltip:IsEnabled() and Options:Get(Options.SHOW_MODE_PATH) or "ALWAYS"
 end
 
 ---@return boolean hidden the show mode hides `GameTooltip` now and its key is not held
@@ -135,7 +135,7 @@ end
 function Visibility:OnModifier(key, down)
 	local tooltip = GameTooltip
 
-	if not Format:IsModifierKey(AUI.Profile:Get(Options.PEEK_PATH), key) or self:Mode() == "ALWAYS"
+	if not Format:IsModifierKey(Options:Get(Options.PEEK_PATH), key) or self:Mode() == "ALWAYS"
 		or tooltip:IsForbidden() or not tooltip:IsShown() then
 		return
 	end

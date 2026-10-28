@@ -43,9 +43,9 @@ end
 ---sizes times the font scale. Blizzard's own fonts are left untouched, or put back, while neither asks for a change.
 ---@param on boolean the module is on
 function Appearance:ApplyFonts(on)
-	local Profile, Media = AUI.Profile, AUI.Media
-	local custom = on and Profile:Get(Options.FONT_CUSTOM_PATH) == true
-	local scale = on and Profile:Get(Options.FONT_SCALE_PATH) or 100
+	local Media = AUI.Media
+	local custom = on and Options:Get(Options.FONT_CUSTOM_PATH) == true
+	local scale = on and Options:Get(Options.FONT_SCALE_PATH) or 100
 
 	if not custom and scale == 100 and not self.fontsChanged then
 		return
@@ -77,8 +77,8 @@ function Appearance:ApplyFonts(on)
 		return
 	end
 
-	local file = custom and Media:Font(Profile:Get(Options.FONT_FACE_PATH))
-	local flags = custom and Media:FontFlags(Profile:Get(Options.FONT_OUTLINE_PATH))
+	local file = custom and Media:Font(Options:Get(Options.FONT_FACE_PATH))
+	local flags = custom and Media:FontFlags(Options:Get(Options.FONT_OUTLINE_PATH))
 
 	for _, info in ipairs(FONTS) do
 		local font = _G[info.name] --[[@as Font?]]
@@ -101,8 +101,8 @@ function Appearance:ApplyBar(on)
 		return
 	end
 
-	local Profile, Media = AUI.Profile, AUI.Media
-	local shown = not on or Profile:Get(Options.BAR_SHOWN_PATH) == true
+	local Media = AUI.Media
+	local shown = not on or Options:Get(Options.BAR_SHOWN_PATH) == true
 
 	self:SetBarShown(shown)
 
@@ -113,9 +113,9 @@ function Appearance:ApplyBar(on)
 	local style, texture, height
 
 	if on then
-		style = Profile:Get(Options.BAR_STYLE_PATH)
-		texture = Profile:Get(Options.BAR_TEXTURE_PATH)
-		height = Profile:Get(Options.BAR_HEIGHT_PATH)
+		style = Options:Get(Options.BAR_STYLE_PATH)
+		texture = Options:Get(Options.BAR_TEXTURE_PATH)
+		height = Options:Get(Options.BAR_HEIGHT_PATH)
 	else
 		style, texture, height = "BLIZZARD", Media.TOOLTIP_BAR, Options.BLIZZARD_BAR_HEIGHT
 	end

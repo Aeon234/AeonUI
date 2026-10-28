@@ -104,18 +104,17 @@ end
 ---@return string left
 ---@return string? right the crest, when shown
 function Upgrades:Texts(parts)
-	local Profile = AUI.Profile
 	local data = parts.data
 	local rank = ("%s %d/%d"):format(parts.track, parts.rank, parts.ranks)
-	local left = parts.label .. (Profile:Get(Options.UPGRADE_RANK_PATH) == true
+	local left = parts.label .. (Options:Get(Options.UPGRADE_RANK_PATH) == true
 		and InQuality(data and data.quality or parts.quality, rank) or rank)
 
-	if data and Profile:Get(Options.UPGRADE_RANGE_PATH) == true then
+	if data and Options:Get(Options.UPGRADE_RANGE_PATH) == true then
 		left = left .. " " .. Format:Wrap(("(%d-%d)"):format(data.minLevel, data.maxLevel),
-			Profile:Get(Options.UPGRADE_RANGE_COLOR_PATH))
+			Options:Get(Options.UPGRADE_RANGE_COLOR_PATH))
 	end
 
-	if not data or Profile:Get(Options.UPGRADE_CREST_PATH) ~= true or parts.rank >= parts.ranks then
+	if not data or Options:Get(Options.UPGRADE_CREST_PATH) ~= true or parts.rank >= parts.ranks then
 		return left, nil
 	end
 
@@ -148,14 +147,25 @@ function Upgrades:OnTooltip(tooltip, data)
 	end
 
 	local name = tooltip:GetName()
-	local link = name and ItemLink(data)
+	local upgrade = Enum.TooltipDataLineType.ItemUpgradeLevel
+	local found = false
+
+	-- Most items have no upgrade line, so the link is made only for those that do.
+	for _, line in ipairs(data.lines) do
+		if line.type == upgrade then
+			found = true
+			break
+		end
+	end
+
+	local link = found and name and ItemLink(data)
 
 	if not link then
 		return
 	end
 
 	for _, line in ipairs(data.lines) do
-		if line.type == Enum.TooltipDataLineType.ItemUpgradeLevel then
+		if line.type == upgrade then
 			local left = line.lineIndex and _G[name .. "TextLeft" .. line.lineIndex] --[[@as FontString?]]
 			local text = AUI:Readable(line.leftText)
 			local label, track, rank, ranks

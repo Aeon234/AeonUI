@@ -44,12 +44,12 @@ AUI.TooltipAnchor = Anchor
 
 ---@return boolean
 function Anchor:Cursor()
-	return AUI.Tooltip:IsEnabled() and AUI.Profile:Get(Options.CURSOR_PATH) == true
+	return AUI.Tooltip:IsEnabled() and Options:Get(Options.CURSOR_PATH) == true
 end
 
 ---@return boolean fixed AeonUI places default-anchored tooltips: a place was saved and they do not ride the cursor
 function Anchor:Fixed()
-	return AUI.Tooltip:IsEnabled() and not self:Cursor() and AUI.Profile:Get(Options.POSITION_PATH) ~= nil
+	return AUI.Tooltip:IsEnabled() and not self:Cursor() and Options:Get(Options.POSITION_PATH) ~= nil
 end
 
 ---@return Frame box
@@ -61,7 +61,7 @@ function Anchor:Box()
 		box:SetSize(Options.ANCHOR_WIDTH, Options.ANCHOR_HEIGHT)
 		box:EnableMouse(false)
 		self.box = box
-		self:Place(AUI.Profile:Get(Options.POSITION_PATH) or self:DefaultPosition())
+		self:Place(Options:Get(Options.POSITION_PATH) or self:DefaultPosition())
 	end
 
 	return box
@@ -112,6 +112,7 @@ function Anchor:FollowCursor()
 	return cursor
 end
 
+---Moves the cursor's point, only when the cursor or the UI scale has changed since the last frame.
 ---@param cursor Frame
 function Anchor:MoveCursor(cursor)
 	local scale = UIParent:GetEffectiveScale()
@@ -121,7 +122,14 @@ function Anchor:MoveCursor(cursor)
 	end
 
 	local x, y = GetCursorPosition()
+	local last = self.lastCursor
 
+	if last and last[1] == x and last[2] == y and last[3] == scale and cursor:GetNumPoints() > 0 then
+		return
+	end
+
+	self.lastCursor = last or {}
+	self.lastCursor[1], self.lastCursor[2], self.lastCursor[3] = x, y, scale
 	cursor:ClearAllPoints()
 	cursor:SetPoint("CENTER", UIParent, "BOTTOMLEFT", x / scale, y / scale)
 end
@@ -137,7 +145,7 @@ function Anchor:Enforce(tooltip)
 
 	local point, relativeTo, _, x, y = tooltip:GetPoint(1)
 	local secret = issecretvalue(point) or issecretvalue(relativeTo) or issecretvalue(x) or issecretvalue(y)
-	local growth = AUI.Profile:Get(Options.GROWTH_PATH)
+	local growth = Options:Get(Options.GROWTH_PATH)
 	local wanted, target
 
 	if self:Fixed() then
@@ -180,12 +188,11 @@ function Anchor:OnDefaultAnchor(tooltip, owner)
 	end
 
 	if self:Cursor() then
-		local Profile = AUI.Profile
-		local point = Options:CursorPoint(Profile:Get(Options.CURSOR_POINT_PATH))
+		local point = Options:CursorPoint(Options:Get(Options.CURSOR_POINT_PATH))
 
 		tooltip:ClearAllPoints()
-		tooltip:SetPoint(point, self:FollowCursor(), "CENTER", Profile:Get(Options.CURSOR_X_PATH),
-			Profile:Get(Options.CURSOR_Y_PATH))
+		tooltip:SetPoint(point, self:FollowCursor(), "CENTER", Options:Get(Options.CURSOR_X_PATH),
+			Options:Get(Options.CURSOR_Y_PATH))
 
 		return
 	end
@@ -250,6 +257,6 @@ function Anchor:Apply(on)
 	end
 
 	if self.box then
-		self:Place(AUI.Profile:Get(Options.POSITION_PATH) or self:DefaultPosition())
+		self:Place(Options:Get(Options.POSITION_PATH) or self:DefaultPosition())
 	end
 end
