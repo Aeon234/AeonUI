@@ -4,8 +4,8 @@ local L = AUI.L
 local lib = LibStub("LibAeonSettings-1.0")
 
 local BAR_STYLE_LABELS = {
-	BLIZZARD = L["Blizzard"],
-	STRIP = L["Strip"],
+	BLIZZARD = L["Under the Tooltip"],
+	STRIP = L["Inside Bottom Edge"],
 }
 local MODIFIER_LABELS = {
 	NONE = NONE,
@@ -21,8 +21,8 @@ local ID_LINES = {
 	icon = { id = "showIconID", label = L["Icon ID"], description = L["The icons of items, spells and auras."] },
 	npc = { id = "showNPCID", label = L["NPC ID"], description = L["Creatures and vehicles."] },
 	age = { id = "showSpawnAge", label = L["Spawn Age"], description = L["How long ago an NPC spawned."] },
-	currency = { id = "showCurrencyID", label = L["Currency ID"], description = L["Currencies."] },
-	mount = { id = "showMountID", label = L["Mount ID"], description = L["Mounts."] },
+	currency = { id = "showCurrencyID", label = L["Currency ID"] },
+	mount = { id = "showMountID", label = L["Mount ID"] },
 	quest = { id = "showQuestID", label = L["Quest ID"], description = L["Quests, in the quest log and on the map too."] },
 	macro = { id = "showMacroIDs", label = L["Macros"], description = L["The spell or item a macro uses."] },
 }
@@ -67,7 +67,6 @@ function SettingsTooltip:DeclareAppearance(window)
 	local Settings, Options = AUI.Settings, AUI.TooltipOptions
 	local page = window:Page("tooltipAppearance", {
 		title = L["Appearance"],
-		description = L["The tooltip's text and health bar. Blizzard's background and border stay as they are."],
 		under = "tooltipHeader",
 		switch = { path = Options.ENABLED_PATH, default = Settings:Default(Options.ENABLED_PATH) },
 	})
@@ -84,7 +83,6 @@ function SettingsTooltip:DeclareAppearance(window)
 		id = "fontScale",
 		resettable = true,
 		label = L["Font Scale"],
-		description = L["Scales Blizzard's text sizes: 14 for the title, 12 for the other lines."],
 		path = Options.FONT_SCALE_PATH,
 		default = Settings:Default(Options.FONT_SCALE_PATH),
 		min = 70,
@@ -95,7 +93,6 @@ function SettingsTooltip:DeclareAppearance(window)
 	font:Checkbox({
 		id = "customFont",
 		label = L["Custom Font"],
-		description = L["Draws every tooltip's text in the font and outline below instead of Blizzard's."],
 		path = Options.FONT_CUSTOM_PATH,
 		default = Settings:Default(Options.FONT_CUSTOM_PATH),
 	})
@@ -127,14 +124,12 @@ function SettingsTooltip:DeclareAppearance(window)
 	bar:Checkbox({
 		id = "showHealthBar",
 		label = L["Show Health Bar"],
-		description = L["The health bar on unit tooltips."],
 		path = Options.BAR_SHOWN_PATH,
 		default = Settings:Default(Options.BAR_SHOWN_PATH),
 	})
 	bar:Dropdown({
 		id = "barStyle",
 		label = L["Style"],
-		description = L["Blizzard's place under the tooltip, or a strip along the inside of its bottom edge."],
 		path = Options.BAR_STYLE_PATH,
 		default = Settings:Default(Options.BAR_STYLE_PATH),
 		depends = "showHealthBar",
@@ -178,7 +173,7 @@ end
 ---@param section table
 ---@param id string
 ---@param label string
----@param description string
+---@param description string?
 ---@param path string
 ---@param show (fun(): boolean)?
 local function Checkbox(section, id, label, description, path, show)
@@ -197,7 +192,6 @@ function SettingsTooltip:DeclarePosition(window)
 	local Settings, Options = AUI.Settings, AUI.TooltipOptions
 	local page = window:Page("tooltipPosition", {
 		title = L["Position & Visibility"],
-		description = L["When the game's tooltip shows, and where tooltips that have no place of their own appear."],
 		under = "tooltipHeader",
 		switch = { path = Options.ENABLED_PATH, default = Settings:Default(Options.ENABLED_PATH) },
 	})
@@ -233,7 +227,7 @@ function SettingsTooltip:DeclarePosition(window)
 	visibility:Checkbox({
 		id = "enhancedTooltips",
 		label = USE_UBERTOOLTIPS,
-		description = L["Blizzard's longer tooltips. A setting of the game, so profiles do not keep it."],
+		description = L["A game setting, so profiles do not keep it."],
 		get = function()
 			return AUI.TooltipAnchor:Enhanced()
 		end,
@@ -254,7 +248,6 @@ function SettingsTooltip:DeclarePosition(window)
 	place:Dropdown({
 		id = "cursorPoint",
 		label = L["Cursor Position"],
-		description = L["Where the tooltip sits around the cursor."],
 		path = Options.CURSOR_POINT_PATH,
 		default = Settings:Default(Options.CURSOR_POINT_PATH),
 		depends = "anchorCursor",
@@ -279,7 +272,7 @@ function SettingsTooltip:DeclarePosition(window)
 	place:Dropdown({
 		id = "growth",
 		label = L["Growth Direction"],
-		description = L["Which way a tooltip grows as lines are added. Default lets Blizzard choose by its place."],
+		description = L["Default lets Blizzard choose."],
 		path = Options.GROWTH_PATH,
 		default = Settings:Default(Options.GROWTH_PATH),
 		options = Choices(Options.GROWTHS, GROWTH_LABELS),
@@ -289,7 +282,7 @@ function SettingsTooltip:DeclarePosition(window)
 			end
 		end,
 	})
-	place:Note(L["Move the tooltip in edit mode. Until it is moved, it keeps Blizzard's place."])
+	place:Note(L["To move the tooltip, use Edit Mode. Until then it keeps Blizzard's place."])
 end
 
 ---@param window table
@@ -297,7 +290,6 @@ function SettingsTooltip:DeclareUnits(window)
 	local Settings, Options = AUI.Settings, AUI.TooltipOptions
 	local page = window:Page("tooltipUnits", {
 		title = L["Units"],
-		description = L["What unit tooltips show and the colors of their lines. Blizzard's lines all stay."],
 		under = "tooltipHeader",
 		switch = { path = Options.ENABLED_PATH, default = Settings:Default(Options.ENABLED_PATH) },
 	})
@@ -435,7 +427,6 @@ function SettingsTooltip:DeclareDetails(window)
 	local Settings, Options = AUI.Settings, AUI.TooltipOptions
 	local page = window:Page("tooltipDetails", {
 		title = L["Details"],
-		description = L["Lines added to item, spell, aura, unit and other tooltips: an item's details, and IDs."],
 		under = "tooltipHeader",
 		switch = { path = Options.ENABLED_PATH, default = Settings:Default(Options.ENABLED_PATH) },
 	})
@@ -460,15 +451,13 @@ function SettingsTooltip:DeclareDetails(window)
 
 	local lines = page:Section("tooltipDetailLines", L["Lines"])
 
-	Checkbox(lines, "showExpansion", EXPANSION_FILTER_TEXT, L["The expansion an item comes from."],
-		Options.EXPANSION_PATH, function()
+	Checkbox(lines, "showExpansion", EXPANSION_FILTER_TEXT, nil, Options.EXPANSION_PATH, function()
 			return AUI.can.expansions == true
 		end)
 	Checkbox(lines, "showItemType", L["Category and Type"], L["An item's category and type, such as Armor / Plate."],
 		Options.ITEM_TYPE_PATH)
-	Checkbox(lines, "showMaxStack", L["Max Stack"], L["How many of an item fit in one stack."], Options.MAX_STACK_PATH)
-	Checkbox(lines, "blankLine", L["Blank Line Before"], L["Keeps a blank line between the tooltip and the added lines."],
-		Options.BLANK_LINE_PATH)
+	Checkbox(lines, "showMaxStack", L["Max Stack"], nil, Options.MAX_STACK_PATH)
+	Checkbox(lines, "blankLine", L["Blank Line Before"], nil, Options.BLANK_LINE_PATH)
 
 	local ids = page:Section("tooltipDetailIDs", L["IDs"])
 	local modifiers = {}
@@ -506,7 +495,6 @@ function SettingsTooltip:DeclareUpgrades(window)
 
 	local page = window:Page("tooltipUpgrades", {
 		title = L["Upgrades"],
-		description = L["The upgrade line on items: the track's color, its item levels and the next upgrade's crest."],
 		under = "tooltipHeader",
 		switch = { path = Options.ENABLED_PATH, default = Settings:Default(Options.ENABLED_PATH) },
 	})

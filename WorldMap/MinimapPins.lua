@@ -192,7 +192,7 @@ function Layer:Gather(player)
 		end
 
 		pin.marker = marker
-		pin:SetFrameLevel(Minimap:GetFrameLevel() + 5)
+		pin:SetFrameLevel(Minimap:GetFrameLevel() + AUI.Minimap.PIN_LEVEL)
 		self.near[index] = marker
 		self.pins[marker] = pin
 	end

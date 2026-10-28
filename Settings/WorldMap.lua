@@ -72,7 +72,6 @@ function SettingsWorldMap:DeclareOptions(window)
 	local Settings, Options = AUI.Settings, AUI.WorldMapOptions
 	local page = window:Page("worldMapOptions", {
 		title = L["Map Options"],
-		description = L["How Blizzard's world map draws zones and what it adds as you hover them."],
 		under = "worldMapHeader",
 	})
 
@@ -149,7 +148,7 @@ function SettingsWorldMap:Declare(window)
 
 	local page = window:Page("worldMapMarkers", {
 		title = L["Map Markers"],
-		description = L["Dungeons, raids, travel and other places marked on the world map. Hover a marker for its name."],
+		description = L["Hover a marker for its name."],
 		under = "worldMapHeader",
 		switch = { path = Markers.ENABLED_PATH, default = Settings:Default(Markers.ENABLED_PATH) },
 	})
@@ -179,7 +178,7 @@ function SettingsWorldMap:Declare(window)
 			section:Checkbox({
 				id = "capitalsOnly",
 				label = L["Vendors and Trainers in Cities Only"],
-				description = L["Keeps vendors, trainers and the bank to the capitals' maps; innkeepers, mailboxes and spirit healers show everywhere."],
+				description = L["Innkeepers, mailboxes and spirit healers show everywhere."],
 				path = Markers.CAPITALS_PATH,
 				default = Settings:Default(Markers.CAPITALS_PATH),
 			})

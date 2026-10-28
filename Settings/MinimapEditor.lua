@@ -373,7 +373,7 @@ end
 
 ---@return string caption the line under the diagram
 function Editor:Caption()
-	return L["Drag elements between rows. Hover one to take it off the minimap; + puts one back."]
+	return L["Drag to move. × removes, + adds."]
 end
 
 ---Places the hover outline and the × on the hovered element.

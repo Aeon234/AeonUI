@@ -45,14 +45,15 @@ local METAL = {
 	edgeLeft = "!UI-Frame-Metal-EdgeLeft",
 	edgeRight = "!UI-Frame-Metal-EdgeRight",
 }
--- How far the frame reaches past the content on each side, in the atlases' own units, so the content's edge runs along
--- the middle of each band's solid core (its soft shadows excluded). Measured on Forever's art: in the 95 x 100 bottom
--- corners the cores run 12.5 to 18.5 from the left, 3 to 8.5 from the right and 7 to 13.5 from the bottom. Retail's
+-- How far the frame reaches past the content on each side, in the atlases' own units, so the content's edge meets the
+-- inner edge of each band's art, its soft inner shadow included, and nothing of the frame covers the content. Measured
+-- on Forever's art: in the 95 x 100 bottom corners the cores run 12.5 to 18.5 from the left, 3 to 8.5 from the right and
+-- 7 to 13.5 from the bottom, and the edges' inner shadows reach 3 more at the sides and 2.5 at the bottom. Retail's
 -- follows the offsets Blizzard's own layouts differ by between the clients
 -- (Blizzard_SharedXML/Camelot/NineSliceLayoutOverrides.lua).
 local METAL_REACH = {
-	forever = { left = 15.5, right = 5.75, top = 10.25, bottom = 10.25 },
-	retail = { left = 15.5, right = 7.75, top = 5.25, bottom = 5.25 },
+	forever = { left = 21.5, right = 11.5, top = 16, bottom = 16 },
+	retail = { left = 21.5, right = 13.5, top = 11, bottom = 11 },
 }
 -- The metal frame's title bar, for a side with information rows: the top corners and top edge cut into three slices
 -- from the outer edge (fractions of their height): the outer band, the dark strip that holds the rows and stretches to
@@ -67,8 +68,8 @@ local TITLE = {
 	band = { 73 / 190, 82 / 190 },
 	bandHeight = 4.5,
 }
--- The map's edge runs along the middle of the band under the strip, this far from the strip.
-local TITLE_SEPARATOR = 2.25
+-- The map's edge meets the inner edge of the band under the strip, its shadow included, this far from the strip.
+local TITLE_SEPARATOR = 6
 -- The divider between cells in a metal row: the side band cut from the left edge, with its soft shadows (pixels 22 to
 -- 40 of 190 across), 9 atlas units wide and tiled down the row's height, so it joins the bands above and below.
 local CELL_DIVIDER = { atlas = "!UI-Frame-Metal-EdgeLeft", left = 22 / 190, right = 40 / 190, width = 9 }
@@ -619,11 +620,12 @@ function BorderMixin:SetArtCoords()
 	end
 end
 
----Raises the metal frame and the thin lines to a frame level, above the owner's content.
+---Puts the metal frame, the Forever band and the thin lines on one frame level, above the owner's content. No style
+---draws on both `over` and the metal frame, so they share it.
 ---@param level integer
 function BorderMixin:SetFrameLevel(level)
 	self.over:SetFrameLevel(level)
-	self.metal:SetFrameLevel(level + 1)
+	self.metal:SetFrameLevel(level)
 end
 
 ---@param color AUIColor

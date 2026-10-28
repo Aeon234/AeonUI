@@ -24,6 +24,12 @@ local CELL_GAP = 4
 -- bottom-left corner, and how far above the map and its border they are drawn.
 local CORNER_INSET = 2
 local CORNER_LEVEL = 20
+-- Frame levels against the map's. The metal frame lies clear of the map's edge, so it sits one below the map and the
+-- client's edge arrows and the pins straddling that edge draw over it. The Forever art reaches over the map's corners
+-- and the thin lines over its outer pixel, so they sit one above. The rows' text goes over the opaque title bar.
+local BORDER_BELOW = -1
+local BORDER_ABOVE = 1
+local ROWS_LEVEL = 15
 -- The settings that change the map itself; every other minimap setting only restyles and arranges the rows and border.
 local MAP_PATHS = {
 	["minimap.width"] = true,
@@ -59,6 +65,8 @@ Schema:Position("minimap.position")
 ---off nothing of Blizzard's is touched.
 ---@class AUIMinimap
 ---@field DEFAULT_POSITION table
+---@field PIN_LEVEL integer how far above the map's frame level pins on the map are drawn: above the border, below the
+---rows
 ---@field active boolean the module took the minimap over this session
 ---@field holder Frame? the named root frame, sized to the visible map and its rows
 ---@field content Frame? holds the map, sized to its visible area; Blizzard's map draws unit dots only inside its parent
@@ -73,6 +81,7 @@ Schema:Position("minimap.position")
 ---@field watchedIcons table<Frame, true> LibDBIcon buttons whose hover reaches the module
 local Map = {
 	DEFAULT_POSITION = { point = "TOPRIGHT", x = -20, y = -20 },
+	PIN_LEVEL = 5,
 	active = false,
 	pending = false,
 	mask = SQUARE_MASK,
@@ -427,7 +436,7 @@ function Map:Arrange(force)
 		spacing = cellDivider and math.max(AUI.MinimapLayout.SPACING, cellDivider + CELL_GAP) or nil,
 		rows = AUI.MinimapElements:Rows(),
 	})
-	local arranged = ("%s %s %s"):format(layout.width, layout.height, layout.mapTop)
+	local arranged = ("%s %s %s %s"):format(layout.width, layout.height, layout.mapTop, style)
 	local color = style == "FOREVER" and AUI.Border.ART_COLOR or Profile:Get("minimap.border.color")
 
 	if force or arranged ~= self.arranged then
@@ -465,9 +474,8 @@ function Map:Arrange(force)
 			top = layout.top,
 			bottom = layout.bottom,
 		})
-		-- The rows' text sits above the border: the metal title bar behind it is opaque.
-		border:SetFrameLevel(Minimap:GetFrameLevel() + 10)
-		AUI.MinimapRows:SetFrameLevel(Minimap:GetFrameLevel() + 15)
+		border:SetFrameLevel(Minimap:GetFrameLevel() + (style == "METAL" and BORDER_BELOW or BORDER_ABOVE))
+		AUI.MinimapRows:SetFrameLevel(Minimap:GetFrameLevel() + ROWS_LEVEL)
 		self:PlaceCornerButtons()
 	end
 

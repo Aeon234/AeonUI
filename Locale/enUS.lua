@@ -54,51 +54,40 @@ L["X Offset"] = "X Offset"
 L["Y Offset"] = "Y Offset"
 
 -- General page (Settings)
-L["Settings for AeonUI as a whole. Each feature has its own page."] =
-	"Settings for AeonUI as a whole. Each feature has its own page."
 L["Access"] = "Access"
 L["Show Minimap Button"] = "Show Minimap Button"
 L["Left-click opens settings."] = "Left-click opens settings."
 L["/aui and the addon compartment open settings too."] = "/aui and the addon compartment open settings too."
 
 -- Minimap page (Settings)
-L["The map's size, fading and zoom. Move it in Edit Mode."] = "The map's size, fading and zoom. Move it in Edit Mode."
-L["The frame around the map and its rows."] = "The frame around the map and its rows."
-L["The information rows above and below the map, and what each holds."] =
-	"The information rows above and below the map, and what each holds."
 L["Widget Positioning"] = "Widget Positioning"
 L["Top 1"] = "Top 1"
 L["Top 2"] = "Top 2"
 L["Bottom 1"] = "Bottom 1"
 L["Bottom 2"] = "Bottom 2"
-L["Drag elements between rows. Hover one to take it off the minimap; + puts one back."] =
-	"Drag elements between rows. Hover one to take it off the minimap; + puts one back."
+L["Drag to move. × removes, + adds."] = "Drag to move. × removes, + adds."
 L["%s back to its place."] = "%s back to its place."
 L["%s back on the minimap."] = "%s back on the minimap."
 L["%s off the minimap again."] = "%s off the minimap again."
 L["Every element is on the minimap."] = "Every element is on the minimap."
-L["The zone's name. Hover it for Blizzard's zone tooltip; click it to open the world map."] =
-	"The zone's name. Hover it for Blizzard's zone tooltip; click it to open the world map."
-L["The instance's difficulty beside the zone, shown inside an instance."] =
-	"The instance's difficulty beside the zone, shown inside an instance."
-L["The time, with day and night. Hover it for both the realm's and your local time."] =
-	"The time, with day and night. Hover it for both the realm's and your local time."
-L["Unread mail. Hover it for the latest senders."] = "Unread mail. Hover it for the latest senders."
-L["Personal crafting orders waiting for you. Hover it for each profession's count."] =
-	"Personal crafting orders waiting for you. Hover it for each profession's count."
-L["Opens Blizzard's tracking menu, to choose what the map shows."] =
-	"Opens Blizzard's tracking menu, to choose what the map shows."
-L["Your position on the map, where the map has one."] = "Your position on the map, where the map has one."
-L["Shows or hides the calendar."] = "Shows or hides the calendar."
-L["Blizzard's addon compartment, with every addon's entry."] = "Blizzard's addon compartment, with every addon's entry."
+L["Hover for the zone tooltip; click to open the world map."] =
+	"Hover for the zone tooltip; click to open the world map."
+L["Shown inside instances."] = "Shown inside instances."
+L["Hover for the realm's and your local time."] = "Hover for the realm's and your local time."
+L["Hover for the latest senders."] = "Hover for the latest senders."
+L["Hover for each profession's count."] = "Hover for each profession's count."
+L["Opens the tracking menu."] = "Opens the tracking menu."
+L["Hidden where the map has no coordinates."] = "Hidden where the map has no coordinates."
+L["Opens the calendar. Pulses while you have invites."] = "Opens the calendar. Pulses while you have invites."
+L["Shown while an addon uses it, with how many."] = "Shown while an addon uses it, with how many."
 L["Map"] = "Map"
-L["Turning the minimap on or off takes effect after a /reload. While it is off, Blizzard's minimap is left as it is."] =
-	"Turning the minimap on or off takes effect after a /reload. While it is off, Blizzard's minimap is left as it is."
+L["Replaces Blizzard's minimap. Turning it on or off needs a reload."] =
+	"Replaces Blizzard's minimap. Turning it on or off needs a reload."
 L["Width"] = "Width"
 L["Kept within 3:2 of the width either way."] = "Kept within 3:2 of the width either way."
 L["Scale"] = "Scale"
-L["The map stays north up while AeonUI's minimap is on, whatever the Rotate Minimap option says."] =
-	"The map stays north up while AeonUI's minimap is on, whatever the Rotate Minimap option says."
+L["The map stays north up; Rotate Minimap is ignored."] = "The map stays north up; Rotate Minimap is ignored."
+L["To move the map, use Edit Mode."] = "To move the map, use Edit Mode."
 L["Border"] = "Border"
 L["Border Style"] = "Border Style"
 L["Metal"] = "Metal"
@@ -115,7 +104,7 @@ L["Needs a Metal or Forever border style."] = "Needs a Metal or Forever border s
 L["Shows behind the map's information rows."] = "Shows behind the map's information rows."
 L["Rows"] = "Rows"
 L["Row Height"] = "Row Height"
-L["Every row's height. Buttons are square at it."] = "Every row's height. Buttons are square at it."
+L["Buttons are square at this height."] = "Buttons are square at this height."
 L["Zone Color"] = "Zone Color"
 L["By PvP Status"] = "By PvP Status"
 L["Gold"] = "Gold"
@@ -123,17 +112,12 @@ L["Off shows the realm's time."] = "Off shows the realm's time."
 L["Show Day and Night"] = "Show Day and Night"
 L["Icon Size"] = "Icon Size"
 L["Compared with the row's height."] = "Compared with the row's height."
-L["Needs Show Day and Night."] = "Needs Show Day and Night."
 L["Coordinates"] = "Coordinates"
 L["Instance Difficulty"] = "Instance Difficulty"
 L["All Rows"] = "All Rows"
 L["Text Color"] = "Text Color"
-L["For the clock, coordinates and the addon count; the zone and instance difficulty have colors of their own."] =
-	"For the clock, coordinates and the addon count; the zone and instance difficulty have colors of their own."
-L["Each element's page can change its own font, size, outline, offset and color."] =
-	"Each element's page can change its own font, size, outline, offset and color."
-L["Raises the text, or lowers it below 0, to sit it in the middle of the row."] =
-	"Raises the text, or lowers it below 0, to sit it in the middle of the row."
+L["For the clock, coordinates and the addon count; the zone and difficulty have their own colors."] =
+	"For the clock, coordinates and the addon count; the zone and difficulty have their own colors."
 L["Colors"] = "Colors"
 L["Mythic, and Mythic+ with its keystone level."] = "Mythic, and Mythic+ with its keystone level."
 L["Timewalking, Follower, Delves, Story and PvP."] = "Timewalking, Follower, Delves, Story and PvP."
@@ -143,25 +127,14 @@ L["The button keeps its place in the row; its icon shows only while you have unr
 	"The button keeps its place in the row; its icon shows only while you have unread mail."
 L["The button keeps its place in the row; its icon shows only while you have personal orders."] =
 	"The button keeps its place in the row; its icon shows only while you have personal orders."
-L["The menu is Blizzard's own, so it lists what this game version can track."] =
-	"The menu is Blizzard's own, so it lists what this game version can track."
 L["Calendar"] = "Calendar"
-L["It pulses while you have calendar invites; a click then opens the calendar on them."] =
-	"It pulses while you have calendar invites; a click then opens the calendar on them."
 L["Addon Compartment"] = "Addon Compartment"
-L["It is Blizzard's own button, showing how many addons use it; shown while an addon does."] =
-	"It is Blizzard's own button, showing how many addons use it; shown while an addon does."
 L["Fading"] = "Fading"
 L["Fade Until Mouseover"] = "Fade Until Mouseover"
 L["Mouseover Opacity"] = "Mouseover Opacity"
-L["How visible the minimap stays while the mouse is away."] =
-	"How visible the minimap stays while the mouse is away."
-L["Needs Fade Until Mouseover."] = "Needs Fade Until Mouseover."
 L["Fade in Combat"] = "Fade in Combat"
 L["Combat Opacity"] = "Combat Opacity"
-L["How visible the minimap stays in combat. The mouse brings it back."] =
-	"How visible the minimap stays in combat. The mouse brings it back."
-L["Needs Fade in Combat."] = "Needs Fade in Combat."
+L["The mouse brings it back."] = "The mouse brings it back."
 L["Zoom"] = "Zoom"
 L["Zoom with Mouse Wheel"] = "Zoom with Mouse Wheel"
 L["Reset Zoom After"] = "Reset Zoom After"
@@ -184,8 +157,6 @@ L["Story"] = "Story"
 
 -- Map Options page (Settings)
 L["Map Options"] = "Map Options"
-L["How Blizzard's world map draws zones and what it adds as you hover them."] =
-	"How Blizzard's world map draws zones and what it adds as you hover them."
 L["Unexplored Areas"] = "Unexplored Areas"
 L["Show Unexplored Areas"] = "Show Unexplored Areas"
 L["Draws the parts of a zone you have not explored yet, darkened, instead of leaving them blank."] =
@@ -210,8 +181,7 @@ L["Only instances whose map art the game has; the others keep the journal."] =
 
 -- Map Markers page (Settings)
 L["Map Markers"] = "Map Markers"
-L["Dungeons, raids, travel and other places marked on the world map. Hover a marker for its name."] =
-	"Dungeons, raids, travel and other places marked on the world map. Hover a marker for its name."
+L["Hover a marker for its name."] = "Hover a marker for its name."
 L["Places"] = "Places"
 L["World Bosses"] = "World Bosses"
 L["Ley Lines"] = "Ley Lines"
@@ -246,8 +216,8 @@ L["Reagents, Ammo & Food"] = "Reagents, Ammo & Food"
 L["Stable Masters"] = "Stable Masters"
 L["Other Vendors"] = "Other Vendors"
 L["Vendors and Trainers in Cities Only"] = "Vendors and Trainers in Cities Only"
-L["Keeps vendors, trainers and the bank to the capitals' maps; innkeepers, mailboxes and spirit healers show everywhere."] =
-	"Keeps vendors, trainers and the bank to the capitals' maps; innkeepers, mailboxes and spirit healers show everywhere."
+L["Innkeepers, mailboxes and spirit healers show everywhere."] =
+	"Innkeepers, mailboxes and spirit healers show everywhere."
 
 -- World map markers: wings and entrances, then places the client has no name for (World Map)
 L["Main Entrance"] = "Main Entrance"
@@ -328,28 +298,17 @@ L["Right-click: back to the map"] = "Right-click: back to the map"
 -- Tooltip pages (Settings)
 L["Tooltip"] = "Tooltip"
 L["Appearance"] = "Appearance"
-L["The tooltip's text and health bar. Blizzard's background and border stay as they are."] =
-	"The tooltip's text and health bar. Blizzard's background and border stay as they are."
 L["Custom Font"] = "Custom Font"
 L["Font Scale"] = "Font Scale"
-L["Scales Blizzard's text sizes: 14 for the title, 12 for the other lines."] =
-	"Scales Blizzard's text sizes: 14 for the title, 12 for the other lines."
-L["Draws every tooltip's text in the font and outline below instead of Blizzard's."] =
-	"Draws every tooltip's text in the font and outline below instead of Blizzard's."
 L["Health Bar"] = "Health Bar"
 L["Show Health Bar"] = "Show Health Bar"
-L["The health bar on unit tooltips."] = "The health bar on unit tooltips."
 L["Style"] = "Style"
-L["Blizzard's place under the tooltip, or a strip along the inside of its bottom edge."] =
-	"Blizzard's place under the tooltip, or a strip along the inside of its bottom edge."
-L["Blizzard"] = "Blizzard"
-L["Strip"] = "Strip"
+L["Under the Tooltip"] = "Under the Tooltip"
+L["Inside Bottom Edge"] = "Inside Bottom Edge"
 L["Texture"] = "Texture"
 L["A strip keeps room above it, so the tooltip's lines never reach it."] =
 	"A strip keeps room above it, so the tooltip's lines never reach it."
 L["Units"] = "Units"
-L["What unit tooltips show and the colors of their lines. Blizzard's lines all stay."] =
-	"What unit tooltips show and the colors of their lines. Blizzard's lines all stay."
 L["Lines"] = "Lines"
 L["Show Titles"] = "Show Titles"
 L["Player titles on the name line."] = "Player titles on the name line."
@@ -374,15 +333,9 @@ L["Aura Caster Names"] = "Aura Caster Names"
 L["Aura tooltips name who cast the aura."] = "Aura tooltips name who cast the aura."
 
 L["Details"] = "Details"
-L["Lines added to item, spell, aura, unit and other tooltips: an item's details, and IDs."] =
-	"Lines added to item, spell, aura, unit and other tooltips: an item's details, and IDs."
-L["The expansion an item comes from."] = "The expansion an item comes from."
 L["Category and Type"] = "Category and Type"
 L["An item's category and type, such as Armor / Plate."] = "An item's category and type, such as Armor / Plate."
-L["How many of an item fit in one stack."] = "How many of an item fit in one stack."
 L["Blank Line Before"] = "Blank Line Before"
-L["Keeps a blank line between the tooltip and the added lines."] =
-	"Keeps a blank line between the tooltip and the added lines."
 L["IDs"] = "IDs"
 L["Modifier"] = "Modifier"
 L["The key to hold for the ID lines. With None they always show."] =
@@ -393,15 +346,11 @@ L["The icons of items, spells and auras."] = "The icons of items, spells and aur
 L["Creatures and vehicles."] = "Creatures and vehicles."
 L["Spawn Age"] = "Spawn Age"
 L["How long ago an NPC spawned."] = "How long ago an NPC spawned."
-L["Currencies."] = "Currencies."
-L["Mounts."] = "Mounts."
 L["Quests, in the quest log and on the map too."] = "Quests, in the quest log and on the map too."
 L["Macros"] = "Macros"
 L["The spell or item a macro uses."] = "The spell or item a macro uses."
 
 L["Upgrades"] = "Upgrades"
-L["The upgrade line on items: the track's color, its item levels and the next upgrade's crest."] =
-	"The upgrade line on items: the track's color, its item levels and the next upgrade's crest."
 L["Rank"] = "Rank"
 L["Colors the track and rank, such as Hero 3/6."] = "Colors the track and rank, such as Hero 3/6."
 L["Item Level Range"] = "Item Level Range"
@@ -412,8 +361,6 @@ L["The crest the next upgrade costs, and whether it is discounted."] =
 	"The crest the next upgrade costs, and whether it is discounted."
 
 L["Position & Visibility"] = "Position & Visibility"
-L["When the game's tooltip shows, and where tooltips that have no place of their own appear."] =
-	"When the game's tooltip shows, and where tooltips that have no place of their own appear."
 L["Visibility"] = "Visibility"
 L["Show Tooltips"] = "Show Tooltips"
 L["Out of Combat"] = "Out of Combat"
@@ -421,13 +368,11 @@ L["Out of Boss Combat"] = "Out of Boss Combat"
 L["Show While Held"] = "Show While Held"
 L["A key that shows a hidden tooltip while you hold it."] = "A key that shows a hidden tooltip while you hold it."
 L["Needs tooltips hidden at some time."] = "Needs tooltips hidden at some time."
-L["Blizzard's longer tooltips. A setting of the game, so profiles do not keep it."] =
-	"Blizzard's longer tooltips. A setting of the game, so profiles do not keep it."
+L["A game setting, so profiles do not keep it."] = "A game setting, so profiles do not keep it."
 L["Position"] = "Position"
 L["Anchor to Cursor"] = "Anchor to Cursor"
 L["Tooltips with no place of their own follow the cursor."] = "Tooltips with no place of their own follow the cursor."
 L["Cursor Position"] = "Cursor Position"
-L["Where the tooltip sits around the cursor."] = "Where the tooltip sits around the cursor."
 L["Above"] = "Above"
 L["Below"] = "Below"
 L["Left"] = "Left"
@@ -438,13 +383,12 @@ L["Below Left"] = "Below Left"
 L["Below Right"] = "Below Right"
 L["Centered"] = "Centered"
 L["Growth Direction"] = "Growth Direction"
-L["Which way a tooltip grows as lines are added. Default lets Blizzard choose by its place."] =
-	"Which way a tooltip grows as lines are added. Default lets Blizzard choose by its place."
+L["Default lets Blizzard choose."] = "Default lets Blizzard choose."
 L["Up"] = "Up"
 L["Down"] = "Down"
 L["Not while anchored to the cursor."] = "Not while anchored to the cursor."
-L["Move the tooltip in edit mode. Until it is moved, it keeps Blizzard's place."] =
-	"Move the tooltip in edit mode. Until it is moved, it keeps Blizzard's place."
+L["To move the tooltip, use Edit Mode. Until then it keeps Blizzard's place."] =
+	"To move the tooltip, use Edit Mode. Until then it keeps Blizzard's place."
 
 -- Tooltip lines (Tooltip; the ID labels also name the Details page's checkboxes)
 L["Rare"] = "Rare"
@@ -463,8 +407,6 @@ L["(discounted)"] = "(discounted)"
 L["Other Tooltips"] = "Other Tooltips"
 
 -- Profiles page (Settings)
-L["Keep different setups of AeonUI, and share them as text."] =
-	"Keep different setups of AeonUI, and share them as text."
 L["AeonUI profile \"%s\"."] = "AeonUI profile \"%s\"."
 L["It holds %d settings this version doesn't use; they are kept."] =
 	"It holds %d settings this version doesn't use; they are kept."

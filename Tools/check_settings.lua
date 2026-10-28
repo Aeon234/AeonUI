@@ -186,6 +186,19 @@ local lib = {
 		{ value = "SLUG_OUTLINE" }, { value = "SLUG_THICKOUTLINE" } },
 }
 
+-- CallbackHandler's embedded registration: one handler per owner and event, called with the event's name first.
+local callbacks = {}
+function lib.RegisterCallback(owner, event, handler)
+	callbacks[event] = callbacks[event] or {}
+	callbacks[event][owner] = handler
+end
+
+function lib:Fire(event, ...)
+	for _, handler in pairs(callbacks[event] or {}) do
+		handler(event, ...)
+	end
+end
+
 function lib:Settings(name, declaration)
 	Allowed("declaration", declaration, DECLARATION_FIELDS)
 
@@ -232,28 +245,31 @@ function lib:Settings(name, declaration)
 		return self.shown == true
 	end
 
+	-- A page shown while the window is open is reported, as the library does.
 	function window:SelectPage(id)
 		self.page = id
+
+		if self.shown then
+			lib:Fire("OnPageShown", name, id)
+		end
 	end
 
-	-- The frame is built on the first opening; its scripts can be hooked, and Escape hides it without Close.
+	-- Opening shows the last page; the frame is built on the first opening, and Escape hides it without Close.
 	function window:Open()
 		if not self.frame then
-			local frame = { scripts = {} }
+			local frame = {}
 
-			function frame:HookScript(script, hook)
-				self.scripts[script] = hook
-			end
-
-			function frame:SetShown(shown)
-				window.shown = shown
-				self.scripts[shown and "OnShow" or "OnHide"]()
+			function frame:Hide()
+				window.shown = false
+				lib:Fire("OnClose", name)
 			end
 
 			self.frame = frame
 		end
 
 		self.shown = true
+		lib:Fire("OnOpen", name)
+		self:SelectPage(self.page)
 	end
 
 	self.window = window
@@ -402,11 +418,8 @@ for index, option in ipairs(window.pages.minimapDifficulty.sections.difficultyTe
 end
 Equal("every outline the library offers is a valid choice", table.concat(outlineChoices, " "),
 	table.concat(AUI.Schema.choices.fontOutline, " "))
-local iconSize = window.pages.minimapClock.sections.clock.settings.iconSize
-Equal("icon size is free while day and night shows", iconSize.blocked(), nil)
-Profile:Set("minimap.clock.dayNight", false)
-Equal("icon size waits for day and night", type(iconSize.blocked()), "string")
-Profile:Set("minimap.clock.dayNight", true)
+Equal("icon size follows day and night", window.pages.minimapClock.sections.clock.settings.iconSize.depends,
+	"dayNight")
 Equal("the rows' text has its own section", window.pages.minimapRows.sections.rowsText.settings.rowsText_size.path,
 	"minimap.text.size")
 Equal("the zone offers no text color", window.pages.minimapZone.sections.zoneText.settings.zoneText_color, nil)
@@ -439,14 +452,8 @@ for _, id in ipairs(MINIMAP_PAGES) do
 end
 
 local fade = minimapPage.sections.fade.settings
-Equal("mouseover opacity waits for its fade", type(fade.fadeMouseoverOpacity.blocked()), "string")
-Equal("combat opacity waits for its fade", type(fade.fadeCombatOpacity.blocked()), "string")
-Profile:Set("minimap.fade.mouseover", true)
-Profile:Set("minimap.fade.combat", true)
-Equal("mouseover opacity follows its fade", fade.fadeMouseoverOpacity.blocked(), nil)
-Equal("combat opacity follows its fade", fade.fadeCombatOpacity.blocked(), nil)
-Profile:Set("minimap.fade.mouseover", false)
-Profile:Set("minimap.fade.combat", false)
+Equal("mouseover opacity follows its fade", fade.fadeMouseoverOpacity.depends, "fadeMouseover")
+Equal("combat opacity follows its fade", fade.fadeCombatOpacity.depends, "fadeCombat")
 Equal("row height is on the page", window.pages.minimapRows.sections.rows.settings.rowHeight.path, "minimap.rows.height")
 Equal("precision is a plain count of decimal places",
 	window.pages.minimapCoordinates.sections.coordinates.settings.precision.format, nil)
@@ -666,8 +673,7 @@ Equal("the positioning page keeps its id", window.pages.minimapRows.info.title, 
 Equal("the calendar offers an icon size", window.pages.minimapCalendar.sections.minimapCalendarAbout.settings
 	.calendarIconSize.path, "minimap.calendar.iconSize")
 Equal("the calendar's icon starts larger", AUI.Settings:Default("minimap.calendar.iconSize"), 100)
-Equal("the compartment has no icon to size", window.pages.minimapCompartment.sections.minimapCompartmentAbout.settings
-	.compartmentIconSize, nil)
+Equal("the compartment has no icon to size", window.pages.minimapCompartment.sections.minimapCompartmentAbout, nil)
 local slots = {
 	{ row = "TOP1", index = 1, x = 10, y = 11 }, { row = "TOP1", index = 2, x = 60, y = 11 },
 	{ row = "TOP2", index = 1, x = 10, y = 39 }, { row = "TOP2", index = 2, x = 90, y = 39 },
@@ -695,11 +701,11 @@ window:SelectPage("general")
 Equal("another page takes them away", Elements.previewers.settings, nil)
 window:SelectPage("minimapCalendar")
 Equal("a minimap page brings them back", Elements.previewers.settings, true)
-window.frame:SetShown(false)
+window.frame:Hide()
 Equal("hiding the window takes them away", Elements.previewers.settings, nil)
-window.frame:SetShown(true)
-Equal("showing it again on a minimap page brings them back", Elements.previewers.settings, true)
-window.frame:SetShown(false)
+window:Open()
+Equal("opening it again on a minimap page brings them back", Elements.previewers.settings, true)
+window.frame:Hide()
 
 -- Crafting orders, on a client with them --------------------------------------------------------------------------
 

@@ -10,7 +10,6 @@ local FRAME_NAME = "AeonUISettings"
 ---saved data cannot be used, otherwise General, the feature pages and Profiles.
 ---@class AUISettings
 ---@field window table?
----@field watching boolean? the window's frame reports its showing and hiding
 local Settings = {}
 AUI.Settings = Settings
 
@@ -62,34 +61,17 @@ function Settings:Window()
 	self.window = window
 	DeclareSidebar(window)
 
-	-- The library reports no page changes, so the window's own methods are followed for the minimap's preview.
-	hooksecurefunc(window, "SelectPage", function()
-		Settings:UpdatePreview()
-	end)
-	hooksecurefunc(window, "Open", function()
-		Settings:Watch()
-	end)
-
-	return window
-end
-
----Follows the window's frame, built on its first opening, as it shows and hides; Escape hides it without `Close`.
-function Settings:Watch()
-	local frame = self.window and self.window.frame
-
-	if self.watching or not frame then
-		return
-	end
-
-	self.watching = true
-
-	for _, script in ipairs({ "OnShow", "OnHide" }) do
-		frame:HookScript(script, function()
-			Settings:UpdatePreview()
+	-- A page shows each time the window opens, and the window reports closing however it hides, Escape included.
+	-- CallbackHandler embeds RegisterCallback in the library.
+	for _, event in ipairs({ "OnPageShown", "OnClose" }) do
+		(lib --[[@as table]]).RegisterCallback(self, event, function(_, addonName)
+			if addonName == ADDON_NAME then
+				Settings:UpdatePreview()
+			end
 		end)
 	end
 
-	self:UpdatePreview()
+	return window
 end
 
 ---The minimap shows its samples while the window is open on one of its pages, so each setting is seen on the minimap

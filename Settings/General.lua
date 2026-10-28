@@ -11,7 +11,6 @@ AUI.SettingsGeneral = General
 function General:Declare(window)
 	local page = window:Page("general", {
 		title = GENERAL,
-		description = L["Settings for AeonUI as a whole. Each feature has its own page."],
 	})
 
 	if not page then

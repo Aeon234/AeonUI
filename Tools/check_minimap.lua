@@ -317,10 +317,10 @@ Equal("an empty row is not drawn", #inner.rows, 2)
 -- Row gaps -----------------------------------------------------------------------------------------------------
 
 local separator, divider = Border:Gaps("METAL", 100, 0.5)
-Equal("metal rows meet the map along the band's middle", separator, 2.25)
+Equal("metal rows meet the map at the band's inner edge", separator, 6)
 Equal("metal rows are divided by the band", divider, 4.5)
 separator = Border:Gaps("METAL", 200, 0.5)
-Equal("the metal gaps follow the thickness", separator, 4.5)
+Equal("the metal gaps follow the thickness", separator, 12)
 separator, divider = Border:Gaps("FOREVER", 100, 0.5)
 Equal("the Forever band separates at Blizzard's width", separator, 2)
 Equal("and divides the same", divider, 2)

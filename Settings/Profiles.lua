@@ -156,7 +156,6 @@ end
 function Profiles:Declare(window)
 	window:ProfilesPage("profiles", {
 		title = L["Profiles"],
-		description = L["Keep different setups of AeonUI, and share them as text."],
 		adapter = adapter,
 		sections = DeclareDamaged,
 	})

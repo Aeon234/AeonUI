@@ -51,21 +51,15 @@ local function DeclareText(section, key, colored)
 	section:Dropdown(Field("outline", { label = L["Outline"], options = lib.OUTLINES }))
 	section:Slider(Field("offsetY", {
 		label = L["Y Offset"],
-		description = L["Raises the text, or lowers it below 0, to sit it in the middle of the row."],
 		min = -10,
 		max = 10,
 		step = 1,
 	}))
 
 	if colored or not key then
-		local note =
-			L["For the clock, coordinates and the addon count; the zone and instance difficulty have colors of their own."]
+		local note = L["For the clock, coordinates and the addon count; the zone and difficulty have their own colors."]
 
 		section:Color(Field("color", { label = L["Text Color"], description = not key and note or nil }))
-	end
-
-	if not key then
-		section:Note(L["Each element's page can change its own font, size, outline, offset and color."])
 	end
 end
 
@@ -96,37 +90,37 @@ local TIER_DESCRIPTIONS = {
 -- the capability without which it is left out, `note` what a button's page says about it, and `iconSize` whether it
 -- offers the button's Icon Size.
 local PAGES = {
-	{ id = "minimap", title = L["Map"], description = L["The map's size, fading and zoom. Move it in Edit Mode."] },
-	{ id = "minimapBorder", title = L["Border"], description = L["The frame around the map and its rows."] },
 	{
-		id = "minimapRows",
-		title = L["Widget Positioning"],
-		description = L["The information rows above and below the map, and what each holds."],
+		id = "minimap",
+		title = L["Map"],
+		description = L["Replaces Blizzard's minimap. Turning it on or off needs a reload."],
 	},
+	{ id = "minimapBorder", title = L["Border"] },
+	{ id = "minimapRows", title = L["Widget Positioning"] },
 	{
 		id = "minimapZone",
 		element = "zone",
 		title = ZONE,
-		description = L["The zone's name. Hover it for Blizzard's zone tooltip; click it to open the world map."],
+		description = L["Hover for the zone tooltip; click to open the world map."],
 	},
 	{
 		id = "minimapDifficulty",
 		element = "difficulty",
 		title = L["Instance Difficulty"],
-		description = L["The instance's difficulty beside the zone, shown inside an instance."],
+		description = L["Shown inside instances."],
 	},
 	{
 		id = "minimapClock",
 		element = "clock",
 		title = TIMEMANAGER_TITLE,
-		description = L["The time, with day and night. Hover it for both the realm's and your local time."],
+		description = L["Hover for the realm's and your local time."],
 	},
 	{
 		id = "minimapMail",
 		element = "mail",
 		iconSize = true,
 		title = MAIL_LABEL,
-		description = L["Unread mail. Hover it for the latest senders."],
+		description = L["Hover for the latest senders."],
 		note = L["The button keeps its place in the row; its icon shows only while you have unread mail."],
 	},
 	{
@@ -135,7 +129,7 @@ local PAGES = {
 		iconSize = true,
 		needs = "craftingOrders",
 		title = L["Crafting Orders"],
-		description = L["Personal crafting orders waiting for you. Hover it for each profession's count."],
+		description = L["Hover for each profession's count."],
 		note = L["The button keeps its place in the row; its icon shows only while you have personal orders."],
 	},
 	{
@@ -143,29 +137,26 @@ local PAGES = {
 		element = "tracking",
 		iconSize = true,
 		title = TRACKING,
-		description = L["Opens Blizzard's tracking menu, to choose what the map shows."],
-		note = L["The menu is Blizzard's own, so it lists what this game version can track."],
+		description = L["Opens the tracking menu."],
 	},
 	{
 		id = "minimapCoordinates",
 		element = "coordinates",
 		title = L["Coordinates"],
-		description = L["Your position on the map, where the map has one."],
+		description = L["Hidden where the map has no coordinates."],
 	},
 	{
 		id = "minimapCalendar",
 		element = "calendar",
 		iconSize = true,
 		title = L["Calendar"],
-		description = L["Shows or hides the calendar."],
-		note = L["It pulses while you have calendar invites; a click then opens the calendar on them."],
+		description = L["Opens the calendar. Pulses while you have invites."],
 	},
 	{
 		id = "minimapCompartment",
 		element = "compartment",
 		title = L["Addon Compartment"],
-		description = L["Blizzard's addon compartment, with every addon's entry."],
-		note = L["It is Blizzard's own button, showing how many addons use it; shown while an addon does."],
+		description = L["Shown while an addon uses it, with how many."],
 	},
 }
 
@@ -208,7 +199,7 @@ function SettingsMinimap:Declare(window)
 			pages[info.id] = page
 			self.pageIDs[info.id] = true
 
-			if info.note then
+			if info.note or info.iconSize then
 				local about = page:Section(info.id .. "About", info.title)
 
 				if info.iconSize then
@@ -228,14 +219,15 @@ function SettingsMinimap:Declare(window)
 					})
 				end
 
-				about:Note(info.note)
+				if info.note then
+					about:Note(info.note)
+				end
 			end
 		end
 	end
 
 	local map = pages.minimap:Section("map", L["Map"])
 
-	map:Note(L["Turning the minimap on or off takes effect after a /reload. While it is off, Blizzard's minimap is left as it is."])
 	map:Slider({
 		id = "width",
 		resettable = true,
@@ -278,7 +270,8 @@ function SettingsMinimap:Declare(window)
 		step = 5,
 		format = "percent",
 	})
-	map:Note(L["The map stays north up while AeonUI's minimap is on, whatever the Rotate Minimap option says."])
+	map:Note(L["The map stays north up; Rotate Minimap is ignored."])
+	map:Note(L["To move the map, use Edit Mode."])
 
 	local options = {}
 
@@ -361,7 +354,7 @@ function SettingsMinimap:Declare(window)
 		id = "rowHeight",
 		resettable = true,
 		label = L["Row Height"],
-		description = L["Every row's height. Buttons are square at it."],
+		description = L["Buttons are square at this height."],
 		path = "minimap.rows.height",
 		default = Settings:Default("minimap.rows.height"),
 		min = 16,
@@ -414,11 +407,7 @@ function SettingsMinimap:Declare(window)
 		min = 8,
 		max = 32,
 		step = 1,
-		blocked = function()
-			if not AUI.Profile:Get("minimap.clock.dayNight") then
-				return L["Needs Show Day and Night."]
-			end
-		end,
+		depends = "dayNight",
 	})
 	DeclareText(pages.minimapClock:Section("clockText", L["Text"]), "clock", true)
 
@@ -439,14 +428,6 @@ function SettingsMinimap:Declare(window)
 
 	local fade = pages.minimap:Section("fade", L["Fading"])
 
-	local function Needs(path, reason)
-		return function()
-			if not AUI.Profile:Get(path) then
-				return reason
-			end
-		end
-	end
-
 	fade:Checkbox({
 		id = "fadeMouseover",
 		label = L["Fade Until Mouseover"],
@@ -457,14 +438,13 @@ function SettingsMinimap:Declare(window)
 		id = "fadeMouseoverOpacity",
 		resettable = true,
 		label = L["Mouseover Opacity"],
-		description = L["How visible the minimap stays while the mouse is away."],
 		path = "minimap.fade.mouseoverOpacity",
 		default = Settings:Default("minimap.fade.mouseoverOpacity"),
 		min = 0,
 		max = 100,
 		step = 5,
 		format = "percent",
-		blocked = Needs("minimap.fade.mouseover", L["Needs Fade Until Mouseover."]),
+		depends = "fadeMouseover",
 	})
 	fade:Checkbox({
 		id = "fadeCombat",
@@ -476,14 +456,14 @@ function SettingsMinimap:Declare(window)
 		id = "fadeCombatOpacity",
 		resettable = true,
 		label = L["Combat Opacity"],
-		description = L["How visible the minimap stays in combat. The mouse brings it back."],
+		description = L["The mouse brings it back."],
 		path = "minimap.fade.combatOpacity",
 		default = Settings:Default("minimap.fade.combatOpacity"),
 		min = 0,
 		max = 100,
 		step = 5,
 		format = "percent",
-		blocked = Needs("minimap.fade.combat", L["Needs Fade in Combat."]),
+		depends = "fadeCombat",
 	})
 
 	DeclareText(pages.minimapDifficulty:Section("difficultyText", L["Text"]), "difficulty")
