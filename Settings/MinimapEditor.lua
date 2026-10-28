@@ -1,6 +1,7 @@
 local AUI = select(2, ...)
 
 local L = AUI.L
+local lib = LibStub("LibAeonSettings-1.0")
 
 -- The diagram's measures, in the canvas's units: the margin around it, the row labels' column, a row's height and the
 -- space between rows, the map's block, a piece's padding and the space between pieces, and the narrowest row.
@@ -18,13 +19,16 @@ local SIDE = 22
 -- drop cancels.
 local DRAG_START = 4
 local CANCEL_DISTANCE = 12
-local DRAGGED_ALPHA = 0.3
+-- Seconds a piece's spring takes to reach its place: the others making room, and a dropped piece settling.
+local MAKE_ROOM = 0.18
+local SETTLE = 0.3
 local OFF_ALPHA = 0.5
-local GOLD = { 1, 0.82, 0 }
 local HOVER = { 1, 1, 1, 0.5 }
 local ROW_FILL = { 0, 0, 0, 0.35 }
 local MAP_FILL = { 1, 1, 1, 0.06 }
+-- A piece's fill at rest, and while pressed or carried.
 local PIECE_FILL = { 1, 1, 1, 0.1 }
+local PIECE_HELD = 0.22
 local ROW_LABELS = { TOP1 = "Top 1", TOP2 = "Top 2", BOTTOM1 = "Bottom 1", BOTTOM2 = "Bottom 2" }
 
 ---A one-unit frame around a region.
@@ -34,13 +38,21 @@ local ROW_LABELS = { TOP1 = "Top 1", TOP2 = "Top 2", BOTTOM1 = "Bottom 1", BOTTO
 ---@field left Texture
 ---@field right Texture
 
----A piece as the diagram drew it.
+---An element's piece. It sits where its two springs are, in canvas units from the canvas's top left.
 ---@class AUIEditorPiece
----@field key string? the element's key, once drawn
----@field row string? its row
+---@field key string the element's key
 ---@field frame Frame
+---@field fill Texture
 ---@field text FontString
 ---@field hit Button
+---@field x table the left edge's spring
+---@field y table the top edge's spring, downward
+---@field placed boolean? it has a place, so moving there animates
+
+---Where the diagram's rows are, from the last draw.
+---@class AUIEditorGeometry
+---@field left number the rows' left edge
+---@field top table<string, number> each row's top, from the canvas's top
 
 ---Where a drop puts an element: before the shown element at `index` in `row`, at `x` and `y` on the canvas.
 ---@class AUIEditorSlot
@@ -49,22 +61,29 @@ local ROW_LABELS = { TOP1 = "Top 1", TOP2 = "Top 2", BOTTOM1 = "Bottom 1", BOTTO
 ---@field x number
 ---@field y number the row's middle, from the canvas's top
 
----The Rows page's Preview as the minimap's layout editor: the four rows as a diagram around the map, each holding its
----elements in order. Elements are dragged within and between rows, taken off with × and put back with +; every change
----is one Undo step. The real minimap shows the result.
+---The Minimap page's Preview as the minimap's layout editor: the four rows as a diagram around the map, each holding
+---its elements in order. A piece is carried by the pointer where it was grabbed while the others make room for it on
+---springs; a drop settles it into its place, and a cancelled drag returns it. Elements are taken off with × and put
+---back with +; every change is one Undo step. The real minimap shows the result.
 ---@class AUIMinimapEditor
 ---@field canvas Frame?
 ---@field layer Frame? the pointer's layer, above the pieces
----@field pieces AUIEditorPiece[] the drawn pieces, in drawing order
+---@field pieces table<string, AUIEditorPiece> each element's piece, made on first draw
+---@field rows table<string, string[]> each row's shown elements, from the last draw
+---@field widths table<string, number> each shown element's piece width
+---@field geometry AUIEditorGeometry?
 ---@field rowFrames table<string, Texture>
 ---@field pluses table<string, Button>
 ---@field slots AUIEditorSlot[]
 ---@field hovered string? the element under the pointer
----@field press table? the pressed element and where the press began
+---@field press table? the pressed element, where the press began, and where on the piece it was grabbed
 ---@field dragging boolean?
 ---@field target AUIEditorSlot? where a drop now lands
+---@field released string? the element last dropped or returned, which settles on the slower spring
 local Editor = {
 	pieces = {},
+	rows = {},
+	widths = {},
 	rowFrames = {},
 	pluses = {},
 	slots = {},
@@ -169,10 +188,6 @@ function Editor:Create(canvas)
 	self.layer = layer
 
 	self.hover = CreateOutline(layer, HOVER)
-	self.dropLine = layer:CreateTexture(nil, "OVERLAY")
-	self.dropLine:SetColorTexture(GOLD[1], GOLD[2], GOLD[3], 1)
-	self.dropLine:SetSize(2, ROW_HEIGHT + 6)
-	self.dropLine:Hide()
 
 	self.remove = CreateIconButton(layer, "common-icon-yellowx", "×")
 	self.remove:SetFrameLevel(layer:GetFrameLevel() + 20)
@@ -195,18 +210,6 @@ function Editor:Create(canvas)
 		self.pluses[row] = plus
 	end
 
-	-- A copy of the dragged element's name follows the pointer.
-	local ghost = CreateFrame("Frame", nil, UIParent)
-
-	ghost:SetFrameStrata("TOOLTIP")
-	ghost:Hide()
-	ghost.background = ghost:CreateTexture(nil, "BACKGROUND")
-	ghost.background:SetAllPoints()
-	ghost.background:SetColorTexture(0, 0, 0, 0.75)
-	ghost.text = ghost:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-	ghost.text:SetPoint("CENTER")
-	self.ghost = ghost
-
 	-- Escape cancels a drag; while none is under way, keys pass on to the game.
 	layer:SetScript("OnKeyDown", function(frame, key)
 		local handled = key == "ESCAPE" and Editor.dragging
@@ -221,10 +224,10 @@ function Editor:Create(canvas)
 	end)
 end
 
----@param index integer
+---@param key string
 ---@return AUIEditorPiece
-function Editor:Piece(index)
-	local piece = self.pieces[index]
+function Editor:Piece(key)
+	local piece = self.pieces[key]
 
 	if piece then
 		return piece
@@ -237,10 +240,14 @@ function Editor:Piece(index)
 	local hit = CreateFrame("Button", nil, self.layer)
 
 	fill:SetAllPoints()
-	fill:SetColorTexture(PIECE_FILL[1], PIECE_FILL[2], PIECE_FILL[3], PIECE_FILL[4])
+	fill:SetColorTexture(1, 1, 1, 1)
+	fill:SetAlpha(PIECE_FILL[4])
+	fill:SetVertexColor(PIECE_FILL[1], PIECE_FILL[2], PIECE_FILL[3])
 	text:SetPoint("CENTER")
+	text:SetText(Name(key))
 	hit:SetAllPoints(frame)
 	hit:SetFrameLevel((self.layer --[[@as Frame]]):GetFrameLevel() + 10)
+	hit.key = key
 	hit:SetScript("OnEnter", function(button)
 		Editor:Enter(button.key)
 	end)
@@ -249,101 +256,141 @@ function Editor:Piece(index)
 	end)
 	hit:SetScript("OnMouseDown", function(button, mouse)
 		if mouse == "LeftButton" then
-			local x, y = GetCursorPosition()
-
-			Editor.press = { key = button.key, x = x, y = y }
-			Editor:SetTracking(true)
+			Editor:Press(button.key)
 		end
 	end)
 
-	piece = { frame = frame, text = text, hit = hit }
-	self.pieces[index] = piece
+	piece = { key = key, frame = frame, fill = fill, text = text, hit = hit }
+
+	local function Place()
+		frame:ClearAllPoints()
+		frame:SetPoint("TOPLEFT", canvas, "TOPLEFT", piece.x.value, -piece.y.value)
+	end
+
+	piece.x = lib:CreateSpring(0, Place, { damping = 1 })
+	piece.y = lib:CreateSpring(0, Place, { damping = 1 })
+	self.pieces[key] = piece
 
 	return piece
 end
 
 -- Drawing -----------------------------------------------------------------------------------------------------
 
----Draws the rows around the map with each row's shown elements in order, and keeps the drop slots for a drag.
+---Each shown element's place in the rows, in canvas units: rows in order, pieces left to right with PIECE_SPACE
+---around them. While a drag has a target, the carried element leaves its row and the target row opens a gap for it at
+---the target's place; without a target everything keeps its own place. Free of frame code.
+---@param rows table<string, string[]> each row's shown elements
+---@param widths table<string, number>
+---@param geometry AUIEditorGeometry
+---@param drag { key: string, target: AUIEditorSlot? }?
+---@return table<string, { x: number, y: number }> places each element's top left
+function Editor:Positions(rows, widths, geometry, drag)
+	local places = {}
+
+	for _, row in ipairs(AUI.MinimapLayout.ROWS) do
+		local list = {}
+
+		for _, key in ipairs(rows[row] or {}) do
+			if not (drag and drag.target and key == drag.key) then
+				list[#list + 1] = key
+			end
+		end
+
+		if drag and drag.target and drag.target.row == row then
+			table.insert(list, math.min(drag.target.index, #list + 1), drag.key)
+		end
+
+		local x = geometry.left + PIECE_SPACE
+
+		for _, key in ipairs(list) do
+			places[key] = { x = x, y = geometry.top[row] + 2 }
+			x = x + widths[key] + PIECE_SPACE
+		end
+	end
+
+	return places
+end
+
+---The places a carried element can be dropped: before each other element of each row, and at each row's end, as the
+---rows stand without it. Free of frame code.
+---@param rows table<string, string[]>
+---@param widths table<string, number>
+---@param geometry AUIEditorGeometry
+---@param key string? the carried element
+---@return AUIEditorSlot[]
+function Editor:Slots(rows, widths, geometry, key)
+	local slots = {}
+
+	for _, row in ipairs(AUI.MinimapLayout.ROWS) do
+		local x, shown = geometry.left + PIECE_SPACE, 0
+		local middle = geometry.top[row] + ROW_HEIGHT / 2
+
+		for _, other in ipairs(rows[row] or {}) do
+			if other ~= key then
+				shown = shown + 1
+				slots[#slots + 1] = { row = row, index = shown, x = x - PIECE_SPACE / 2, y = middle }
+				x = x + widths[other] + PIECE_SPACE
+			end
+		end
+
+		slots[#slots + 1] = { row = row, index = shown + 1, x = x - PIECE_SPACE / 2, y = middle }
+	end
+
+	return slots
+end
+
+---Draws the rows around the map, then puts each shown element's piece in its place.
 ---@return number width the diagram's natural size, which the library shrinks to fit the stage
 ---@return number height
 function Editor:Draw()
 	local canvas = self.canvas --[[@as Frame]]
 	local layout = AUI.MinimapElements:Layout()
-	local dragged = self.dragging and self.press and self.press.key
-	local used, widths = 0, {}
+	local shown = {}
+
+	wipe(self.rows)
+	wipe(self.widths)
 
 	-- Each row as wide as its pieces, all as wide as the widest, at least MIN_ROW_WIDTH.
 	local rowWidth = MIN_ROW_WIDTH
 
 	for _, row in ipairs(AUI.MinimapLayout.ROWS) do
-		local width = PIECE_SPACE
+		local list, width = {}, PIECE_SPACE
 
 		for _, key in ipairs(layout[row]) do
 			local element = AUI.MinimapElements.byKey[key]
 
 			if Available(element) then
-				local piece = self:Piece(used + 1)
+				local piece = self:Piece(key)
 
-				used = used + 1
-				piece.text:SetText(Name(key))
-				widths[used] = math.ceil(piece.text:GetUnboundedStringWidth()) + 2 * PIECE_PAD
-				width = width + widths[used] + PIECE_SPACE
+				list[#list + 1] = key
+				shown[key] = true
+				self.widths[key] = math.ceil(piece.text:GetUnboundedStringWidth()) + 2 * PIECE_PAD
+				width = width + self.widths[key] + PIECE_SPACE
 			end
 		end
 
+		self.rows[row] = list
 		rowWidth = math.max(rowWidth, width)
 	end
 
-	wipe(self.slots)
-
-	local y, index = MARGIN, 0
 	local left = MARGIN + LABEL_WIDTH
+	local geometry = { left = left, top = {} }
+	local y = MARGIN
 
 	local function DrawRow(row)
 		local fill = self.rowFrames[row]
 
+		geometry.top[row] = y
 		fill:ClearAllPoints()
 		fill:SetPoint("TOPLEFT", canvas, "TOPLEFT", left, -y)
 		fill:SetSize(rowWidth, ROW_HEIGHT)
 		fill.label:ClearAllPoints()
 		fill.label:SetPoint("LEFT", canvas, "TOPLEFT", MARGIN, -(y + ROW_HEIGHT / 2))
 
-		local x, shown = left + PIECE_SPACE, 0
-		local middle = y + ROW_HEIGHT / 2
-
-		for _, key in ipairs(layout[row]) do
-			local element = AUI.MinimapElements.byKey[key]
-
-			if Available(element) then
-				index = index + 1
-
-				local piece = self.pieces[index]
-				local width = widths[index]
-				local enabled = AUI.Profile:Get(AUI.MinimapElements:EnabledPath(key)) == true
-
-				if key ~= dragged then
-					shown = shown + 1
-					self.slots[#self.slots + 1] = { row = row, index = shown, x = x - PIECE_SPACE / 2, y = middle }
-				end
-
-				piece.key, piece.row, piece.hit.key = key, row, key
-				piece.frame:ClearAllPoints()
-				piece.frame:SetPoint("TOPLEFT", canvas, "TOPLEFT", x, -(y + 2))
-				piece.frame:SetSize(width, ROW_HEIGHT - 4)
-				piece.frame:SetAlpha(key == dragged and DRAGGED_ALPHA or (enabled and 1 or OFF_ALPHA))
-				piece.frame:Show()
-				piece.hit:Show()
-				x = x + width + PIECE_SPACE
-			end
-		end
-
-		self.slots[#self.slots + 1] = { row = row, index = shown + 1, x = x - PIECE_SPACE / 2, y = middle }
-
 		local plus = self.pluses[row]
 
 		plus:ClearAllPoints()
-		plus:SetPoint("LEFT", canvas, "TOPLEFT", left + rowWidth + 4, -middle)
+		plus:SetPoint("LEFT", canvas, "TOPLEFT", left + rowWidth + 4, -(y + ROW_HEIGHT / 2))
 		plus:SetShown(not self.dragging)
 		y = y + ROW_HEIGHT + ROW_SPACE
 	end
@@ -360,15 +407,58 @@ function Editor:Draw()
 
 	DrawRow("BOTTOM1")
 	DrawRow("BOTTOM2")
+	self.geometry = geometry
 
-	for spare = used + 1, #self.pieces do
-		self.pieces[spare].frame:Hide()
-		self.pieces[spare].hit:Hide()
+	for key, piece in pairs(self.pieces) do
+		local on = shown[key] == true
+		local enabled = AUI.Profile:Get(AUI.MinimapElements:EnabledPath(key)) == true
+
+		piece.frame:SetShown(on)
+		piece.hit:SetShown(on)
+		piece.frame:SetSize(self.widths[key] or 0, ROW_HEIGHT - 4)
+		piece.frame:SetAlpha(enabled and 1 or OFF_ALPHA)
+
+		if not on then
+			piece.placed = false
+		end
 	end
 
+	self.slots = self:Slots(self.rows, self.widths, geometry, self.dragging and self.press and self.press.key or nil)
+	self:Arrange()
 	self:PlaceMarks()
 
 	return left + rowWidth + SIDE + MARGIN, y - ROW_SPACE + MARGIN
+end
+
+---Sends each piece to its place: on its spring once it has had a place, at once the first time. The carried piece
+---stays with the pointer.
+function Editor:Arrange()
+	local geometry = self.geometry
+
+	if not geometry then
+		return
+	end
+
+	local carried = self.dragging and self.press and self.press.key or nil
+	local drag = carried and { key = carried, target = self.target } or nil
+
+	for key, place in pairs(self:Positions(self.rows, self.widths, geometry, drag)) do
+		local piece = self.pieces[key]
+
+		if key ~= carried then
+			if piece.placed then
+				local response = key == self.released and SETTLE or MAKE_ROOM
+
+				piece.x.response, piece.y.response = response, response
+				piece.x:To(place.x)
+				piece.y:To(place.y)
+			else
+				piece.placed = true
+				piece.x:Jump(place.x)
+				piece.y:Jump(place.y)
+			end
+		end
+	end
 end
 
 ---The diagram's height: margins, the four rows and the map between them. Free of frame code.
@@ -389,13 +479,11 @@ function Editor:PlaceMarks()
 	local hover, remove = self.hover, self.remove
 	local piece
 
-	for _, candidate in ipairs(self.pieces) do
-		if candidate.frame:IsShown() and candidate.key == self.hovered then
-			piece = candidate
-		end
+	if self.hovered then
+		piece = self.pieces[self.hovered]
 	end
 
-	if not piece or self.dragging then
+	if not piece or self.dragging or not piece.frame:IsShown() then
 		hover:Hide()
 		remove:Hide()
 
@@ -409,15 +497,6 @@ function Editor:PlaceMarks()
 	remove:ClearAllPoints()
 	remove:SetPoint("CENTER", piece.frame, "TOPRIGHT")
 	remove:Show()
-end
-
----Draws the diagram again, for a change the page does not make.
-function Editor:Redraw()
-	local window = AUI.Settings.window
-
-	if window and window:IsShown() then
-		window:RefreshFixedArea()
-	end
 end
 
 -- Pointer -----------------------------------------------------------------------------------------------------
@@ -437,10 +516,10 @@ function Editor:Leave()
 		return
 	end
 
-	for _, piece in ipairs(self.pieces) do
-		if piece.key == self.hovered and piece.hit:IsShown() and piece.hit:IsMouseOver() then
-			return
-		end
+	local piece = self.hovered and self.pieces[self.hovered]
+
+	if piece and piece.hit:IsShown() and piece.hit:IsMouseOver() then
+		return
 	end
 
 	self.hovered = nil
@@ -492,6 +571,31 @@ function Editor:NearestSlot(slots, x, y)
 	return target
 end
 
+---Lights the pressed piece at once and starts following the pointer, keeping where on the piece it was grabbed.
+---@param key string
+function Editor:Press(key)
+	local piece = self.pieces[key]
+	local x, y = GetCursorPosition()
+	local canvasX, canvasY = self:Cursor()
+
+	self.press = { key = key, x = x, y = y, grabX = canvasX - piece.x.value, grabY = canvasY - piece.y.value }
+	self.released = nil
+	piece.fill:SetAlpha(PIECE_HELD)
+	self:SetTracking(true)
+end
+
+---Ends a press that did not become a drag.
+function Editor:Release()
+	local piece = self.press and self.pieces[self.press.key]
+
+	if piece then
+		piece.fill:SetAlpha(PIECE_FILL[4])
+	end
+
+	self.press = nil
+	self:SetTracking(false)
+end
+
 function Editor:Track()
 	local press = self.press
 
@@ -503,8 +607,7 @@ function Editor:Track()
 		if self.dragging then
 			self:Drop()
 		else
-			self.press = nil
-			self:SetTracking(false)
+			self:Release()
 		end
 
 		return
@@ -521,48 +624,64 @@ function Editor:Track()
 		self:StartDrag()
 	end
 
-	self.ghost:ClearAllPoints()
-	self.ghost:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", x / scale + 12, y / scale - 8)
-
 	local canvasX, canvasY = self:Cursor()
+	local piece = self.pieces[press.key]
+
+	piece.x:Jump(canvasX - press.grabX)
+	piece.y:Jump(canvasY - press.grabY)
+
 	local width, height = (self.canvas --[[@as Frame]]):GetSize()
 	local outside = canvasX < -CANCEL_DISTANCE or canvasY < -CANCEL_DISTANCE or canvasX > width + CANCEL_DISTANCE
 		or canvasY > height + CANCEL_DISTANCE
 	local target = not outside and self:NearestSlot(self.slots, canvasX, canvasY) or nil
 
-	self.target = target
-	self.dropLine:ClearAllPoints()
-
-	if target then
-		self.dropLine:SetPoint("CENTER", self.canvas, "TOPLEFT", target.x, -target.y)
-		self.dropLine:Show()
-	else
-		self.dropLine:Hide()
+	if (target and target.row .. target.index) ~= (self.target and self.target.row .. self.target.index) then
+		self.target = target
+		self:Arrange()
 	end
 end
 
+---The pressed piece lifts above the others and the rest make room for it as it moves.
 function Editor:StartDrag()
 	local press = self.press --[[@as table]]
+	local piece = self.pieces[press.key]
 
 	self.dragging = true
 	self.hovered = nil
-	self.ghost.text:SetText(Name(press.key))
-	self.ghost:SetSize(self.ghost.text:GetStringWidth() + 12, self.ghost.text:GetStringHeight() + 8)
-	self.ghost:Show()
-	self:Redraw()
+	self.slots = self:Slots(self.rows, self.widths, self.geometry --[[@as AUIEditorGeometry]], press.key)
+	piece.frame:SetFrameLevel((self.canvas --[[@as Frame]]):GetFrameLevel() + 40)
+
+	for _, plus in pairs(self.pluses) do
+		plus:Hide()
+	end
+
+	self:PlaceMarks()
 end
 
----Ends a drag without moving anything.
+---Ends a drag without moving anything: the carried piece returns to its place.
 function Editor:CancelDrag()
+	local press = self.press
+	local piece = press and self.pieces[press.key]
+
 	self.dragging = false
-	self.press = nil
 	self.target = nil
-	self:SetTracking(false)
-	self.ghost:Hide()
-	self.dropLine:Hide()
-	self:Redraw()
+	self.released = press and press.key or nil
+
+	if piece then
+		piece.frame:SetFrameLevel((self.canvas --[[@as Frame]]):GetFrameLevel() + 1)
+	end
+
+	self:Release()
+	self.slots = self:Slots(self.rows, self.widths, self.geometry --[[@as AUIEditorGeometry]])
+
+	for _, plus in pairs(self.pluses) do
+		plus:Show()
+	end
+
+	self:Arrange()
 end
 
+---Settles the carried piece into the target's place, or back into its own.
 function Editor:Drop()
 	local key, target = self.press and self.press.key, self.target
 

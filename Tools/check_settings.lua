@@ -764,6 +764,25 @@ Equal("a place among shown elements skips those the client cannot show",
 	Editor:ListIndex(top2, "coordinates", 2, Shown), 3)
 Equal("the dragged element is left out", Editor:ListIndex(top2, "mail", 1, Shown), 2)
 Equal("past the last shown element is the end", Editor:ListIndex(top2, "mail", 9, Shown), 4)
+local geometry = { left = 70, top = { TOP1 = 14, TOP2 = 42, BOTTOM1 = 116, BOTTOM2 = 144 } }
+local rows = { TOP1 = { "zone", "clock" }, TOP2 = { "mail" }, BOTTOM1 = {}, BOTTOM2 = {} }
+local widths = { zone = 40, clock = 30, mail = 20 }
+local places = Editor:Positions(rows, widths, geometry)
+Equal("pieces sit left to right", places.zone.x .. " " .. places.clock.x, "74 118")
+Equal("inside their row", places.zone.y, 16)
+places = Editor:Positions(rows, widths, geometry, { key = "clock", target = { row = "TOP2", index = 1 } })
+Equal("a carried piece's target row opens a gap for it", places.mail.x, 108)
+Equal("where it will land", places.clock.x .. " " .. places.clock.y, "74 44")
+Equal("its own row closes up", places.zone.x, 74)
+places = Editor:Positions(rows, widths, geometry, { key = "zone", target = { row = "TOP1", index = 2 } })
+Equal("within its row it changes places", places.clock.x .. " " .. places.zone.x, "74 108")
+places = Editor:Positions(rows, widths, geometry, { key = "zone" })
+Equal("without a target everything keeps its place", places.zone.x .. " " .. places.clock.x, "74 118")
+local dragSlots = Editor:Slots(rows, widths, geometry, "clock")
+Equal("slots leave the carried piece out", #dragSlots, 2 + 2 + 1 + 1)
+Equal("before the first piece", dragSlots[1].x .. " " .. dragSlots[1].index, "72 1")
+Equal("and after the last", dragSlots[2].x .. " " .. dragSlots[2].index, "116 2")
+Equal("at the row's middle", dragSlots[1].y, 25)
 
 -- The minimap's preview ------------------------------------------------------------------------------------------
 
