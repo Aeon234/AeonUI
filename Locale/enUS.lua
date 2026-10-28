@@ -44,6 +44,7 @@ L["Click: open settings"] = "Click: open settings"
 -- Page titles (Settings)
 L["Profiles"] = "Profiles"
 L["Recovery"] = "Recovery"
+L["Maps"] = "Maps"
 
 -- Shared settings labels (Settings)
 L["Text"] = "Text"
@@ -60,7 +61,7 @@ L["Left-click opens settings."] = "Left-click opens settings."
 L["/aui and the addon compartment open settings too."] = "/aui and the addon compartment open settings too."
 
 -- Minimap page (Settings)
-L["Widget Positioning"] = "Widget Positioning"
+L["Elements"] = "Elements"
 L["Top 1"] = "Top 1"
 L["Top 2"] = "Top 2"
 L["Bottom 1"] = "Bottom 1"
@@ -87,7 +88,6 @@ L["Width"] = "Width"
 L["Kept within 3:2 of the width either way."] = "Kept within 3:2 of the width either way."
 L["Scale"] = "Scale"
 L["The map stays north up; Rotate Minimap is ignored."] = "The map stays north up; Rotate Minimap is ignored."
-L["To move the map, use Edit Mode."] = "To move the map, use Edit Mode."
 L["Border"] = "Border"
 L["Border Style"] = "Border Style"
 L["Metal"] = "Metal"
@@ -156,7 +156,6 @@ L["Delves"] = "Delves"
 L["Story"] = "Story"
 
 -- Map Options page (Settings)
-L["Map Options"] = "Map Options"
 L["Unexplored Areas"] = "Unexplored Areas"
 L["Show Unexplored Areas"] = "Show Unexplored Areas"
 L["Draws the parts of a zone you have not explored yet, darkened, instead of leaving them blank."] =
@@ -196,7 +195,6 @@ L["Minimap Pins"] = "Minimap Pins"
 L["Docks"] = "Docks"
 L["The nearest ones around you, on the minimap; they follow you as you move."] =
 	"The nearest ones around you, on the minimap; they follow you as you move."
-L["Display"] = "Display"
 L["Show Other Faction"] = "Show Other Faction"
 L["Also marks the other faction's boats, zeppelins, trams and battleground entrances."] =
 	"Also marks the other faction's boats, zeppelins, trams and battleground entrances."
@@ -297,7 +295,6 @@ L["Right-click: back to the map"] = "Right-click: back to the map"
 
 -- Tooltip pages (Settings)
 L["Tooltip"] = "Tooltip"
-L["Appearance"] = "Appearance"
 L["Custom Font"] = "Custom Font"
 L["Font Scale"] = "Font Scale"
 L["Health Bar"] = "Health Bar"
@@ -332,7 +329,6 @@ L["The player's specialization and role, from an inspect or shared by their addo
 L["Aura Caster Names"] = "Aura Caster Names"
 L["Aura tooltips name who cast the aura."] = "Aura tooltips name who cast the aura."
 
-L["Details"] = "Details"
 L["Category and Type"] = "Category and Type"
 L["An item's category and type, such as Armor / Plate."] = "An item's category and type, such as Armor / Plate."
 L["Blank Line Before"] = "Blank Line Before"
@@ -360,7 +356,7 @@ L["Next Crest"] = "Next Crest"
 L["The crest the next upgrade costs, and whether it is discounted."] =
 	"The crest the next upgrade costs, and whether it is discounted."
 
-L["Position & Visibility"] = "Position & Visibility"
+L["Items"] = "Items"
 L["Visibility"] = "Visibility"
 L["Show Tooltips"] = "Show Tooltips"
 L["Out of Combat"] = "Out of Combat"
@@ -387,8 +383,7 @@ L["Default lets Blizzard choose."] = "Default lets Blizzard choose."
 L["Up"] = "Up"
 L["Down"] = "Down"
 L["Not while anchored to the cursor."] = "Not while anchored to the cursor."
-L["To move the tooltip, use Edit Mode. Until then it keeps Blizzard's place."] =
-	"To move the tooltip, use Edit Mode. Until then it keeps Blizzard's place."
+L["Until moved, it keeps Blizzard's place."] = "Until moved, it keeps Blizzard's place."
 
 -- Tooltip lines (Tooltip; the ID labels also name the Details page's checkboxes)
 L["Rare"] = "Rare"

@@ -29,6 +29,7 @@ L["Click: open settings"] = "클릭: 설정 열기"
 -- Page titles (Settings)
 L["Profiles"] = "프로필"
 L["Recovery"] = "복구"
+L["Maps"] = "지도"
 
 -- Shared settings labels (Settings)
 L["Text"] = "글자"
@@ -45,7 +46,7 @@ L["Left-click opens settings."] = "왼쪽 클릭으로 설정을 엽니다."
 L["/aui and the addon compartment open settings too."] = "/aui 명령어와 애드온 보관함으로도 설정을 열 수 있습니다."
 
 -- Minimap page (Settings)
-L["Widget Positioning"] = "위젯 배치"
+L["Elements"] = "요소"
 L["Top 1"] = "위 1"
 L["Top 2"] = "위 2"
 L["Bottom 1"] = "아래 1"
@@ -70,7 +71,6 @@ L["Width"] = "너비"
 L["Kept within 3:2 of the width either way."] = "어느 방향이든 너비의 3:2 이내로 유지됩니다."
 L["Scale"] = "크기 비율"
 L["The map stays north up; Rotate Minimap is ignored."] = "지도는 북쪽이 위로 고정되며, 미니맵 회전은 무시됩니다."
-L["To move the map, use Edit Mode."] = "지도를 옮기려면 편집 모드를 사용하세요."
 L["Border"] = "테두리"
 L["Border Style"] = "테두리 스타일"
 L["Metal"] = "금속"
@@ -134,7 +134,6 @@ L["Delves"] = "구렁"
 L["Story"] = "이야기"
 
 -- Map Options page (Settings)
-L["Map Options"] = "지도 옵션"
 L["Unexplored Areas"] = "미탐험 지역"
 L["Show Unexplored Areas"] = "미탐험 지역 표시"
 L["Draws the parts of a zone you have not explored yet, darkened, instead of leaving them blank."] = "아직 탐험하지 않은 지역 부분을 비워 두는 대신 어둡게 그립니다."
@@ -167,7 +166,6 @@ L["Portals"] = "차원문"
 L["Minimap Pins"] = "미니맵 표시"
 L["Docks"] = "선착장"
 L["The nearest ones around you, on the minimap; they follow you as you move."] = "주변에서 가장 가까운 것들을 미니맵에 표시하며, 이동하면 따라 움직입니다."
-L["Display"] = "표시 설정"
 L["Show Other Faction"] = "다른 진영 표시"
 L["Also marks the other faction's boats, zeppelins, trams and battleground entrances."] = "다른 진영의 배, 비행선, 지하철과 전장 입구도 표시합니다."
 L["Marker Size"] = "표시 크기"
@@ -265,7 +263,6 @@ L["Right-click: back to the map"] = "오른쪽 클릭: 지도로 돌아가기"
 
 -- Tooltip pages (Settings)
 L["Tooltip"] = "툴팁"
-L["Appearance"] = "모양"
 L["Custom Font"] = "사용자 글꼴"
 L["Font Scale"] = "글꼴 배율"
 L["Health Bar"] = "생명력 바"
@@ -294,7 +291,6 @@ L["The player's specialization and role, from an inspect or shared by their addo
 L["Aura Caster Names"] = "오라 시전자 이름"
 L["Aura tooltips name who cast the aura."] = "오라 툴팁에 오라를 건 시전자를 표시합니다."
 
-L["Details"] = "세부 정보"
 L["Category and Type"] = "분류 및 종류"
 L["An item's category and type, such as Armor / Plate."] = "아이템의 분류와 종류입니다. 예: 방어구 / 판금."
 L["Blank Line Before"] = "앞에 빈 줄"
@@ -320,7 +316,7 @@ L["Range Color"] = "범위 색상"
 L["Next Crest"] = "다음 문장"
 L["The crest the next upgrade costs, and whether it is discounted."] = "다음 강화에 드는 문장과 할인 여부입니다."
 
-L["Position & Visibility"] = "위치 및 표시"
+L["Items"] = "아이템"
 L["Visibility"] = "표시"
 L["Show Tooltips"] = "툴팁 표시"
 L["Out of Combat"] = "비전투 중"
@@ -347,7 +343,7 @@ L["Default lets Blizzard choose."] = "기본값은 블리자드가 정합니다.
 L["Up"] = "위로"
 L["Down"] = "아래로"
 L["Not while anchored to the cursor."] = "커서에 고정된 동안에는 사용할 수 없습니다."
-L["To move the tooltip, use Edit Mode. Until then it keeps Blizzard's place."] = "툴팁을 옮기려면 편집 모드를 사용하세요. 그 전까지는 블리자드 위치에 있습니다."
+L["Until moved, it keeps Blizzard's place."] = "옮기기 전까지는 블리자드 위치에 있습니다."
 
 -- Tooltip lines (Tooltip; the ID labels also name the Details page's checkboxes)
 L["Rare"] = "희귀"

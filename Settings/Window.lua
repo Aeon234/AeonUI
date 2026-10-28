@@ -1,5 +1,6 @@
 local AUI = select(2, ...)
 
+local L = AUI.L
 local lib = LibStub("LibAeonSettings-1.0")
 
 local ADDON_NAME = ...
@@ -22,18 +23,15 @@ local function DeclareSidebar(window)
 	end
 
 	AUI.SettingsGeneral:Declare(window)
-	window:Divider()
+	window:Header("mapsHeader", L["Maps"])
 	AUI.SettingsMinimap:Declare(window)
-	window:Divider()
 
 	if AUI.SettingsWorldMap:IsAvailable() then
 		AUI.SettingsWorldMap:Declare(window)
-		window:Divider()
 	end
 
 	AUI.SettingsTooltip:Declare(window)
 	window:Divider()
-
 	AUI.SettingsProfiles:Declare(window)
 end
 

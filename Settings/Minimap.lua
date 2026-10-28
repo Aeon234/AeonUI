@@ -3,14 +3,14 @@ local AUI = select(2, ...)
 local L = AUI.L
 local lib = LibStub("LibAeonSettings-1.0")
 
----The Minimap header and its pages: Map (size, fading, zoom), Border, Rows, and a page for each element with settings.
----Map, Border and Rows carry the module's switch; each element's page carries that element's. The minimap's position
----is set in edit mode.
+---The Minimap page, under the Maps header: the module's switch, the row layout editor as its preview, the map's size,
+---fading, zoom, border and rows, then a card for each row element, headed by the element's own switch. The minimap's
+---position is set in edit mode.
 ---@class AUISettingsMinimap
----@field pageIDs table<string, true> the pages under the Minimap header
----@field titles table<string, string> each row element's page title, its name in the layout editor
+---@field pageIDs table<string, true> the pages showing the minimap's samples
+---@field titles table<string, string> each row element's name, in its card and in the layout editor
 local SettingsMinimap = {
-	pageIDs = {},
+	pageIDs = { minimap = true },
 	titles = {},
 }
 AUI.SettingsMinimap = SettingsMinimap
@@ -23,19 +23,40 @@ local STYLE_LABELS = {
 	NONE = NONE,
 }
 
----Adds the text settings to a section: the rows' own (`key` nil), or an element's, each following the rows' until set.
+---@param base string the text settings' path, ending in a dot
+---@return string summary the font and size, for a closed Text row
+local function TextSummary(base)
+	local Profile = AUI.Profile
+
+	return ("%s, %d"):format(tostring(Profile:Get(base .. "font")), Profile:Get(base .. "size") or 0)
+end
+
+---Adds a Text row that opens to the text settings: the rows' own (`key` nil), or an element's, each following the
+---rows' until set.
 ---@param section table
 ---@param key string? the element
 ---@param colored boolean? offer the text color
-local function DeclareText(section, key, colored)
+---@param depends string? the setting the Text row follows
+local function DeclareText(section, key, colored, depends)
 	local Settings = AUI.Settings
 	local base = key and "minimap." .. key .. ".text." or "minimap.text."
 	local prefix = key or "rows"
+	local details = prefix .. "Text"
+
+	section:Details({
+		id = details,
+		label = L["Text"],
+		depends = depends,
+		summary = function()
+			return TextSummary(base)
+		end,
+	})
 
 	local function Field(field, spec)
 		spec.id = prefix .. "Text_" .. field
 		spec.path = base .. field
 		spec.default = Settings:Default("minimap.text." .. field)
+		spec.details = details
 
 		if key then
 			spec.inherits = { path = "minimap.text." .. field, from = L["All Rows"] }
@@ -85,47 +106,38 @@ local TIER_DESCRIPTIONS = {
 	other = L["Timewalking, Follower, Delves, Story and PvP."],
 }
 
--- The header's pages in sidebar order: the map's, then each element's in the order the default layout shows them.
--- `minimap` is the page edit mode's Element Options opens; `element` names the row element a page belongs to, `needs`
--- the capability without which it is left out, `note` what a button's page says about it, and `iconSize` whether it
--- offers the button's Icon Size.
-local PAGES = {
+-- The row elements' cards, in the order the default layout shows them. `needs` names the capability without which an
+-- element is left out, `note` what its card's footer says, `iconSize` whether it offers the button's Icon Size, `text`
+-- whether it offers text settings and `colored` whether those include a color.
+local ELEMENTS = {
 	{
-		id = "minimap",
-		title = L["Map"],
-		description = L["Replaces Blizzard's minimap. Turning it on or off needs a reload."],
-	},
-	{ id = "minimapBorder", title = L["Border"] },
-	{ id = "minimapRows", title = L["Widget Positioning"] },
-	{
-		id = "minimapZone",
-		element = "zone",
+		key = "zone",
 		title = ZONE,
 		description = L["Hover for the zone tooltip; click to open the world map."],
+		text = true,
 	},
 	{
-		id = "minimapDifficulty",
-		element = "difficulty",
+		key = "difficulty",
 		title = L["Instance Difficulty"],
 		description = L["Shown inside instances."],
+		text = true,
 	},
 	{
-		id = "minimapClock",
-		element = "clock",
+		key = "clock",
 		title = TIMEMANAGER_TITLE,
 		description = L["Hover for the realm's and your local time."],
+		text = true,
+		colored = true,
 	},
 	{
-		id = "minimapMail",
-		element = "mail",
+		key = "mail",
 		iconSize = true,
 		title = MAIL_LABEL,
 		description = L["Hover for the latest senders."],
 		note = L["The button keeps its place in the row; its icon shows only while you have unread mail."],
 	},
 	{
-		id = "minimapCraftingOrders",
-		element = "craftingOrders",
+		key = "craftingOrders",
 		iconSize = true,
 		needs = "craftingOrders",
 		title = L["Crafting Orders"],
@@ -133,100 +145,49 @@ local PAGES = {
 		note = L["The button keeps its place in the row; its icon shows only while you have personal orders."],
 	},
 	{
-		id = "minimapTracking",
-		element = "tracking",
+		key = "tracking",
 		iconSize = true,
 		title = TRACKING,
 		description = L["Opens the tracking menu."],
 	},
 	{
-		id = "minimapCoordinates",
-		element = "coordinates",
+		key = "coordinates",
 		title = L["Coordinates"],
 		description = L["Hidden where the map has no coordinates."],
+		text = true,
+		colored = true,
 	},
 	{
-		id = "minimapCalendar",
-		element = "calendar",
+		key = "calendar",
 		iconSize = true,
 		title = L["Calendar"],
 		description = L["Opens the calendar. Pulses while you have invites."],
 	},
 	{
-		id = "minimapCompartment",
-		element = "compartment",
+		key = "compartment",
 		title = L["Addon Compartment"],
 		description = L["Shown while an addon uses it, with how many."],
+		text = true,
+		colored = true,
 	},
 }
 
 ---@param key string a row element's key
----@return string name its page title
+---@return string name its card's title
 function SettingsMinimap:ElementTitle(key)
 	if not next(self.titles) then
-		for _, info in ipairs(PAGES) do
-			if info.element then
-				self.titles[info.element] = info.title
-			end
+		for _, info in ipairs(ELEMENTS) do
+			self.titles[info.key] = info.title
 		end
 	end
 
 	return self.titles[key] or key
 end
 
----@param window table
-function SettingsMinimap:Declare(window)
+---@param page table
+function SettingsMinimap:DeclareMap(page)
 	local Settings = AUI.Settings
-	local pages = {}
-
-	window:Header("minimapHeader", MINIMAP_LABEL)
-
-	for _, info in ipairs(PAGES) do
-		if not info.needs or AUI.can[info.needs] then
-			-- An element's page turns that element on or off; the others, the whole minimap.
-			local switchPath = info.element and AUI.MinimapElements:EnabledPath(info.element) or "minimap.enabled"
-			local page = window:Page(info.id, {
-				title = info.title,
-				description = info.description,
-				under = "minimapHeader",
-				switch = { path = switchPath, default = Settings:Default(switchPath) },
-			})
-
-			if not page then
-				return
-			end
-
-			pages[info.id] = page
-			self.pageIDs[info.id] = true
-
-			if info.note or info.iconSize then
-				local about = page:Section(info.id .. "About", info.title)
-
-				if info.iconSize then
-					local path = "minimap." .. info.element .. ".iconSize"
-
-					about:Slider({
-						id = info.element .. "IconSize",
-						resettable = true,
-						label = L["Icon Size"],
-						description = L["Compared with the row's height."],
-						path = path,
-						default = Settings:Default(path),
-						min = 50,
-						max = 120,
-						step = 5,
-						format = "percent",
-					})
-				end
-
-				if info.note then
-					about:Note(info.note)
-				end
-			end
-		end
-	end
-
-	local map = pages.minimap:Section("map", L["Map"])
+	local map = page:Section("map", L["Map"])
 
 	map:Slider({
 		id = "width",
@@ -271,15 +232,79 @@ function SettingsMinimap:Declare(window)
 		format = "percent",
 	})
 	map:Note(L["The map stays north up; Rotate Minimap is ignored."])
-	map:Note(L["To move the map, use Edit Mode."])
 
+	local fade = page:Section("fade", L["Fading"])
+
+	fade:Checkbox({
+		id = "fadeMouseover",
+		label = L["Fade Until Mouseover"],
+		path = "minimap.fade.mouseover",
+		default = Settings:Default("minimap.fade.mouseover"),
+	})
+	fade:Slider({
+		id = "fadeMouseoverOpacity",
+		resettable = true,
+		label = L["Mouseover Opacity"],
+		path = "minimap.fade.mouseoverOpacity",
+		default = Settings:Default("minimap.fade.mouseoverOpacity"),
+		min = 0,
+		max = 100,
+		step = 5,
+		format = "percent",
+		depends = "fadeMouseover",
+	})
+	fade:Checkbox({
+		id = "fadeCombat",
+		label = L["Fade in Combat"],
+		path = "minimap.fade.combat",
+		default = Settings:Default("minimap.fade.combat"),
+	})
+	fade:Slider({
+		id = "fadeCombatOpacity",
+		resettable = true,
+		label = L["Combat Opacity"],
+		description = L["The mouse brings it back."],
+		path = "minimap.fade.combatOpacity",
+		default = Settings:Default("minimap.fade.combatOpacity"),
+		min = 0,
+		max = 100,
+		step = 5,
+		format = "percent",
+		depends = "fadeCombat",
+	})
+
+	local zoom = page:Section("zoom", L["Zoom"])
+
+	zoom:Checkbox({
+		id = "wheelZoom",
+		label = L["Zoom with Mouse Wheel"],
+		path = "minimap.zoom.wheel",
+		default = Settings:Default("minimap.zoom.wheel"),
+	})
+	zoom:Slider({
+		id = "zoomReset",
+		resettable = true,
+		label = L["Reset Zoom After"],
+		description = L["Returns to the widest view this long after the last zoom."],
+		path = "minimap.zoom.reset",
+		default = Settings:Default("minimap.zoom.reset"),
+		min = 0,
+		max = 60,
+		step = 5,
+		format = ResetFormat,
+	})
+end
+
+---@param page table
+function SettingsMinimap:DeclareBorder(page)
+	local Settings = AUI.Settings
 	local options = {}
 
 	for index, style in ipairs(AUI.Border.STYLES) do
 		options[index] = { value = style, text = STYLE_LABELS[style] }
 	end
 
-	local border = pages.minimapBorder:Section("border", L["Border"])
+	local border = page:Section("border", L["Border"])
 
 	border:Dropdown({
 		id = "borderStyle",
@@ -332,10 +357,14 @@ function SettingsMinimap:Declare(window)
 		default = Settings:Default("minimap.background"),
 		hasOpacity = true,
 	})
+end
 
+---@param page table
+function SettingsMinimap:DeclareRows(page)
+	local Settings = AUI.Settings
 	local Editor = AUI.MinimapEditor
 
-	pages.minimapRows:Preview({
+	page:Preview({
 		height = 160,
 		create = function(canvas)
 			Editor:Create(canvas)
@@ -348,7 +377,7 @@ function SettingsMinimap:Declare(window)
 		end,
 	})
 
-	local rows = pages.minimapRows:Section("rows", L["Rows"])
+	local rows = page:Section("rows", L["Rows"])
 
 	rows:Slider({
 		id = "rowHeight",
@@ -361,148 +390,159 @@ function SettingsMinimap:Declare(window)
 		max = 40,
 		step = 1,
 	})
-	DeclareText(pages.minimapRows:Section("rowsText", L["Text"]))
+	DeclareText(rows)
+end
 
-	local zone = pages.minimapZone:Section("zone", ZONE)
+---Each element's card: its switch first, then its own settings, which leave while it is off.
+---@param page table
+function SettingsMinimap:DeclareElements(page)
+	local Settings = AUI.Settings
+	local first = true
 
-	zone:Dropdown({
-		id = "zoneColor",
-		label = L["Zone Color"],
-		path = "minimap.zone.color",
-		default = Settings:Default("minimap.zone.color"),
-		options = {
-			{ value = "PVP", text = L["By PvP Status"] },
-			{ value = "GOLD", text = L["Gold"] },
-		},
+	for _, info in ipairs(ELEMENTS) do
+		if not info.needs or AUI.can[info.needs] then
+			local key = info.key
+			local switchPath = AUI.MinimapElements:EnabledPath(key)
+			local card = page:Section(key, first and L["Elements"] or nil)
+
+			first = false
+			card:Toggle({
+				id = key,
+				label = info.title,
+				description = info.description,
+				path = switchPath,
+				default = Settings:Default(switchPath),
+			})
+
+			if key == "zone" then
+				card:Dropdown({
+					id = "zoneColor",
+					label = L["Zone Color"],
+					path = "minimap.zone.color",
+					default = Settings:Default("minimap.zone.color"),
+					depends = key,
+					options = {
+						{ value = "PVP", text = L["By PvP Status"] },
+						{ value = "GOLD", text = L["Gold"] },
+					},
+				})
+			elseif key == "difficulty" then
+				local difficulty = AUI.MinimapElements.byKey.difficulty --[[@as AUIMinimapDifficulty]]
+
+				card:Details({
+					id = "difficultyColors",
+					label = L["Colors"],
+					depends = key,
+				})
+
+				for _, tier in ipairs(difficulty.TIERS) do
+					local path = "minimap.difficulty.colors." .. tier.key
+
+					card:Color({
+						id = "difficulty_" .. tier.key,
+						resettable = true,
+						label = TIER_LABELS[tier.key],
+						description = TIER_DESCRIPTIONS[tier.key],
+						path = path,
+						default = Settings:Default(path),
+						details = "difficultyColors",
+					})
+				end
+			elseif key == "clock" then
+				card:Checkbox({
+					id = "twentyFour",
+					label = TIMEMANAGER_24HOURMODE,
+					path = "minimap.clock.twentyFour",
+					default = Settings:Default("minimap.clock.twentyFour"),
+					depends = key,
+				})
+				card:Checkbox({
+					id = "localTime",
+					label = TIMEMANAGER_LOCALTIME,
+					description = L["Off shows the realm's time."],
+					path = "minimap.clock.localTime",
+					default = Settings:Default("minimap.clock.localTime"),
+					depends = key,
+				})
+				card:Checkbox({
+					id = "dayNight",
+					label = L["Show Day and Night"],
+					path = "minimap.clock.dayNight",
+					default = Settings:Default("minimap.clock.dayNight"),
+					depends = key,
+				})
+				card:Slider({
+					id = "iconSize",
+					resettable = true,
+					label = L["Icon Size"],
+					path = "minimap.clock.iconSize",
+					default = Settings:Default("minimap.clock.iconSize"),
+					min = 8,
+					max = 32,
+					step = 1,
+					depends = "dayNight",
+				})
+			elseif key == "coordinates" then
+				card:Slider({
+					id = "precision",
+					resettable = true,
+					label = L["Decimal Places"],
+					path = "minimap.coordinates.precision",
+					default = Settings:Default("minimap.coordinates.precision"),
+					min = 0,
+					max = 2,
+					step = 1,
+					depends = key,
+				})
+			end
+
+			if info.iconSize then
+				local path = "minimap." .. key .. ".iconSize"
+
+				card:Slider({
+					id = key .. "IconSize",
+					resettable = true,
+					label = L["Icon Size"],
+					description = L["Compared with the row's height."],
+					path = path,
+					default = Settings:Default(path),
+					min = 50,
+					max = 120,
+					step = 5,
+					format = "percent",
+					depends = key,
+				})
+			end
+
+			if info.text then
+				DeclareText(card, key, info.colored, key)
+			end
+
+			if info.note then
+				card:Note(info.note)
+			end
+		end
+	end
+end
+
+---@param window table
+function SettingsMinimap:Declare(window)
+	local Settings = AUI.Settings
+	local page = window:Page("minimap", {
+		title = MINIMAP_LABEL,
+		description = L["Replaces Blizzard's minimap. Turning it on or off needs a reload."],
+		under = "mapsHeader",
+		icon = AUI.Media.sidebar.minimap,
+		iconTint = true,
+		switch = { path = "minimap.enabled", default = Settings:Default("minimap.enabled") },
 	})
-	DeclareText(pages.minimapZone:Section("zoneText", L["Text"]), "zone")
 
-	local clock = pages.minimapClock:Section("clock", TIMEMANAGER_TITLE)
-
-	clock:Checkbox({
-		id = "twentyFour",
-		label = TIMEMANAGER_24HOURMODE,
-		path = "minimap.clock.twentyFour",
-		default = Settings:Default("minimap.clock.twentyFour"),
-	})
-	clock:Checkbox({
-		id = "localTime",
-		label = TIMEMANAGER_LOCALTIME,
-		description = L["Off shows the realm's time."],
-		path = "minimap.clock.localTime",
-		default = Settings:Default("minimap.clock.localTime"),
-	})
-	clock:Checkbox({
-		id = "dayNight",
-		label = L["Show Day and Night"],
-		path = "minimap.clock.dayNight",
-		default = Settings:Default("minimap.clock.dayNight"),
-	})
-	clock:Slider({
-		id = "iconSize",
-		resettable = true,
-		label = L["Icon Size"],
-		path = "minimap.clock.iconSize",
-		default = Settings:Default("minimap.clock.iconSize"),
-		min = 8,
-		max = 32,
-		step = 1,
-		depends = "dayNight",
-	})
-	DeclareText(pages.minimapClock:Section("clockText", L["Text"]), "clock", true)
-
-	local coordinates = pages.minimapCoordinates:Section("coordinates", L["Coordinates"])
-
-	coordinates:Slider({
-		id = "precision",
-		resettable = true,
-		label = L["Decimal Places"],
-		path = "minimap.coordinates.precision",
-		default = Settings:Default("minimap.coordinates.precision"),
-		min = 0,
-		max = 2,
-		step = 1,
-	})
-	DeclareText(pages.minimapCoordinates:Section("coordinatesText", L["Text"]), "coordinates", true)
-	DeclareText(pages.minimapCompartment:Section("compartmentText", L["Text"]), "compartment", true)
-
-	local fade = pages.minimap:Section("fade", L["Fading"])
-
-	fade:Checkbox({
-		id = "fadeMouseover",
-		label = L["Fade Until Mouseover"],
-		path = "minimap.fade.mouseover",
-		default = Settings:Default("minimap.fade.mouseover"),
-	})
-	fade:Slider({
-		id = "fadeMouseoverOpacity",
-		resettable = true,
-		label = L["Mouseover Opacity"],
-		path = "minimap.fade.mouseoverOpacity",
-		default = Settings:Default("minimap.fade.mouseoverOpacity"),
-		min = 0,
-		max = 100,
-		step = 5,
-		format = "percent",
-		depends = "fadeMouseover",
-	})
-	fade:Checkbox({
-		id = "fadeCombat",
-		label = L["Fade in Combat"],
-		path = "minimap.fade.combat",
-		default = Settings:Default("minimap.fade.combat"),
-	})
-	fade:Slider({
-		id = "fadeCombatOpacity",
-		resettable = true,
-		label = L["Combat Opacity"],
-		description = L["The mouse brings it back."],
-		path = "minimap.fade.combatOpacity",
-		default = Settings:Default("minimap.fade.combatOpacity"),
-		min = 0,
-		max = 100,
-		step = 5,
-		format = "percent",
-		depends = "fadeCombat",
-	})
-
-	DeclareText(pages.minimapDifficulty:Section("difficultyText", L["Text"]), "difficulty")
-
-	local colors = pages.minimapDifficulty:Section("difficultyColors", L["Colors"])
-
-	local difficulty = AUI.MinimapElements.byKey.difficulty --[[@as AUIMinimapDifficulty]]
-
-	for _, tier in ipairs(difficulty.TIERS) do
-		local path = "minimap.difficulty.colors." .. tier.key
-
-		colors:Color({
-			id = "difficulty_" .. tier.key,
-			resettable = true,
-			label = TIER_LABELS[tier.key],
-			description = TIER_DESCRIPTIONS[tier.key],
-			path = path,
-			default = Settings:Default(path),
-		})
+	if not page then
+		return
 	end
 
-	local zoom = pages.minimap:Section("zoom", L["Zoom"])
-
-	zoom:Checkbox({
-		id = "wheelZoom",
-		label = L["Zoom with Mouse Wheel"],
-		path = "minimap.zoom.wheel",
-		default = Settings:Default("minimap.zoom.wheel"),
-	})
-	zoom:Slider({
-		id = "zoomReset",
-		resettable = true,
-		label = L["Reset Zoom After"],
-		description = L["Returns to the widest view this long after the last zoom."],
-		path = "minimap.zoom.reset",
-		default = Settings:Default("minimap.zoom.reset"),
-		min = 0,
-		max = 60,
-		step = 5,
-		format = ResetFormat,
-	})
+	self:DeclareMap(page)
+	self:DeclareBorder(page)
+	self:DeclareRows(page)
+	self:DeclareElements(page)
 end

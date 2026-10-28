@@ -93,7 +93,7 @@ end
 local SETTING_FIELDS = {
 	id = true, label = true, description = true, path = true, default = true, get = true, set = true, depends = true,
 	blocked = true, show = true, wide = true, inherits = true, keywords = true, tooltip = true, redraws = true,
-	resettable = true,
+	resettable = true, details = true,
 }
 local CONTROL_FIELDS = {
 	Checkbox = {},
@@ -102,8 +102,11 @@ local CONTROL_FIELDS = {
 	Dropdown = { options = true, picker = true, placeholder = true, titleCase = true, confirm = true, verb = true,
 		width = true },
 	Color = { hasOpacity = true, classColor = true },
+	Toggle = {},
+	Details = { summary = true },
 }
-local PAGE_FIELDS = { title = true, description = true, under = true, icon = true, slot = true, switch = true }
+local PAGE_FIELDS = { title = true, description = true, under = true, icon = true, iconTint = true, slot = true,
+	switch = true }
 local DECLARATION_FIELDS = {
 	title = true, version = true, store = true, write = true, account = true, width = true, height = true,
 	footer = true, frameName = true,
@@ -119,8 +122,8 @@ local function Allowed(where, info, allowed, extra)
 	end
 end
 
-local function NewSection(id)
-	local section = { id = id, settings = {}, notes = {} }
+local function NewSection(id, title)
+	local section = { id = id, title = title, settings = {}, notes = {} }
 
 	for kind in pairs(CONTROL_FIELDS) do
 		section[kind] = function(self, info)
@@ -153,10 +156,10 @@ local function NewPage(id, info)
 		return previewInfo
 	end
 
-	function page:Section(sectionID, _, sectionInfo)
-		Allowed("section " .. sectionID, sectionInfo, { show = true })
+	function page:Section(sectionID, title, sectionInfo)
+		Allowed("section " .. sectionID, sectionInfo, { show = true, reveal = true, columns = true })
 
-		local section = NewSection(sectionID)
+		local section = NewSection(sectionID, title)
 
 		section.info = sectionInfo or {}
 		self.sections[#self.sections + 1] = section
@@ -386,9 +389,8 @@ local window = Load(nil)
 local declaration = window.declaration
 Equal("registered under the addon's name", window.name, "AeonUI")
 Equal("named root frame", declaration.frameName, "AeonUISettings")
-Equal("sidebar order", table.concat(window.order, " "), "general - #minimapHeader minimap minimapBorder minimapRows " ..
-	"minimapZone minimapDifficulty minimapClock minimapMail minimapTracking minimapCoordinates minimapCalendar " ..
-	"minimapCompartment - #tooltipHeader tooltipAppearance tooltipPosition tooltipUnits tooltipDetails - profiles")
+Equal("sidebar order", table.concat(window.order, " "), "general #mapsHeader minimap #tooltipHeader tooltipGeneral " ..
+	"tooltipUnits tooltipItems - profiles")
 Equal("Settings:Window reuses the window", Settings:Window(), window)
 Equal("the store is the active config", declaration.store(), Profile.config)
 Equal("account settings are the store's", declaration.account(), AeonUIDB.global)
@@ -410,36 +412,63 @@ window.shown = false
 -- Minimap page --------------------------------------------------------------------------------------------------
 
 local minimapPage = window.pages.minimap
-local MINIMAP_PAGES = { "minimap", "minimapBorder", "minimapRows", "minimapZone", "minimapClock", "minimapDifficulty",
-	"minimapCoordinates", "minimapMail", "minimapTracking", "minimapCalendar", "minimapCompartment" }
+local minimapSections = minimapPage.sections
+local Media = AUI.Media
+Equal("the Minimap sits under the Maps header", minimapPage.info.under, "mapsHeader")
+Equal("with its icon", minimapPage.info.icon, Media.sidebar.minimap)
+Equal("tinted as its title", minimapPage.info.iconTint, true)
+Equal("it carries the module's switch", minimapPage.info.switch.path, "minimap.enabled")
+Equal("which defaults on", minimapPage.info.switch.default, true)
+Equal("the layout editor is its preview", type(minimapPage.preview.refresh), "function")
+local minimapIDs = {}
+for index, section in ipairs(minimapSections) do
+	minimapIDs[index] = section.id
+end
+Equal("the map's cards, then each element's", table.concat(minimapIDs, " "),
+	"map fade zoom border rows zone difficulty clock mail tracking coordinates calendar compartment")
+Equal("the elements' cards are headed once", minimapSections.zone.title ~= nil and minimapSections.difficulty.title,
+	nil)
 local outlineChoices = {}
-for index, option in ipairs(window.pages.minimapDifficulty.sections.difficultyText.settings.difficultyText_outline.options) do
+for index, option in ipairs(minimapSections.difficulty.settings.difficultyText_outline.options) do
 	outlineChoices[index] = option.value
 end
 Equal("every outline the library offers is a valid choice", table.concat(outlineChoices, " "),
 	table.concat(AUI.Schema.choices.fontOutline, " "))
-Equal("icon size follows day and night", window.pages.minimapClock.sections.clock.settings.iconSize.depends,
-	"dayNight")
-Equal("the rows' text has its own section", window.pages.minimapRows.sections.rowsText.settings.rowsText_size.path,
-	"minimap.text.size")
-Equal("the zone offers no text color", window.pages.minimapZone.sections.zoneText.settings.zoneText_color, nil)
-Equal("the clock does", window.pages.minimapClock.sections.clockText.settings.clockText_color.inherits.path,
-	"minimap.text.color")
-Equal("a color for each difficulty tier", #window.pages.minimapDifficulty.sections.difficultyColors.settings, 5)
+Equal("icon size follows day and night", minimapSections.clock.settings.iconSize.depends, "dayNight")
+Equal("the rows' text opens from its row", minimapSections.rows.settings.rowsText_size.details, "rowsText")
+Equal("which reads the rows' text", minimapSections.rows.settings.rowsText_size.path, "minimap.text.size")
+Equal("and sums it up", minimapSections.rows.settings.rowsText.summary(),
+	("%s, %d"):format(Profile:Get("minimap.text.font"), Profile:Get("minimap.text.size")))
+Equal("the zone offers no text color", minimapSections.zone.settings.zoneText_color, nil)
+Equal("the clock does", minimapSections.clock.settings.clockText_color.inherits.path, "minimap.text.color")
+Equal("an element's text follows its switch", minimapSections.clock.settings.clockText.depends, "clock")
+local tiers = 0
+for _, setting in ipairs(minimapSections.difficulty.settings) do
+	tiers = tiers + (setting.details == "difficultyColors" and 1 or 0)
+end
+Equal("a color for each difficulty tier", tiers, 5)
+Equal("the mail's card notes its empty slot", #minimapSections.mail.notes, 1)
 
-for _, id in ipairs(MINIMAP_PAGES) do
-	local page = window.pages[id]
+for _, section in ipairs(minimapSections) do
+	local key = section.id
+	local element = AUI.MinimapElements.byKey[key]
 
-	Equal(id .. " sits under the Minimap header", page.info.under, "minimapHeader")
-	local element = id:match("^minimap(%u%l+)$")
-	local elementKey = element and element ~= "Border" and element ~= "Rows" and element:lower()
+	if element then
+		local switch = section.settings[1]
 
-	Equal(id .. " carries its switch", page.info.switch.path,
-		elementKey and "minimap.elements." .. elementKey .. ".enabled" or "minimap.enabled")
-	Equal(id .. " switch defaults on", page.info.switch.default, true)
+		Equal(key .. " is headed by its switch", switch.kind, "Toggle")
+		Equal(key .. " switch is the element's", switch.path, AUI.MinimapElements:EnabledPath(key))
+		Equal(key .. " switch defaults on", switch.default, true)
 
-	for _, section in ipairs(page.sections) do
-		for _, setting in ipairs(section.settings) do
+		for index = 2, #section.settings do
+			local setting = section.settings[index]
+
+			Equal(setting.id .. " follows something in its card", setting.depends ~= nil or setting.details ~= nil, true)
+		end
+	end
+
+	for _, setting in ipairs(section.settings) do
+		if setting.path then
 			Equal(setting.id .. " names a setting", AUI.Schema:Field(setting.path) ~= nil, true)
 			local field = AUI.Schema:Field(setting.path)
 			local source = field.shared and AUI.Schema:Field(field.shared) or field
@@ -451,14 +480,13 @@ for _, id in ipairs(MINIMAP_PAGES) do
 	end
 end
 
-local fade = minimapPage.sections.fade.settings
+local fade = minimapSections.fade.settings
 Equal("mouseover opacity follows its fade", fade.fadeMouseoverOpacity.depends, "fadeMouseover")
 Equal("combat opacity follows its fade", fade.fadeCombatOpacity.depends, "fadeCombat")
-Equal("row height is on the page", window.pages.minimapRows.sections.rows.settings.rowHeight.path, "minimap.rows.height")
-Equal("precision is a plain count of decimal places",
-	window.pages.minimapCoordinates.sections.coordinates.settings.precision.format, nil)
+Equal("row height is on the page", minimapSections.rows.settings.rowHeight.path, "minimap.rows.height")
+Equal("precision is a plain count of decimal places", minimapSections.coordinates.settings.precision.format, nil)
 
-local borderSection = window.pages.minimapBorder.sections.border
+local borderSection = minimapSections.border
 Equal("every border style is offered", #borderSection.settings.borderStyle.options, #AUI.Border.STYLES)
 local borderSettings = borderSection.settings
 Equal("border color is free with Metal", borderSettings.borderColor.blocked(), nil)
@@ -472,20 +500,21 @@ Equal("Forever takes a thickness", borderSettings.borderThickness.blocked(), nil
 Profile:Set("minimap.border.style", "FOREVER_MINIMAL")
 Equal("Forever Minimal takes a color", borderSettings.borderColor.blocked(), nil)
 Profile:Set("minimap.border.style", "METAL")
-local resetSlider = minimapPage.sections.zoom.settings.zoomReset
+local resetSlider = minimapSections.zoom.settings.zoomReset
 Equal("a zero reset reads Never", resetSlider.format(0), "Never")
 Equal("a reset reads in seconds", resetSlider.format(15), "15 s")
 
 -- Tooltip pages -------------------------------------------------------------------------------------------------
 
 local TooltipOptions = AUI.TooltipOptions
+local TOOLTIP_SWITCH = "tooltipGeneral/enabled"
 
 for id in pairs(AUI.SettingsTooltip.pageIDs) do
 	local page = window.pages[id]
 
 	Equal(id .. " sits under the Tooltip header", page.info.under, "tooltipHeader")
-	Equal(id .. " carries the module's switch", page.info.switch.path, TooltipOptions.ENABLED_PATH)
-	Equal(id .. " switch defaults on", page.info.switch.default, true)
+	Equal(id .. " has its icon", page.info.icon, Media.sidebar[id])
+	Equal(id .. " carries the switch only on General", page.info.switch ~= nil, id == "tooltipGeneral")
 
 	for _, section in ipairs(page.sections) do
 		for _, setting in ipairs(section.settings) do
@@ -496,15 +525,29 @@ for id in pairs(AUI.SettingsTooltip.pageIDs) do
 				Equal(setting.id .. " reads and writes its own value", type(setting.get) == "function"
 					and type(setting.set) == "function", true)
 			end
+
+			if id ~= "tooltipGeneral" then
+				local parent = setting
+
+				while parent.depends and parent.depends ~= TOOLTIP_SWITCH do
+					parent = section.settings[parent.depends]
+				end
+
+				Equal(setting.id .. " follows the module's switch", parent and parent.depends, TOOLTIP_SWITCH)
+			end
 		end
 	end
 end
 
-local tooltipBar = window.pages.tooltipAppearance.sections.tooltipHealthBar.settings
+local general = window.pages.tooltipGeneral
+Equal("the switch is the module's", general.info.switch.path, TooltipOptions.ENABLED_PATH)
+Equal("which defaults on", general.info.switch.default, true)
+Equal("and is named for the tooltip", general.info.switch.label, "Tooltip")
+local tooltipBar = general.sections.tooltipHealthBar.settings
 Equal("every bar style is offered", #tooltipBar.barStyle.options, #TooltipOptions.BAR_STYLES)
 Equal("one height for both styles", tooltipBar.barHeight.path, TooltipOptions.BAR_HEIGHT_PATH)
 Equal("no second height", tooltipBar.stripHeight, nil)
-local tooltipFont = window.pages.tooltipAppearance.sections.tooltipFont.settings
+local tooltipFont = general.sections.tooltipFont.settings
 Equal("the font follows Custom Font", tooltipFont.fontFace.depends, "customFont")
 Equal("the scale stands on its own", tooltipFont.fontScale.depends, nil)
 Equal("the bar's style follows Show Health Bar", tooltipBar.barStyle.depends, "showHealthBar")
@@ -521,9 +564,8 @@ AUI.can.mythicPlus, AUI.can.auraCasterNames = mythicPlus, auraCasterNames
 Equal("the Target line is offered everywhere", unitAdded.showTarget.show, nil)
 Equal("titles are hidden by default", window.pages.tooltipUnits.sections.tooltipUnitLines.settings.showTitles.default,
 	false)
-local position = window.pages.tooltipPosition
-local visibility = position.sections.tooltipVisibility.settings
-local place = position.sections.tooltipPlace.settings
+local visibility = general.sections.tooltipVisibility.settings
+local place = general.sections.tooltipPlace.settings
 Equal("every show mode is offered", #visibility.showMode.options, #TooltipOptions.SHOW_MODES)
 Equal("tooltips show always by default", visibility.showMode.default, "ALWAYS")
 Equal("the show key needs a mode that hides", visibility.peekKey.blocked() ~= nil, true)
@@ -533,17 +575,17 @@ Equal("its place follows it", place.cursorPoint.depends, "anchorCursor")
 Equal("so do its offsets", place.cursorX.depends .. " " .. place.cursorY.depends, "anchorCursor anchorCursor")
 Equal("every place around the cursor is offered", #place.cursorPoint.options, #TooltipOptions.CURSOR_POINTS)
 Equal("growth is free while the tooltip has a place", place.growth.blocked(), nil)
-local details = window.pages.tooltipDetails
-local detailIDs = details.sections.tooltipDetailIDs.settings
-Equal("the Details page has a preview", details.preview ~= nil, true)
+local items = window.pages.tooltipItems
+local detailIDs = items.sections.tooltipDetailIDs.settings
+Equal("the Items page has the Details preview", items.preview ~= nil, true)
 Equal("every modifier is offered", #detailIDs.idModifier.options, #TooltipOptions.MODIFIERS)
-Equal("one checkbox per ID line", #details.sections.tooltipDetailIDs.settings, #TooltipOptions.ID_KEYS + 1)
+Equal("one checkbox per ID line", #items.sections.tooltipDetailIDs.settings, #TooltipOptions.ID_KEYS + 1)
 Equal("ID lines default on", detailIDs.showSpellID.default, true)
 Equal("with no modifier", detailIDs.idModifier.default, "NONE")
 local expansions = AUI.can.expansions
 AUI.can.expansions = nil
 Equal("the expansion is offered only where items have one",
-	details.sections.tooltipDetailLines.settings.showExpansion.show(), false)
+	items.sections.tooltipDetailLines.settings.showExpansion.show(), false)
 AUI.can.expansions = expansions
 
 -- Edit mode ----------------------------------------------------------------------------------------------------
@@ -559,6 +601,7 @@ Equal("the minimap is a target", target and target.key, "minimap")
 Equal("it moves the module's frame", target.frame, AUI.Minimap.holder)
 Equal("it starts at the default place", target.default, AUI.Minimap.DEFAULT_POSITION)
 Equal("Element Options lands on its page", target.settings.page, "minimap")
+Equal("on the Map card, which offers Edit Position", target.settings.section, "map")
 Equal("no stored position at first", placement.declaration.get("minimap"), nil)
 placement.declaration.set("minimap", { point = "TOPLEFT", x = 12, y = -30 })
 Equal("a moved position is saved in the profile", Profile:Get("minimap.position").point, "TOPLEFT")
@@ -667,13 +710,12 @@ Equal("Escape on the reset dialog is harmless", resetPopup.button2, CANCEL)
 
 local Editor = AUI.MinimapEditor
 window = Load(nil)
-Equal("the Rows page draws the layout editor", type(window.pages.minimapRows.preview.refresh), "function")
-Equal("elements are named by their pages", AUI.SettingsMinimap:ElementTitle("difficulty"), "Instance Difficulty")
-Equal("the positioning page keeps its id", window.pages.minimapRows.info.title, "Widget Positioning")
-Equal("the calendar offers an icon size", window.pages.minimapCalendar.sections.minimapCalendarAbout.settings
-	.calendarIconSize.path, "minimap.calendar.iconSize")
+Equal("elements are named by their cards", AUI.SettingsMinimap:ElementTitle("difficulty"), "Instance Difficulty")
+Equal("the calendar offers an icon size", window.pages.minimap.sections.calendar.settings.calendarIconSize.path,
+	"minimap.calendar.iconSize")
 Equal("the calendar's icon starts larger", AUI.Settings:Default("minimap.calendar.iconSize"), 100)
-Equal("the compartment has no icon to size", window.pages.minimapCompartment.sections.minimapCompartmentAbout, nil)
+Equal("the compartment has no icon to size", window.pages.minimap.sections.compartment.settings.compartmentIconSize,
+	nil)
 local slots = {
 	{ row = "TOP1", index = 1, x = 10, y = 11 }, { row = "TOP1", index = 2, x = 60, y = 11 },
 	{ row = "TOP2", index = 1, x = 10, y = 39 }, { row = "TOP2", index = 2, x = 90, y = 39 },
@@ -694,71 +736,47 @@ Equal("past the last shown element is the end", Editor:ListIndex(top2, "mail", 9
 
 local Elements = AUI.MinimapElements
 window = Settings:Window()
-window.page = "minimapZone"
+window.page = "minimap"
 window:Open()
-Equal("opening on a minimap page shows the minimap's samples", Elements.previewers.settings, true)
+Equal("opening on the Minimap page shows the minimap's samples", Elements.previewers.settings, true)
 window:SelectPage("general")
 Equal("another page takes them away", Elements.previewers.settings, nil)
-window:SelectPage("minimapCalendar")
-Equal("a minimap page brings them back", Elements.previewers.settings, true)
+window:SelectPage("minimap")
+Equal("the Minimap page brings them back", Elements.previewers.settings, true)
 window.frame:Hide()
 Equal("hiding the window takes them away", Elements.previewers.settings, nil)
 window:Open()
-Equal("opening it again on a minimap page brings them back", Elements.previewers.settings, true)
+Equal("opening it again on the Minimap page brings them back", Elements.previewers.settings, true)
 window.frame:Hide()
 
 -- Crafting orders, on a client with them --------------------------------------------------------------------------
 
 AUI.can.craftingOrders = true
 window = Load(nil)
-Equal("crafting orders get a page after mail", window.order[11], "minimapCraftingOrders")
-Equal("which turns the element on or off", window.pages.minimapCraftingOrders.info.switch.path,
-	"minimap.elements.craftingOrders.enabled")
+local craftingCard = window.pages.minimap.sections.craftingOrders
+Equal("crafting orders get a card after mail", window.pages.minimap.sections[10], craftingCard)
+Equal("which turns the element on or off", craftingCard.settings[1].path, "minimap.elements.craftingOrders.enabled")
 AUI.can.craftingOrders = nil
 
 -- World Map, on a client with marker data -------------------------------------------------------------------------
 
-Equal("no World Map header without marker data", table.concat(window.order, " "):find("worldMap", 1, true), nil)
+Equal("no World Map page without marker data", window.pages.worldMap, nil)
 AUI.can.worldMapMarkers = true
 window = Load(nil)
-Equal("the World Map header follows the Minimap's", table.concat(window.order, " "):match("minimapCompartment (.*)$"),
-	"- #worldMapHeader worldMapOptions worldMapMarkers - #tooltipHeader tooltipAppearance tooltipPosition tooltipUnits "
-		.. "tooltipDetails - profiles")
-local optionsPage = window.pages.worldMapOptions
-Equal("Map Options sits under the World Map header", optionsPage.info.under, "worldMapHeader")
-Equal("with no page switch", optionsPage.info.switch, nil)
-local optionSections = {}
-for index, section in ipairs(optionsPage.sections) do
-	optionSections[index] = section.id
-
-	for _, setting in ipairs(section.settings) do
-		local field = AUI.Schema:Field(setting.path)
-
-		Equal(setting.id .. " names a setting", field ~= nil, true)
-		Equal(setting.id .. " carries its default", setting.default, field.default)
-	end
+Equal("the World Map follows the Minimap under Maps", table.concat(window.order, " "):match("#mapsHeader (.-) #"),
+	"minimap worldMap")
+local worldMap = window.pages.worldMap
+Equal("the World Map sits under the Maps header", worldMap.info.under, "mapsHeader")
+Equal("with its icon", worldMap.info.icon, Media.sidebar.worldMap)
+Equal("with no page switch", worldMap.info.switch, nil)
+local worldMapIDs = {}
+for index, section in ipairs(worldMap.sections) do
+	worldMapIDs[index] = section.id
 end
-Equal("sections: unexplored, levels, dungeon maps", table.concat(optionSections, " "), "unexplored levels dungeonMaps")
-local darkness = optionsPage.sections.unexplored.settings.darkness
-Equal("darkness is a percentage", darkness.format, "percent")
-Equal("which needs the unexplored areas on", darkness.depends, "unexplored")
-Equal("fishing levels start off", optionsPage.sections.levels.settings.fishingLevels.default, false)
-Equal("Map Options is listed as the World Map's", AUI.SettingsWorldMap.pageIDs.worldMapOptions, true)
-local markersPage = window.pages.worldMapMarkers
-Equal("Map Markers sits under the World Map header", markersPage.info.under, "worldMapHeader")
-Equal("Map Markers carries the markers' switch", markersPage.info.switch.path, "worldMap.markers.enabled")
-Equal("which defaults on", markersPage.info.switch.default, true)
-local sectionIDs = {}
-for index, section in ipairs(markersPage.sections) do
-	sectionIDs[index] = section.id
-end
-Equal("sections: places, travel, town, minimap, display", table.concat(sectionIDs, " "),
-	"places travel town minimap display")
-Equal("a minimap switch for each group", #markersPage.sections.minimap.settings, #AUI.WorldMapMarkers.MINIMAP)
-Equal("the cities-only switch sits in Town", markersPage.sections.town.settings.capitalsOnly.path,
-	"worldMap.markers.capitalsOnly")
+Equal("the map's cards, then the markers'", table.concat(worldMapIDs, " "),
+	"unexplored levels dungeonMaps markers places travel town minimap")
 local switches = 0
-for _, section in ipairs(markersPage.sections) do
+for _, section in ipairs(worldMap.sections) do
 	for _, setting in ipairs(section.settings) do
 		local field = AUI.Schema:Field(setting.path)
 
@@ -769,32 +787,50 @@ for _, section in ipairs(markersPage.sections) do
 	end
 end
 Equal("a switch for every category", switches, #AUI.WorldMapMarkers.CATEGORIES)
-local display = markersPage.sections.display.settings
-Equal("marker size is a percentage", display.markerSize.format, "percent")
-Equal("the other faction stays hidden by default", display.otherFaction.default, false)
-local leyLines = markersPage.sections.places.settings.marker_leyLines
-local stables = markersPage.sections.town.settings.marker_stableMasters
+local darkness = worldMap.sections.unexplored.settings.darkness
+Equal("darkness is a percentage", darkness.format, "percent")
+Equal("which needs the unexplored areas on", darkness.depends, "unexplored")
+Equal("fishing levels start off", worldMap.sections.levels.settings.fishingLevels.default, false)
+local markers = worldMap.sections.markers
+Equal("the markers' card is headed by their switch", markers.settings[1].kind, "Toggle")
+Equal("which is the markers'", markers.settings[1].path, "worldMap.markers.enabled")
+Equal("which defaults on", markers.settings[1].default, true)
+Equal("and redraws the page", markers.settings[1].redraws, true)
+Equal("the cities-only switch sits with the markers", markers.settings.capitalsOnly.path,
+	"worldMap.markers.capitalsOnly")
+Equal("and follows their switch", markers.settings.capitalsOnly.depends, "markers")
+Equal("marker size is a percentage", markers.settings.markerSize.format, "percent")
+Equal("the other faction stays hidden by default", markers.settings.otherFaction.default, false)
+Equal("a minimap switch for each group", #worldMap.sections.minimap.settings, #AUI.WorldMapMarkers.MINIMAP)
+Equal("the categories show while the markers are on", worldMap.sections.town.info.show(), true)
+Profile:Set("worldMap.markers.enabled", false)
+Equal("and leave while they are off", worldMap.sections.places.info.show(), false)
+Equal("with the minimap pins", worldMap.sections.minimap.info.show(), false)
+Profile:Set("worldMap.markers.enabled", true)
+local leyLines = worldMap.sections.places.settings.marker_leyLines
+local stables = worldMap.sections.town.settings.marker_stableMasters
 AUI.WorldMap = { race = 1, class = "MAGE" }
 Equal("ley lines are offered only to their race", leyLines.show(), false)
 Equal("stable masters only to hunters", stables.show(), false)
 AUI.WorldMap.race, AUI.WorldMap.class = 95, "HUNTER"
 Equal("which sees them", leyLines.show(), true)
 Equal("a hunter sees stable masters", stables.show(), true)
-Equal("dungeons are offered to everyone", markersPage.sections.places.settings.marker_dungeons.show, nil)
+Equal("dungeons are offered to everyone", worldMap.sections.places.settings.marker_dungeons.show, nil)
 AUI.WorldMap = nil
-Equal("the page is listed as the World Map's", AUI.SettingsWorldMap.pageIDs.worldMapMarkers, true)
+Equal("the page is listed as the World Map's", AUI.SettingsWorldMap.pageIDs.worldMap, true)
 AUI.can.worldMapMarkers = nil
 
 -- Tooltip upgrades, on a client with upgrade tracks ---------------------------------------------------------------
 
-Equal("no Upgrades page without upgrade tracks", window.pages.tooltipUpgrades, nil)
+Equal("no upgrade card without upgrade tracks", window.pages.tooltipItems.sections.tooltipUpgradeLine, nil)
 AUI.can.upgrades = true
 window = Load(nil)
-Equal("Upgrades follows Details", table.concat(window.order, " "):match("tooltipDetails (%S+)"), "tooltipUpgrades")
-local upgrades = window.pages.tooltipUpgrades
-Equal("Upgrades carries the module's switch", upgrades.info.switch.path, TooltipOptions.ENABLED_PATH)
-local upgradeLine = upgrades.sections.tooltipUpgradeLine.settings
+local upgradeSection = window.pages.tooltipItems.sections.tooltipUpgradeLine
+Equal("the upgrade card ends the Items page", window.pages.tooltipItems.sections[#window.pages.tooltipItems.sections],
+	upgradeSection)
+local upgradeLine = upgradeSection.settings
 Equal("the range color follows the range", upgradeLine.upgradeRangeColor.depends, "upgradeRange")
+Equal("the range follows the module's switch", upgradeLine.upgradeRange.depends, TOOLTIP_SWITCH)
 Equal("the range color defaults to white", upgradeLine.upgradeRangeColor.default.g, 1)
 Equal("the rank and range are on by default", upgradeLine.upgradeRank.default and upgradeLine.upgradeRange.default,
 	true)

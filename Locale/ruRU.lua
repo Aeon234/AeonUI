@@ -29,6 +29,7 @@ L["Click: open settings"] = "Щелчок: открыть настройки"
 -- Page titles (Settings)
 L["Profiles"] = "Профили"
 L["Recovery"] = "Восстановление"
+L["Maps"] = "Карты"
 
 -- Shared settings labels (Settings)
 L["Text"] = "Текст"
@@ -45,7 +46,7 @@ L["Left-click opens settings."] = "Левый щелчок открывает н
 L["/aui and the addon compartment open settings too."] = "Настройки также открываются командой /aui и через отсек модификаций."
 
 -- Minimap page (Settings)
-L["Widget Positioning"] = "Расположение элементов"
+L["Elements"] = "Элементы"
 L["Top 1"] = "Верх 1"
 L["Top 2"] = "Верх 2"
 L["Bottom 1"] = "Низ 1"
@@ -70,7 +71,6 @@ L["Width"] = "Ширина"
 L["Kept within 3:2 of the width either way."] = "Не более 3:2 относительно ширины в любую сторону."
 L["Scale"] = "Масштаб"
 L["The map stays north up; Rotate Minimap is ignored."] = "Карта всегда ориентирована на север; Вращение миникарты не учитывается."
-L["To move the map, use Edit Mode."] = "Чтобы переместить карту, используйте режим редактирования."
 L["Border"] = "Рамка"
 L["Border Style"] = "Стиль рамки"
 L["Metal"] = "Металл"
@@ -134,7 +134,6 @@ L["Delves"] = "Вылазки"
 L["Story"] = "Сюжет"
 
 -- Map Options page (Settings)
-L["Map Options"] = "Параметры карты"
 L["Unexplored Areas"] = "Неисследованные области"
 L["Show Unexplored Areas"] = "Показывать неисследованные области"
 L["Draws the parts of a zone you have not explored yet, darkened, instead of leaving them blank."] = "Рисует ещё не исследованные части зоны затемнёнными, а не оставляет их пустыми."
@@ -167,7 +166,6 @@ L["Portals"] = "Порталы"
 L["Minimap Pins"] = "Метки на миникарте"
 L["Docks"] = "Причалы"
 L["The nearest ones around you, on the minimap; they follow you as you move."] = "Ближайшие к вам, на миникарте; они следуют за вами, пока вы двигаетесь."
-L["Display"] = "Отображение"
 L["Show Other Faction"] = "Показывать другую фракцию"
 L["Also marks the other faction's boats, zeppelins, trams and battleground entrances."] = "Отмечает также корабли, дирижабли, трамваи и входы на поля боя другой фракции."
 L["Marker Size"] = "Размер меток"
@@ -265,7 +263,6 @@ L["Right-click: back to the map"] = "Правый щелчок: назад к к
 
 -- Tooltip pages (Settings)
 L["Tooltip"] = "Подсказка"
-L["Appearance"] = "Внешний вид"
 L["Custom Font"] = "Свой шрифт"
 L["Font Scale"] = "Масштаб шрифта"
 L["Health Bar"] = "Полоса здоровья"
@@ -294,7 +291,6 @@ L["The player's specialization and role, from an inspect or shared by their addo
 L["Aura Caster Names"] = "Заклинатели эффектов"
 L["Aura tooltips name who cast the aura."] = "Подсказки эффектов называют того, кто наложил эффект."
 
-L["Details"] = "Подробности"
 L["Category and Type"] = "Категория и тип"
 L["An item's category and type, such as Armor / Plate."] = "Категория и тип предмета, например Доспехи / Латы."
 L["Blank Line Before"] = "Пустая строка перед"
@@ -320,7 +316,7 @@ L["Range Color"] = "Цвет диапазона"
 L["Next Crest"] = "Следующий герб"
 L["The crest the next upgrade costs, and whether it is discounted."] = "Герб, который стоит следующее улучшение, и есть ли скидка."
 
-L["Position & Visibility"] = "Положение и видимость"
+L["Items"] = "Предметы"
 L["Visibility"] = "Видимость"
 L["Show Tooltips"] = "Показывать подсказки"
 L["Out of Combat"] = "Вне боя"
@@ -347,7 +343,7 @@ L["Default lets Blizzard choose."] = "По умолчанию выбирает B
 L["Up"] = "Вверх"
 L["Down"] = "Вниз"
 L["Not while anchored to the cursor."] = "Недоступно, пока подсказка привязана к курсору."
-L["To move the tooltip, use Edit Mode. Until then it keeps Blizzard's place."] = "Чтобы переместить подсказку, используйте режим редактирования. До тех пор она остается на месте Blizzard."
+L["Until moved, it keeps Blizzard's place."] = "Пока ее не переместят, она остается на месте Blizzard."
 
 -- Tooltip lines (Tooltip; the ID labels also name the Details page's checkboxes)
 L["Rare"] = "Редкий"

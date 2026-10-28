@@ -53,10 +53,11 @@ local function ForPlayer(category)
 	end
 end
 
----The World Map header and its pages: Map Options, then Map Markers, which carries the markers' switch. Changes take
----effect at once. Left out where there is no marker data for the client's world.
+---The World Map page, under the Maps header: how Blizzard's world map draws zones, then the markers, headed by their
+---switch, with their categories' cards shown while it is on. Changes take effect at once. Left out where there is no
+---marker data for the client's world.
 ---@class AUISettingsWorldMap
----@field pageIDs table<string, true> the pages under the World Map header
+---@field pageIDs table<string, true> the World Map page
 local SettingsWorldMap = {
 	pageIDs = {},
 }
@@ -67,20 +68,10 @@ function SettingsWorldMap:IsAvailable()
 	return AUI.can.worldMapMarkers == true
 end
 
----@param window table
-function SettingsWorldMap:DeclareOptions(window)
+---The map's own options: unexplored areas, zone labels and dungeon maps.
+---@param page table
+function SettingsWorldMap:DeclareOptions(page)
 	local Settings, Options = AUI.Settings, AUI.WorldMapOptions
-	local page = window:Page("worldMapOptions", {
-		title = L["Map Options"],
-		under = "worldMapHeader",
-	})
-
-	if not page then
-		return
-	end
-
-	self.pageIDs.worldMapOptions = true
-
 	local unexplored = page:Section("unexplored", L["Unexplored Areas"])
 
 	unexplored:Checkbox({
@@ -139,28 +130,57 @@ function SettingsWorldMap:DeclareOptions(window)
 	dungeons:Note(L["Only instances whose map art the game has; the others keep the journal."])
 end
 
----@param window table
-function SettingsWorldMap:Declare(window)
+---@param page table
+function SettingsWorldMap:DeclareMarkers(page)
 	local Settings, Markers = AUI.Settings, AUI.WorldMapMarkers
 
-	window:Header("worldMapHeader", WORLDMAP_BUTTON)
-	self:DeclareOptions(window)
-
-	local page = window:Page("worldMapMarkers", {
-		title = L["Map Markers"],
-		description = L["Hover a marker for its name."],
-		under = "worldMapHeader",
-		switch = { path = Markers.ENABLED_PATH, default = Settings:Default(Markers.ENABLED_PATH) },
-	})
-
-	if not page then
-		return
+	local function Shown()
+		return AUI.Profile:Get(Markers.ENABLED_PATH) == true
 	end
 
-	self.pageIDs.worldMapMarkers = true
+	local display = page:Section("markers")
+
+	display:Toggle({
+		id = "markers",
+		label = L["Map Markers"],
+		description = L["Hover a marker for its name."],
+		path = Markers.ENABLED_PATH,
+		default = Settings:Default(Markers.ENABLED_PATH),
+		-- The categories' cards show only while the markers are on.
+		redraws = true,
+	})
+	display:Checkbox({
+		id = "otherFaction",
+		label = L["Show Other Faction"],
+		description = L["Also marks the other faction's boats, zeppelins, trams and battleground entrances."],
+		path = Markers.OTHER_FACTION_PATH,
+		default = Settings:Default(Markers.OTHER_FACTION_PATH),
+		depends = "markers",
+	})
+	display:Checkbox({
+		id = "capitalsOnly",
+		label = L["Vendors and Trainers in Cities Only"],
+		description = L["Innkeepers, mailboxes and spirit healers show everywhere."],
+		path = Markers.CAPITALS_PATH,
+		default = Settings:Default(Markers.CAPITALS_PATH),
+		depends = "markers",
+	})
+	display:Slider({
+		id = "markerSize",
+		resettable = true,
+		label = L["Marker Size"],
+		description = L["Markers keep this size on screen as the map zooms, smaller on continent maps."],
+		path = Markers.SCALE_PATH,
+		default = Settings:Default(Markers.SCALE_PATH),
+		min = 50,
+		max = 200,
+		step = 5,
+		format = "percent",
+		depends = "markers",
+	})
 
 	for _, info in ipairs(SECTIONS) do
-		local section = page:Section(info.id, info.title)
+		local section = page:Section(info.id, info.title, { show = Shown })
 
 		for _, key in ipairs(info.keys) do
 			local path = Markers:CategoryPath(key)
@@ -173,19 +193,9 @@ function SettingsWorldMap:Declare(window)
 				show = ForPlayer(Markers.byKey[key]),
 			})
 		end
-
-		if info.id == "town" then
-			section:Checkbox({
-				id = "capitalsOnly",
-				label = L["Vendors and Trainers in Cities Only"],
-				description = L["Innkeepers, mailboxes and spirit healers show everywhere."],
-				path = Markers.CAPITALS_PATH,
-				default = Settings:Default(Markers.CAPITALS_PATH),
-			})
-		end
 	end
 
-	local minimap = page:Section("minimap", L["Minimap Pins"])
+	local minimap = page:Section("minimap", L["Minimap Pins"], { show = Shown })
 	local MINIMAP_LABELS = { mailboxes = L["Mailboxes"], spiritHealers = L["Spirit Healers"], docks = L["Docks"] }
 
 	for _, entry in ipairs(Markers.MINIMAP) do
@@ -200,27 +210,22 @@ function SettingsWorldMap:Declare(window)
 	end
 
 	minimap:Note(L["The nearest ones around you, on the minimap; they follow you as you move."])
+end
 
-	local markers = page:Section("display", L["Display"])
-
-	markers:Checkbox({
-		id = "otherFaction",
-		label = L["Show Other Faction"],
-		description = L["Also marks the other faction's boats, zeppelins, trams and battleground entrances."],
-		path = Markers.OTHER_FACTION_PATH,
-		default = Settings:Default(Markers.OTHER_FACTION_PATH),
+---@param window table
+function SettingsWorldMap:Declare(window)
+	local page = window:Page("worldMap", {
+		title = WORLDMAP_BUTTON,
+		under = "mapsHeader",
+		icon = AUI.Media.sidebar.worldMap,
+		iconTint = true,
 	})
 
-	markers:Slider({
-		id = "markerSize",
-		resettable = true,
-		label = L["Marker Size"],
-		description = L["Markers keep this size on screen as the map zooms, smaller on continent maps."],
-		path = Markers.SCALE_PATH,
-		default = Settings:Default(Markers.SCALE_PATH),
-		min = 50,
-		max = 200,
-		step = 5,
-		format = "percent",
-	})
+	if not page then
+		return
+	end
+
+	self.pageIDs.worldMap = true
+	self:DeclareOptions(page)
+	self:DeclareMarkers(page)
 end

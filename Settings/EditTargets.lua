@@ -27,7 +27,7 @@ function EditTargets:Targets()
 			label = MINIMAP_LABEL,
 			frame = minimap.holder,
 			default = minimap.DEFAULT_POSITION,
-			settings = { page = "minimap" },
+			settings = { page = "minimap", section = "map" },
 		}
 	end
 
@@ -40,7 +40,7 @@ function EditTargets:Targets()
 			label = AUI.L["Tooltip"],
 			frame = Anchor:Box(),
 			default = Anchor:DefaultPosition(),
-			settings = { page = "tooltipPosition", section = "tooltipPlace" },
+			settings = { page = "tooltipGeneral", section = "tooltipPlace" },
 			place = function(position)
 				Anchor:Place(position)
 			end,

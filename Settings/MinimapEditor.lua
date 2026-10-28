@@ -626,7 +626,7 @@ function Editor:Commit(layout, text)
 	local window = AUI.Settings.window
 
 	if window then
-		window:RecordChange({ path = Elements.LAYOUT_PATH, before = before, text = text, page = "minimapRows" })
+		window:RecordChange({ path = Elements.LAYOUT_PATH, before = before, text = text, page = "minimap" })
 	end
 
 	AUI.Settings:Refresh()

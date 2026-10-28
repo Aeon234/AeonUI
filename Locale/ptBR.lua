@@ -29,6 +29,7 @@ L["Click: open settings"] = "Clique: abrir configurações"
 -- Page titles (Settings)
 L["Profiles"] = "Perfis"
 L["Recovery"] = "Recuperação"
+L["Maps"] = "Mapas"
 
 -- Shared settings labels (Settings)
 L["Text"] = "Texto"
@@ -45,7 +46,7 @@ L["Left-click opens settings."] = "Clicar com o botão esquerdo abre as configur
 L["/aui and the addon compartment open settings too."] = "/aui e o compartimento de addons também abrem as configurações."
 
 -- Minimap page (Settings)
-L["Widget Positioning"] = "Posição dos widgets"
+L["Elements"] = "Elementos"
 L["Top 1"] = "Topo 1"
 L["Top 2"] = "Topo 2"
 L["Bottom 1"] = "Base 1"
@@ -70,7 +71,6 @@ L["Width"] = "Largura"
 L["Kept within 3:2 of the width either way."] = "Mantida dentro de 3:2 da largura em ambos os sentidos."
 L["Scale"] = "Escala"
 L["The map stays north up; Rotate Minimap is ignored."] = "O mapa fica com o norte para cima; Girar minimapa é ignorado."
-L["To move the map, use Edit Mode."] = "Para mover o mapa, use o Modo de Edição."
 L["Border"] = "Borda"
 L["Border Style"] = "Estilo da borda"
 L["Metal"] = "Metal"
@@ -134,7 +134,6 @@ L["Delves"] = "Imersões"
 L["Story"] = "História"
 
 -- Map Options page (Settings)
-L["Map Options"] = "Opções do mapa"
 L["Unexplored Areas"] = "Áreas inexploradas"
 L["Show Unexplored Areas"] = "Mostrar áreas inexploradas"
 L["Draws the parts of a zone you have not explored yet, darkened, instead of leaving them blank."] = "Desenha escurecidas as partes de uma zona que você ainda não explorou, em vez de deixá-las em branco."
@@ -167,7 +166,6 @@ L["Portals"] = "Portais"
 L["Minimap Pins"] = "Marcadores do minimapa"
 L["Docks"] = "Docas"
 L["The nearest ones around you, on the minimap; they follow you as you move."] = "Os mais próximos ao seu redor, no minimapa; eles acompanham você enquanto se move."
-L["Display"] = "Exibição"
 L["Show Other Faction"] = "Mostrar a outra facção"
 L["Also marks the other faction's boats, zeppelins, trams and battleground entrances."] = "Também marca barcos, zepelins, bondes e entradas de campos de batalha da outra facção."
 L["Marker Size"] = "Tamanho dos marcadores"
@@ -265,7 +263,6 @@ L["Right-click: back to the map"] = "Botão direito: voltar ao mapa"
 
 -- Tooltip pages (Settings)
 L["Tooltip"] = "Dica de tela"
-L["Appearance"] = "Aparência"
 L["Custom Font"] = "Fonte personalizada"
 L["Font Scale"] = "Escala da fonte"
 L["Health Bar"] = "Barra de vida"
@@ -294,7 +291,6 @@ L["The player's specialization and role, from an inspect or shared by their addo
 L["Aura Caster Names"] = "Lançadores de auras"
 L["Aura tooltips name who cast the aura."] = "As dicas de tela de auras indicam quem lançou a aura."
 
-L["Details"] = "Detalhes"
 L["Category and Type"] = "Categoria e tipo"
 L["An item's category and type, such as Armor / Plate."] = "A categoria e o tipo de um item, como Armadura / Placas."
 L["Blank Line Before"] = "Linha em branco antes"
@@ -320,7 +316,7 @@ L["Range Color"] = "Cor da faixa"
 L["Next Crest"] = "Próximo brasão"
 L["The crest the next upgrade costs, and whether it is discounted."] = "O brasão que o próximo aprimoramento custa, e se tem desconto."
 
-L["Position & Visibility"] = "Posição e visibilidade"
+L["Items"] = "Itens"
 L["Visibility"] = "Visibilidade"
 L["Show Tooltips"] = "Mostrar dicas de tela"
 L["Out of Combat"] = "Fora de combate"
@@ -347,7 +343,7 @@ L["Default lets Blizzard choose."] = "Com Padrão, a Blizzard escolhe."
 L["Up"] = "Para cima"
 L["Down"] = "Para baixo"
 L["Not while anchored to the cursor."] = "Não enquanto ancorada ao cursor."
-L["To move the tooltip, use Edit Mode. Until then it keeps Blizzard's place."] = "Para mover a dica, use o Modo de Edição. Até lá, ela fica na posição da Blizzard."
+L["Until moved, it keeps Blizzard's place."] = "Até ser movida, fica na posição da Blizzard."
 
 -- Tooltip lines (Tooltip; the ID labels also name the Details page's checkboxes)
 L["Rare"] = "Raro"

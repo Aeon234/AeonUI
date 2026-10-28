@@ -12,6 +12,7 @@ local FLAT_BASE = "Interface\\TargetingFrame\\UI-StatusBar"
 ---@field SHIELD string LibSharedMedia's name for Blizzard's shield fill
 ---@field TOOLTIP_BAR string LibSharedMedia's name for the fill of Blizzard's tooltip health bar
 ---@field files table<string, string> the files of the bar textures AeonUI registers, by name
+---@field sidebar table<string, string> the settings sidebar's page icons, white line glyphs, by page id
 local Media = {
 	FLAT = "flat",
 	STRIPED = "AeonUI Thin Stripes",
@@ -21,6 +22,13 @@ local Media = {
 		["AeonUI Thin Stripes"] = "Interface\\AddOns\\AeonUI\\Media\\Textures\\ThinStripes.png",
 		["Blizzard Shield"] = "Interface\\RaidFrame\\Shield-Fill",
 		["Blizzard Tooltip"] = "Interface\\TargetingFrame\\UI-TargetingFrame-BarFill",
+	},
+	sidebar = {
+		minimap = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarMinimap.tga",
+		worldMap = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarWorldMap.tga",
+		tooltipGeneral = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarTooltipGeneral.tga",
+		tooltipUnits = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarTooltipUnits.tga",
+		tooltipItems = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarTooltipItems.tga",
 	},
 }
 AUI.Media = Media

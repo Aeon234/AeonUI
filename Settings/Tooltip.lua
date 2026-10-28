@@ -54,7 +54,11 @@ local DETAILS_PREVIEW_GAP = 12
 -- Tall enough for the sample item with every line at full size.
 local DETAILS_PREVIEW_HEIGHT = 210
 
----The Tooltip header and its pages, each carrying the module's switch. Changes take effect at once.
+-- The module's switch, on the General page; the Units and Items pages' settings follow it.
+local SWITCH = "tooltipGeneral/enabled"
+
+---The Tooltip header and its pages: General, which carries the module's switch, Units and Items. Changes take effect
+---at once.
 ---@class AUISettingsTooltip
 ---@field pageIDs table<string, true> the pages under the Tooltip header
 local SettingsTooltip = {
@@ -62,21 +66,10 @@ local SettingsTooltip = {
 }
 AUI.SettingsTooltip = SettingsTooltip
 
----@param window table
-function SettingsTooltip:DeclareAppearance(window)
+---The General page's text and health bar.
+---@param page table
+function SettingsTooltip:DeclareAppearance(page)
 	local Settings, Options = AUI.Settings, AUI.TooltipOptions
-	local page = window:Page("tooltipAppearance", {
-		title = L["Appearance"],
-		under = "tooltipHeader",
-		switch = { path = Options.ENABLED_PATH, default = Settings:Default(Options.ENABLED_PATH) },
-	})
-
-	if not page then
-		return
-	end
-
-	self.pageIDs.tooltipAppearance = true
-
 	local font = page:Section("tooltipFont", L["Text"])
 
 	font:Slider({
@@ -170,6 +163,7 @@ local function Choices(values, labels)
 	return options
 end
 
+---A checkbox on the Units or Items page, which follows the module's switch.
 ---@param section table
 ---@param id string
 ---@param label string
@@ -183,25 +177,15 @@ local function Checkbox(section, id, label, description, path, show)
 		description = description,
 		path = path,
 		default = AUI.Settings:Default(path),
+		depends = SWITCH,
 		show = show,
 	})
 end
 
----@param window table
-function SettingsTooltip:DeclarePosition(window)
+---The General page's visibility and position.
+---@param page table
+function SettingsTooltip:DeclarePosition(page)
 	local Settings, Options = AUI.Settings, AUI.TooltipOptions
-	local page = window:Page("tooltipPosition", {
-		title = L["Position & Visibility"],
-		under = "tooltipHeader",
-		switch = { path = Options.ENABLED_PATH, default = Settings:Default(Options.ENABLED_PATH) },
-	})
-
-	if not page then
-		return
-	end
-
-	self.pageIDs.tooltipPosition = true
-
 	local visibility = page:Section("tooltipVisibility", L["Visibility"])
 
 	visibility:Dropdown({
@@ -282,16 +266,41 @@ function SettingsTooltip:DeclarePosition(window)
 			end
 		end,
 	})
-	place:Note(L["To move the tooltip, use Edit Mode. Until then it keeps Blizzard's place."])
+	place:Note(L["Until moved, it keeps Blizzard's place."])
+end
+
+---@param window table
+function SettingsTooltip:DeclareGeneral(window)
+	local Settings, Options = AUI.Settings, AUI.TooltipOptions
+	local page = window:Page("tooltipGeneral", {
+		title = GENERAL,
+		under = "tooltipHeader",
+		icon = AUI.Media.sidebar.tooltipGeneral,
+		iconTint = true,
+		switch = {
+			path = Options.ENABLED_PATH,
+			default = Settings:Default(Options.ENABLED_PATH),
+			label = L["Tooltip"],
+		},
+	})
+
+	if not page then
+		return
+	end
+
+	self.pageIDs.tooltipGeneral = true
+	self:DeclareAppearance(page)
+	self:DeclarePosition(page)
 end
 
 ---@param window table
 function SettingsTooltip:DeclareUnits(window)
-	local Settings, Options = AUI.Settings, AUI.TooltipOptions
+	local Options = AUI.TooltipOptions
 	local page = window:Page("tooltipUnits", {
 		title = L["Units"],
 		under = "tooltipHeader",
-		switch = { path = Options.ENABLED_PATH, default = Settings:Default(Options.ENABLED_PATH) },
+		icon = AUI.Media.sidebar.tooltipUnits,
+		iconTint = true,
 	})
 
 	if not page then
@@ -361,11 +370,11 @@ function DetailsPreview:Create(canvas)
 	end
 end
 
----Measures the preview again while the Details page shows it.
+---Measures the preview again while the Items page shows it.
 function DetailsPreview:Measure()
 	local window = AUI.Settings.window
 
-	if self.measuring or not window or not window:IsShown() or window.page ~= "tooltipDetails" then
+	if self.measuring or not window or not window:IsShown() or window.page ~= "tooltipItems" then
 		return
 	end
 
@@ -422,20 +431,23 @@ function DetailsPreview:Stop()
 	end
 end
 
+---The Items page: the Details preview, the item lines, the IDs and, where the client has upgrade tracks, the upgrade
+---line.
 ---@param window table
-function SettingsTooltip:DeclareDetails(window)
+function SettingsTooltip:DeclareItems(window)
 	local Settings, Options = AUI.Settings, AUI.TooltipOptions
-	local page = window:Page("tooltipDetails", {
-		title = L["Details"],
+	local page = window:Page("tooltipItems", {
+		title = L["Items"],
 		under = "tooltipHeader",
-		switch = { path = Options.ENABLED_PATH, default = Settings:Default(Options.ENABLED_PATH) },
+		icon = AUI.Media.sidebar.tooltipItems,
+		iconTint = true,
 	})
 
 	if not page then
 		return
 	end
 
-	self.pageIDs.tooltipDetails = true
+	self.pageIDs.tooltipItems = true
 	page:Preview({
 		height = DETAILS_PREVIEW_HEIGHT,
 		create = function(canvas)
@@ -472,6 +484,7 @@ function SettingsTooltip:DeclareDetails(window)
 		description = L["The key to hold for the ID lines. With None they always show."],
 		path = Options.ID_MODIFIER_PATH,
 		default = Settings:Default(Options.ID_MODIFIER_PATH),
+		depends = SWITCH,
 		options = modifiers,
 	})
 
@@ -482,30 +495,17 @@ function SettingsTooltip:DeclareDetails(window)
 			Checkbox(ids, line.id, line.label, line.description, Options.ID_PATHS[key])
 		end
 	end
+
+	if AUI.can.upgrades then
+		self:DeclareUpgrades(page)
+	end
 end
 
----Declared only where the client has upgrade tracks.
----@param window table
-function SettingsTooltip:DeclareUpgrades(window)
+---The Items page's upgrade line.
+---@param page table
+function SettingsTooltip:DeclareUpgrades(page)
 	local Settings, Options = AUI.Settings, AUI.TooltipOptions
-
-	if not AUI.can.upgrades then
-		return
-	end
-
-	local page = window:Page("tooltipUpgrades", {
-		title = L["Upgrades"],
-		under = "tooltipHeader",
-		switch = { path = Options.ENABLED_PATH, default = Settings:Default(Options.ENABLED_PATH) },
-	})
-
-	if not page then
-		return
-	end
-
-	self.pageIDs.tooltipUpgrades = true
-
-	local line = page:Section("tooltipUpgradeLine", L["Lines"])
+	local line = page:Section("tooltipUpgradeLine", L["Upgrades"])
 
 	Checkbox(line, "upgradeRank", L["Rank"], L["Colors the track and rank, such as Hero 3/6."], Options.UPGRADE_RANK_PATH)
 	Checkbox(line, "upgradeRange", L["Item Level Range"], L["The track's lowest and highest item level."],
@@ -525,9 +525,7 @@ end
 ---@param window table
 function SettingsTooltip:Declare(window)
 	window:Header("tooltipHeader", L["Tooltip"])
-	self:DeclareAppearance(window)
-	self:DeclarePosition(window)
+	self:DeclareGeneral(window)
 	self:DeclareUnits(window)
-	self:DeclareDetails(window)
-	self:DeclareUpgrades(window)
+	self:DeclareItems(window)
 end
