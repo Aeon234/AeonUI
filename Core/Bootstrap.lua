@@ -49,6 +49,7 @@ frame:SetScript("OnEvent", function(self, event)
 		end
 
 		AUI.Broker:Create()
+		AUI.GameMenu:Create()
 		AUI.Minimap:Start()
 		AUI.WorldMap:Start()
 		AUI.Tooltip:Start()

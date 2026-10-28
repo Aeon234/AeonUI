@@ -9,6 +9,7 @@ AUI.Capabilities = Capabilities
 
 ---@class AUICapabilityFlags
 ---@field compartment boolean the addon compartment entry point
+---@field gameMenu boolean the game menu lays out pooled buttons from a template it names (`GameMenuFrame.buttonPool`)
 ---@field minimapConfig boolean the minimap cluster re-applies its own mask when rotation changes (Forever)
 ---@field foreverArt boolean the client draws Forever's art for shared atlases, which places some differently
 ---@field dielCycle boolean the client reports day and night itself (`C_DateAndTime.IsDayTime`, Forever)
@@ -31,6 +32,8 @@ function Capabilities:Resolve()
 	local can = AUI.can
 
 	can.compartment = AddonCompartmentFrame ~= nil
+	can.gameMenu = GameMenuFrame ~= nil and GameMenuFrame.buttonPool ~= nil and GameMenuFrame.buttonTemplate ~= nil
+		and GameMenuFrame.Layout ~= nil
 	can.minimapConfig = MinimapCluster ~= nil and MinimapCluster.UpdateMinimapConfig ~= nil
 	can.foreverArt = WOW_PROJECT_ID == WOW_PROJECT_CAMELOT
 	can.dielCycle = C_DateAndTime ~= nil and C_DateAndTime.IsDayTime ~= nil

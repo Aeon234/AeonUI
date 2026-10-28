@@ -13,6 +13,7 @@ local addonName = ...
 ---@field Profile AUIProfile
 ---@field Settings AUISettings
 ---@field Broker AUIBroker
+---@field GameMenu AUIGameMenu
 ---@field Border AUIBorderFactory
 ---@field Minimap AUIMinimap the Minimap module (not Blizzard's `Minimap` frame)
 ---@field WorldMap AUIWorldMap the World Map module (not Blizzard's `WorldMapFrame`)
