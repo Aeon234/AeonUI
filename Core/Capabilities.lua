@@ -39,6 +39,9 @@ AUI.Capabilities = Capabilities
 ---@field helpTips boolean help tips are marked seen in a console variable's bits (`closedInfoFramesAccountWide`)
 ---@field bossBanner boolean the boss banner exists (`BossBanner`)
 ---@field vaultOverlay boolean the Great Vault covers itself away from the vault (Retail)
+---@field skipCountdown boolean static pop-ups count down through `StaticPopup_OnUpdate`
+---@field confirmBind boolean a bind-on-pickup loot slot can be confirmed (`ConfirmLootSlot`)
+---@field clickThroughToasts boolean event toasts are shown by `EventToastManagerFrame`
 AUI.can = {}
 
 ---The only place a client difference is detected. Runs once at login.
@@ -90,6 +93,9 @@ function Capabilities:Resolve()
 	can.helpTips = C_CVar.SetCVarBitfield ~= nil and C_CVar.GetCVarInfo("closedInfoFramesAccountWide") ~= nil
 	can.bossBanner = BossBanner ~= nil and BossBanner.UnregisterEvent ~= nil
 	can.vaultOverlay = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE and C_WeeklyRewards ~= nil
+	can.skipCountdown = StaticPopup_OnUpdate ~= nil and StaticPopupDialogs ~= nil
+	can.confirmBind = ConfirmLootSlot ~= nil and StaticPopup_Hide ~= nil
+	can.clickThroughToasts = EventToastManagerFrame ~= nil and EventToastManagerFrame.DisplayToast ~= nil
 
 	self.resolved = true
 

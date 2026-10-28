@@ -534,6 +534,22 @@ Equal("Forever: no vault, and no extra action card without its frame", window.pa
 AUI.can.helpTips, AUI.can.bossBanner = nil, nil
 window = Load(nil)
 Equal("no Interface page without any of them", window.pages.interface, nil)
+AUI.can.skipCountdown, AUI.can.confirmBind, AUI.can.clickThroughToasts = true, true, true
+window = Load(nil)
+local popupIDs = {}
+for _, setting in ipairs(window.pages.interface.sections.interfacePopups.settings) do
+	popupIDs[#popupIDs + 1] = setting.id .. "=" .. tostring(setting.default) .. (setting.description and "+" or "")
+		.. (setting.depends and ("<" .. setting.depends) or "")
+end
+Equal("the Pop-ups card alone, everything off", window.pages.interface.sections[1].title .. ": "
+	.. table.concat(popupIDs, " "), "Pop-ups: skipCountdown=false+ skipKey=NONE<skipCountdown confirmBind=false "
+	.. "toastClickThrough=false+")
+local skipKeys = {}
+for _, option in ipairs(window.pages.interface.sections.interfacePopups.settings.skipKey.options) do
+	skipKeys[#skipKeys + 1] = option.text
+end
+Equal("Hold to Skip's keys", table.concat(skipKeys, ","), "No Key,Shift,Ctrl,Alt")
+AUI.can.skipCountdown, AUI.can.confirmBind, AUI.can.clickThroughToasts = nil, nil, nil
 Equal("Settings:Window reuses the window", Settings:Window(), window)
 Equal("the store is the active config", declaration.store(), Profile.config)
 Equal("account settings are the store's", declaration.account(), AeonUIDB.global)

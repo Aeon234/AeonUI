@@ -2,7 +2,14 @@ local AUI = select(2, ...)
 
 local L = AUI.L
 
----The Interface page, under the Quality of Life header: the Extra Action Button card and the Hide card, each holding
+local SKIP_KEY_LABELS = {
+	NONE = L["No Key"],
+	SHIFT = L["Shift"],
+	CTRL = L["Ctrl"],
+	ALT = L["Alt"],
+}
+
+---The Interface page, under the Quality of Life header: the Extra Action Button, Hide and Pop-ups cards, each holding
 ---only what the client has. Changes take effect at once; the extra action button's wait for combat to end.
 ---@class AUISettingsInterface
 local SettingsInterface = {}
@@ -13,6 +20,7 @@ function SettingsInterface:IsAvailable()
 	local can = AUI.can
 
 	return can.extraActionButton == true or can.helpTips == true or can.bossBanner == true or can.vaultOverlay == true
+		or can.skipCountdown == true or can.confirmBind == true or can.clickThroughToasts == true
 end
 
 ---@param section table
@@ -65,6 +73,47 @@ function SettingsInterface:DeclareHide(page)
 	end
 end
 
+---@param page table
+function SettingsInterface:DeclarePopups(page)
+	local Options = AUI.InterfaceOptions
+	local can = AUI.can
+
+	if not (can.skipCountdown or can.confirmBind or can.clickThroughToasts) then
+		return
+	end
+
+	local card = page:Section("interfacePopups", L["Pop-ups"])
+
+	if can.skipCountdown then
+		local keys = {}
+
+		for index, key in ipairs(Options.SKIP_KEYS) do
+			keys[index] = { value = key, text = SKIP_KEY_LABELS[key] }
+		end
+
+		Checkbox(card, "skipCountdown", L["Skip Accept Countdowns"], L["Great Vault and item upgrade pop-ups."],
+			Options.SKIP_COUNTDOWN_PATH)
+		card:Dropdown({
+			id = "skipKey",
+			label = L["Hold to Skip"],
+			path = Options.SKIP_KEY_PATH,
+			default = AUI.Settings:Default(Options.SKIP_KEY_PATH),
+			depends = "skipCountdown",
+			options = keys,
+		})
+	end
+
+	if can.confirmBind then
+		Checkbox(card, "confirmBind", L["Auto Confirm Bind on Pickup"], nil, Options.CONFIRM_BIND_PATH)
+	end
+
+	if can.clickThroughToasts then
+		Checkbox(card, "toastClickThrough", L["Click-Through Toasts"],
+			L["Level-up and new-zone banners; clicking no longer opens their details."],
+			Options.TOAST_CLICK_THROUGH_PATH)
+	end
+end
+
 ---@param window table
 function SettingsInterface:Declare(window)
 	local page = window:Page("interface", {
@@ -83,4 +132,5 @@ function SettingsInterface:Declare(window)
 	end
 
 	self:DeclareHide(page)
+	self:DeclarePopups(page)
 end

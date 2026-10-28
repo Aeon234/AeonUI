@@ -2,7 +2,8 @@
 -- nothing applied before a value is picked, the waits for combat and for the mouse button, the reload popup when
 -- turned off, the stand-down for addons that keep their own scale, and the game menu's scale; then the extra action
 -- button's click-through and art, out of combat, put back when off; help tips marked seen; the boss banner's events
--- taken and given back; and the Great Vault's cover hidden once its addon loads, and shown again when off.
+-- taken and given back; the Great Vault's cover hidden once its addon loads, and shown again when off; and the
+-- pop-ups: accept countdowns skipped with or without a key, bind on pickup confirmed, and toasts let clicks through.
 -- Run from any directory with Lua 5.1: lua Tools/check_interface.lua
 -- Loads the real files against stubbed globals. Exits non-zero on the first failed check.
 
@@ -323,6 +324,9 @@ function BossBanner:UnregisterEvent(event)
 end
 
 function hooksecurefunc(target, name, hook)
+	if type(target) == "string" then
+		target, name, hook = _G, target, name
+	end
 	local original = target[name]
 	target[name] = function(...)
 		original(...)
@@ -362,7 +366,8 @@ local function Set(path, value)
 end
 
 for _, file in ipairs({ "Profile/Schema.lua", "Interface/Options.lua", "Interface/ExtraActionButton.lua",
-	"Interface/HelpTips.lua", "Interface/HideFrames.lua", "Interface/Interface.lua" }) do
+	"Interface/HelpTips.lua", "Interface/HideFrames.lua",
+	"Interface/Popups.lua", "Interface/Interface.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 
@@ -433,5 +438,118 @@ Equal("on again with the vault loaded: hidden at once", WeeklyRewardsFrame.Black
 AUI.can.vaultOverlay, AUI.can.bossBanner = nil, nil
 Set(Options.BOSS_BANNER_PATH, true)
 Equal("a client without the banner is left alone", bannerEvents.BOSS_KILL, true)
+
+-- Pop-ups -------------------------------------------------------------------------------------------------
+
+---A button that keeps whether it is enabled and its text.
+local function Button()
+	local button = { enabled = false, text = "5" }
+	function button:Enable()
+		self.enabled = true
+	end
+	function button:Disable()
+		self.enabled = false
+	end
+	function button:SetText(text)
+		self.text = text
+	end
+
+	return button
+end
+
+StaticPopupDialogs.CONFIRM_SELECT_WEEKLY_REWARD = { button1 = "Select" }
+StaticPopupDialogs.CAMP = { button1 = "Cancel" }
+-- Blizzard's update: the accept button stays disabled while the countdown runs.
+function StaticPopup_OnUpdate(dialog)
+	if dialog.acceptDelay then
+		dialog.button:Disable()
+		dialog.button:SetText("5")
+	end
+end
+local function Dialog(which)
+	local dialog = { which = which, acceptDelay = 5, button = Button() }
+	function dialog:GetButton1()
+		return self.button
+	end
+
+	return dialog
+end
+
+local shiftDown = false
+function IsShiftKeyDown()
+	return shiftDown
+end
+
+local confirmed, hidden = {}, {}
+function ConfirmLootSlot(slot)
+	confirmed[#confirmed + 1] = slot
+end
+function StaticPopup_Hide(which, data)
+	hidden[#hidden + 1] = which .. ":" .. tostring(data)
+end
+
+EventToastManagerFrame = MouseFrame(true)
+function EventToastManagerFrame:DisplayToast()
+	self.currentDisplayingToast = MouseFrame(true)
+	self.currentDisplayingToast.TitleTextMouseOverFrame = MouseFrame(true)
+	self.currentDisplayingToast.SubTitleMouseOverFrame = MouseFrame(true)
+end
+
+AUI.can.skipCountdown, AUI.can.confirmBind, AUI.can.clickThroughToasts = true, true, true
+
+Equal("pop-ups are off by default", tostring(AUI.Profile:Get(Options.SKIP_COUNTDOWN_PATH))
+	.. AUI.Profile:Get(Options.SKIP_KEY_PATH) .. tostring(AUI.Profile:Get(Options.CONFIRM_BIND_PATH))
+	.. tostring(AUI.Profile:Get(Options.TOAST_CLICK_THROUGH_PATH)), "falseNONEfalsefalse")
+
+local vault = Dialog("CONFIRM_SELECT_WEEKLY_REWARD")
+StaticPopup_OnUpdate(vault)
+Equal("off: the countdown is Blizzard's", tostring(vault.button.enabled) .. " " .. vault.button.text, "false 5")
+Set(Options.SKIP_COUNTDOWN_PATH, true)
+StaticPopup_OnUpdate(vault)
+Equal("on: accept at once", tostring(vault.button.enabled) .. " " .. vault.button.text, "true Select")
+local camp = Dialog("CAMP")
+StaticPopup_OnUpdate(camp)
+Equal("other pop-ups keep their countdown", camp.button.enabled, false)
+Set(Options.SKIP_KEY_PATH, "SHIFT")
+StaticPopup_OnUpdate(vault)
+Equal("with a key, not until it is held", vault.button.enabled, false)
+shiftDown = true
+StaticPopup_OnUpdate(vault)
+Equal("while it is held, accept at once", vault.button.enabled, true)
+shiftDown = false
+StaticPopup_OnUpdate(vault)
+Equal("released, the countdown is back", vault.button.enabled, false)
+local hooked = StaticPopup_OnUpdate
+Set(Options.SKIP_COUNTDOWN_PATH, false)
+Set(Options.SKIP_COUNTDOWN_PATH, true)
+Equal("hooked once", StaticPopup_OnUpdate, hooked)
+Set(Options.SKIP_KEY_PATH, "NONE")
+Set(Options.SKIP_COUNTDOWN_PATH, false)
+StaticPopup_OnUpdate(vault)
+Equal("off again: the countdown is Blizzard's", vault.button.enabled, false)
+
+Equal("bind on pickup: off asks", eventFrame.events.LOOT_BIND_CONFIRM, nil)
+Set(Options.CONFIRM_BIND_PATH, true)
+Fire("LOOT_BIND_CONFIRM", 3)
+RunTimers()
+Equal("on: the slot is looted and the question hidden", tostring(confirmed[1]) .. " " .. tostring(hidden[1]),
+	"3 LOOT_BIND:3")
+Set(Options.CONFIRM_BIND_PATH, false)
+Equal("off again: no longer followed", eventFrame.events.LOOT_BIND_CONFIRM, nil)
+
+EventToastManagerFrame:DisplayToast()
+Equal("toasts: off, they catch clicks", EventToastManagerFrame.currentDisplayingToast.mouse, true)
+Set(Options.TOAST_CLICK_THROUGH_PATH, true)
+local toast = EventToastManagerFrame.currentDisplayingToast
+Equal("on: the manager and the toast showing let clicks through", tostring(EventToastManagerFrame.mouse) .. " "
+	.. tostring(toast.mouse) .. " " .. tostring(toast.TitleTextMouseOverFrame.mouse) .. " "
+	.. tostring(toast.SubTitleMouseOverFrame.mouse), "false false false false")
+EventToastManagerFrame:DisplayToast()
+Equal("and each toast shown after", EventToastManagerFrame.currentDisplayingToast.mouse, false)
+Set(Options.TOAST_CLICK_THROUGH_PATH, false)
+Equal("off: every frame it changed catches clicks again", tostring(EventToastManagerFrame.mouse) .. " "
+	.. tostring(toast.mouse) .. " " .. tostring(EventToastManagerFrame.currentDisplayingToast.mouse), "true true true")
+EventToastManagerFrame:DisplayToast()
+Equal("and new toasts are left alone", EventToastManagerFrame.currentDisplayingToast.mouse, true)
 
 io.stdout:write(("check_interface: %d checks passed\n"):format(checks))
