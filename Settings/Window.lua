@@ -42,7 +42,7 @@ function Settings:Window()
 	end
 
 	local window = lib:Settings(ADDON_NAME, {
-		title = AUI.title,
+		title = AUI.brand,
 		version = AUI.version,
 		frameName = FRAME_NAME,
 		store = function()

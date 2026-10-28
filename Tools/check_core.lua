@@ -99,9 +99,9 @@ Equal("title", AUI.title, "AeonUI")
 Equal("unsubstituted version reads as dev", AUI.version, "dev")
 
 AUI:Print("%d frames", 2)
-Equal("print formats", printed[#printed], "|cff9e754aAeonUI|r: 2 frames")
+Equal("print formats", printed[#printed], "|cff00a3e3Aeon|r|cfff2e6c8UI|r: 2 frames")
 AUI:Print("100%")
-Equal("print without arguments leaves % alone", printed[#printed], "|cff9e754aAeonUI|r: 100%")
+Equal("print without arguments leaves % alone", printed[#printed], "|cff00a3e3Aeon|r|cfff2e6c8UI|r: 100%")
 
 local opened = {}
 AUI.Settings = {

@@ -5,6 +5,7 @@ local addonName = ...
 ---@field name string
 ---@field title string
 ---@field version string
+---@field brand string the addon name in blue and parchment, as an escape-coded string
 ---@field L AUILocale
 ---@field Callbacks AUICallbacks
 ---@field Events AUIEvents
@@ -31,9 +32,11 @@ if AUI.version:find("@", 1, true) then
 	AUI.version = "dev"
 end
 
--- The suite accent (bronze) used for the addon name in chat.
-local PREFIX = "|cff9e754aAeonUI|r: "
-local WARN_PREFIX = "|cff9e754aAeonUI|r |cffff4d4dWarning|r: "
+-- The addon name in blue and parchment, used in chat, the game menu and the settings window title.
+AUI.brand = "|cff00a3e3Aeon|r|cfff2e6c8UI|r"
+
+local PREFIX = AUI.brand .. ": "
+local WARN_PREFIX = AUI.brand .. " |cffff4d4dWarning|r: "
 
 ---@param message string
 ---@param ... any
@@ -116,7 +119,12 @@ function AUI:PrintDiagnostics()
 	end
 
 	for _, entry in ipairs(Profile:List()) do
-		self:Print("  %s %s%s", entry.id, entry.name, entry.quarantined and ("  quarantined: " .. entry.quarantined) or "")
+		self:Print(
+			"  %s %s%s",
+			entry.id,
+			entry.name,
+			entry.quarantined and ("  quarantined: " .. entry.quarantined) or ""
+		)
 	end
 end
 

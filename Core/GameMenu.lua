@@ -121,7 +121,7 @@ function GameMenu:Create()
 	end
 
 	local button = CreateFrame("Button", "AeonUIGameMenuButton", GameMenuFrame, GameMenuFrame.buttonTemplate)
-	button:SetText(AUI.title)
+	button:SetText(AUI.brand)
 	button:SetScript("OnClick", OnClick)
 	button:Hide()
 	self.button = button
