@@ -72,16 +72,13 @@ L["Crafting Orders"] = "Crafting Orders"
 L["Access"] = "Access"
 L["Show Minimap Button"] = "Show Minimap Button"
 L["Left-click opens settings."] = "Left-click opens settings."
-L["/aui and the addon compartment open settings too."] = "/aui and the addon compartment open settings too."
-L["Sets the scale of the whole interface, below the game's own minimum if needed. Turning it off takes a reload."] =
-	"Sets the scale of the whole interface, below the game's own minimum if needed. Turning it off takes a reload."
+L["Goes below the game's own minimum. Turning it off needs a reload."] =
+	"Goes below the game's own minimum. Turning it off needs a reload."
 L["%s manages the UI scale."] = "%s manages the UI scale."
 L["Pixel Perfect"] = "Pixel Perfect"
-L["The scale at which one interface unit is one pixel on this screen."] =
-	"The scale at which one interface unit is one pixel on this screen."
-L["The pixel-perfect scale for a %s screen."] = "The pixel-perfect scale for a %s screen."
+L["One interface unit per pixel on this screen."] = "One interface unit per pixel on this screen."
+L["Pixel Perfect For"] = "Pixel Perfect For"
 L["Game Menu Scale"] = "Game Menu Scale"
-L["Scales the game menu that Escape opens."] = "Scales the game menu that Escape opens."
 
 -- UI scale reload popup (Interface)
 L["%s is off. Its change stays until the interface reloads."] = "%s is off. Its change stays until the interface reloads."
@@ -113,7 +110,6 @@ L["Replaces Blizzard's minimap. Turning it on or off needs a reload."] =
 	"Replaces Blizzard's minimap. Turning it on or off needs a reload."
 L["Width"] = "Width"
 L["Kept within 3:2 of the width either way."] = "Kept within 3:2 of the width either way."
-L["The map stays north up; Rotate Minimap is ignored."] = "The map stays north up; Rotate Minimap is ignored."
 L["Border"] = "Border"
 L["Border Style"] = "Border Style"
 L["Metal"] = "Metal"
@@ -148,10 +144,6 @@ L["Colors"] = "Colors"
 L["Mythic, and Mythic+ with its keystone level."] = "Mythic, and Mythic+ with its keystone level."
 L["Timewalking, Follower, Delves, Story and PvP."] = "Timewalking, Follower, Delves, Story and PvP."
 L["Decimal Places"] = "Decimal Places"
-L["The button keeps its place in the row; its icon shows only while you have unread mail."] =
-	"The button keeps its place in the row; its icon shows only while you have unread mail."
-L["The button keeps its place in the row; its icon shows only while you have personal orders."] =
-	"The button keeps its place in the row; its icon shows only while you have personal orders."
 L["Calendar"] = "Calendar"
 L["Addon Compartment"] = "Addon Compartment"
 L["Fading"] = "Fading"
@@ -183,8 +175,7 @@ L["Story"] = "Story"
 -- Map Options page (Settings)
 L["Unexplored Areas"] = "Unexplored Areas"
 L["Show Unexplored Areas"] = "Show Unexplored Areas"
-L["Draws the parts of a zone you have not explored yet, darkened, instead of leaving them blank."] =
-	"Draws the parts of a zone you have not explored yet, darkened, instead of leaving them blank."
+L["Darkened, instead of left blank."] = "Darkened, instead of left blank."
 L["Darkness"] = "Darkness"
 L["Zone Labels"] = "Zone Labels"
 L["Zone Levels"] = "Zone Levels"
@@ -195,13 +186,10 @@ L["Adds the Fishing skill a zone's waters ask for, colored against yours."] =
 	"Adds the Fishing skill a zone's waters ask for, colored against yours."
 L["Dungeon Maps"] = "Dungeon Maps"
 L["Open from Markers"] = "Open from Markers"
-L["Left-clicking a dungeon or raid marker shows the instance's map, with its floors and bosses."] =
-	"Left-clicking a dungeon or raid marker shows the instance's map, with its floors and bosses."
+L["Left-click a dungeon or raid marker for its floors and bosses."] =
+	"Left-click a dungeon or raid marker for its floors and bosses."
 L["Open Inside Instances"] = "Open Inside Instances"
-L["Opening the world map inside a dungeon or raid shows its map, where Blizzard's has none."] =
-	"Opening the world map inside a dungeon or raid shows its map, where Blizzard's has none."
-L["Only instances whose map art the game has; the others keep the journal."] =
-	"Only instances whose map art the game has; the others keep the journal."
+L["Where Blizzard's map has none."] = "Where Blizzard's map has none."
 
 -- Map Markers page (Settings)
 L["Map Markers"] = "Map Markers"
@@ -218,8 +206,6 @@ L["Trams"] = "Trams"
 L["Portals"] = "Portals"
 L["Minimap Pins"] = "Minimap Pins"
 L["Docks"] = "Docks"
-L["The nearest ones around you, on the minimap; they follow you as you move."] =
-	"The nearest ones around you, on the minimap; they follow you as you move."
 L["Show Other Faction"] = "Show Other Faction"
 L["Also marks the other faction's boats, zeppelins, trams and battleground entrances."] =
 	"Also marks the other faction's boats, zeppelins, trams and battleground entrances."
@@ -360,8 +346,7 @@ L["An item's category and type, such as Armor / Plate."] = "An item's category a
 L["Blank Line Before"] = "Blank Line Before"
 L["ID Lines"] = "ID Lines"
 L["Modifier"] = "Modifier"
-L["The key to hold for the ID lines. With None they always show."] =
-	"The key to hold for the ID lines. With None they always show."
+L["With None they always show."] = "With None they always show."
 L["Items and toys."] = "Items and toys."
 L["Spells, auras, pet actions and a mount's spell."] = "Spells, auras, pet actions and a mount's spell."
 L["The icons of items, spells and auras."] = "The icons of items, spells and auras."
@@ -409,9 +394,8 @@ L["Up"] = "Up"
 L["Down"] = "Down"
 L["Not while anchored to the cursor."] = "Not while anchored to the cursor."
 L["Action Bar Tooltips Here"] = "Action Bar Tooltips Here"
-L["Action bar, pet and stance tooltips open here, not beside the button. A game setting, so profiles do not keep it."] =
-	"Action bar, pet and stance tooltips open here, not beside the button. A game setting, so profiles do not keep it."
-L["Until moved, it keeps Blizzard's place."] = "Until moved, it keeps Blizzard's place."
+L["Instead of beside the button. A game setting, so profiles don't keep it."] =
+	"Instead of beside the button. A game setting, so profiles don't keep it."
 
 -- Tooltip lines (Tooltip; the ID labels also name the Details page's checkboxes, the samples fill the Units preview)
 L["Rare"] = "Rare"
@@ -434,46 +418,35 @@ L["Wolf"] = "Wolf"
 
 -- Automation page (Settings)
 L["Sell Junk"] = "Sell Junk"
-L["Sells your junk when a merchant opens. Hold Shift as the merchant opens to skip it."] =
-	"Sells your junk when a merchant opens. Hold Shift as the merchant opens to skip it."
 L["Report Sales"] = "Report Sales"
-L["One chat line per visit with the number of items sold and what they earned."] =
-	"One chat line per visit with the number of items sold and what they earned."
+L["One chat line per visit."] = "One chat line per visit."
 L["Auto Repair"] = "Auto Repair"
-L["Repairs your gear when a merchant who can repair opens. Hold Shift as the merchant opens to skip it."] =
-	"Repairs your gear when a merchant who can repair opens. Hold Shift as the merchant opens to skip it."
 L["Funds"] = "Funds"
-L["Guild First uses guild funds while the guild allows it, otherwise your own. Guild Only never spends your own money."] =
-	"Guild First uses guild funds while the guild allows it, otherwise your own. Guild Only never spends your own money."
+L["Guild First falls back to your money; Guild Only doesn't."] =
+	"Guild First falls back to your money; Guild Only doesn't."
 L["Personal"] = "Personal"
 L["Guild First"] = "Guild First"
 L["Guild Only"] = "Guild Only"
 L["Remember Recipient"] = "Remember Recipient"
-L["Keeps the last recipient in the To field after a mail is sent."] =
-	"Keeps the last recipient in the To field after a mail is sent."
+L["Hold Shift as a merchant opens to skip both."] = "Hold Shift as a merchant opens to skip both."
 L["Money Subject"] = "Money Subject"
-L["Fills an empty subject with Money when you enter gold to send, so a mail with only gold can go."] =
-	"Fills an empty subject with Money when you enter gold to send, so a mail with only gold can go."
+L["Fills an empty subject with Money when you send gold."] = "Fills an empty subject with Money when you send gold."
 L["Auction House"] = "Auction House"
-L["Turns on Current Expansion Only when the Auction House or the crafting orders window opens. Turning it off by hand lasts until the window closes. An Auction House search that finds nothing runs again across every expansion."] =
-	"Turns on Current Expansion Only when the Auction House or the crafting orders window opens. Turning it off by hand lasts until the window closes. An Auction House search that finds nothing runs again across every expansion."
+L["An Auction House search that finds nothing tries every expansion."] =
+	"An Auction House search that finds nothing tries every expansion."
 L["Game Settings"] = "Game Settings"
 L["Auto Loot"] = "Auto Loot"
 L["Weather"] = "Weather"
-L["The intensity of weather effects, from 0 (none) to 3."] = "The intensity of weather effects, from 0 (none) to 3."
 L["Blocks"] = "Blocks"
 L["Block Trades"] = "Block Trades"
 L["Block Guild Invites"] = "Block Guild Invites"
 L["Block Channel Invites"] = "Block Channel Invites"
 L["Block Duels"] = "Block Duels"
-L["Declines every duel request, including duels to the death."] =
-	"Declines every duel request, including duels to the death."
+L["Includes duels to the death."] = "Includes duels to the death."
 L["Not Managed"] = "Not Managed"
 L["Always On"] = "Always On"
 L["Always Off"] = "Always Off"
 L["Blocked"] = "Blocked"
-L["Set To %s"] = "Set To %s"
-L["Overrides Blizzard's %s option."] = "Overrides Blizzard's %s option."
 
 -- Profiles page (Settings)
 L["AeonUI profile \"%s\"."] = "AeonUI profile \"%s\"."

@@ -13,6 +13,11 @@ UNKNOWN = "Unknown"
 APPLY = "Apply"
 RELOADUI = "Reload UI"
 UI_SCALE = "UI Scale"
+CHOOSE = "Choose"
+OFF = "Off"
+VIDEO_OPTIONS_LOW = "Low"
+VIDEO_OPTIONS_MEDIUM = "Good"
+VIDEO_OPTIONS_HIGH = "High"
 MERCHANT = "Merchant"
 AUCTION_HOUSE_FILTER_CURRENTEXPANSION_ONLY = "Current Expansion Only"
 AUTO_LOOT_DEFAULT_TEXT = "Auto Loot"
@@ -121,7 +126,7 @@ local CONTROL_FIELDS = {
 	Button = { verb = true, confirm = true, run = true },
 	Slider = { min = true, max = true, step = true, format = true },
 	Dropdown = { options = true, picker = true, placeholder = true, titleCase = true, confirm = true, verb = true,
-		width = true },
+		width = true, action = true },
 	Color = { hasOpacity = true, classColor = true },
 	Toggle = {},
 	Details = { summary = true },
@@ -469,7 +474,7 @@ for _, setting in ipairs(minimapSections.difficulty.settings) do
 	tiers = tiers + (setting.details == "difficultyColors" and 1 or 0)
 end
 Equal("a color for each difficulty tier", tiers, 5)
-Equal("the mail's card notes its empty slot", #minimapSections.mail.notes, 1)
+Equal("the mail's card has no footer", #minimapSections.mail.notes, 0)
 
 for _, section in ipairs(minimapSections) do
 	local key = section.id
@@ -942,19 +947,23 @@ local order = {}
 for _, setting in ipairs(scale.settings) do
 	order[#order + 1] = setting.id
 end
-Equal("the Scale section's order", table.concat(order, " "), "uiScale uiScaleValue uiScalePresetPixelPerfect " ..
-	"uiScalePreset1080p uiScalePreset1440p uiScalePreset4K gameMenuScale")
+Equal("the Scale section's order", table.concat(order, " "), "uiScale uiScaleValue uiScalePixelPerfect " ..
+	"uiScaleResolution gameMenuScale")
 Equal("the section follows Access", window.pages.general.sections[2], scale)
 Equal("UI Scale is on by default", scale.settings.uiScale.get(), true)
 Equal("the slider reads the current scale with nothing saved", scale.settings.uiScaleValue.get(), 80)
-for _, id in ipairs({ "uiScaleValue", "uiScalePresetPixelPerfect", "uiScalePreset1080p", "uiScalePreset4K" }) do
+for _, id in ipairs({ "uiScaleValue", "uiScalePixelPerfect", "uiScaleResolution" }) do
 	Equal(id .. " follows UI Scale", scale.settings[id].depends, "uiScale")
 	Equal(id .. " is not blocked", scale.settings[id].blocked(), nil)
 end
-scale.settings.uiScalePresetPixelPerfect.run()
+scale.settings.uiScalePixelPerfect.run()
 Equal("Pixel Perfect saves this screen's scale account-wide", math.floor(AeonUIDB.global.uiScale.scale * 100 + 0.5),
 	5333)
-scale.settings.uiScalePreset4K.run()
+local resolution = scale.settings.uiScaleResolution
+Equal("the other resolutions are an action dropdown", resolution.action, true)
+Equal("offering each preset", #resolution.options .. " " .. resolution.options[3].value, "3 4K")
+Equal("with no choice of its own", resolution.get, nil)
+resolution.set("4K")
 Equal("4K saves its scale", math.floor(AeonUIDB.global.uiScale.scale * 100 + 0.5), 3556)
 scale.settings.uiScaleValue.set(75)
 Equal("the slider saves", AeonUIDB.global.uiScale.scale, 75)
@@ -966,6 +975,48 @@ Equal("its default", menu.default, 100)
 menu.set(80)
 Equal("the game menu's scale is saved account-wide", AeonUIDB.global.gameMenuScale, 80)
 Equal("and applied", GameMenuFrame.scale, 0.8)
+
+-- Details preview --------------------------------------------------------------------------------------------
+
+-- The preview's tooltips, as GameTooltipTemplate makes them: a data update only flags a refresh.
+local previewTooltips = {}
+local createFrame = CreateFrame
+function CreateFrame(kind, name)
+	assert(kind == "GameTooltip", "unexpected frame type " .. tostring(kind))
+	local tooltip = { name = name, shown = true, refreshed = 0, scripts = {} }
+	function tooltip:HookScript(script, handler)
+		self.scripts[script] = handler
+	end
+	function tooltip:IsShown()
+		return self.shown
+	end
+	function tooltip:RefreshData()
+		self.shouldRefreshData = false
+		self.refreshed = self.refreshed + 1
+	end
+	function tooltip:Event(event)
+		if event == "TOOLTIP_DATA_UPDATE" then
+			self.shouldRefreshData = true
+		end
+		self.scripts.OnEvent(self, event)
+	end
+	previewTooltips[#previewTooltips + 1] = tooltip
+
+	return tooltip
+end
+AUI.TooltipDetails = AUI.TooltipDetails or {}
+window.pages.tooltipItems.preview.create({})
+CreateFrame = createFrame
+local itemPreview = previewTooltips[1]
+Equal("three preview tooltips", #previewTooltips, 3)
+itemPreview:Event("TOOLTIP_DATA_UPDATE")
+Equal("an item that finishes loading rebuilds its tooltip", itemPreview.refreshed, 1)
+Equal("and clears the flag", itemPreview.shouldRefreshData, false)
+itemPreview:Event("MODIFIER_STATE_CHANGED")
+Equal("other events rebuild nothing", itemPreview.refreshed, 1)
+itemPreview.shown = false
+itemPreview:Event("TOOLTIP_DATA_UPDATE")
+Equal("a hidden preview waits", itemPreview.refreshed, 1)
 
 -- Automation page ------------------------------------------------------------------------------------------
 
@@ -1006,8 +1057,11 @@ Equal("the blocks card", SettingIDs(automation.sections.automationBlocks),
 local weather = automation.sections.automationGameSettings.settings.managedweather
 Equal("weather offers Not Managed and four levels", #weather.options, 5)
 Equal("managed settings start unmanaged", weather.default, "UNMANAGED")
-Equal("a Blizzard option names itself", automation.sections.automationBlocks.settings.managedtrades.description,
-	"Overrides Blizzard's Block Trades option.")
+Equal("the weather levels use Blizzard's names", weather.options[2].text .. " " .. weather.options[5].text, "Off High")
+Equal("a setting Blizzard also offers has no second line",
+	automation.sections.automationBlocks.settings.managedtrades.description, nil)
+Equal("the merchant card ends with the Shift note", merchantCard.notes[1].text,
+	"Hold Shift as a merchant opens to skip both.")
 Equal("a value is written to the profile", (declaration.write("automation.sellJunk", true)), true)
 Equal("and read back", Profile:Get("automation.sellJunk"), true)
 

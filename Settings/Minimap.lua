@@ -107,8 +107,8 @@ local TIER_DESCRIPTIONS = {
 }
 
 -- The row elements' cards, in the order the default layout shows them. `needs` names the capability without which an
--- element is left out, `note` what its card's footer says, `iconSize` whether it offers the button's Icon Size, `text`
--- whether it offers text settings and `colored` whether those include a color.
+-- element is left out, `iconSize` whether it offers the button's Icon Size, `text` whether it offers text settings and
+-- `colored` whether those include a color.
 local ELEMENTS = {
 	{
 		key = "zone",
@@ -134,7 +134,6 @@ local ELEMENTS = {
 		iconSize = true,
 		title = MAIL_LABEL,
 		description = L["Hover for the latest senders."],
-		note = L["The button keeps its place in the row; its icon shows only while you have unread mail."],
 	},
 	{
 		key = "craftingOrders",
@@ -142,7 +141,6 @@ local ELEMENTS = {
 		needs = "craftingOrders",
 		title = L["Crafting Orders"],
 		description = L["Hover for each profession's count."],
-		note = L["The button keeps its place in the row; its icon shows only while you have personal orders."],
 	},
 	{
 		key = "tracking",
@@ -231,7 +229,6 @@ function SettingsMinimap:DeclareMap(page)
 		step = 5,
 		format = "percent",
 	})
-	map:Note(L["The map stays north up; Rotate Minimap is ignored."])
 
 	local fade = page:Section("fade", L["Fading"])
 
@@ -518,9 +515,6 @@ function SettingsMinimap:DeclareElements(page)
 				DeclareText(card, key, info.colored, key)
 			end
 
-			if info.note then
-				card:Note(info.note)
-			end
 		end
 	end
 end

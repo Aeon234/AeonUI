@@ -30,35 +30,12 @@ function General:Declare(window)
 			AUI.Broker:SetHidden(not value)
 		end,
 	})
-	access:Note(L["/aui and the addon compartment open settings too."])
 
 	self:DeclareScale(page)
 end
 
----@param section table
----@param key string a stable id suffix
----@param label string
----@param description string
----@param percent fun(): number the scale the button sets
-local function PresetButton(section, key, label, description, percent)
-	local UIScale = AUI.UIScale
-
-	section:Button({
-		id = "uiScalePreset" .. key,
-		label = label,
-		description = description,
-		verb = APPLY,
-		depends = "uiScale",
-		blocked = function()
-			return UIScale:Blocked()
-		end,
-		run = function()
-			UIScale:SetScale(percent())
-		end,
-	})
-end
-
----The Scale section: the interface's scale and its presets, then the game menu's.
+---The Scale section: the interface's scale, Pixel Perfect for this screen and for other resolutions, then the game
+---menu's scale.
 ---@param page table
 function General:DeclareScale(page)
 	local UIScale, GameMenuScale = AUI.UIScale, AUI.GameMenuScale
@@ -71,7 +48,7 @@ function General:DeclareScale(page)
 	scale:Checkbox({
 		id = "uiScale",
 		label = UI_SCALE,
-		description = L["Sets the scale of the whole interface, below the game's own minimum if needed. Turning it off takes a reload."],
+		description = L["Goes below the game's own minimum. Turning it off needs a reload."],
 		blocked = Blocked,
 		get = function()
 			return UIScale:IsEnabled()
@@ -97,24 +74,46 @@ function General:DeclareScale(page)
 		end,
 	})
 
-	PresetButton(scale, "PixelPerfect", L["Pixel Perfect"],
-		L["The scale at which one interface unit is one pixel on this screen."], function()
+	scale:Button({
+		id = "uiScalePixelPerfect",
+		label = L["Pixel Perfect"],
+		description = L["One interface unit per pixel on this screen."],
+		verb = APPLY,
+		depends = "uiScale",
+		blocked = Blocked,
+		run = function()
 			local _, height = GetPhysicalScreenSize()
 
-			return UIScale.PixelPerfect(height)
-		end)
+			UIScale:SetScale(UIScale.PixelPerfect(height))
+		end,
+	})
 
-	for _, preset in ipairs(UIScale.PRESETS) do
-		PresetButton(scale, preset.key, preset.key, L["The pixel-perfect scale for a %s screen."]:format(preset.key),
-			function()
-				return UIScale.PixelPerfect(preset.height)
-			end)
+	local resolutions = {}
+
+	for index, preset in ipairs(UIScale.PRESETS) do
+		resolutions[index] = { value = preset.key, text = preset.key }
 	end
+
+	scale:Dropdown({
+		id = "uiScaleResolution",
+		label = L["Pixel Perfect For"],
+		action = true,
+		placeholder = CHOOSE,
+		depends = "uiScale",
+		blocked = Blocked,
+		options = resolutions,
+		set = function(key)
+			for _, preset in ipairs(UIScale.PRESETS) do
+				if preset.key == key then
+					UIScale:SetScale(UIScale.PixelPerfect(preset.height))
+				end
+			end
+		end,
+	})
 
 	scale:Slider({
 		id = "gameMenuScale",
 		label = L["Game Menu Scale"],
-		description = L["Scales the game menu that Escape opens."],
 		default = GameMenuScale.DEFAULT,
 		resettable = true,
 		min = GameMenuScale.MIN_PERCENT,

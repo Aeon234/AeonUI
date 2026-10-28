@@ -280,8 +280,7 @@ function SettingsTooltip:DeclarePosition(page)
 	place:Checkbox({
 		id = "enhancedTooltips",
 		label = L["Action Bar Tooltips Here"],
-		description = L["Action bar, pet and stance tooltips open here, not beside the button. A game setting, so "
-			.. "profiles do not keep it."],
+		description = L["Instead of beside the button. A game setting, so profiles don't keep it."],
 		get = function()
 			return AUI.TooltipAnchor:Enhanced()
 		end,
@@ -289,7 +288,6 @@ function SettingsTooltip:DeclarePosition(page)
 			AUI.TooltipAnchor:SetEnhanced(value)
 		end,
 	})
-	place:Note(L["Until moved, it keeps Blizzard's place."])
 end
 
 ---@param window table
@@ -339,6 +337,13 @@ function DetailsPreview:Create(canvas)
 	AUI.TooltipDetails.previews = tooltips
 
 	for _, tooltip in ipairs(tooltips) do
+		-- The template flags a data update but rebuilds only from `GameTooltip_OnUpdate`, which it does not run, so an
+		-- item still loading would keep its placeholder text.
+		tooltip:HookScript("OnEvent", function(self, event)
+			if event == "TOOLTIP_DATA_UPDATE" and self.shouldRefreshData and self:IsShown() then
+				self:RefreshData()
+			end
+		end)
 		tooltip:HookScript("OnSizeChanged", function()
 			AUI.Events:Merge("tooltipPreviewMeasure", 0, function()
 				DetailsPreview:Measure()
@@ -588,7 +593,7 @@ function SettingsTooltip:DeclareItems(window)
 	ids:Dropdown({
 		id = "idModifier",
 		label = L["Modifier"],
-		description = L["The key to hold for the ID lines. With None they always show."],
+		description = L["With None they always show."],
 		path = Options.ID_MODIFIER_PATH,
 		default = Settings:Default(Options.ID_MODIFIER_PATH),
 		depends = SWITCH,
