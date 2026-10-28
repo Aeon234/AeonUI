@@ -43,6 +43,7 @@ L["Quality of Life"] = "Удобство"
 L["Automation"] = "Автоматизация"
 L["Player Menu"] = "Меню игрока"
 L["Input"] = "Ввод"
+L["Alerts"] = "Оповещения"
 
 -- Shared settings labels (Settings)
 L["Text"] = "Текст"
@@ -442,6 +443,15 @@ L["Mark Focus"] = "Метка на фокус"
 L["Never replaces an existing marker."] = "Не заменяет уже поставленную метку."
 L["Marker"] = "Метка"
 L["Clique handles unit frames; bind Focus there."] = "Рамками юнитов управляет Clique; назначьте фокус там."
+
+-- Alerts page (Settings)
+L["Sound Alerts"] = "Звуковые оповещения"
+L["Queue Pops"] = "Очереди"
+L["Ready and Role Checks"] = "Проверки готовности и ролей"
+L["Whispers"] = "Шепот"
+L["Party Invites"] = "Приглашения в группу"
+L["Boss Emotes"] = "Эмоции боссов"
+L["Also plays on the Master channel, so you hear them with sound effects off."] = "Звучит и в общем канале, чтобы вы слышали их с выключенными звуковыми эффектами."
 
 -- Profiles page (Settings)
 L["AeonUI profile \"%s\"."] = "Профиль AeonUI «%s»."

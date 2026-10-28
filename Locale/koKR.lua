@@ -43,6 +43,7 @@ L["Quality of Life"] = "편의 기능"
 L["Automation"] = "자동화"
 L["Player Menu"] = "플레이어 메뉴"
 L["Input"] = "입력"
+L["Alerts"] = "알림"
 
 -- Shared settings labels (Settings)
 L["Text"] = "글자"
@@ -442,6 +443,15 @@ L["Mark Focus"] = "주시 대상 표시"
 L["Never replaces an existing marker."] = "기존 징표는 바꾸지 않습니다."
 L["Marker"] = "표시"
 L["Clique handles unit frames; bind Focus there."] = "Clique가 유닛 프레임을 관리합니다. 주시는 Clique에서 지정하세요."
+
+-- Alerts page (Settings)
+L["Sound Alerts"] = "소리 알림"
+L["Queue Pops"] = "대기열"
+L["Ready and Role Checks"] = "전투 준비와 역할 확인"
+L["Whispers"] = "귓속말"
+L["Party Invites"] = "파티 초대"
+L["Boss Emotes"] = "보스 감정 표현"
+L["Also plays on the Master channel, so you hear them with sound effects off."] = "주 음량 채널에서도 재생되어 효과음을 꺼도 들립니다."
 
 -- Profiles page (Settings)
 L["AeonUI profile \"%s\"."] = "AeonUI 프로필 \"%s\"."

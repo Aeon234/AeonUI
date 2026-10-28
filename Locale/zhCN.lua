@@ -43,6 +43,7 @@ L["Quality of Life"] = "便利功能"
 L["Automation"] = "自动化"
 L["Player Menu"] = "玩家菜单"
 L["Input"] = "输入"
+L["Alerts"] = "提醒"
 
 -- Shared settings labels (Settings)
 L["Text"] = "文字"
@@ -442,6 +443,15 @@ L["Mark Focus"] = "标记焦点"
 L["Never replaces an existing marker."] = "不会替换已有的标记。"
 L["Marker"] = "标记"
 L["Clique handles unit frames; bind Focus there."] = "单位框体由Clique处理；请在其中绑定焦点。"
+
+-- Alerts page (Settings)
+L["Sound Alerts"] = "声音提醒"
+L["Queue Pops"] = "排队就绪"
+L["Ready and Role Checks"] = "就位与职责确认"
+L["Whispers"] = "密语"
+L["Party Invites"] = "组队邀请"
+L["Boss Emotes"] = "首领表情"
+L["Also plays on the Master channel, so you hear them with sound effects off."] = "同时在主声道播放，关闭音效时也能听到。"
 
 -- Profiles page (Settings)
 L["AeonUI profile \"%s\"."] = "AeonUI 配置文件“%s”。"

@@ -43,6 +43,7 @@ L["Quality of Life"] = "Qualité de vie"
 L["Automation"] = "Automatisation"
 L["Player Menu"] = "Menu du joueur"
 L["Input"] = "Saisie"
+L["Alerts"] = "Alertes"
 
 -- Shared settings labels (Settings)
 L["Text"] = "Texte"
@@ -442,6 +443,15 @@ L["Mark Focus"] = "Marquer la focalisation"
 L["Never replaces an existing marker."] = "Ne remplace jamais une marque existante."
 L["Marker"] = "Marqueur"
 L["Clique handles unit frames; bind Focus there."] = "Clique gère les cadres d'unité ; assignez Focalisation là-bas."
+
+-- Alerts page (Settings)
+L["Sound Alerts"] = "Alertes sonores"
+L["Queue Pops"] = "Files d'attente"
+L["Ready and Role Checks"] = "Appels et vérifications de rôle"
+L["Whispers"] = "Chuchotements"
+L["Party Invites"] = "Invitations de groupe"
+L["Boss Emotes"] = "Emotes de boss"
+L["Also plays on the Master channel, so you hear them with sound effects off."] = "Joué aussi sur le canal principal, pour les entendre avec les effets sonores coupés."
 
 -- Profiles page (Settings)
 L["AeonUI profile \"%s\"."] = "Profil AeonUI « %s »."

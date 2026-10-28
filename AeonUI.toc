@@ -25,6 +25,7 @@ Interface\Interface.xml
 Automation\Automation.xml
 Menus\Menus.xml
 Input\Input.xml
+Alerts\Alerts.xml
 Settings\Settings.xml
 
 #@do-not-package@

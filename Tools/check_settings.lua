@@ -379,10 +379,10 @@ for _, file in ipairs({ "Core/Callbacks.lua", "Core/Capabilities.lua", "Core/Bro
 	"Minimap/Buttons.lua", "Minimap/Map.lua", "WorldMap/Markers.lua", "WorldMap/Options.lua", "Tooltip/Options.lua",
 	"Tooltip/Tooltip.lua", "Interface/UIScale.lua", "Interface/GameMenuScale.lua",
 	"Automation/Options.lua", "Automation/GameSettings.lua", "Menus/Options.lua", "Input/Options.lua",
-	"Input/FocusShortcut.lua",
+	"Input/FocusShortcut.lua", "Alerts/Options.lua",
 	"Settings/Window.lua", "Settings/MinimapEditor.lua", "Settings/General.lua", "Settings/Minimap.lua",
 	"Settings/WorldMap.lua", "Settings/Tooltip.lua", "Settings/Automation.lua", "Settings/PlayerMenu.lua",
-	"Settings/Input.lua", "Settings/Profiles.lua", "Settings/Recovery.lua",
+	"Settings/Input.lua", "Settings/Alerts.lua", "Settings/Profiles.lua", "Settings/Recovery.lua",
 	"Settings/EditTargets.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
@@ -423,11 +423,11 @@ local declaration = window.declaration
 Equal("registered under the addon's name", window.name, "AeonUI")
 Equal("named root frame", declaration.frameName, "AeonUISettings")
 Equal("sidebar order", table.concat(window.order, " "), "general #mapsHeader minimap #tooltipHeader tooltipGeneral " ..
-	"tooltipUnits tooltipItems #qualityOfLifeHeader automation - profiles")
+	"tooltipUnits tooltipItems #qualityOfLifeHeader automation alerts - profiles")
 AUI.can.playerMenus, AUI.can.guildInvite, AUI.can.raiderIOLinks, AUI.can.warcraftLogsLinks = true, true, true, true
 window = Load(nil)
 Equal("Player Menu follows Automation", table.concat(window.order, " "), "general #mapsHeader minimap " ..
-	"#tooltipHeader tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader automation playerMenu - profiles")
+	"#tooltipHeader tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader automation playerMenu alerts - profiles")
 local playerMenuPage = window.pages.playerMenu
 local playerMenuIDs = {}
 for _, section in ipairs(playerMenuPage.sections) do
@@ -449,7 +449,7 @@ Equal("no Player Menu page without player menus", window.pages.playerMenu, nil)
 AUI.can.clickDown, AUI.can.focusShortcut = true, true
 window = Load(nil)
 Equal("Input follows Player Menu's place", table.concat(window.order, " "), "general #mapsHeader minimap " ..
-	"#tooltipHeader tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader automation input - profiles")
+	"#tooltipHeader tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader automation input alerts - profiles")
 local inputPage = window.pages.input
 local inputIDs = {}
 for _, section in ipairs(inputPage.sections) do
@@ -496,6 +496,19 @@ Equal("without the console variable, Focus Shortcut alone", window.pages.input.s
 AUI.can.focusShortcut = nil
 window = Load(nil)
 Equal("no Input page without either", window.pages.input, nil)
+local alertsPage = window.pages.alerts
+local alertIDs = {}
+for _, setting in ipairs(alertsPage.sections.alertsSound.settings) do
+	alertIDs[#alertIDs + 1] = setting.id .. "=" .. tostring(setting.default)
+end
+Equal("Sound Alerts: one checkbox per group, each off", table.concat(alertIDs, " "),
+	"queuePops=false readyChecks=false whispers=false partyInvites=false bossEmotes=false")
+Equal("titled, as a choice card", alertsPage.sections.alertsSound.title .. " " .. alertsPage.sections.alertsSound.info.columns,
+	"Sound Alerts 2")
+Equal("under the Quality of Life header, last", alertsPage.info.under .. " " .. window.order[#window.order - 2],
+	"qualityOfLifeHeader alerts")
+Equal("its one footer, why it exists", alertsPage.sections.alertsSound.notes[1].text,
+	"Also plays on the Master channel, so you hear them with sound effects off.")
 Equal("Settings:Window reuses the window", Settings:Window(), window)
 Equal("the store is the active config", declaration.store(), Profile.config)
 Equal("account settings are the store's", declaration.account(), AeonUIDB.global)
