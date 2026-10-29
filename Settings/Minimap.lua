@@ -19,6 +19,7 @@ local STYLE_LABELS = {
 	METAL = L["Metal"],
 	FOREVER_MINIMAL = L["Forever Minimal"],
 	FOREVER = L["Forever"],
+	SLATE = L["Slate"],
 	THIN_LINE = L["Thin Line"],
 	NONE = NONE,
 }
@@ -341,7 +342,7 @@ function SettingsMinimap:DeclareBorder(page)
 			local style = AUI.Profile:Get("minimap.border.style")
 
 			if style == "THIN_LINE" or style == "NONE" then
-				return L["Needs a Metal or Forever border style."]
+				return L["Needs a Metal, Forever or Slate border style."]
 			end
 		end,
 	})

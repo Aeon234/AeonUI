@@ -22,6 +22,7 @@ local FEEDBACK_LABELS = {
 local STYLE_LABELS = {
 	FOREVER_MINIMAL = L["Forever Minimal"],
 	FOREVER = L["Forever"],
+	SLATE = L["Slate"],
 	THIN_LINE = L["Thin Line"],
 	NONE = NONE,
 }
@@ -228,7 +229,7 @@ function SettingsRaidMarkers:DeclareBorder(page)
 			local style = AUI.Profile:Get("markers.border.style")
 
 			if style == "THIN_LINE" or style == "NONE" then
-				return L["Needs a Forever border style."]
+				return L["Needs a Forever or Slate border style."]
 			end
 		end,
 	})

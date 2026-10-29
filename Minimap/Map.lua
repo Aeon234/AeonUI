@@ -14,10 +14,6 @@ local MASK_STEP = 4
 local MAX_RATIO = 1.5
 local MASK_MIN_ROWS = 172
 local HYBRID_ADDON = "Blizzard_HybridMinimap"
--- How far the Forever styles' art reaches outside the map, in texels. The band (texels 6 to 9 on the straight edges)
--- is drawn above the map and crosses each corner's diagonal from x + y = 22 to 30, so with the map's edge 10.5 texels
--- in, the map runs flush under the band and its square corners lie under the band's chamfer.
-local ART_OUTSET = 10.5
 -- The least room between a styled cell divider and the cells on either side of it, together.
 local CELL_GAP = 4
 -- How far Blizzard's map-corner buttons (Retail's landing page, Forever's event button) sit in from the map's
@@ -68,6 +64,7 @@ Schema:Position("minimap.position")
 ---@field PIN_LEVEL integer how far above the map's frame level pins on the map are drawn: above the border, below the
 ---rows
 ---@field active boolean the module took the minimap over this session
+---@field waiting boolean a login in combat holds the takeover until combat ends
 ---@field holder Frame? the named root frame, sized to the visible map and its rows
 ---@field content Frame? holds the map, sized to its visible area; Blizzard's map draws unit dots only inside its parent
 ---@field mask string the mask in use
@@ -83,6 +80,7 @@ local Map = {
 	DEFAULT_POSITION = { point = "TOPRIGHT", x = -20, y = -20 },
 	PIN_LEVEL = 5,
 	active = false,
+	waiting = false,
 	pending = false,
 	mask = SQUARE_MASK,
 	watchedIcons = {},
@@ -150,7 +148,7 @@ function Map:Build()
 
 	self.holder = holder
 	self.content = content
-	self.border = AUI.Border:Create(holder, ART_OUTSET, true)
+	self.border = AUI.Border:Create(holder, true)
 	self.hidden = hidden
 
 	AUI.MinimapRows:Build(holder, function()
@@ -530,6 +528,11 @@ function Map:Apply()
 	AUI.MinimapFade:Refresh()
 end
 
+---@return boolean needed the switch differs from what this session runs, which only a reload changes
+function Map:ReloadNeeded()
+	return self:IsEnabled() ~= (self.active or self.waiting == true)
+end
+
 ---Takes the minimap over at login when the module is enabled; a login in combat waits for combat to end.
 function Map:Start()
 	if self.active or not self:IsEnabled() then
@@ -537,8 +540,10 @@ function Map:Start()
 	end
 
 	if InCombatLockdown() then
+		self.waiting = true
 		AUI.Events:Register("PLAYER_REGEN_ENABLED", self, function()
 			AUI.Events:Unregister("PLAYER_REGEN_ENABLED", self)
+			self.waiting = false
 			self:Start()
 		end)
 

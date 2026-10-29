@@ -2,8 +2,6 @@ local AUI = select(2, ...)
 
 local L = AUI.L
 
-local RELOAD_POPUP = "AEONUI_UI_SCALE_RELOAD"
-
 -- Addons that keep their own UI scale; while one is loaded, AeonUI leaves the scale to it.
 local MANAGERS = { "ElvUI", "EllesmereUI" }
 
@@ -14,7 +12,7 @@ local MIN_PERCENT, MAX_PERCENT = 30, 115
 ---scales work on large screens. Nothing changes until the player picks a value; the saved value is then applied while
 ---the setting is on, and again when the client changes the scale or the display. Changes wait for combat to end, and
 ---for the mouse button to come up while a slider is dragged, since the settings window rescales with the interface.
----Restoring the game's own scale needs a reload, so turning the setting off offers one.
+---Restoring the game's own scale needs a reload, which `ReloadNeeded` reports while the setting is off.
 ---The state is account-wide, in `global.uiScale`: `enabled` (absent means on) and `scale` in percent (absent until
 ---picked).
 ---@class AUIUIScale
@@ -34,18 +32,6 @@ local UIScale = {
 	},
 }
 AUI.UIScale = UIScale
-
-StaticPopupDialogs[RELOAD_POPUP] = {
-	text = L["%s is off. Its change stays until the interface reloads."],
-	button1 = RELOADUI,
-	button2 = L["Later"],
-	OnAccept = function()
-		ReloadUI()
-	end,
-	timeout = 0,
-	whileDead = true,
-	hideOnEscape = true,
-}
 
 ---@param height number the screen's height in physical pixels
 ---@return number percent the scale at which one interface unit is one pixel
@@ -202,7 +188,7 @@ function UIScale:ApplySoon()
 	end)
 end
 
----Cancels a waiting apply. A scale set this session stays until a reload, so one is offered.
+---Cancels a waiting apply. A scale set this session stays until a reload.
 function UIScale:Stop()
 	AUI.Events:Cancel("uiScale")
 
@@ -210,11 +196,11 @@ function UIScale:Stop()
 		AUI.Events:Unregister(self.pending == "combat" and "PLAYER_REGEN_ENABLED" or "GLOBAL_MOUSE_UP", self)
 		self.pending = nil
 	end
+end
 
-	if self.applied then
-		self.applied = false
-		StaticPopup_Show(RELOAD_POPUP, UI_SCALE)
-	end
+---@return boolean needed a scale set this session stays while the setting is off, until a reload
+function UIScale:ReloadNeeded()
+	return self.applied and not self:IsEnabled()
 end
 
 ---Follows the client's scale and display changes, which reset `UIParent`'s scale. Runs at login.

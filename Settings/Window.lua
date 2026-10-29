@@ -70,6 +70,9 @@ function Settings:Window()
 		title = AUI.brand,
 		version = AUI.version,
 		frameName = FRAME_NAME,
+		reloadNeeded = function()
+			return AUI.Minimap:ReloadNeeded() or AUI.UIScale:ReloadNeeded()
+		end,
 		store = function()
 			return AUI.Profile.config
 		end,

@@ -142,7 +142,7 @@ local PAGE_FIELDS = { title = true, description = true, under = true, icon = tru
 	switch = true, show = true }
 local DECLARATION_FIELDS = {
 	title = true, version = true, store = true, write = true, account = true, width = true, height = true,
-	footer = true, frameName = true,
+	footer = true, frameName = true, reloadNeeded = true,
 }
 local ADAPTER_REQUIRED = { "List", "Active", "Switch", "New", "Copy", "Rename", "Delete", "Reset", "Export", "Decode",
 	"Import" }
@@ -435,6 +435,20 @@ local window = Load(nil)
 local declaration = window.declaration
 Equal("registered under the addon's name", window.name, "AeonUI")
 Equal("named root frame", declaration.frameName, "AeonUISettings")
+local minimapWaits, scaleWaits = AUI.Minimap.ReloadNeeded, AUI.UIScale.ReloadNeeded
+local function Footer(minimap, scale)
+	AUI.Minimap.ReloadNeeded = function()
+		return minimap
+	end
+	AUI.UIScale.ReloadNeeded = function()
+		return scale
+	end
+
+	return tostring(declaration.reloadNeeded())
+end
+Equal("the footer's reload notice follows the Minimap and UI Scale", table.concat({ Footer(false, false),
+	Footer(true, false), Footer(false, true) }, " "), "false true true")
+AUI.Minimap.ReloadNeeded, AUI.UIScale.ReloadNeeded = minimapWaits, scaleWaits
 Equal("sidebar order", table.concat(window.order, " "), "general #mapsHeader minimap #tooltipHeader tooltipGeneral " ..
 	"tooltipUnits tooltipItems #qualityOfLifeHeader automation alerts notifications - profiles")
 Equal("General and Profiles carry their icons, tinted", tostring(window.pages.general.info.icon == AUI.Media.sidebar.general)
@@ -812,7 +826,7 @@ local markerStyles = {}
 for index, option in ipairs(markersPage.sections.markersBorder.settings.markersBorderStyle.options) do
 	markerStyles[index] = option.value
 end
-Equal("the bar's border styles leave out Metal", table.concat(markerStyles, " "), "FOREVER_MINIMAL FOREVER THIN_LINE NONE")
+Equal("the bar's border styles leave out Metal", table.concat(markerStyles, " "), "FOREVER_MINIMAL FOREVER SLATE THIN_LINE NONE")
 local cycleCard = markersPage.sections.markersCycle
 local cycleOrder = cycleCard.settings.markersCycleOrder
 Equal("the cycle works without the bar", tostring(cycleOrder.depends) .. " "

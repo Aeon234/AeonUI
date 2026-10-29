@@ -9,8 +9,6 @@ local BUTTON_FILL = { 0, 0, 0, 0.5 }
 local EDGE = { 0, 0, 0, 1 }
 local EDGE_HOVER = { 0.7, 0.7, 0, 1 }
 local BACKGROUND = { r = 0, g = 0, b = 0, a = 0.5 }
--- Texels the Forever art reaches outside the bar.
-local ART_OUTSET = 10.5
 local DEFAULT_POSITION = { point = "TOP", x = 0, y = -20 }
 
 local ICONS = {
@@ -76,7 +74,7 @@ function Bar:Build(parent, name)
 	local bar = CreateFrame("Frame", name, parent) --[[@as AUIMarkerSample]]
 
 	bar.buttons = {}
-	bar.border = AUI.Border:Create(bar, ART_OUTSET)
+	bar.border = AUI.Border:Create(bar)
 
 	return bar
 end

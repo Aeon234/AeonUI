@@ -1,5 +1,5 @@
 -- Checks Interface/ outside the game: the UI scale's pixel-perfect arithmetic and ranges, the account-wide state,
--- nothing applied before a value is picked, the waits for combat and for the mouse button, the reload popup when
+-- nothing applied before a value is picked, the waits for combat and for the mouse button, a reload left waiting when
 -- turned off, the stand-down for addons that keep their own scale, and the game menu's scale; then the extra action
 -- button's click-through and art, out of combat, put back when off; help tips marked seen; the boss banner's events
 -- taken and given back; the Great Vault's cover hidden once its addon loads, and shown again when off; and the
@@ -207,27 +207,25 @@ Equal("and combat's end is no longer watched", eventFrame.events.PLAYER_REGEN_EN
 
 UIScale:SetEnabled(false)
 Equal("turning it off is saved", global.uiScale.enabled, false)
-Equal("and offers a reload", popups[#popups] and popups[#popups].which, "AEONUI_UI_SCALE_RELOAD")
-Equal("naming the setting", popups[#popups].text, "UI Scale")
-local popupCount = #popups
+Equal("and leaves a reload waiting, without a pop-up", tostring(UIScale:ReloadNeeded()) .. " " .. #popups, "true 0")
 UIScale:SetScale(60)
 Equal("while off a value is saved", global.uiScale.scale, 60)
 Equal("but not applied", UIParent.scale, 0.8)
 UIScale:SetEnabled(true)
 Equal("turning it on applies the saved value", UIParent.scale, 0.6)
+Equal("and nothing waits for a reload", UIScale:ReloadNeeded(), false)
 combat = true
 UIScale:SetScale(65)
 UIScale:SetEnabled(false)
 Equal("turning off drops a waiting apply", eventFrame.events.PLAYER_REGEN_ENABLED, nil)
 combat = false
 UIScale:SetEnabled(true)
-popupCount = #popups
 
 global.uiScale = nil
 UIParent.sets = 0
 UIScale.applied = false
 UIScale:SetEnabled(false)
-Equal("turning off before a value was applied offers no reload", #popups, popupCount)
+Equal("turning off before a value was applied needs no reload", UIScale:ReloadNeeded(), false)
 UIScale:SetEnabled(true)
 
 loaded.ElvUI = true

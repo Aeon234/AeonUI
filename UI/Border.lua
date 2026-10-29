@@ -6,29 +6,38 @@ local TEXTURES = "Interface\\AddOns\\" .. AUI.name .. "\\Media\\Textures\\"
 -- square. Corners are `across` texels wide and `down` texels tall. Forever's top and bottom carry worn detail out to
 -- texel 44, which stretching would smear, so its corners are 48 wide like the atlas; its sides are cut 20 in, past the
 -- chamfer (texel 18). Forever Minimal's band is plain past texel 18, so it is cut 20 both ways and its edges and middle
--- are drawn from a strip one texel long through the art's middle, stretched.
+-- are drawn from a strip one texel long through the art's middle, stretched. Their band runs texels 6 to 9 from the
+-- outer edge, and the content's edge meets its inner shadow 10.5 texels in; at each corner the band crosses the
+-- diagonal from x + y = 22 to 30, so a square owner's corners lie under the chamfer.
+-- Slate is Advanced Mythic Tracker's control frame, 128 texels square with 32-texel corners: a soft outer shadow at
+-- texels 13 and 14, the band at 15 to 18 (a black outline, two gray texels, a dark inner line), its inner shadow to
+-- 19.5, then a dark gray middle; at each corner the band crosses the diagonal at x + y = 36 to 42. Its band copy is the
+-- tracker's ring, the same edge with the middle cleared.
 ---@class AUIBorderArt
 ---@field file string the art with its own dark middle
----@field band string the same art with its middle cleared (Tools/border-bands.py), drawn above content
+---@field band string the same art with its middle cleared, drawn above content
 ---@field size integer the file's width and height, in texels
 ---@field across integer corner width, in texels
 ---@field down integer corner height, in texels
+---@field bandStart integer the band's first texel from the art's outer edge, which `PlaceArt` puts on a whole pixel
+---@field outset number texels the art reaches outside the owner, so the owner's edge meets the band's inner shadow
 ---@field tinted boolean? Border Color tints a gray copy of it
 ---@field strip boolean? its edges and middle are drawn from a one-texel strip through its middle
 
 ---@type table<string, AUIBorderArt>
 local ART = {
 	FOREVER_MINIMAL = { file = TEXTURES .. "ForeverMinimal.tga", band = TEXTURES .. "ForeverMinimalBand.tga", size = 110,
-		tinted = true, strip = true, across = 20, down = 20 },
+		tinted = true, strip = true, across = 20, down = 20, bandStart = 6, outset = 10.5 },
 	FOREVER = { file = TEXTURES .. "Forever.tga", band = TEXTURES .. "ForeverBand.tga", size = 110, across = 48,
-		down = 20 },
+		down = 20, bandStart = 6, outset = 10.5 },
+	SLATE = { file = TEXTURES .. "Slate.tga", band = TEXTURES .. "SlateBand.tga", size = 128, tinted = true, strip = true,
+		across = 32, down = 32, bandStart = 15, outset = 19.5 },
 }
 -- The atlas's own scale, half a UI unit per texel (110 texels at 55 units): Border Thickness is a percentage of it, so
 -- at 100 % the band (texels 6 to 9) is 2 units, as Blizzard draws it. An owner too small for two corners at the chosen
 -- scale draws the art smaller (`ArtScale`).
 local ART_SCALE = 0.5
--- The band's first texel from the art's outer edge, which `PlaceArt` puts on a whole screen pixel, and its width.
-local BAND_START = 6
+-- The band's width in texels, the same in every art.
 local BAND_WIDTH = 4
 -- The art's nine pieces by row and column (1 top or left, 2 middle, 3 bottom or right), in creation order: the four
 -- corners, the top and bottom edges, the left and right edges, the middle.
@@ -75,13 +84,13 @@ local TITLE_SEPARATOR = 6
 local CELL_DIVIDER = { atlas = "!UI-Frame-Metal-EdgeLeft", left = 22 / 190, right = 40 / 190, width = 9 }
 -- The Forever styles whose band also divides cells, drawn from a straight stretch of the band's left side: Forever's
 -- bevel, light outside and dark inside, matches the light-over-dark separators cut from its top edge.
-local BAND_DIVIDERS = { FOREVER_MINIMAL = true, FOREVER = true }
+local BAND_DIVIDERS = { FOREVER_MINIMAL = true, FOREVER = true, SLATE = true }
 
 -- Forever Minimal's own band color: at it, the art is drawn as it is.
 local ART_COLOR = { r = 132 / 255, g = 105 / 255, b = 82 / 255 }
 local SAME = 0.002
 
----@alias AUIBorderStyle "METAL" | "FOREVER_MINIMAL" | "FOREVER" | "THIN_LINE" | "NONE"
+---@alias AUIBorderStyle "METAL" | "FOREVER_MINIMAL" | "FOREVER" | "SLATE" | "THIN_LINE" | "NONE"
 
 ---@class AUIColor
 ---@field r number
@@ -108,7 +117,6 @@ local SAME = 0.002
 ---middle as the background, or, for content that should run under the band, on `over` with its middle cleared.
 ---@class AUIBorder
 ---@field owner Frame
----@field outset number texels the Forever art reaches outside the owner
 ---@field overContent boolean the Forever art is drawn above the content, band only
 ---@field over Frame
 ---@field background Texture
@@ -134,7 +142,7 @@ local BorderMixin = {}
 ---@field ART_COLOR AUIColor
 ---@field ART table<string, AUIBorderArt> the Forever styles' art, by style
 local Border = {
-	STYLES = { "METAL", "FOREVER_MINIMAL", "FOREVER", "THIN_LINE", "NONE" },
+	STYLES = { "METAL", "FOREVER_MINIMAL", "FOREVER", "SLATE", "THIN_LINE", "NONE" },
 	ART_COLOR = ART_COLOR,
 	ART = ART,
 }
@@ -377,11 +385,10 @@ local function CreateArtPieces(parent)
 end
 
 ---@param owner Frame the bordered frame; its size is the content's
----@param outset number texels the Forever art reaches outside the owner
 ---@param overContent boolean? draw the Forever art above the content, band only, so the content runs under the band
 ---@return AUIBorder
-function Border:Create(owner, outset, overContent)
-	local border = Mixin({ owner = owner, outset = outset, overContent = overContent == true, thickness = 100 },
+function Border:Create(owner, overContent)
+	local border = Mixin({ owner = owner, overContent = overContent == true, thickness = 100 },
 		BorderMixin)
 	local over = CreateFrame("Frame", nil, owner)
 
@@ -442,8 +449,8 @@ function BorderMixin:Layout()
 	if art then
 		local scale = ART_SCALE * self.thickness / 100
 
-		scale = Border:FitScale(art.across, self.outset, width, scale)
-		scale = Border:FitScale(art.down, self.outset, height, scale)
+		scale = Border:FitScale(art.across, art.outset, width, scale)
+		scale = Border:FitScale(art.down, art.outset, height, scale)
 		self.artScale = scale
 		self:PlaceArt()
 	end
@@ -573,7 +580,7 @@ end
 function BorderMixin:PlaceArt()
 	local owner, art = self.owner, self.art --[[@as AUIBorderArt]]
 	local scale = self.artScale or ART_SCALE
-	local outset = self.outset * scale
+	local outset = art.outset * scale
 	local pixel = AUI:Pixel(owner)
 	local left, right, top, bottom = owner:GetLeft(), owner:GetRight(), owner:GetTop(), owner:GetBottom()
 
@@ -581,7 +588,7 @@ function BorderMixin:PlaceArt()
 	local reach = { left = outset, right = outset, top = outset, bottom = outset }
 
 	if left and right and top and bottom and pixel > 0 then
-		local inset = BAND_START * scale
+		local inset = art.bandStart * scale
 		local band = outset - inset
 
 		local function Snap(position)
@@ -684,7 +691,7 @@ function Border:StyleCellDivider(texture, style, color)
 		local size = art.size
 
 		texture:SetTexture(art.band)
-		texture:SetTexCoord(BAND_START / size, (BAND_START + BAND_WIDTH) / size, (size / 2 - 0.5) / size,
+		texture:SetTexCoord(art.bandStart / size, (art.bandStart + BAND_WIDTH) / size, (size / 2 - 0.5) / size,
 			(size / 2 + 0.5) / size)
 		texture:SetHorizTile(false)
 		texture:SetVertTile(false)
@@ -731,7 +738,7 @@ function BorderMixin:ApplyRows(art, color)
 
 		for _, rule in ipairs(rules) do
 			rule:SetTexture(art.band)
-			rule:SetTexCoord(first, last, BAND_START / size, (BAND_START + BAND_WIDTH) / size)
+			rule:SetTexCoord(first, last, art.bandStart / size, (art.bandStart + BAND_WIDTH) / size)
 		end
 
 		Tint(rules, color, art.tinted == true)

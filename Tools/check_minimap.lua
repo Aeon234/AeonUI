@@ -194,6 +194,21 @@ end
 -- Settings ------------------------------------------------------------------------------------------------
 
 Equal("off by default", Schema:Read(stored, "minimap.enabled"), false)
+do
+	local enabled, isEnabled = false, Map.IsEnabled
+	Map.IsEnabled = function()
+		return enabled
+	end
+	local function Waits(on, active, waiting)
+		enabled, Map.active, Map.waiting = on, active, waiting
+
+		return tostring(Map:ReloadNeeded())
+	end
+	Equal("a reload waits only while the switch differs from the session", table.concat({ Waits(false, false),
+		Waits(true, false), Waits(false, true), Waits(true, true), Waits(true, false, true) }, " "),
+		"false true true false false")
+	Map.IsEnabled, Map.active, Map.waiting = isEnabled, false, false
+end
 Equal("default width", Schema:Read(stored, "minimap.width"), 240)
 Equal("default height", Schema:Read(stored, "minimap.height"), 180)
 Equal("default border", Schema:Read(stored, "minimap.border.style"), "METAL")
@@ -211,6 +226,12 @@ Equal("corners inside the outset never shrink the art", Border:FitScale(10, 15, 
 Equal("a bar too short for two metal corners draws them smaller", Border:FitScale(100, 16, 38, 1), 38 / 168)
 Equal("every Forever style names its art", Border.ART.FOREVER.file ~= nil and Border.ART.FOREVER_MINIMAL.file ~= nil,
 	true)
+local slate = Border.ART.SLATE
+Equal("Slate: the tracker's 128-texel frame and ring, tinted, its band 15 texels in", slate.file:match("%w+%.tga$") .. " "
+	.. slate.band:match("%w+%.tga$") .. " " .. slate.size .. " " .. slate.across .. " " .. tostring(slate.tinted) .. " "
+	.. slate.bandStart .. " " .. slate.outset, "Slate.tga SlateBand.tga 128 32 true 15 19.5")
+Equal("a Slate bar keeps the art's scale", Border:FitScale(slate.down, slate.outset, 38, 0.5), 0.5)
+Equal("listed after Forever", table.concat(Border.STYLES, " "), "METAL FOREVER_MINIMAL FOREVER SLATE THIN_LINE NONE")
 Equal("no stored position by default", Schema:Read(stored, "minimap.position"), nil)
 Equal("every border style is a choice", #Schema.choices.minimapBorderStyle, #AUI.Border.STYLES)
 Equal("too narrow", (Schema:CheckValue("minimap.width", 100)), false)
@@ -556,6 +577,7 @@ Fade.spring = nil
 Equal("metal draws its own cell divider", Border:CellDividerWidth("METAL", 100), 9)
 Equal("which follows the thickness", Border:CellDividerWidth("METAL", 200), 18)
 Equal("Forever Minimal divides with its band", Border:CellDividerWidth("FOREVER_MINIMAL", 100), 2)
+Equal("and Slate with its", Border:CellDividerWidth("SLATE", 100) .. " " .. (Border:Gaps("SLATE", 100, 0.5)), "2 2")
 Equal("Forever divides with its band", Border:CellDividerWidth("FOREVER", 100), 2)
 Equal("thin line draws a plain line", Border:CellDividerWidth("THIN_LINE", 100), nil)
 cells = Layout:Row({ { key = "a", kind = "text", width = 20, flexible = true }, { key = "b", kind = "text", width = 20 } },
