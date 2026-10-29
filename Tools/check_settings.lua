@@ -139,7 +139,7 @@ local CONTROL_FIELDS = {
 	OrderedList = { title = true, items = true, enabled = true },
 }
 local PAGE_FIELDS = { title = true, description = true, under = true, icon = true, iconTint = true, slot = true,
-	switch = true }
+	switch = true, show = true }
 local DECLARATION_FIELDS = {
 	title = true, version = true, store = true, write = true, account = true, width = true, height = true,
 	footer = true, frameName = true,
@@ -783,6 +783,22 @@ local barCard = markersPage.sections.markersBar
 Equal("the bar's switch, off; its settings follow it", barCard.settings.markersEnabled.kind .. " "
 	.. tostring(barCard.settings.markersEnabled.default) .. " " .. barCard.settings.markersFeedback.depends .. " "
 	.. markersPage.sections.markersButtons.settings.markersSeconds.depends, "Toggle false markersEnabled markersCountdown")
+local function BarCards()
+	local shown = {}
+
+	for _, id in ipairs({ "markersButtons", "markersLayout", "markersBorder", "markersCycle" }) do
+		local show = markersPage.sections[id].info.show
+		shown[#shown + 1] = tostring(show == nil or show() == true)
+	end
+
+	return table.concat(shown, " ")
+end
+Equal("the bar off: its cards hidden, the cycle kept", BarCards(), "false false false true")
+Profile:Set("markers.enabled", true)
+Equal("the bar on: its cards shown", BarCards(), "true true true true")
+Profile:Set("markers.enabled", false)
+Equal("the bar's hidden cards are found through Show Bar",
+	tostring(barCard.settings.markersEnabled.keywords:find("Button Size", 1, true) ~= nil), "true")
 local feedback = barCard.settings.markersFeedback
 Equal("Button Feedback: several choices, each at its own path, Highlight Border opted into", tostring(feedback.multiple)
 	.. " " .. feedback.path .. " " .. #feedback.options .. " " .. tostring(feedback.default.highlight) .. " "
@@ -962,6 +978,17 @@ local general = window.pages.tooltipGeneral
 Equal("the switch is the module's", general.info.switch.path, TooltipOptions.ENABLED_PATH)
 Equal("which defaults on", general.info.switch.default, true)
 Equal("and is named for the tooltip", general.info.switch.label, "Tooltip")
+local function TooltipPagesShown()
+	local units, items = window.pages.tooltipUnits.info.show, window.pages.tooltipItems.info.show
+
+	return tostring(units()) .. " " .. tostring(items())
+end
+Equal("Units and Items show while the module is on", TooltipPagesShown(), "true true")
+Profile:Set(TooltipOptions.ENABLED_PATH, false)
+Equal("and leave the sidebar while it is off", TooltipPagesShown(), "false false")
+Profile:Set(TooltipOptions.ENABLED_PATH, true)
+Equal("their cards are found through the switch", tostring(general.info.switch.keywords:find("Extra Lines", 1, true) ~= nil)
+	.. " " .. tostring(general.info.switch.keywords:find("ID Lines", 1, true) ~= nil), "true true")
 local tooltipBar = general.sections.tooltipHealthBar.settings
 Equal("every bar style is offered", #tooltipBar.barStyle.options, #TooltipOptions.BAR_STYLES)
 Equal("one height for both styles", tooltipBar.barHeight.path, TooltipOptions.BAR_HEIGHT_PATH)

@@ -56,11 +56,11 @@ local DETAILS_PREVIEW_HEIGHT = 210
 -- Tall enough for the sample player with every line at full size.
 local UNITS_PREVIEW_HEIGHT = 170
 
--- The module's switch, on the General page; the Units and Items pages' settings follow it.
+-- The module's switch, on the General page; the Units and Items pages show only while it is on.
 local SWITCH = "tooltipGeneral/enabled"
 
----The Tooltip header and its pages: General, which carries the module's switch, Units and Items. Changes take effect
----at once.
+---The Tooltip header and its pages: General, which carries the module's switch, and Units and Items while it is on.
+---Changes take effect at once.
 ---@class AUISettingsTooltip
 ---@field pageIDs table<string, true> the pages under the Tooltip header
 local SettingsTooltip = {
@@ -150,6 +150,11 @@ function SettingsTooltip:DeclareAppearance(page)
 		max = 16,
 		step = 1,
 	})
+end
+
+---@return boolean shown the module is on, so the Units and Items pages show
+local function ModuleShown()
+	return AUI.Profile:Get(AUI.TooltipOptions.ENABLED_PATH) == true
 end
 
 ---@param values string[]
@@ -298,10 +303,13 @@ function SettingsTooltip:DeclareGeneral(window)
 		under = "tooltipHeader",
 		icon = AUI.Media.sidebar.tooltipGeneral,
 		iconTint = true,
+		-- The Units and Items pages hidden while the module is off are found through this switch.
 		switch = {
 			path = Options.ENABLED_PATH,
 			default = Settings:Default(Options.ENABLED_PATH),
 			label = L["Tooltip"],
+			keywords = table.concat({ L["Units"], L["Name, Guild and Level"], L["Extra Lines"], L["Items"],
+				L["Item Details"], L["ID Lines"], L["Upgrades"] }, " "),
 		},
 	})
 
@@ -491,6 +499,7 @@ function SettingsTooltip:DeclareUnits(window)
 		under = "tooltipHeader",
 		icon = AUI.Media.sidebar.tooltipUnits,
 		iconTint = true,
+		show = ModuleShown,
 	})
 
 	if not page then
@@ -553,6 +562,7 @@ function SettingsTooltip:DeclareItems(window)
 		under = "tooltipHeader",
 		icon = AUI.Media.sidebar.tooltipItems,
 		iconTint = true,
+		show = ModuleShown,
 	})
 
 	if not page then
