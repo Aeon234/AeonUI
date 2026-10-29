@@ -51,6 +51,8 @@ AUI.Capabilities = Capabilities
 ---@field petHealthNotice boolean the pet's health can be drawn through a curve
 ---@field talentNotice boolean unspent talent points can be read
 ---@field durabilityNotice boolean equipped items' durability can be read
+---@field lowHealthNotice boolean the player's health can be drawn through a curve
+---@field trackingNotice boolean the minimap's trackings and the player's shapeshift form can be read
 ---@field potionNotice boolean the bags' potions, their use spells and their cooldown can be read
 ---@field raidMarkers boolean a bar of secure marker buttons can follow a visibility driver and start a role check
 ---@field worldMarkers boolean the client has world markers (`IsRaidMarkerSystemEnabled`)
@@ -124,6 +126,9 @@ function Capabilities:Resolve()
 		and Enum.LuaCurveType ~= nil
 	can.talentNotice = C_ClassTalents ~= nil and C_ClassTalents.HasUnspentTalentPoints ~= nil
 	can.durabilityNotice = GetInventoryItemDurability ~= nil
+	can.lowHealthNotice = can.petHealthNotice
+	can.trackingNotice = C_Minimap ~= nil and C_Minimap.GetNumTrackingTypes ~= nil and C_Minimap.GetTrackingInfo ~= nil
+		and GetShapeshiftFormID ~= nil
 	can.potionNotice = C_Container ~= nil and C_Container.GetItemCooldown ~= nil
 		and C_Container.GetContainerItemID ~= nil and C_Item ~= nil and C_Item.GetItemSpell ~= nil
 		and C_Item.GetItemInfoInstant ~= nil and Enum.ItemConsumableSubclass ~= nil

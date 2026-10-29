@@ -164,6 +164,7 @@ end
 local known, inCombat, instance, mounted, vehicle, taxi, dead = {}, false, false, false, false, false, false
 local pet, petDead, passive, spec, sacrificeAura, aurasSecret = true, false, false, nil, nil, false
 local petHealth, unspent, durability = 1, false, {}
+local playerHealth, trackings, form = 1, {}, nil
 local bags, cooldowns = {}, {}
 
 C_SpellBook = { IsSpellKnown = function(spell)
@@ -238,16 +239,28 @@ C_CurveUtil = { CreateCurve = function()
 end }
 ---A step curve's value at `x`: the last point at or before it.
 function UnitHealthPercent(unit, _, curve)
-	assert(unit == "pet")
+	assert(unit == "pet" or unit == "player")
+	local health = unit == "pet" and petHealth or playerHealth
 	local value
 
 	for _, point in ipairs(curve.points) do
-		if point[1] <= petHealth then
+		if point[1] <= health then
 			value = point[2]
 		end
 	end
 
 	return value
+end
+C_Minimap = {
+	GetNumTrackingTypes = function()
+		return #trackings
+	end,
+	GetTrackingInfo = function(index)
+		return trackings[index]
+	end,
+}
+function GetShapeshiftFormID()
+	return form
 end
 C_ClassTalents = { HasUnspentTalentPoints = function()
 	return unspent, 0, 0
@@ -293,6 +306,7 @@ AUI.L = setmetatable({}, { __index = function(_, key)
 end })
 assert(loadfile(root .. "Core/Core.lua"))("AeonUI", AUI)
 AUI.can = { petNotices = true, petHealthNotice = true, talentNotice = true, durabilityNotice = true,
+	lowHealthNotice = true, trackingNotice = true,
 	potionNotice = true, specializations = true }
 AUI.Media = {
 	Font = function(_, name)
@@ -338,7 +352,8 @@ function LibStub(name)
 end
 
 for _, file in ipairs({ "Notifications/Options.lua", "Notifications/Notifications.lua", "Notifications/Combat.lua",
-	"Notifications/Pet.lua", "Notifications/Character.lua", "Notifications/Potion.lua" }) do
+	"Notifications/Pet.lua", "Notifications/Character.lua", "Notifications/Potion.lua", "Notifications/Health.lua",
+	"Notifications/Tracking.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 
@@ -390,8 +405,35 @@ local defaults = {}
 for _, notice in ipairs(Options.NOTICES) do
 	defaults[#defaults + 1] = notice.key .. "=" .. tostring(AUI.Profile:Get(Options:Path(notice.key, "enabled")))
 end
-Equal("every notice off by default", table.concat(defaults, " "), "enter=false leave=false potion=false "
-	.. "petMissing=false petPassive=false petHealth=false talents=false durability=false")
+Equal("every notice off by default", table.concat(defaults, " "), "enter=false leave=false lowHealth=false "
+	.. "potion=false petMissing=false petPassive=false petHealth=false talents=false durability=false tracking=false")
+Equal("Low Health is the stack's last slot, Pet Low Health just above it", Options:SlotOrder("health") .. " "
+	.. Options:SlotOrder("petHealth") .. " " .. #Options.SLOTS, "9 8 9")
+Equal("Low Health shows below 35% by default", AUI.Profile:Get(Options.LOW_HEALTH_PATH), 35)
+
+local hunter, dwarfPaladin = {}, {}
+for _, tracking in ipairs(Options:TrackingsFor("HUNTER", "Orc")) do
+	hunter[#hunter + 1] = tracking.key
+end
+for _, tracking in ipairs(Options:TrackingsFor("PALADIN", "Dwarf")) do
+	dwarfPaladin[#dwarfPaladin + 1] = tracking.key
+end
+Equal("a hunter's trackings, then the professions'", table.concat(hunter, " "),
+	"beasts humanoids undead hidden elementals demons giants dragonkin herbs minerals")
+Equal("a dwarf paladin's", table.concat(dwarfPaladin, " "), "senseUndead treasure herbs minerals")
+local function Missing(tracked, shape, skip)
+	return table.concat(Options:MissingTrackings(tracked, shape, function(key)
+		return key ~= skip
+	end), ", ")
+end
+Equal("only listed trackings that are off are missing", Missing({ [1494] = false, [19883] = true, [2383] = false }),
+	"Beasts, Herbs")
+Equal("a profession's second rank counts as the profession", Missing({ [2383] = false, [8387] = true }), "")
+Equal("one Tracking does not remind about is left out", Missing({ [1494] = false, [2580] = false }, nil, "beasts"),
+	"Minerals")
+Equal("a druid's humanoids only in Cat Form", Missing({ [5225] = false }, nil) .. " | " .. Missing({ [5225] = false }, 1),
+	" | Humanoids")
+Equal("the line names them after its text", Options:TrackingText({ "Beasts", "Herbs" }), "Not Tracking: Beasts, Herbs")
 Equal("the style's defaults", AUI.Profile:Get(Options.FONT_PATH) .. " " .. AUI.Profile:Get(Options.SIZE_PATH) .. " "
 	.. AUI.Profile:Get(Options.OUTLINE_PATH) .. " " .. AUI.Profile:Get(Options.DURATION_PATH), "Friz Quadrata TT 22 SLUG 3")
 Equal("an empty text is the notice's own", (function()
@@ -647,6 +689,65 @@ Equal("Potion Ready once it is over", Shown(), "Potion Ready")
 Equal("and the watch ends", AUI.PotionNotice.watched, nil)
 Set(Options:Path("potion", "enabled"), false)
 Equal("off: no longer followed", tostring(eventFrame.events.UNIT_SPELLCAST_SUCCEEDED), "nil")
+
+-- Low Health ----------------------------------------------------------------------------------------------
+
+dead = false
+playerHealth = 0.8
+On("lowHealth")
+local low = Line("lowHealth")
+Equal("Low Health is shown without opacity above the mark", tostring(low and low.shownAlpha), "0")
+playerHealth = 0.2
+Fire("UNIT_HEALTH", "player")
+Equal("and fully below it, the health never read", Line("lowHealth").shownAlpha, 1)
+Fire("UNIT_HEALTH", "target")
+Equal("another unit's health changes nothing", Line("lowHealth").shownAlpha, 1)
+Set(Options.LOW_HEALTH_PATH, 15)
+Equal("a new mark redraws it", Line("lowHealth").shownAlpha, 0)
+Set(Options.LOW_HEALTH_PATH, 35)
+dead = true
+Fire("PLAYER_DEAD")
+Equal("dismissed while dead", Line("lowHealth") ~= nil and not Line("lowHealth").leaving, false)
+dead = false
+Fire("PLAYER_ALIVE")
+Equal("back once alive", Line("lowHealth") ~= nil and not Line("lowHealth").leaving, true)
+Set(Options:Path("lowHealth", "enabled"), false)
+Equal("off: no longer followed", tostring(eventFrame.events.UNIT_MAXHEALTH), "nil")
+Frames(1)
+
+-- Tracking ------------------------------------------------------------------------------------------------
+
+trackings = { { spellID = 2383, active = false }, { spellID = 2580, active = true }, { spellID = 1494, active = false } }
+instance, taxi = false, false
+On("tracking")
+Advance(0)
+Equal("Tracking names what is off", Shown(), "Not Tracking: Beasts, Herbs")
+Set(Options.TRACKING_PATH .. ".beasts", false)
+Advance(0)
+Equal("leaving out what it does not remind about", Shown(), "Not Tracking: Herbs")
+trackings[1].active = true
+Fire("MINIMAP_UPDATE_TRACKING")
+Advance(0)
+Equal("gone once everything is on", Shown(), "")
+trackings[1].active = false
+instance = true
+Fire("ZONE_CHANGED_NEW_AREA")
+Advance(0)
+Equal("hidden in instances", Shown(), "")
+instance = false
+taxi = true
+Fire("PLAYER_CONTROL_LOST")
+Advance(0)
+Equal("and on a taxi", Shown(), "")
+taxi = false
+Fire("PLAYER_CONTROL_GAINED")
+Advance(0)
+Equal("back after landing", Shown(), "Not Tracking: Herbs")
+Equal("its sample names two professions", Notifications:SampleText("tracking"), "Not Tracking: Herbs, Minerals")
+Set(Options:Path("tracking", "enabled"), false)
+Advance(0)
+Equal("off: dismissed and no longer followed", tostring(eventFrame.events.MINIMAP_UPDATE_TRACKING) .. " " .. Shown(),
+	"nil ")
 
 Equal("no Lua error in the run", errors[1], nil)
 

@@ -345,6 +345,8 @@ end
 function Notifications:SampleText(key)
 	if key == "durability" then
 		return Options:DurabilityText(key, AUI.Profile:Get(Options.DURABILITY_PATH) - 1)
+	elseif key == "tracking" then
+		return Options:TrackingText({ AUI.L["Herbs"], AUI.L["Minerals"] })
 	end
 
 	return Options:Text(key)
@@ -373,7 +375,9 @@ function Notifications:Apply()
 			self:Style(line)
 			line:SetTextColor(color.r, color.g, color.b)
 
-			if line.sample or Options:Notice(line.key).slot ~= "durability" then
+			local slot = Options:Notice(line.key).slot
+
+			if line.sample or (slot ~= "durability" and slot ~= "tracking") then
 				line:SetText(line.sample and self:SampleText(line.key) or Options:Text(line.key))
 			end
 		end
@@ -385,6 +389,8 @@ function Notifications:Apply()
 	AUI.PetNotices:Apply()
 	AUI.CharacterNotices:Apply()
 	AUI.PotionNotice:Apply()
+	AUI.HealthNotice:Apply()
+	AUI.TrackingNotice:Apply()
 end
 
 ---@param path string? the changed setting; nil when the whole profile changed

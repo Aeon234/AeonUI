@@ -16,6 +16,13 @@ HIDE = "Hide"
 RAID_TARGET_8 = "Skull"
 APPLY = "Apply"
 RELOADUI = "Reload UI"
+TRACKING = "Tracking"
+function UnitClass()
+	return "Hunter", "HUNTER"
+end
+function UnitRace()
+	return "Orc", "Orc"
+end
 UI_SCALE = "UI Scale"
 CHOOSE = "Choose"
 OFF = "Off"
@@ -749,15 +756,29 @@ Equal("Notifications follows Alerts, with its icon and no switch", notifications
 	.. tostring(notificationsPage.info.switch), "qualityOfLifeHeader true nil")
 Equal("without the clients' extras: Text and Combat", NoticeCards(notificationsPage),
 	"Text: font size outline | Combat: enter enterText leave leaveText duration")
-for _, flag in ipairs({ "potionNotice", "petNotices", "petHealthNotice", "talentNotice", "durabilityNotice" }) do
+for _, flag in ipairs({ "potionNotice", "petNotices", "petHealthNotice", "talentNotice", "durabilityNotice",
+	"lowHealthNotice", "trackingNotice" }) do
 	AUI.can[flag] = true
 end
 window = Load(nil)
 notificationsPage = window.pages.notifications
 Equal("every card, a line only for a constraint", NoticeCards(notificationsPage),
-	"Text: font size outline | Combat: enter enterText leave leaveText potion potionText duration | "
-	.. "Pet: petMissing+ petMissingText petPassive+ petPassiveText petHealth+ petHealthText | "
-	.. "Character: talents+ talentsText durability+ durabilityText")
+	"Text: font size outline | Combat: enter enterText leave leaveText lowHealth lowHealthText potion potionText "
+	.. "duration | Pet: petMissing+ petMissingText petPassive+ petPassiveText petHealth+ petHealthText | "
+	.. "Character: talents+ talentsText durability+ durabilityText tracking+ trackingText")
+local combatCard, characterCard = notificationsPage.sections.notificationsCombat, notificationsPage.sections.notificationsCharacter
+Equal("Low Health's mark, 35% by default", combatCard.settings.lowHealthText_below.min .. "-"
+	.. combatCard.settings.lowHealthText_below.max .. " " .. combatCard.settings.lowHealthText_below.default, "5-90 35")
+local remind = characterCard.settings.trackingText_remind
+local remindKeys = {}
+for index, option in ipairs(remind.options) do
+	remindKeys[index] = option.value
+end
+Equal("Tracking: outside instances, Remind About listing the character's trackings, each on", characterCard.settings
+	.tracking.description .. " " .. tostring(remind.multiple) .. " " .. remind.path .. " " .. remind.details .. " "
+	.. table.concat(remindKeys, ",") .. " " .. tostring(remind.default.beasts), "Outside instances. true "
+	.. "notifications.tracking.remind trackingText beasts,humanoids,undead,hidden,elementals,demons,giants,dragonkin,"
+	.. "herbs,minerals true")
 local petCard = notificationsPage.sections.notificationsPet
 Equal("the pet lines", petCard.settings.petMissing.description, "In combat or in instances.")
 Equal("a notice's Text row follows its checkbox and holds its text and color", petCard.settings.petHealthText.depends
@@ -768,7 +789,8 @@ Equal("Pet Low Health's mark, in its Text row", petCard.settings.petHealthText_b
 	.. petCard.settings.petHealthText_below.format, "Show Below 5-90 percent")
 Equal("the Text row reads the notice's text", petCard.settings.petHealthText.summary(), "Pet Low Health")
 Equal("Low Durability's mark", notificationsPage.sections.notificationsCharacter.settings.durabilityText_below.min, 10)
-for _, flag in ipairs({ "potionNotice", "petNotices", "petHealthNotice", "talentNotice", "durabilityNotice" }) do
+for _, flag in ipairs({ "potionNotice", "petNotices", "petHealthNotice", "talentNotice", "durabilityNotice",
+	"lowHealthNotice", "trackingNotice" }) do
 	AUI.can[flag] = nil
 end
 local function MarkerCards(page)

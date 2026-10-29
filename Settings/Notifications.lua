@@ -9,12 +9,14 @@ local PREVIEW_HEIGHT = 120
 local LABELS = {
 	enter = L["Entering Combat"],
 	leave = L["Leaving Combat"],
+	lowHealth = L["Low Health"],
 	potion = L["Potion Ready"],
 	petMissing = L["Pet Missing"],
 	petPassive = L["Pet Passive"],
 	petHealth = L["Pet Low Health"],
 	talents = L["Unspent Talent Points"],
 	durability = L["Low Durability"],
+	tracking = TRACKING,
 }
 local LINES = {
 	petMissing = L["In combat or in instances."],
@@ -22,6 +24,7 @@ local LINES = {
 	petHealth = L["In combat or in instances."],
 	talents = L["Out of combat."],
 	durability = L["Out of combat."],
+	tracking = L["Outside instances."],
 }
 
 ---The Notifications page, under the Quality of Life header: a sample of the notices turned on as its preview, the Text
@@ -148,6 +151,32 @@ local function Below(path, min, max)
 	end
 end
 
+---@return fun(section: table, details: string) extra the trackings Tracking reminds about, inside its Text row: the
+---character's class's and race's, and the professions'
+local function RemindAbout()
+	return function(section, details)
+		local Options = AUI.NotificationOptions
+		local _, class = UnitClass("player")
+		local _, race = UnitRace("player")
+		local options, default = {}, {}
+
+		for index, tracking in ipairs(Options:TrackingsFor(class, race)) do
+			options[index] = { value = tracking.key, text = tracking.label }
+			default[tracking.key] = AUI.Settings:Default(Options.TRACKING_PATH .. "." .. tracking.key)
+		end
+
+		section:Dropdown({
+			id = details .. "_remind",
+			label = L["Remind About"],
+			path = Options.TRACKING_PATH,
+			default = default,
+			details = details,
+			multiple = true,
+			options = options,
+		})
+	end
+end
+
 ---@param page table
 function SettingsNotifications:DeclareText(page)
 	local Settings, Options = AUI.Settings, AUI.NotificationOptions
@@ -186,6 +215,10 @@ function SettingsNotifications:DeclareCombat(page)
 	DeclareNotice(card, "enter")
 	DeclareNotice(card, "leave")
 
+	if AUI.can.lowHealthNotice then
+		DeclareNotice(card, "lowHealth", Below(Options.LOW_HEALTH_PATH, 5, 90))
+	end
+
 	if AUI.can.potionNotice then
 		DeclareNotice(card, "potion")
 	end
@@ -221,7 +254,7 @@ end
 function SettingsNotifications:DeclareCharacter(page)
 	local can = AUI.can
 
-	if not (can.talentNotice or can.durabilityNotice) then
+	if not (can.talentNotice or can.durabilityNotice or can.trackingNotice) then
 		return
 	end
 
@@ -233,6 +266,10 @@ function SettingsNotifications:DeclareCharacter(page)
 
 	if can.durabilityNotice then
 		DeclareNotice(card, "durability", Below(AUI.NotificationOptions.DURABILITY_PATH, 10, 90))
+	end
+
+	if can.trackingNotice then
+		DeclareNotice(card, "tracking", RemindAbout())
 	end
 end
 

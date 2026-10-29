@@ -13,8 +13,8 @@ local Schema = AUI.Schema
 ---@field timed boolean?
 
 ---The Notifications settings and their frame-free rules: the notices, their paths and texts, the stack's order, the
----timings, who should have a pet and when pet reminders apply, the pet health curve, the lowest durability, and when
----a used potion is ready again.
+---timings, who should have a pet and when pet reminders apply, the health curve, the lowest durability, when a used
+---potion is ready again, and which trackings are off.
 ---@class AUINotificationOptions
 ---@field NOTICES AUINotice[] every notice, in the order the page lists them
 ---@field SLOTS string[] the slots, top of the stack first
@@ -25,6 +25,8 @@ local Schema = AUI.Schema
 ---@field POSITION_PATH string
 ---@field PET_HEALTH_PATH string the pet's health, a percentage, below which Pet Low Health shows
 ---@field DURABILITY_PATH string the lowest durability, a percentage, below which Low Durability shows
+---@field LOW_HEALTH_PATH string the player's health, a percentage, below which Low Health shows
+---@field TRACKING_PATH string the branch holding, per tracking, whether Tracking reminds about it
 ---@field MOVE_RESPONSE number seconds; the spring that moves a line to its place
 ---@field FADE_IN number seconds; the spring that brings a line's opacity up
 ---@field FADE_OUT number seconds; the spring that takes a line's opacity down
@@ -40,16 +42,18 @@ local Options = {
 	NOTICES = {
 		{ key = "enter", slot = "combat", text = L["+Combat"], color = { r = 1, g = 0.25, b = 0.25 }, timed = true },
 		{ key = "leave", slot = "combat", text = L["-Combat"], color = { r = 0.3, g = 0.6, b = 1 }, timed = true },
+		{ key = "lowHealth", slot = "health", text = L["Low Health"], color = { r = 1, g = 0.2, b = 0.2 } },
 		{ key = "potion", slot = "potion", text = L["Potion Ready"], color = { r = 0.1, g = 1, b = 0.1 }, timed = true },
 		{ key = "petMissing", slot = "pet", text = L["Pet Missing"], color = { r = 0.522, g = 0.427, b = 0.914 } },
 		{ key = "petPassive", slot = "petStance", text = L["Pet Passive"], color = { r = 0.882, g = 0.882, b = 0.882 } },
 		{ key = "petHealth", slot = "petHealth", text = L["Pet Low Health"], color = { r = 1, g = 0.3, b = 0.3 } },
 		{ key = "talents", slot = "talents", text = L["Unspent Talent Points"], color = { r = 1, g = 0.82, b = 0 } },
 		{ key = "durability", slot = "durability", text = L["Low Durability"], color = { r = 1, g = 0.27, b = 0.27 } },
+		{ key = "tracking", slot = "tracking", text = L["Not Tracking"], color = { r = 1, g = 0.6, b = 0.2 } },
 	},
-	-- Pet Low Health is last: its line stays shown at no opacity while the pet's health is above the mark, so it holds
-	-- no room between other lines.
-	SLOTS = { "combat", "potion", "pet", "petStance", "talents", "durability", "petHealth" },
+	-- Pet Low Health and Low Health come last: their lines stay shown at no opacity while health is above the mark, so
+	-- they hold no room between other lines. The player's own is the very last, the one that never leaves a gap.
+	SLOTS = { "combat", "potion", "pet", "petStance", "talents", "durability", "tracking", "petHealth", "health" },
 	FONT_PATH = "notifications.font",
 	SIZE_PATH = "notifications.size",
 	OUTLINE_PATH = "notifications.outline",
@@ -57,6 +61,8 @@ local Options = {
 	POSITION_PATH = "notifications.position",
 	PET_HEALTH_PATH = "notifications.petHealth.below",
 	DURABILITY_PATH = "notifications.durability.below",
+	LOW_HEALTH_PATH = "notifications.lowHealth.below",
+	TRACKING_PATH = "notifications.tracking.remind",
 	MOVE_RESPONSE = 0.35,
 	FADE_IN = 0.3,
 	FADE_OUT = 0.3,
@@ -113,6 +119,7 @@ Schema:Number(Options.DURATION_PATH, 3, 1, 10, true)
 Schema:Position(Options.POSITION_PATH)
 Schema:Number(Options.PET_HEALTH_PATH, 25, 5, 90, true)
 Schema:Number(Options.DURABILITY_PATH, 40, 10, 90, true)
+Schema:Number(Options.LOW_HEALTH_PATH, 35, 5, 90, true)
 
 ---@param key string
 ---@return boolean on
@@ -220,8 +227,8 @@ function Options:CountsAsInstance(inInstance, instanceType)
 	return inInstance == true and instanceType ~= "interior" and instanceType ~= "neighborhood"
 end
 
----The pet health curve's points, as `{ x, y }` with x the health from 0 to 1: opaque below the mark, clear at it and
----above.
+---A health curve's points, for the pet's or the player's, as `{ x, y }` with x the health from 0 to 1: opaque below the
+---mark, clear at it and above.
 ---@param below number the mark, a percentage
 ---@return number[][] points
 function Options:HealthCurve(below)
@@ -279,4 +286,88 @@ function Options:PotionCooldown(start, duration, enable, now)
 	end
 
 	return "over"
+end
+
+-- Tracking ---------------------------------------------------------------------------------------------------
+
+-- Cat Form's shapeshift form ID, the form a druid tracks humanoids in.
+local CAT_FORM = 1
+
+---A tracking Tracking reminds about: the minimap tracking spells that turn it on (a profession's ranks), who has it,
+---for the page's list, and the form it applies in.
+---@class AUITracking
+---@field key string
+---@field spells number[]
+---@field label string
+---@field class string? the class that learns it
+---@field race string? the race that has it
+---@field form number? the shapeshift form ID it applies in
+
+Options.TRACKINGS = {
+	{ key = "beasts", spells = { 1494 }, class = "HUNTER", label = L["Beasts"] },
+	{ key = "humanoids", spells = { 19883 }, class = "HUNTER", label = L["Humanoids"] },
+	{ key = "undead", spells = { 19884 }, class = "HUNTER", label = L["Undead"] },
+	{ key = "hidden", spells = { 19885 }, class = "HUNTER", label = L["Hidden"] },
+	{ key = "elementals", spells = { 19880 }, class = "HUNTER", label = L["Elementals"] },
+	{ key = "demons", spells = { 19878 }, class = "HUNTER", label = L["Demons"] },
+	{ key = "giants", spells = { 19882 }, class = "HUNTER", label = L["Giants"] },
+	{ key = "dragonkin", spells = { 19879 }, class = "HUNTER", label = L["Dragonkin"] },
+	{ key = "druidHumanoids", spells = { 5225 }, class = "DRUID", form = CAT_FORM, label = L["Humanoids"] },
+	{ key = "senseUndead", spells = { 5502 }, class = "PALADIN", label = L["Undead"] },
+	{ key = "senseDemons", spells = { 5500 }, class = "WARLOCK", label = L["Demons"] },
+	{ key = "treasure", spells = { 2481 }, race = "Dwarf", label = L["Treasure"] },
+	{ key = "herbs", spells = { 2383, 8387 }, label = L["Herbs"] },
+	{ key = "minerals", spells = { 2580, 8388 }, label = L["Minerals"] },
+}
+
+for _, tracking in ipairs(Options.TRACKINGS) do
+	Schema:Boolean(Options.TRACKING_PATH .. "." .. tracking.key, true)
+end
+
+---@param class string? the character's class token
+---@param race string? the character's race token
+---@return AUITracking[] trackings those the character can have: its class's, its race's and the professions'
+function Options:TrackingsFor(class, race)
+	local list = {}
+
+	for _, tracking in ipairs(self.TRACKINGS) do
+		if (tracking.class == nil or tracking.class == class) and (tracking.race == nil or tracking.race == race) then
+			list[#list + 1] = tracking
+		end
+	end
+
+	return list
+end
+
+---The trackings that are off. Only trackings in the minimap's tracking list count, so one the character lacks is never
+---missing; one tied to a form counts only in that form.
+---@param tracked table<number, boolean> each tracking spell in the minimap's list, and whether it is on
+---@param form number? the character's shapeshift form ID
+---@param remind fun(key: string): boolean whether Tracking reminds about a tracking
+---@return string[] labels the missing trackings' labels, in list order
+function Options:MissingTrackings(tracked, form, remind)
+	local labels = {}
+
+	for _, tracking in ipairs(self.TRACKINGS) do
+		local listed, on = false, false
+
+		for _, spell in ipairs(tracking.spells) do
+			if tracked[spell] ~= nil then
+				listed = true
+				on = on or tracked[spell]
+			end
+		end
+
+		if listed and not on and remind(tracking.key) and (tracking.form == nil or tracking.form == form) then
+			labels[#labels + 1] = tracking.label
+		end
+	end
+
+	return labels
+end
+
+---@param labels string[]
+---@return string text Tracking's text followed by the missing trackings
+function Options:TrackingText(labels)
+	return ("%s: %s"):format(self:Text("tracking"), table.concat(labels, ", "))
 end
