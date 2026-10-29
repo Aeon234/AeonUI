@@ -27,7 +27,8 @@ local STYLE_LABELS = {
 }
 
 ---The Raid Markers page, under the Quality of Life header: a sample bar as its preview, the Bar card headed by its
----switch, the Buttons, Layout and Border cards, and the World Marker Cycle card's key bindings and order. Changes take
+---switch, the Buttons, Layout and Border cards while the bar is on, and the World Marker Cycle card's key bindings and
+---order. Changes take
 ---effect at once out of combat, and as combat ends otherwise.
 ---@class AUISettingsRaidMarkers
 ---@field sample AUIMarkerSample?
@@ -45,6 +46,11 @@ local function ChoiceOptions(values, labels)
 	end
 
 	return options
+end
+
+---@return boolean shown the bar is on, so the cards that shape it show
+local function BarShown()
+	return AUI.Profile:Get("markers.enabled") == true
 end
 
 ---@param card table
@@ -86,11 +92,15 @@ function SettingsRaidMarkers:DeclareBar(page)
 	local Settings, Options = AUI.Settings, AUI.MarkerOptions
 	local card = page:Section("markersBar", L["Bar"])
 
+	-- The cards hidden while the bar is off are found through this switch.
 	card:Toggle({
 		id = "markersEnabled",
 		label = L["Show Bar"],
 		path = "markers.enabled",
 		default = Settings:Default("markers.enabled"),
+		keywords = table.concat({ L["Buttons"], READY_CHECK, PLAYER_COUNTDOWN_BUTTON, L["Countdown Seconds"], L["Layout"],
+			L["Orientation"], L["Button Size"], L["Spacing"], L["Border"], L["Border Style"], L["Border Color"],
+			L["Border Thickness"] }, " "),
 	})
 	card:Dropdown({
 		id = "markersVisibility",
@@ -121,7 +131,7 @@ end
 
 ---@param page table
 function SettingsRaidMarkers:DeclareButtons(page)
-	local card = page:Section("markersButtons", L["Buttons"])
+	local card = page:Section("markersButtons", L["Buttons"], { show = BarShown })
 
 	Checkbox(card, "markersReadyCheck", READY_CHECK, "markers.readyCheck")
 	Checkbox(card, "markersCountdown", PLAYER_COUNTDOWN_BUTTON, "markers.countdown")
@@ -140,7 +150,7 @@ end
 ---@param page table
 function SettingsRaidMarkers:DeclareLayout(page)
 	local Settings, Options = AUI.Settings, AUI.MarkerOptions
-	local card = page:Section("markersLayout", L["Layout"])
+	local card = page:Section("markersLayout", L["Layout"], { show = BarShown })
 
 	card:Dropdown({
 		id = "markersOrientation",
@@ -176,7 +186,7 @@ end
 function SettingsRaidMarkers:DeclareBorder(page)
 	local Settings = AUI.Settings
 	local options = ChoiceOptions(AUI.MarkerOptions.BORDER_STYLES, STYLE_LABELS)
-	local card = page:Section("markersBorder", L["Border"])
+	local card = page:Section("markersBorder", L["Border"], { show = BarShown })
 
 	card:Dropdown({
 		id = "markersBorderStyle",
