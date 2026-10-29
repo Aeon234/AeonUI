@@ -79,35 +79,6 @@ function issecretvalue(value)
 	return value == SECRET
 end
 
-local function AnimationGroup()
-	local group = { playing = false, scripts = {} }
-	function group:CreateAnimation()
-		return {
-			SetFromAlpha = function() end,
-			SetToAlpha = function() end,
-			SetDuration = function() end,
-		}
-	end
-	function group:Play()
-		self.playing = true
-	end
-	function group:Stop()
-		self.playing = false
-	end
-	function group:IsPlaying()
-		return self.playing
-	end
-	function group:SetScript(name, handler)
-		self.scripts[name] = handler
-	end
-	function group:Finish()
-		self.playing = false
-		self.scripts.OnFinished()
-	end
-
-	return group
-end
-
 local function FontString()
 	local text = { shown = true, alpha = 1 }
 	function text:SetFont(file, size, flags)
@@ -127,18 +98,17 @@ local function FontString()
 		self.shown = false
 	end
 	function text:SetAlpha(alpha)
-		self.alpha = alpha
+		self.shownAlpha = alpha
 	end
 	function text:ClearAllPoints() end
-	function text:SetPoint() end
+	function text:SetPoint(_, _, _, _, y)
+		self.offset = y + 0
+	end
 	function text:GetStringWidth()
 		return #(self.text or "") * 10
 	end
 	function text:GetStringHeight()
 		return 20
-	end
-	function text:CreateAnimationGroup()
-		return AnimationGroup()
 	end
 
 	return text
@@ -154,8 +124,12 @@ function CreateFrame(kind, name)
 	function frame:UnregisterEvent(event)
 		self.events[event] = nil
 	end
-	function frame:SetScript(_, handler)
-		self.onEvent = handler
+	function frame:SetScript(name, handler)
+		if name == "OnUpdate" then
+			self.onUpdate = handler
+		else
+			self.onEvent = handler
+		end
 	end
 	function frame:SetSize(width, height)
 		self.width, self.height = width, height
@@ -379,7 +353,7 @@ local function Shown()
 	local texts = {}
 
 	for _, line in ipairs(Notifications.lines) do
-		if not line.sample then
+		if not line.sample and not line.leaving then
 			texts[#texts + 1] = line.text
 		end
 	end
@@ -392,6 +366,19 @@ local function Line(key)
 		if line.key == key and not line.sample then
 			return line
 		end
+	end
+end
+
+-- Runs the stack's OnUpdate for `seconds` at 60 frames a second, or until it stops.
+local function Frames(seconds)
+	for _ = 1, math.floor(seconds * 60 + 0.5) do
+		local onUpdate = Notifications.frame.onUpdate
+
+		if not onUpdate then
+			return
+		end
+
+		onUpdate(Notifications.frame, 1 / 60)
 	end
 end
 
@@ -452,6 +439,20 @@ Equal("the lowest durability", Options:LowestDurability({ { current = 50, maximu
 Equal("nothing with durability", Options:LowestDurability({}), nil)
 Equal("a potion's cooldown waiting to start", (Options:PotionCooldown(0, 0, 0, 100)), "waiting")
 local cooldownState, remaining = Options:PotionCooldown(90, 300, 1, 100)
+local value, velocity, settled = Options:Spring(0, 0, 10, 0.35, 0.1, 0.1)
+Equal("a spring moves toward its target without passing it", value > 0 and value < 10 and velocity > 0
+	and not settled, true)
+local fine, fineVelocity = 0, 0
+for _ = 1, 10 do
+	fine, fineVelocity = Options:Spring(fine, fineVelocity, 10, 0.35, 0.01, 0.1)
+end
+Equal("the same wherever the frames fall", math.abs(fine - value) < 1e-9 and math.abs(fineVelocity - velocity) < 1e-9,
+	true)
+local turned, turnedVelocity = Options:Spring(value, velocity, 0, 0.35, 0, 0.1)
+Equal("redirected, it carries on from its value and velocity", turned .. " " .. turnedVelocity,
+	value .. " " .. velocity)
+local rested, restVelocity, rests = Options:Spring(9.99, 0, 10, 0.35, 1, 0.1)
+Equal("and comes to rest on its target", rested .. " " .. restVelocity .. " " .. tostring(rests), "10 0 true")
 Equal("running", cooldownState .. " " .. remaining, "running 290")
 Equal("the global cooldown is not the potion's", (Options:PotionCooldown(99, 1.5, 1, 100)), "over")
 
@@ -465,26 +466,50 @@ Equal("nothing followed while every notice is off", tostring(eventFrame.events.P
 -- The stack -----------------------------------------------------------------------------------------------
 
 Notifications:Show("durability", "Low Durability (20%)")
+Frames(2)
 Notifications:Show("enter")
 Equal("the stack keeps its slots' order", Shown(), "+Combat | Low Durability (20%)")
 Equal("the named stack, sized to its lines", Notifications.frame.name .. " " .. Notifications.frame.width .. "x"
 	.. Notifications.frame.height, "AeonUINotifications 200x42")
 Equal("in the chosen style and the notice's color", Line("enter").font .. " / " .. Line("enter").color,
 	"LSM:Friz Quadrata TT 22 SLUG / 1 0.25 0.25")
-Equal("fading in", Line("enter").fadeIn.playing, true)
+local entering, below = Line("enter"), Line("durability")
+Equal("a new line starts clear, above its place, and pushes the line below down from where it was",
+	entering.shownAlpha .. " " .. entering.offset .. " " .. below.offset, "0 8 0")
+Equal("moving", Notifications.frame.onUpdate ~= nil, true)
+Frames(0.1)
+Equal("partway", entering.shownAlpha > 0.3 and entering.shownAlpha < 1 and entering.offset < 8 and entering.offset > 0
+	and below.offset < 0 and below.offset > -22, true)
+Frames(2)
+Equal("at rest: in place, opaque, and the OnUpdate stopped", entering.shownAlpha .. " " .. entering.offset .. " "
+	.. below.offset .. " " .. tostring(Notifications.frame.onUpdate), "1 0 -22 nil")
 Notifications:Show("leave")
 Equal("Leaving replaces Entering in its slot", Shown(), "-Combat | Low Durability (20%)")
 local leaving = Line("leave")
+Equal("cross-fading in place", #Notifications.lines .. " " .. leaving.offset .. " " .. tostring(entering.leaving)
+	.. " " .. entering.offset, "3 0 true 0")
+Frames(2)
+Equal("the replaced line is released", #Notifications.lines, 2)
 Advance(3)
-Equal("a timed notice fades after the duration", leaving.fadeOut.playing, true)
-leaving.fadeOut:Finish()
-Equal("and is gone", Shown(), "Low Durability (20%)")
+Equal("a timed notice leaves after the duration", Shown(), "Low Durability (20%)")
+Equal("giving its room to the line below", below.target, 0)
+Frames(0.1)
+Equal("moving up as it fades", leaving.offset > 0 and leaving.shownAlpha < 1 and below.offset > -22, true)
+Notifications:Show("leave")
+Equal("shown again while leaving, it turns back from where it is", leaving.leaving == nil
+	and leaving.shownAlpha < 1 and leaving.offset > 0 and #Notifications.lines == 2, true)
+Frames(2)
+Equal("back in place", leaving.shownAlpha .. " " .. leaving.offset .. " " .. below.offset, "1 0 -22")
+Notifications:Dismiss("leave")
+Frames(2)
+Equal("and is gone", Shown() .. " " .. #Notifications.lines .. " " .. below.offset, "Low Durability (20%) 1 0")
 Advance(30)
 Equal("a reminder stays", Shown(), "Low Durability (20%)")
 Notifications:Sample(true)
 Equal("samples beside live notices", #Notifications.lines .. " " .. Shown(), "2 Low Durability (20%)")
 Notifications:Sample(false)
 Notifications:Dismiss("durability")
+Frames(2)
 Equal("dismissed", #Notifications.lines, 0)
 
 -- Combat --------------------------------------------------------------------------------------------------
@@ -568,14 +593,14 @@ pet = true
 petHealth = 0.8
 On("petHealth")
 local health = Line("petHealth")
-Equal("Pet Low Health is shown without opacity above the mark", tostring(health and health.alpha), "0")
+Equal("Pet Low Health is shown without opacity above the mark", tostring(health and health.shownAlpha), "0")
 petHealth = 0.2
 Fire("UNIT_HEALTH", "pet")
-Equal("and with it below", health.alpha, 1)
+Equal("and with it below", health.shownAlpha, 1)
 Fire("UNIT_HEALTH", "target")
-Equal("another unit's health is ignored", health.alpha, 1)
+Equal("another unit's health is ignored", health.shownAlpha, 1)
 Set(Options.PET_HEALTH_PATH, 10)
-Equal("a new mark redraws it", Line("petHealth").alpha, 0)
+Equal("a new mark redraws it", Line("petHealth").shownAlpha, 0)
 for _, key in ipairs({ "petMissing", "petPassive", "petHealth" }) do
 	Set(Options:Path(key, "enabled"), false)
 end

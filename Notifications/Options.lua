@@ -25,8 +25,12 @@ local Schema = AUI.Schema
 ---@field POSITION_PATH string
 ---@field PET_HEALTH_PATH string the pet's health, a percentage, below which Pet Low Health shows
 ---@field DURABILITY_PATH string the lowest durability, a percentage, below which Low Durability shows
----@field FADE_IN number seconds
----@field FADE_OUT number seconds
+---@field MOVE_RESPONSE number seconds; the spring that moves a line to its place
+---@field FADE_IN number seconds; the spring that brings a line's opacity up
+---@field FADE_OUT number seconds; the spring that takes a line's opacity down
+---@field TRAVEL number units a line moves down as it enters and up as it leaves
+---@field REST_DISTANCE number units from its place at which a moving line is at rest
+---@field REST_ALPHA number opacity from its target at which a fading line is at rest
 ---@field COMBAT_GRACE number seconds after leaving combat in which entering it again shows nothing new
 ---@field DISMOUNT_GRACE number seconds after dismounting before pet reminders apply again
 ---@field LINE_GAP number
@@ -53,8 +57,12 @@ local Options = {
 	POSITION_PATH = "notifications.position",
 	PET_HEALTH_PATH = "notifications.petHealth.below",
 	DURABILITY_PATH = "notifications.durability.below",
-	FADE_IN = 0.15,
-	FADE_OUT = 0.5,
+	MOVE_RESPONSE = 0.35,
+	FADE_IN = 0.3,
+	FADE_OUT = 0.3,
+	TRAVEL = 8,
+	REST_DISTANCE = 0.1,
+	REST_ALPHA = 0.01,
 	COMBAT_GRACE = 0.5,
 	DISMOUNT_GRACE = 3,
 	LINE_GAP = 2,
@@ -135,6 +143,32 @@ end
 ---@return { point: string, x: number, y: number }
 function Options:DefaultPosition(parentHeight)
 	return { point = "TOP", x = 0, y = -math.floor(parentHeight / 2 - 150 + 0.5) }
+end
+
+---Steps a critically damped spring toward its target. The step is exact for any frame time, and a target changed
+---mid-motion carries on from the current value and velocity, so motion stays continuous when it is redirected.
+---@param value number
+---@param velocity number units per second
+---@param target number
+---@param response number seconds, the undamped period; lower is quicker
+---@param elapsed number seconds
+---@param rest number distance from the target at which the spring stops
+---@return number value the target once at rest
+---@return number velocity 0 once at rest
+---@return boolean settled
+function Options:Spring(value, velocity, target, response, elapsed, rest)
+	local omega = 2 * math.pi / response
+	local offset = value - target
+	local carry = velocity + omega * offset
+	local decay = math.exp(-omega * elapsed)
+	local nextOffset = (offset + carry * elapsed) * decay
+	local nextVelocity = (carry - omega * (offset + carry * elapsed)) * decay
+
+	if math.abs(nextOffset) < rest and math.abs(nextVelocity) < rest / response then
+		return target, 0, true
+	end
+
+	return target + nextOffset, nextVelocity, false
 end
 
 -- Pet --------------------------------------------------------------------------------------------------------
