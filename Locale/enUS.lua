@@ -63,6 +63,7 @@ L["Alerts"] = "Alerts"
 L["Interface"] = "Interface"
 L["Screen Text"] = "Screen Text"
 L["Cursor"] = "Cursor"
+L["Notifications"] = "Notifications"
 
 -- Shared settings labels (Settings)
 L["Text"] = "Text"
@@ -83,6 +84,7 @@ L["Ctrl"] = "Ctrl"
 L["Alt"] = "Alt"
 L["Visibility"] = "Visibility"
 L["Show"] = "Show"
+L["Size"] = "Size"
 
 -- General page (Settings)
 L["Access"] = "Access"
@@ -530,7 +532,6 @@ L["PvP Status"] = "PvP Status"
 -- Cursor page (Settings)
 L["Show Cursor Ring"] = "Show Cursor Ring"
 L["Ring"] = "Ring"
-L["Size"] = "Size"
 L["Thickness"] = "Thickness"
 L["Thin"] = "Thin"
 L["Normal"] = "Normal"
@@ -545,6 +546,22 @@ L["In Instances"] = "In Instances"
 L["Hide While Turning the Camera"] = "Hide While Turning the Camera"
 L["Idle"] = "Idle"
 L["Casting"] = "Casting"
+
+-- Notifications page and its notices (Settings, Notifications)
+L["Entering Combat"] = "Entering Combat"
+L["Leaving Combat"] = "Leaving Combat"
+L["Potion Ready"] = "Potion Ready"
+L["Pet Missing"] = "Pet Missing"
+L["Pet Passive"] = "Pet Passive"
+L["Pet Low Health"] = "Pet Low Health"
+L["Unspent Talent Points"] = "Unspent Talent Points"
+L["Low Durability"] = "Low Durability"
+L["In combat or in instances."] = "In combat or in instances."
+L["Out of combat."] = "Out of combat."
+L["Duration"] = "Duration"
+L["Show Below"] = "Show Below"
+L["+Combat"] = "+Combat"
+L["-Combat"] = "-Combat"
 
 -- Profiles page (Settings)
 L["AeonUI profile \"%s\"."] = "AeonUI profile \"%s\"."

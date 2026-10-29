@@ -47,6 +47,7 @@ L["Alerts"] = "알림"
 L["Interface"] = "인터페이스"
 L["Screen Text"] = "화면 문자"
 L["Cursor"] = "커서"
+L["Notifications"] = "알림"
 
 -- Shared settings labels (Settings)
 L["Text"] = "글자"
@@ -67,6 +68,7 @@ L["Ctrl"] = "Ctrl"
 L["Alt"] = "Alt"
 L["Visibility"] = "표시"
 L["Show"] = "표시"
+L["Size"] = "크기"
 
 -- General page (Settings)
 L["Access"] = "접근"
@@ -492,7 +494,6 @@ L["PvP Status"] = "PvP 상태"
 -- Cursor page (Settings)
 L["Show Cursor Ring"] = "커서 고리 표시"
 L["Ring"] = "고리"
-L["Size"] = "크기"
 L["Thickness"] = "두께"
 L["Thin"] = "얇게"
 L["Normal"] = "보통"
@@ -507,6 +508,22 @@ L["In Instances"] = "인스턴스 안"
 L["Hide While Turning the Camera"] = "카메라 회전 중 숨기기"
 L["Idle"] = "대기"
 L["Casting"] = "시전 중"
+
+-- Notifications page and its notices (Settings, Notifications)
+L["Entering Combat"] = "전투 시작"
+L["Leaving Combat"] = "전투 종료"
+L["Potion Ready"] = "물약 준비됨"
+L["Pet Missing"] = "소환수 없음"
+L["Pet Passive"] = "소환수 수동적"
+L["Pet Low Health"] = "소환수 생명력 낮음"
+L["Unspent Talent Points"] = "사용하지 않은 특성 점수"
+L["Low Durability"] = "내구도 낮음"
+L["In combat or in instances."] = "전투 중이거나 인스턴스 안에서."
+L["Out of combat."] = "전투 중이 아닐 때."
+L["Duration"] = "지속 시간"
+L["Show Below"] = "다음 미만일 때 표시"
+L["+Combat"] = "+전투"
+L["-Combat"] = "-전투"
 
 -- Profiles page (Settings)
 L["AeonUI profile \"%s\"."] = "AeonUI 프로필 \"%s\"."

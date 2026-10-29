@@ -47,6 +47,7 @@ L["Alerts"] = "Avvisi"
 L["Interface"] = "Interfaccia"
 L["Screen Text"] = "Testo a schermo"
 L["Cursor"] = "Cursore"
+L["Notifications"] = "Notifiche"
 
 -- Shared settings labels (Settings)
 L["Text"] = "Testo"
@@ -67,6 +68,7 @@ L["Ctrl"] = "Ctrl"
 L["Alt"] = "Alt"
 L["Visibility"] = "Visibilità"
 L["Show"] = "Mostra"
+L["Size"] = "Dimensione"
 
 -- General page (Settings)
 L["Access"] = "Accesso"
@@ -492,7 +494,6 @@ L["PvP Status"] = "Stato PvP"
 -- Cursor page (Settings)
 L["Show Cursor Ring"] = "Mostra anello del cursore"
 L["Ring"] = "Anello"
-L["Size"] = "Dimensione"
 L["Thickness"] = "Spessore"
 L["Thin"] = "Sottile"
 L["Normal"] = "Normale"
@@ -507,6 +508,22 @@ L["In Instances"] = "Nelle istanze"
 L["Hide While Turning the Camera"] = "Nascondi ruotando la visuale"
 L["Idle"] = "Inattivo"
 L["Casting"] = "Lancio"
+
+-- Notifications page and its notices (Settings, Notifications)
+L["Entering Combat"] = "Inizio combattimento"
+L["Leaving Combat"] = "Fine combattimento"
+L["Potion Ready"] = "Pozione pronta"
+L["Pet Missing"] = "Famiglio assente"
+L["Pet Passive"] = "Famiglio passivo"
+L["Pet Low Health"] = "Famiglio con poca salute"
+L["Unspent Talent Points"] = "Punti talento non spesi"
+L["Low Durability"] = "Resistenza bassa"
+L["In combat or in instances."] = "In combattimento o nelle istanze."
+L["Out of combat."] = "Fuori dal combattimento."
+L["Duration"] = "Durata"
+L["Show Below"] = "Mostra sotto"
+L["+Combat"] = "+Combattimento"
+L["-Combat"] = "-Combattimento"
 
 -- Profiles page (Settings)
 L["AeonUI profile \"%s\"."] = "Profilo di AeonUI \"%s\"."

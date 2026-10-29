@@ -47,6 +47,11 @@ AUI.Capabilities = Capabilities
 ---@field cursorRing boolean the cursor's place and the global cooldown's duration object can be read
 ---@field castSwipe boolean the player's casts and channels give duration objects
 ---@field premadeJoined boolean a joined group's listing and its Adventure Guide instance can be read
+---@field petNotices boolean the pet's stance and the character's spells can be read
+---@field petHealthNotice boolean the pet's health can be drawn through a curve
+---@field talentNotice boolean unspent talent points can be read
+---@field durabilityNotice boolean equipped items' durability can be read
+---@field potionNotice boolean the bags' potions, their use spells and their cooldown can be read
 AUI.can = {}
 
 ---The only place a client difference is detected. Runs once at login.
@@ -111,6 +116,14 @@ function Capabilities:Resolve()
 	can.premadeJoined = C_LFGList ~= nil and C_LFGList.GetSearchResultInfo ~= nil
 		and C_LFGList.GetActivityInfoTable ~= nil and C_EncounterJournal ~= nil
 		and C_EncounterJournal.GetInstanceForGameMap ~= nil and canaccesstable ~= nil
+	can.petNotices = GetPetActionInfo ~= nil and C_SpellBook ~= nil and C_SpellBook.IsSpellKnown ~= nil
+	can.petHealthNotice = UnitHealthPercent ~= nil and C_CurveUtil ~= nil and C_CurveUtil.CreateCurve ~= nil
+		and Enum.LuaCurveType ~= nil
+	can.talentNotice = C_ClassTalents ~= nil and C_ClassTalents.HasUnspentTalentPoints ~= nil
+	can.durabilityNotice = GetInventoryItemDurability ~= nil
+	can.potionNotice = C_Container ~= nil and C_Container.GetItemCooldown ~= nil
+		and C_Container.GetContainerItemID ~= nil and C_Item ~= nil and C_Item.GetItemSpell ~= nil
+		and C_Item.GetItemInfoInstant ~= nil and Enum.ItemConsumableSubclass ~= nil
 
 	self.resolved = true
 

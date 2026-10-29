@@ -47,6 +47,7 @@ L["Alerts"] = "提醒"
 L["Interface"] = "界面"
 L["Screen Text"] = "屏幕文字"
 L["Cursor"] = "光标"
+L["Notifications"] = "通知"
 
 -- Shared settings labels (Settings)
 L["Text"] = "文字"
@@ -67,6 +68,7 @@ L["Ctrl"] = "Ctrl"
 L["Alt"] = "Alt"
 L["Visibility"] = "显示"
 L["Show"] = "显示"
+L["Size"] = "大小"
 
 -- General page (Settings)
 L["Access"] = "访问"
@@ -492,7 +494,6 @@ L["PvP Status"] = "PvP状态"
 -- Cursor page (Settings)
 L["Show Cursor Ring"] = "显示光标圆环"
 L["Ring"] = "圆环"
-L["Size"] = "大小"
 L["Thickness"] = "粗细"
 L["Thin"] = "细"
 L["Normal"] = "普通"
@@ -507,6 +508,22 @@ L["In Instances"] = "副本中"
 L["Hide While Turning the Camera"] = "转动镜头时隐藏"
 L["Idle"] = "空闲"
 L["Casting"] = "施法中"
+
+-- Notifications page and its notices (Settings, Notifications)
+L["Entering Combat"] = "进入战斗"
+L["Leaving Combat"] = "离开战斗"
+L["Potion Ready"] = "药水就绪"
+L["Pet Missing"] = "宠物不在"
+L["Pet Passive"] = "宠物被动"
+L["Pet Low Health"] = "宠物生命值低"
+L["Unspent Talent Points"] = "未分配的天赋点"
+L["Low Durability"] = "耐久度低"
+L["In combat or in instances."] = "战斗中或副本中。"
+L["Out of combat."] = "脱离战斗时。"
+L["Duration"] = "持续时间"
+L["Show Below"] = "低于此值时显示"
+L["+Combat"] = "+战斗"
+L["-Combat"] = "-战斗"
 
 -- Profiles page (Settings)
 L["AeonUI profile \"%s\"."] = "AeonUI 配置文件“%s”。"

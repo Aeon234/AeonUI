@@ -135,6 +135,7 @@ local CONTROL_FIELDS = {
 	Color = { hasOpacity = true, classColor = true },
 	Toggle = {},
 	Details = { summary = true },
+	TextInput = { allowEmpty = true, maxLetters = true, validate = true },
 }
 local PAGE_FIELDS = { title = true, description = true, under = true, icon = true, iconTint = true, slot = true,
 	switch = true }
@@ -370,6 +371,7 @@ function Mixin(object, ...)
 end
 
 ALWAYS, COLOR, OPACITY = "Always", "Color", "Opacity"
+COMBAT, PET, CHARACTER = "Combat", "Pet", "Character"
 
 local AUI = {}
 assert(loadfile(root .. "Core/Core.lua"))("AeonUI", AUI)
@@ -383,11 +385,12 @@ for _, file in ipairs({ "Core/Callbacks.lua", "Core/Capabilities.lua", "Core/Bro
 	"Tooltip/Tooltip.lua", "Interface/UIScale.lua", "Interface/GameMenuScale.lua",
 	"Automation/Options.lua", "Automation/GameSettings.lua", "Menus/Options.lua", "Input/Options.lua",
 	"Input/FocusShortcut.lua", "Alerts/Options.lua", "Interface/Options.lua", "ScreenText/Options.lua",
-	"ScreenText/ScreenText.lua", "Cursor/Options.lua", "Cursor/CursorRing.lua",
+	"ScreenText/ScreenText.lua", "Cursor/Options.lua", "Cursor/CursorRing.lua", "Notifications/Options.lua",
+	"Notifications/Notifications.lua",
 	"Settings/Window.lua", "Settings/MinimapEditor.lua", "Settings/General.lua", "Settings/Minimap.lua",
 	"Settings/WorldMap.lua", "Settings/Tooltip.lua", "Settings/Automation.lua", "Settings/PlayerMenu.lua",
 	"Settings/Input.lua", "Settings/Alerts.lua", "Settings/Interface.lua", "Settings/ScreenText.lua",
-	"Settings/Cursor.lua",
+	"Settings/Cursor.lua", "Settings/Notifications.lua",
 	"Settings/Profiles.lua", "Settings/Recovery.lua", "Settings/EditTargets.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
@@ -428,11 +431,11 @@ local declaration = window.declaration
 Equal("registered under the addon's name", window.name, "AeonUI")
 Equal("named root frame", declaration.frameName, "AeonUISettings")
 Equal("sidebar order", table.concat(window.order, " "), "general #mapsHeader minimap #tooltipHeader tooltipGeneral " ..
-	"tooltipUnits tooltipItems #qualityOfLifeHeader automation alerts - profiles")
+	"tooltipUnits tooltipItems #qualityOfLifeHeader automation alerts notifications - profiles")
 AUI.can.playerMenus, AUI.can.guildInvite, AUI.can.raiderIOLinks, AUI.can.warcraftLogsLinks = true, true, true, true
 window = Load(nil)
 Equal("Player Menu follows Automation", table.concat(window.order, " "), "general #mapsHeader minimap " ..
-	"#tooltipHeader tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader automation playerMenu alerts - profiles")
+	"#tooltipHeader tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader automation playerMenu alerts notifications - profiles")
 local playerMenuPage = window.pages.playerMenu
 local playerMenuIDs = {}
 for _, section in ipairs(playerMenuPage.sections) do
@@ -454,7 +457,7 @@ Equal("no Player Menu page without player menus", window.pages.playerMenu, nil)
 AUI.can.clickDown, AUI.can.focusShortcut = true, true
 window = Load(nil)
 Equal("Input follows Player Menu's place", table.concat(window.order, " "), "general #mapsHeader minimap " ..
-	"#tooltipHeader tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader automation input alerts - profiles")
+	"#tooltipHeader tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader automation input alerts notifications - profiles")
 local inputPage = window.pages.input
 local inputIDs = {}
 for _, section in ipairs(inputPage.sections) do
@@ -510,7 +513,7 @@ Equal("Sound Alerts: one checkbox per group, each off", table.concat(alertIDs, "
 	"queuePops=false readyChecks=false whispers=false partyInvites=false bossEmotes=false")
 Equal("titled, as a choice card", alertsPage.sections.alertsSound.title .. " " .. alertsPage.sections.alertsSound.info.columns,
 	"Sound Alerts 2")
-Equal("under the Quality of Life header, last", alertsPage.info.under .. " " .. window.order[#window.order - 2],
+Equal("under the Quality of Life header, before Notifications", alertsPage.info.under .. " " .. window.order[#window.order - 3],
 	"qualityOfLifeHeader alerts")
 Equal("its one footer, why it exists", alertsPage.sections.alertsSound.notes[1].text,
 	"Also plays on the Master channel, so you hear them with sound effects off.")
@@ -526,7 +529,7 @@ AUI.can.premadeJoined = nil
 AUI.can.extraActionButton, AUI.can.helpTips, AUI.can.bossBanner, AUI.can.vaultOverlay = true, true, true, true
 window = Load(nil)
 Equal("Interface follows Alerts", table.concat(window.order, " "), "general #mapsHeader minimap #tooltipHeader "
-	.. "tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader automation alerts interface - profiles")
+	.. "tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader automation alerts notifications interface - profiles")
 local interfacePage = window.pages.interface
 local interfaceIDs = {}
 for _, section in ipairs(interfacePage.sections) do
@@ -574,7 +577,7 @@ AUI.can.releaseProtection = nil
 AUI.can.screenText = true
 window = Load(nil)
 Equal("Screen Text follows Alerts", table.concat(window.order, " "), "general #mapsHeader minimap #tooltipHeader "
-	.. "tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader automation alerts screenText - profiles")
+	.. "tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader automation alerts notifications screenText - profiles")
 local screenTextPage = window.pages.screenText
 Equal("under the Quality of Life header", screenTextPage.info.under, "qualityOfLifeHeader")
 Equal("headed by the module's switch, off", screenTextPage.info.switch.path .. "=" .. tostring(
@@ -662,7 +665,7 @@ Equal("no Screen Text page without its frames", window.pages.screenText, nil)
 AUI.can.cursorRing, AUI.can.castSwipe = true, true
 window = Load(nil)
 Equal("Cursor follows Alerts", table.concat(window.order, " "), "general #mapsHeader minimap #tooltipHeader "
-	.. "tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader automation alerts cursor - profiles")
+	.. "tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader automation alerts notifications cursor - profiles")
 local cursorPage = window.pages.cursor
 Equal("under the Quality of Life header, with its icon", cursorPage.info.under .. " "
 	.. tostring(cursorPage.info.icon == AUI.Media.sidebar.cursor), "qualityOfLifeHeader true")
@@ -702,6 +705,49 @@ Equal("without cast durations: no Casts, no Casting state", tostring(
 AUI.can.cursorRing = nil
 window = Load(nil)
 Equal("no Cursor page without the cursor ring", window.pages.cursor, nil)
+local function NoticeCards(page)
+	local cards = {}
+	for _, section in ipairs(page.sections) do
+		local ids = {}
+		for _, setting in ipairs(section.settings) do
+			if not setting.details then
+				ids[#ids + 1] = setting.id .. (setting.description and "+" or "")
+			end
+		end
+		cards[#cards + 1] = section.title .. ": " .. table.concat(ids, " ")
+	end
+
+	return table.concat(cards, " | ")
+end
+window = Load(nil)
+local notificationsPage = window.pages.notifications
+Equal("Notifications follows Alerts, with its icon and no switch", notificationsPage.info.under .. " "
+	.. tostring(notificationsPage.info.icon == AUI.Media.sidebar.notifications) .. " "
+	.. tostring(notificationsPage.info.switch), "qualityOfLifeHeader true nil")
+Equal("without the clients' extras: Text and Combat", NoticeCards(notificationsPage),
+	"Text: font size outline | Combat: enter enterText leave leaveText duration")
+for _, flag in ipairs({ "potionNotice", "petNotices", "petHealthNotice", "talentNotice", "durabilityNotice" }) do
+	AUI.can[flag] = true
+end
+window = Load(nil)
+notificationsPage = window.pages.notifications
+Equal("every card, a line only for a constraint", NoticeCards(notificationsPage),
+	"Text: font size outline | Combat: enter enterText leave leaveText potion potionText duration | "
+	.. "Pet: petMissing+ petMissingText petPassive+ petPassiveText petHealth+ petHealthText | "
+	.. "Character: talents+ talentsText durability+ durabilityText")
+local petCard = notificationsPage.sections.notificationsPet
+Equal("the pet lines", petCard.settings.petMissing.description, "In combat or in instances.")
+Equal("a notice's Text row follows its checkbox and holds its text and color", petCard.settings.petHealthText.depends
+	.. " " .. petCard.settings.petHealth_text.details .. " " .. petCard.settings.petHealth_color.details .. " "
+	.. tostring(petCard.settings.petHealth_text.allowEmpty), "petHealth petHealthText petHealthText true")
+Equal("Pet Low Health's mark, in its Text row", petCard.settings.petHealthText_below.label .. " "
+	.. petCard.settings.petHealthText_below.min .. "-" .. petCard.settings.petHealthText_below.max .. " "
+	.. petCard.settings.petHealthText_below.format, "Show Below 5-90 percent")
+Equal("the Text row reads the notice's text", petCard.settings.petHealthText.summary(), "Pet Low Health")
+Equal("Low Durability's mark", notificationsPage.sections.notificationsCharacter.settings.durabilityText_below.min, 10)
+for _, flag in ipairs({ "potionNotice", "petNotices", "petHealthNotice", "talentNotice", "durabilityNotice" }) do
+	AUI.can[flag] = nil
+end
 Equal("Settings:Window reuses the window", Settings:Window(), window)
 Equal("the store is the active config", declaration.store(), Profile.config)
 Equal("account settings are the store's", declaration.account(), AeonUIDB.global)

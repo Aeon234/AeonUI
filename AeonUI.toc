@@ -28,6 +28,7 @@ Input\Input.xml
 Alerts\Alerts.xml
 ScreenText\ScreenText.xml
 Cursor\Cursor.xml
+Notifications\Notifications.xml
 Settings\Settings.xml
 
 #@do-not-package@

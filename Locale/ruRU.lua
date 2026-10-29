@@ -47,6 +47,7 @@ L["Alerts"] = "Оповещения"
 L["Interface"] = "Интерфейс"
 L["Screen Text"] = "Текст на экране"
 L["Cursor"] = "Курсор"
+L["Notifications"] = "Уведомления"
 
 -- Shared settings labels (Settings)
 L["Text"] = "Текст"
@@ -67,6 +68,7 @@ L["Ctrl"] = "Ctrl"
 L["Alt"] = "Alt"
 L["Visibility"] = "Видимость"
 L["Show"] = "Показать"
+L["Size"] = "Размер"
 
 -- General page (Settings)
 L["Access"] = "Доступ"
@@ -492,7 +494,6 @@ L["PvP Status"] = "Статус PvP"
 -- Cursor page (Settings)
 L["Show Cursor Ring"] = "Показывать кольцо курсора"
 L["Ring"] = "Кольцо"
-L["Size"] = "Размер"
 L["Thickness"] = "Толщина"
 L["Thin"] = "Тонкое"
 L["Normal"] = "Обычное"
@@ -507,6 +508,22 @@ L["In Instances"] = "В подземельях"
 L["Hide While Turning the Camera"] = "Скрывать при повороте камеры"
 L["Idle"] = "Покой"
 L["Casting"] = "Произнесение"
+
+-- Notifications page and its notices (Settings, Notifications)
+L["Entering Combat"] = "Начало боя"
+L["Leaving Combat"] = "Конец боя"
+L["Potion Ready"] = "Зелье готово"
+L["Pet Missing"] = "Нет питомца"
+L["Pet Passive"] = "Питомец пассивен"
+L["Pet Low Health"] = "Мало здоровья у питомца"
+L["Unspent Talent Points"] = "Нераспределённые таланты"
+L["Low Durability"] = "Низкая прочность"
+L["In combat or in instances."] = "В бою или в подземельях."
+L["Out of combat."] = "Вне боя."
+L["Duration"] = "Длительность"
+L["Show Below"] = "Показывать ниже"
+L["+Combat"] = "+Бой"
+L["-Combat"] = "-Бой"
 
 -- Profiles page (Settings)
 L["AeonUI profile \"%s\"."] = "Профиль AeonUI «%s»."

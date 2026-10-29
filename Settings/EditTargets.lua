@@ -14,6 +14,7 @@ AUI.EditTargets = EditTargets
 local PATHS = {
 	minimap = "minimap.position",
 	tooltip = "tooltip.position",
+	notifications = "notifications.position",
 }
 
 ---@return table[] targets the frames that exist this session, in the library's form
@@ -44,6 +45,22 @@ function EditTargets:Targets()
 			place = function(position)
 				Anchor:Place(position)
 			end,
+		}
+	end
+
+	local Notifications = AUI.Notifications
+
+	if Notifications.active then
+		targets[#targets + 1] = {
+			key = "notifications",
+			label = AUI.L["Notifications"],
+			frame = Notifications:Frame(),
+			default = Notifications:DefaultPosition(),
+			fixedEdge = "TOP",
+			sample = function(shown)
+				Notifications:Sample(shown)
+			end,
+			settings = { page = "notifications", section = "notificationsStyle" },
 		}
 	end
 

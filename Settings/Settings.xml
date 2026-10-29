@@ -9,6 +9,7 @@
 	<Script file="PlayerMenu.lua" />
 	<Script file="Input.lua" />
 	<Script file="Alerts.lua" />
+	<Script file="Notifications.lua" />
 	<Script file="Interface.lua" />
 	<Script file="ScreenText.lua" />
 	<Script file="Cursor.lua" />

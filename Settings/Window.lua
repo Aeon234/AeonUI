@@ -42,6 +42,7 @@ local function DeclareSidebar(window)
 	end
 
 	AUI.SettingsAlerts:Declare(window)
+	AUI.SettingsNotifications:Declare(window)
 
 	if AUI.SettingsInterface:IsAvailable() then
 		AUI.SettingsInterface:Declare(window)
