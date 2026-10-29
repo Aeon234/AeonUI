@@ -117,6 +117,7 @@ local SAME = 0.002
 ---@field artScale number? its scale, UI units per texel
 ---@field thickness number the Metal and Forever styles' size, in percent
 ---@field metal Frame the metal frame's pieces
+---@field metalCorner { width: number, height: number }? the metal corner atlas's size
 ---@field metalPieces Texture[]
 ---@field metalParts AUIBorderMetal
 ---@field style AUIBorderStyle?
@@ -391,6 +392,7 @@ function Border:Create(owner, outset, overContent)
 	border.background:SetAllPoints()
 	border.pieces = CreateArtPieces(overContent and over or owner)
 	border.metal, border.metalPieces, border.metalParts = CreateMetal(over)
+	border.metalCorner = C_Texture.GetAtlasInfo(METAL.cornerLeft)
 	border.rules, border.rowBackgrounds = {}, {}
 
 	for _, side in ipairs({ "top", "bottom" }) do
@@ -447,8 +449,14 @@ function BorderMixin:Layout()
 	end
 
 	local reach = AUI.can.foreverArt and METAL_REACH.forever or METAL_REACH.retail
-	local metal, top, bottom = self.metal, self.top, self.bottom
+	local metal, top, bottom, corner = self.metal, self.top, self.bottom, self.metalCorner
 	local scale = self.thickness / 100
+
+	-- A frame too small for two of the metal corners at this scale draws them smaller, as the Forever art does.
+	if corner and not (top or bottom) then
+		scale = Border:FitScale(corner.width, (reach.left + reach.right) / 2, width, scale)
+		scale = Border:FitScale(corner.height, (reach.top + reach.bottom) / 2, height, scale)
+	end
 
 	metal:SetScale(scale)
 	metal:ClearAllPoints()

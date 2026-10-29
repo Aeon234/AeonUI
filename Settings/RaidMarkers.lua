@@ -14,8 +14,12 @@ local ORIENTATION_LABELS = {
 	HORIZONTAL = L["Horizontal"],
 	VERTICAL = L["Vertical"],
 }
+local FEEDBACK_LABELS = {
+	highlight = L["Highlight Border"],
+	grow = L["Grow on Hover"],
+	press = L["Shrink on Press"],
+}
 local STYLE_LABELS = {
-	METAL = L["Metal"],
 	FOREVER_MINIMAL = L["Forever Minimal"],
 	FOREVER = L["Forever"],
 	THIN_LINE = L["Thin Line"],
@@ -98,7 +102,21 @@ function SettingsRaidMarkers:DeclareBar(page)
 	})
 	Checkbox(card, "markersMouseover", L["Show On Mouseover"], "markers.mouseover")
 	Checkbox(card, "markersTooltips", L["Tooltips"], "markers.tooltips")
-	Checkbox(card, "markersAnimate", L["Animate Buttons"], "markers.animate")
+	local feedback = {}
+
+	for _, value in ipairs(Options.FEEDBACK) do
+		feedback[value] = Settings:Default("markers.feedback." .. value)
+	end
+
+	card:Dropdown({
+		id = "markersFeedback",
+		label = L["Button Feedback"],
+		path = "markers.feedback",
+		default = feedback,
+		depends = "markersEnabled",
+		multiple = true,
+		options = ChoiceOptions(Options.FEEDBACK, FEEDBACK_LABELS),
+	})
 end
 
 ---@param page table
@@ -157,12 +175,7 @@ end
 ---@param page table
 function SettingsRaidMarkers:DeclareBorder(page)
 	local Settings = AUI.Settings
-	local options = {}
-
-	for index, style in ipairs(AUI.Border.STYLES) do
-		options[index] = { value = style, text = STYLE_LABELS[style] }
-	end
-
+	local options = ChoiceOptions(AUI.MarkerOptions.BORDER_STYLES, STYLE_LABELS)
 	local card = page:Section("markersBorder", L["Border"])
 
 	card:Dropdown({
@@ -205,7 +218,7 @@ function SettingsRaidMarkers:DeclareBorder(page)
 			local style = AUI.Profile:Get("markers.border.style")
 
 			if style == "THIN_LINE" or style == "NONE" then
-				return L["Needs a Metal or Forever border style."]
+				return L["Needs a Forever border style."]
 			end
 		end,
 	})

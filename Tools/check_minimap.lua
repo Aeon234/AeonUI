@@ -208,6 +208,7 @@ local Border = AUI.Border
 Equal("a map big enough keeps the art's scale", Border:FitScale(48, 15, 240, 0.5), 0.5)
 Equal("a map too small for two corners draws them smaller", Border:FitScale(48, 15, 20, 0.5), 20 / 66)
 Equal("corners inside the outset never shrink the art", Border:FitScale(10, 15, 20, 0.5), 0.5)
+Equal("a bar too short for two metal corners draws them smaller", Border:FitScale(100, 16, 38, 1), 38 / 168)
 Equal("every Forever style names its art", Border.ART.FOREVER.file ~= nil and Border.ART.FOREVER_MINIMAL.file ~= nil,
 	true)
 Equal("no stored position by default", Schema:Read(stored, "minimap.position"), nil)

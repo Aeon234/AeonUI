@@ -10,6 +10,8 @@ local Schema = AUI.Schema
 ---@field TARGET_TO_WORLD number[] the world marker matching each raid target, by raid target index
 ---@field ORIENTATIONS string[]
 ---@field VISIBILITY string[]
+---@field FEEDBACK string[] the button feedback choices, in the order the page lists them
+---@field BORDER_STYLES AUIBorderStyle[] the border styles the bar offers, in display order
 ---@field PAD number units between the bar's edge and its buttons
 ---@field DIMMED number the marker and Clear buttons' opacity while the player may not mark
 ---@field PLACED number a marker button's icon opacity while its world marker is down
@@ -25,6 +27,8 @@ local Options = {
 	TARGET_TO_WORLD = { 5, 6, 3, 2, 7, 1, 4, 8 },
 	ORIENTATIONS = { "HORIZONTAL", "VERTICAL" },
 	VISIBILITY = { "ALWAYS", "GROUP", "GROUP_OR_TARGET" },
+	BORDER_STYLES = { "FOREVER_MINIMAL", "FOREVER", "THIN_LINE", "NONE" },
+	FEEDBACK = { "highlight", "grow", "press" },
 	PAD = 3,
 	DIMMED = 0.35,
 	PLACED = 0.35,
@@ -40,14 +44,16 @@ AUI.MarkerOptions = Options
 Schema:Choices("markerOrientation", Options.ORIENTATIONS)
 Schema:Choices("markerVisibility", Options.VISIBILITY)
 Schema:Choices("markerName", Options.NAMES)
-Schema:Choices("markerBorderStyle", AUI.Border.STYLES)
+Schema:Choices("markerBorderStyle", Options.BORDER_STYLES)
 
 Schema:Boolean("markers.enabled", false)
 Schema:Boolean("markers.readyCheck", true)
 Schema:Boolean("markers.countdown", true)
 Schema:Number("markers.seconds", 12, 1, 30, true)
 Schema:Boolean("markers.tooltips", true)
-Schema:Boolean("markers.animate", true)
+Schema:Boolean("markers.feedback.highlight", false)
+Schema:Boolean("markers.feedback.grow", true)
+Schema:Boolean("markers.feedback.press", true)
 Schema:Boolean("markers.mouseover", false)
 Schema:Choice("markers.visibility", "markerVisibility", "GROUP_OR_TARGET")
 Schema:Choice("markers.orientation", "markerOrientation", "HORIZONTAL")
@@ -192,14 +198,13 @@ end
 
 ---@param hovered boolean
 ---@param pressed boolean
----@param animate boolean
+---@param grow boolean Grow on Hover is on
+---@param press boolean Shrink on Press is on
 ---@return number scale the icon's size, of the button's
-function Options:IconScale(hovered, pressed, animate)
-	if not animate then
-		return 1
-	elseif pressed then
+function Options:IconScale(hovered, pressed, grow, press)
+	if pressed and press then
 		return self.PRESS_SCALE
-	elseif hovered then
+	elseif hovered and grow then
 		return self.HOVER_SCALE
 	end
 

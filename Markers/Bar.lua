@@ -41,8 +41,8 @@ local COUNTDOWN_CROP = { 0.25, 0.8, 0.2, 0.75 }
 ---The Raid Markers Bar: secure buttons for raid targets and world markers, Clear, Ready Check and Countdown. Its
 ---layout, attributes, place and visibility driver change only out of combat, the latest request winning. The marker
 ---and Clear buttons dim while the player may not mark, a marker's icon dims while its world marker is down, and the bar
----fades in on mouseover when asked; all of these are opacity, which combat allows. Icons grow under the cursor and
----shrink while pressed on the settings library's springs.
+---fades in on mouseover when asked; all of these are opacity, which combat allows. As Button Feedback asks, a hovered
+---button's edge lights, and icons grow under the cursor and shrink while pressed on the settings library's springs.
 ---@class AUIMarkerBar
 ---@field active boolean started this session
 ---@field bar AUIMarkerSample? the named bar, created the first time it is turned on
@@ -83,7 +83,7 @@ end
 
 ---@param button AUIMarkerButton
 local function PaintEdges(button)
-	local color = button.hovered and EDGE_HOVER or EDGE
+	local color = button.hovered and Options:Get("markers.feedback.highlight") and EDGE_HOVER or EDGE
 
 	for _, edge in ipairs(button.edges) do
 		edge:SetVertexColor(color[1], color[2], color[3], color[4])
@@ -92,7 +92,8 @@ end
 
 ---@param button AUIMarkerButton
 local function Resize(button)
-	button.scale:To(Options:IconScale(button.hovered == true, button.pressed == true, Options:Get("markers.animate")))
+	button.scale:To(Options:IconScale(button.hovered == true, button.pressed == true,
+		Options:Get("markers.feedback.grow") == true, Options:Get("markers.feedback.press") == true))
 end
 
 ---@param bar AUIMarkerSample
@@ -136,6 +137,9 @@ function Bar:Button(bar, slot, secure)
 
 	button.icon = button:CreateTexture(nil, "ARTWORK")
 	button.icon:SetPoint("CENTER")
+	-- Snapped edges round to whole pixels, turning a few pixels of resizing into visible steps.
+	button.icon:SetSnapToPixelGrid(false)
+	button.icon:SetTexelSnappingBias(0)
 	button.size = 1
 	button.scale = lib:CreateSpring(1, function(scale)
 		button.icon:SetSize(button.size * scale, button.size * scale)

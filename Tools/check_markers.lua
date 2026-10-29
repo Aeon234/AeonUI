@@ -126,6 +126,12 @@ local function Texture()
 	function texture:SetTexCoord(...)
 		self.coords = table.concat({ ... }, ",")
 	end
+	function texture:SetSnapToPixelGrid(snap)
+		self.snap = snap
+	end
+	function texture:SetTexelSnappingBias(bias)
+		self.bias = bias
+	end
 	function texture:SetAlpha(alpha)
 		self.alpha = alpha
 	end
@@ -408,9 +414,10 @@ Equal("off by default", Options:Get("markers.enabled"), false)
 Equal("the defaults", table.concat({ tostring(Options:Get("markers.readyCheck")), tostring(Options:Get("markers.countdown")),
 	Options:Get("markers.seconds"), Options:Get("markers.visibility"), Options:Get("markers.orientation"),
 	Options:Get("markers.size"), Options:Get("markers.spacing"), Options:Get("markers.border.style"),
-	tostring(Options:Get("markers.animate")), tostring(Options:Get("markers.tooltips")),
+	tostring(Options:Get("markers.feedback.highlight")), tostring(Options:Get("markers.feedback.grow")),
+	tostring(Options:Get("markers.feedback.press")), tostring(Options:Get("markers.tooltips")),
 	tostring(Options:Get("markers.mouseover")) }, " "),
-	"true true 12 GROUP_OR_TARGET HORIZONTAL 32 3 FOREVER true true false")
+	"true true 12 GROUP_OR_TARGET HORIZONTAL 32 3 FOREVER false true true true false")
 Equal("the cycle's default order, every marker in it", table.concat(Options:Get("markers.cycle.order"), " ") .. " "
 	.. tostring(Options:Get("markers.cycle.show.SKULL")), "STAR CIRCLE DIAMOND TRIANGLE MOON SQUARE CROSS SKULL true")
 Equal("always, but not in pet battles", Options:Visibility("ALWAYS"), "[petbattle] hide; show")
@@ -440,9 +447,10 @@ Equal("Countdown: start and cancel", pull["*macrotext1"] .. " " .. pull["*macrot
 Equal("the bar's size", table.concat({ Options:BarSize(11, 32, 3, false) }, "x"), "388x38")
 Equal("upright", table.concat({ Options:BarSize(11, 32, 3, true) }, "x"), "38x388")
 Equal("a button's offset", Options:Offset(3, 32, 3), 73)
-Equal("an icon at rest, hovered, pressed", Options:IconScale(false, false, true) .. " " .. Options:IconScale(true, false,
-	true) .. " " .. Options:IconScale(true, true, true), "1 1.15 0.9")
-Equal("still without Animate Buttons", Options:IconScale(true, true, false), 1)
+Equal("an icon at rest, hovered, pressed", Options:IconScale(false, false, true, true) .. " "
+	.. Options:IconScale(true, false, true, true) .. " " .. Options:IconScale(true, true, true, true), "1 1.15 0.9")
+Equal("pressed without Shrink on Press: still grown", Options:IconScale(true, true, true, false), 1.15)
+Equal("hovered without Grow on Hover", Options:IconScale(true, false, false, true), 1)
 Equal("Ready Check's tooltip lines", #Options:ClickLines("readyCheck", true, 12), 3)
 Equal("the countdown's length in its line", Options:ClickLines("countdown", true, 8)[1].action,
 	"Start a 8-second pull countdown")
@@ -465,6 +473,7 @@ Set("markers.enabled", true)
 local bar = Bar.bar
 Equal("the named bar", bar and bar.name, "AeonUIRaidMarkers")
 Equal("eleven secure buttons", #bar.buttons .. " " .. tostring(bar.buttons[11].protected), "11 true")
+Equal("icons resize off the pixel grid", tostring(bar.buttons[1].icon.snap) .. " " .. bar.buttons[1].icon.bias, "false 0")
 Equal("sized and placed at the top", bar.width .. "x" .. bar.height .. " " .. bar.point, "388x38 TOP 0 -20")
 Equal("its visibility driver", drivers[bar], "visibility:" .. Options:Visibility("GROUP_OR_TARGET"))
 Equal("Skull's attributes", Attributes(bar.buttons[8]),
@@ -518,6 +527,11 @@ active[6] = nil
 
 local skull = bar.buttons[8]
 skull:Fire("OnEnter")
+Equal("hovered: the edge stays dark without Highlight Border", skull.edges[1].color[1], 0)
+skull:Fire("OnLeave")
+springs.Frames(1)
+Set("markers.feedback.highlight", true)
+skull:Fire("OnEnter")
 Equal("hovered: the edge lights and the tooltip shows its clicks", skull.edges[1].color[1] .. " " .. tostring(tooltip.title)
 	.. " " .. table.concat(tooltip.lines, "; "),
 	"0.7 Skull Click=Mark or unmark your target; Right-Click=Place or remove the world marker")
@@ -534,12 +548,17 @@ skull:Fire("OnLeave")
 springs.Frames(1)
 Equal("left: back to rest, edge and tooltip too", skull.icon.width .. " " .. skull.edges[1].color[1] .. " "
 	.. tostring(tooltip.shown), "32 0 false")
-Set("markers.animate", false)
+Set("markers.feedback.grow", false)
+Set("markers.feedback.press", false)
 skull:Fire("OnEnter")
-Equal("without Animate Buttons the icon keeps its size", tostring(springs.Moving()) .. " " .. skull.icon.width,
-	"false 32")
+skull:Fire("OnMouseDown")
+Equal("without Grow on Hover or Shrink on Press the icon keeps its size", tostring(springs.Moving()) .. " "
+	.. skull.icon.width, "false 32")
+skull:Fire("OnMouseUp")
 skull:Fire("OnLeave")
-Set("markers.animate", true)
+Set("markers.feedback.grow", true)
+Set("markers.feedback.press", true)
+Set("markers.feedback.highlight", false)
 springs.reduce = true
 skull:Fire("OnEnter")
 Equal("Reduce Motion: the size jumps", tostring(springs.Moving()) .. " " .. skull.icon.width, "false " .. 32

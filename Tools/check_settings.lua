@@ -131,7 +131,7 @@ local CONTROL_FIELDS = {
 	Button = { verb = true, confirm = true, run = true },
 	Slider = { min = true, max = true, step = true, format = true },
 	Dropdown = { options = true, picker = true, placeholder = true, titleCase = true, confirm = true, verb = true,
-		width = true, action = true },
+		width = true, action = true, multiple = true },
 	Color = { hasOpacity = true, classColor = true },
 	Toggle = {},
 	Details = { summary = true },
@@ -774,15 +774,24 @@ Equal("with its icon, a preview and no switch", markersPage.info.under .. " "
 	.. tostring(markersPage.info.icon == AUI.Media.sidebar.raidMarkers) .. " " .. tostring(markersPage.preview ~= nil)
 	.. " " .. tostring(markersPage.info.switch), "qualityOfLifeHeader true true nil")
 Equal("every card titled, a line only where the keys are bound", MarkerCards(markersPage),
-	"Bar: markersEnabled markersVisibility markersMouseover markersTooltips markersAnimate | "
+	"Bar: markersEnabled markersVisibility markersMouseover markersTooltips markersFeedback | "
 	.. "Buttons: markersReadyCheck markersCountdown markersSeconds | "
 	.. "Layout: markersOrientation markersSize markersSpacing | "
 	.. "Border: markersBorderStyle markersBorderColor markersBorderThickness | "
 	.. "World Marker Cycle: markersKeys+ markersCycleOrder")
 local barCard = markersPage.sections.markersBar
 Equal("the bar's switch, off; its settings follow it", barCard.settings.markersEnabled.kind .. " "
-	.. tostring(barCard.settings.markersEnabled.default) .. " " .. barCard.settings.markersAnimate.depends .. " "
+	.. tostring(barCard.settings.markersEnabled.default) .. " " .. barCard.settings.markersFeedback.depends .. " "
 	.. markersPage.sections.markersButtons.settings.markersSeconds.depends, "Toggle false markersEnabled markersCountdown")
+local feedback = barCard.settings.markersFeedback
+Equal("Button Feedback: several choices, each at its own path, Highlight Border opted into", tostring(feedback.multiple)
+	.. " " .. feedback.path .. " " .. #feedback.options .. " " .. tostring(feedback.default.highlight) .. " "
+	.. tostring(feedback.default.grow) .. " " .. tostring(feedback.default.press), "true markers.feedback 3 false true true")
+local markerStyles = {}
+for index, option in ipairs(markersPage.sections.markersBorder.settings.markersBorderStyle.options) do
+	markerStyles[index] = option.value
+end
+Equal("the bar's border styles leave out Metal", table.concat(markerStyles, " "), "FOREVER_MINIMAL FOREVER THIN_LINE NONE")
 local cycleCard = markersPage.sections.markersCycle
 local cycleOrder = cycleCard.settings.markersCycleOrder
 Equal("the cycle works without the bar", tostring(cycleOrder.depends) .. " "
