@@ -193,7 +193,7 @@ end
 
 -- Settings ------------------------------------------------------------------------------------------------
 
-Equal("on by default", Schema:Read(stored, "minimap.enabled"), true)
+Equal("off by default", Schema:Read(stored, "minimap.enabled"), false)
 Equal("default width", Schema:Read(stored, "minimap.width"), 240)
 Equal("default height", Schema:Read(stored, "minimap.height"), 180)
 Equal("default border", Schema:Read(stored, "minimap.border.style"), "METAL")

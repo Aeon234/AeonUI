@@ -858,7 +858,7 @@ Equal("the Minimap sits under the Maps header", minimapPage.info.under, "mapsHea
 Equal("with its icon", minimapPage.info.icon, Media.sidebar.minimap)
 Equal("tinted as its title", minimapPage.info.iconTint, true)
 Equal("it carries the module's switch", minimapPage.info.switch.path, "minimap.enabled")
-Equal("which defaults on", minimapPage.info.switch.default, true)
+Equal("which defaults off", minimapPage.info.switch.default, false)
 Equal("the layout editor is its preview", type(minimapPage.preview.refresh), "function")
 local minimapIDs = {}
 for index, section in ipairs(minimapSections) do

@@ -39,7 +39,7 @@ local MAP_PATHS = {
 }
 
 Schema:Choices("minimapBorderStyle", AUI.Border.STYLES)
-Schema:Boolean("minimap.enabled", true)
+Schema:Boolean("minimap.enabled", false)
 Schema:Number("minimap.width", 240, 140, 400, true)
 Schema:Number("minimap.height", 180, 100, 400, true)
 Schema:Number("minimap.scale", 100, 50, 200, true)
