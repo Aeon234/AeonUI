@@ -262,7 +262,8 @@ function lib:Settings(name, declaration)
 			assert(type(info.adapter[method]) == "function", "adapter needs " .. method)
 		end
 
-		local page = self:Page(id, { title = info.title, description = info.description })
+		local page = self:Page(id, { title = info.title, description = info.description, icon = info.icon,
+			iconTint = info.iconTint })
 
 		page.adapter = info.adapter
 
@@ -436,6 +437,10 @@ Equal("registered under the addon's name", window.name, "AeonUI")
 Equal("named root frame", declaration.frameName, "AeonUISettings")
 Equal("sidebar order", table.concat(window.order, " "), "general #mapsHeader minimap #tooltipHeader tooltipGeneral " ..
 	"tooltipUnits tooltipItems #qualityOfLifeHeader automation alerts notifications - profiles")
+Equal("General and Profiles carry their icons, tinted", tostring(window.pages.general.info.icon == AUI.Media.sidebar.general)
+	.. " " .. tostring(window.pages.general.info.iconTint) .. " "
+	.. tostring(window.pages.profiles.info.icon == AUI.Media.sidebar.profiles) .. " "
+	.. tostring(window.pages.profiles.info.iconTint), "true true true true")
 AUI.can.playerMenus, AUI.can.guildInvite, AUI.can.raiderIOLinks, AUI.can.warcraftLogsLinks = true, true, true, true
 window = Load(nil)
 Equal("Player Menu follows Automation", table.concat(window.order, " "), "general #mapsHeader minimap " ..
@@ -1347,6 +1352,21 @@ Equal("a launcher", launchers.AeonUI ~= nil, true)
 Equal("LibDBIcon keeps the saved table", icon.registered.AeonUI, AeonUIDB.global.minimapButton)
 Equal("shown by default", Broker:Hidden(), false)
 Equal("added to the compartment", icon.compartment.AeonUI, true)
+local settingsOpen, realIsOpen, realOpen, realClose = false, Settings.IsOpen, Settings.Open, Settings.Close
+Settings.IsOpen = function()
+	return settingsOpen
+end
+Settings.Open = function()
+	settingsOpen = true
+end
+Settings.Close = function()
+	settingsOpen = false
+end
+launchers.AeonUI.OnClick(nil, "LeftButton")
+Equal("a click opens the settings", settingsOpen, true)
+launchers.AeonUI.OnClick(nil, "LeftButton")
+Equal("a click while they are open closes them", settingsOpen, false)
+Settings.IsOpen, Settings.Open, Settings.Close = realIsOpen, realOpen, realClose
 local checkbox = window.pages.general.sections.access.settings.minimapButton
 Equal("the checkbox reads shown", checkbox.get(), true)
 checkbox.set(false)

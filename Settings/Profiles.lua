@@ -156,6 +156,8 @@ end
 function Profiles:Declare(window)
 	window:ProfilesPage("profiles", {
 		title = L["Profiles"],
+		icon = AUI.Media.sidebar.profiles,
+		iconTint = true,
 		adapter = adapter,
 		sections = DeclareDamaged,
 	})

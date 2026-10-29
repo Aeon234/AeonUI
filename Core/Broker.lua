@@ -15,7 +15,7 @@ local Broker = {
 AUI.Broker = Broker
 
 local function OnClick()
-	AUI:OpenSettings()
+	AUI:ToggleSettings()
 end
 
 ---@param tooltip GameTooltip

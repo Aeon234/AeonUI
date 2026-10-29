@@ -11,6 +11,8 @@ AUI.SettingsGeneral = General
 function General:Declare(window)
 	local page = window:Page("general", {
 		title = GENERAL,
+		icon = AUI.Media.sidebar.general,
+		iconTint = true,
 	})
 
 	if not page then

@@ -24,6 +24,7 @@ local Media = {
 		["Blizzard Tooltip"] = "Interface\\TargetingFrame\\UI-TargetingFrame-BarFill",
 	},
 	sidebar = {
+		general = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarGeneral.tga",
 		minimap = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarMinimap.tga",
 		worldMap = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarWorldMap.tga",
 		tooltipGeneral = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarTooltipGeneral.tga",
@@ -38,6 +39,7 @@ local Media = {
 		cursor = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarCursor.tga",
 		notifications = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarNotifications.tga",
 		raidMarkers = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarRaidMarkers.tga",
+		profiles = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarProfiles.tga",
 	},
 }
 AUI.Media = Media
