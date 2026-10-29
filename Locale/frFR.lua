@@ -459,6 +459,8 @@ L["Whispers"] = "Chuchotements"
 L["Party Invites"] = "Invitations de groupe"
 L["Boss Emotes"] = "Emotes de boss"
 L["Also plays on the Master channel, so you hear them with sound effects off."] = "Joué aussi sur le canal principal, pour les entendre avec les effets sonores coupés."
+L["Group Finder"] = "Recherche de groupe"
+L["Joined Group in Chat"] = "Groupe rejoint dans la discussion"
 
 -- Interface page (Settings)
 L["Extra Action Button"] = "Bouton d'action supplémentaire"

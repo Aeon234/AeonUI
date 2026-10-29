@@ -514,6 +514,15 @@ Equal("under the Quality of Life header, last", alertsPage.info.under .. " " .. 
 	"qualityOfLifeHeader alerts")
 Equal("its one footer, why it exists", alertsPage.sections.alertsSound.notes[1].text,
 	"Also plays on the Master channel, so you hear them with sound effects off.")
+Equal("no Group Finder card without the listing's APIs", alertsPage.sections.alertsGroupFinder, nil)
+AUI.can.premadeJoined = true
+window = Load(nil)
+local groupFinder = window.pages.alerts.sections.alertsGroupFinder
+Equal("the Group Finder card after Sound Alerts", window.pages.alerts.sections[2].title .. ": "
+	.. groupFinder.settings[1].id .. "=" .. tostring(groupFinder.settings[1].default) .. " "
+	.. groupFinder.settings[1].label .. tostring(groupFinder.settings[1].description),
+	"Group Finder: premadeJoined=false Joined Group in Chatnil")
+AUI.can.premadeJoined = nil
 AUI.can.extraActionButton, AUI.can.helpTips, AUI.can.bossBanner, AUI.can.vaultOverlay = true, true, true, true
 window = Load(nil)
 Equal("Interface follows Alerts", table.concat(window.order, " "), "general #mapsHeader minimap #tooltipHeader "

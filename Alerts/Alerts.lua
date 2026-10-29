@@ -1,6 +1,6 @@
 local AUI = select(2, ...)
 
----The Alerts module: Sound Alerts. Changes take effect at once, and a profile change applies the new profile's choices.
+---The Alerts module: Sound Alerts and Joined Group in Chat. Changes take effect at once, and a profile change applies the new profile's choices.
 ---@class AUIAlerts
 ---@field active boolean started this session
 local Alerts = {
@@ -12,6 +12,7 @@ AUI.Alerts = Alerts
 function Alerts:OnProfileChanged(path)
 	if path == nil or path:sub(1, 7) == "alerts." then
 		AUI.SoundAlerts:Apply()
+		AUI.PremadeJoined:Apply()
 	end
 end
 
@@ -23,4 +24,5 @@ function Alerts:Start()
 	self.active = true
 	AUI.Callbacks:Register("Profile", self, self.OnProfileChanged)
 	AUI.SoundAlerts:Apply()
+	AUI.PremadeJoined:Apply()
 end

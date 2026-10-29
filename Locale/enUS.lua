@@ -497,6 +497,8 @@ L["Whispers"] = "Whispers"
 L["Party Invites"] = "Party Invites"
 L["Boss Emotes"] = "Boss Emotes"
 L["Also plays on the Master channel, so you hear them with sound effects off."] = "Also plays on the Master channel, so you hear them with sound effects off."
+L["Group Finder"] = "Group Finder"
+L["Joined Group in Chat"] = "Joined Group in Chat"
 
 -- Interface page (Settings)
 L["Extra Action Button"] = "Extra Action Button"

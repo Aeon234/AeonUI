@@ -11,8 +11,8 @@ local SOUND_LABELS = {
 	bossEmotes = L["Boss Emotes"],
 }
 
----The Alerts page, under the Quality of Life header: the Sound Alerts card, one checkbox per group. Changes take
----effect at once.
+---The Alerts page, under the Quality of Life header: the Sound Alerts card, one checkbox per group, and the Group
+---Finder card. Changes take effect at once.
 ---@class AUISettingsAlerts
 local SettingsAlerts = {}
 AUI.SettingsAlerts = SettingsAlerts
@@ -50,4 +50,16 @@ function SettingsAlerts:Declare(window)
 	end
 
 	self:DeclareSound(page)
+
+	if AUI.can.premadeJoined then
+		local path = AUI.AlertOptions.PREMADE_JOINED_PATH
+		local card = page:Section("alertsGroupFinder", L["Group Finder"])
+
+		card:Checkbox({
+			id = "premadeJoined",
+			label = L["Joined Group in Chat"],
+			path = path,
+			default = AUI.Settings:Default(path),
+		})
+	end
 end

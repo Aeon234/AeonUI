@@ -459,6 +459,8 @@ L["Whispers"] = "密语"
 L["Party Invites"] = "组队邀请"
 L["Boss Emotes"] = "首领表情"
 L["Also plays on the Master channel, so you hear them with sound effects off."] = "同时在主声道播放，关闭音效时也能听到。"
+L["Group Finder"] = "队伍查找器"
+L["Joined Group in Chat"] = "在聊天中显示加入的队伍"
 
 -- Interface page (Settings)
 L["Extra Action Button"] = "额外动作按钮"

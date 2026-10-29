@@ -459,6 +459,8 @@ L["Whispers"] = "귓속말"
 L["Party Invites"] = "파티 초대"
 L["Boss Emotes"] = "보스 감정 표현"
 L["Also plays on the Master channel, so you hear them with sound effects off."] = "주 음량 채널에서도 재생되어 효과음을 꺼도 들립니다."
+L["Group Finder"] = "파티 찾기"
+L["Joined Group in Chat"] = "참여한 파티를 대화창에 표시"
 
 -- Interface page (Settings)
 L["Extra Action Button"] = "추가 행동 버튼"

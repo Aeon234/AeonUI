@@ -2,14 +2,17 @@ local AUI = select(2, ...)
 
 local Schema = AUI.Schema
 
----The Alerts settings and the frame-free rules behind Sound Alerts: the group and sound kit each event plays.
+---The Alerts settings and their frame-free rules: the group and sound kit each Sound Alerts event plays, and the text
+---Joined Group in Chat prints.
 ---@class AUIAlertOptions
 ---@field SOUND_GROUPS string[] the Sound Alerts groups, in the order the page lists them
 ---@field ALERTS table<string, AUISoundAlert> the events whose alert needs no look at their payload
 ---@field CHANNEL string the channel each alert plays on, beside Blizzard's own on the sound effects channel
+---@field PREMADE_JOINED_PATH string joining a premade group prints its activity
 local Options = {
 	SOUND_GROUPS = { "queuePops", "readyChecks", "whispers", "partyInvites", "bossEmotes" },
 	CHANNEL = "Master",
+	PREMADE_JOINED_PATH = "alerts.premadeJoined",
 	ALERTS = {
 		LFG_PROPOSAL_SHOW = { group = "queuePops", sound = "READY_CHECK" },
 		PET_BATTLE_QUEUE_PROPOSE_MATCH = { group = "queuePops", sound = "UI_PET_BATTLES_PVP_THROUGH_QUEUE" },
@@ -36,6 +39,24 @@ end
 
 for _, group in ipairs(Options.SOUND_GROUPS) do
 	Schema:Boolean(Options.SoundPath(group), false)
+end
+
+Schema:Boolean(Options.PREMADE_JOINED_PATH, false)
+
+-- An Adventure Guide link to an instance at a difficulty, in Blizzard's journal-link color.
+local JOURNAL_LINK = "|cff66bbff|Hjournal:0:%d:%d|h[%s]|h|r"
+
+---What Joined Group in Chat names: the activity, linked to its instance's Adventure Guide page when it has one.
+---@param name string the activity's full name
+---@param instanceID number? the Adventure Guide instance; nil or 0 when it has none
+---@param difficultyID number? the group's difficulty, for the link
+---@return string text
+function Options:JoinedText(name, instanceID, difficultyID)
+	if instanceID and instanceID ~= 0 then
+		return JOURNAL_LINK:format(instanceID, difficultyID or 0, name)
+	end
+
+	return name
 end
 
 ---@param path string
