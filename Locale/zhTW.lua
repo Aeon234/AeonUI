@@ -35,6 +35,9 @@ L["This profile string holds settings AeonUI can't use."] = "此設定檔字串�
 -- Minimap button tooltip (Core)
 L["Click: open settings"] = "點擊：開啟設定"
 
+-- Key bindings (Core)
+L["Eject All Passengers"] = "彈出所有乘客"
+
 -- Page titles (Settings)
 L["Profiles"] = "設定檔"
 L["Recovery"] = "復原"
@@ -52,6 +55,7 @@ L["Raid Markers"] = "團隊標記"
 
 -- Shared settings labels (Settings)
 L["Text"] = "文字"
+L["Open"] = "開啟"
 L["Font"] = "字型"
 L["Outline"] = "外框線"
 L["Font Scale"] = "字型縮放"
@@ -547,7 +551,6 @@ L["Button Size"] = "按鈕大小"
 L["Spacing"] = "間距"
 L["Needs a Forever border style."] = "需要 Forever 外框樣式。"
 L["World Marker Cycle"] = "地面標記循環"
-L["Open"] = "開啟"
 L["Bind Place Next World Marker and Clear World Markers under AeonUI."] = "在AeonUI下設定「放置下一個地面標記」和「清除地面標記」。"
 L["World Marker Order"] = "地面標記順序"
 

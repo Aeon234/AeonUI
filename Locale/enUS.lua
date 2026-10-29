@@ -51,6 +51,9 @@ L["This profile string holds settings AeonUI can't use."] = "This profile string
 -- Minimap button tooltip (Core)
 L["Click: open settings"] = "Click: open settings"
 
+-- Key bindings (Core)
+L["Eject All Passengers"] = "Eject All Passengers"
+
 -- Page titles (Settings)
 L["Profiles"] = "Profiles"
 L["Recovery"] = "Recovery"
@@ -68,6 +71,7 @@ L["Raid Markers"] = "Raid Markers"
 
 -- Shared settings labels (Settings)
 L["Text"] = "Text"
+L["Open"] = "Open"
 L["Font"] = "Font"
 L["Outline"] = "Outline"
 L["Font Scale"] = "Font Scale"
@@ -585,7 +589,6 @@ L["Button Size"] = "Button Size"
 L["Spacing"] = "Spacing"
 L["Needs a Forever border style."] = "Needs a Forever border style."
 L["World Marker Cycle"] = "World Marker Cycle"
-L["Open"] = "Open"
 L["Bind Place Next World Marker and Clear World Markers under AeonUI."] = "Bind Place Next World Marker and Clear World Markers under AeonUI."
 L["World Marker Order"] = "World Marker Order"
 

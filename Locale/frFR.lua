@@ -35,6 +35,9 @@ L["This profile string holds settings AeonUI can't use."] = "Cette chaîne de pr
 -- Minimap button tooltip (Core)
 L["Click: open settings"] = "Clic : ouvrir les paramètres"
 
+-- Key bindings (Core)
+L["Eject All Passengers"] = "Éjecter tous les passagers"
+
 -- Page titles (Settings)
 L["Profiles"] = "Profils"
 L["Recovery"] = "Récupération"
@@ -52,6 +55,7 @@ L["Raid Markers"] = "Marqueurs de raid"
 
 -- Shared settings labels (Settings)
 L["Text"] = "Texte"
+L["Open"] = "Ouvrir"
 L["Font"] = "Police"
 L["Outline"] = "Contour"
 L["Font Scale"] = "Échelle de police"
@@ -547,7 +551,6 @@ L["Button Size"] = "Taille des boutons"
 L["Spacing"] = "Espacement"
 L["Needs a Forever border style."] = "Nécessite un style de bordure Forever."
 L["World Marker Cycle"] = "Cycle des marqueurs au sol"
-L["Open"] = "Ouvrir"
 L["Bind Place Next World Marker and Clear World Markers under AeonUI."] = "Assignez « Poser le marqueur au sol suivant » et « Effacer les marqueurs au sol » sous AeonUI."
 L["World Marker Order"] = "Ordre des marqueurs au sol"
 

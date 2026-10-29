@@ -251,7 +251,7 @@ function SettingsRaidMarkers:DeclareCycle(page)
 		description = L["Bind Place Next World Marker and Clear World Markers under AeonUI."],
 		verb = L["Open"],
 		run = function()
-			Settings.OpenToCategory(Settings.KEYBINDINGS_CATEGORY_ID, BINDING_HEADER_AEONUI)
+			AUI.Bindings:Open()
 		end,
 	})
 	card:OrderedList({

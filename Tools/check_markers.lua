@@ -681,8 +681,7 @@ bindings["CLICK AeonUIWorldMarkerPlace:LeftButton"] = "F1"
 Equal("the keys bound", table.concat({ Cycler:Keys() and tostring((Cycler:Keys())) or "nil", tostring(select(2,
 	Cycler:Keys())) }, " "), "F1 nil")
 Equal("the bindings' names", _G["BINDING_NAME_CLICK AeonUIWorldMarkerPlace:LeftButton"] .. " | "
-	.. _G["BINDING_NAME_CLICK AeonUIWorldMarkerClear:LeftButton"] .. " | " .. BINDING_HEADER_AEONUI,
-	"Place Next World Marker | Clear World Markers | " .. AUI.brand)
+	.. _G["BINDING_NAME_CLICK AeonUIWorldMarkerClear:LeftButton"], "Place Next World Marker | Clear World Markers")
 
 Equal("no errors reported", #errors, 0)
 

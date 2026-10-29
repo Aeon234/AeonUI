@@ -35,6 +35,9 @@ L["This profile string holds settings AeonUI can't use."] = "이 프로필 문�
 -- Minimap button tooltip (Core)
 L["Click: open settings"] = "클릭: 설정 열기"
 
+-- Key bindings (Core)
+L["Eject All Passengers"] = "모든 승객 내보내기"
+
 -- Page titles (Settings)
 L["Profiles"] = "프로필"
 L["Recovery"] = "복구"
@@ -52,6 +55,7 @@ L["Raid Markers"] = "공격대 징표"
 
 -- Shared settings labels (Settings)
 L["Text"] = "글자"
+L["Open"] = "열기"
 L["Font"] = "글꼴"
 L["Outline"] = "외곽선"
 L["Font Scale"] = "글꼴 배율"
@@ -547,7 +551,6 @@ L["Button Size"] = "버튼 크기"
 L["Spacing"] = "간격"
 L["Needs a Forever border style."] = "Forever 테두리 스타일이 필요합니다."
 L["World Marker Cycle"] = "바닥 징표 순환"
-L["Open"] = "열기"
 L["Bind Place Next World Marker and Clear World Markers under AeonUI."] = "AeonUI 항목에서 '다음 바닥 징표 설치'와 '바닥 징표 지우기'를 지정하세요."
 L["World Marker Order"] = "바닥 징표 순서"
 

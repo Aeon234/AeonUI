@@ -30,6 +30,14 @@ function General:Declare(window)
 			AUI.Broker:SetHidden(not value)
 		end,
 	})
+	access:Button({
+		id = "keyBindings",
+		label = KEY_BINDINGS,
+		verb = L["Open"],
+		run = function()
+			AUI.Bindings:Open()
+		end,
+	})
 
 	self:DeclareScale(page)
 end

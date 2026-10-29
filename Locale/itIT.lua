@@ -35,6 +35,9 @@ L["This profile string holds settings AeonUI can't use."] = "Questa stringa di p
 -- Minimap button tooltip (Core)
 L["Click: open settings"] = "Clic: apri le impostazioni"
 
+-- Key bindings (Core)
+L["Eject All Passengers"] = "Espelli tutti i passeggeri"
+
 -- Page titles (Settings)
 L["Profiles"] = "Profili"
 L["Recovery"] = "Ripristino"
@@ -52,6 +55,7 @@ L["Raid Markers"] = "Segnalini dell'incursione"
 
 -- Shared settings labels (Settings)
 L["Text"] = "Testo"
+L["Open"] = "Apri"
 L["Font"] = "Carattere"
 L["Outline"] = "Contorno"
 L["Font Scale"] = "Scala carattere"
@@ -547,7 +551,6 @@ L["Button Size"] = "Dimensione dei pulsanti"
 L["Spacing"] = "Spaziatura"
 L["Needs a Forever border style."] = "Richiede uno stile del bordo Forever."
 L["World Marker Cycle"] = "Ciclo dei segnalini a terra"
-L["Open"] = "Apri"
 L["Bind Place Next World Marker and Clear World Markers under AeonUI."] = "Assegna \"Piazza il segnalino a terra successivo\" e \"Rimuovi i segnalini a terra\" in AeonUI."
 L["World Marker Order"] = "Ordine dei segnalini a terra"
 

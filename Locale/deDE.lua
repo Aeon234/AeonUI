@@ -35,6 +35,9 @@ L["This profile string holds settings AeonUI can't use."] = "Dieser Profiltext e
 -- Minimap button tooltip (Core)
 L["Click: open settings"] = "Klicken: Einstellungen öffnen"
 
+-- Key bindings (Core)
+L["Eject All Passengers"] = "Alle Passagiere auswerfen"
+
 -- Page titles (Settings)
 L["Profiles"] = "Profile"
 L["Recovery"] = "Wiederherstellung"
@@ -52,6 +55,7 @@ L["Raid Markers"] = "Schlachtzugsmarkierungen"
 
 -- Shared settings labels (Settings)
 L["Text"] = "Text"
+L["Open"] = "Öffnen"
 L["Font"] = "Schriftart"
 L["Outline"] = "Umriss"
 L["Font Scale"] = "Schriftskalierung"
@@ -547,7 +551,6 @@ L["Button Size"] = "Knopfgröße"
 L["Spacing"] = "Abstand"
 L["Needs a Forever border style."] = "Benötigt einen Forever-Rahmenstil."
 L["World Marker Cycle"] = "Weltmarkierungen der Reihe nach"
-L["Open"] = "Öffnen"
 L["Bind Place Next World Marker and Clear World Markers under AeonUI."] = "Belege „Nächste Weltmarkierung setzen“ und „Weltmarkierungen entfernen“ unter AeonUI."
 L["World Marker Order"] = "Reihenfolge der Weltmarkierungen"
 

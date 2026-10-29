@@ -3,8 +3,7 @@ local AUI = select(2, ...)
 local L = AUI.L
 local Options = AUI.MarkerOptions
 
--- The key bindings' names in Blizzard's Key Bindings, under AeonUI's header (Bindings.xml).
-BINDING_HEADER_AEONUI = AUI.brand
+-- The World Marker Cycle's key bindings' names in AeonUI's section of Blizzard's Key Bindings (Bindings.xml).
 _G["BINDING_NAME_CLICK " .. Options.PLACE_BUTTON .. ":LeftButton"] = L["Place Next World Marker"]
 _G["BINDING_NAME_CLICK " .. Options.CLEAR_BUTTON .. ":LeftButton"] = L["Clear World Markers"]
 

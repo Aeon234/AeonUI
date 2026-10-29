@@ -35,6 +35,9 @@ L["This profile string holds settings AeonUI can't use."] = "Эта строка
 -- Minimap button tooltip (Core)
 L["Click: open settings"] = "Щелчок: открыть настройки"
 
+-- Key bindings (Core)
+L["Eject All Passengers"] = "Высадить всех пассажиров"
+
 -- Page titles (Settings)
 L["Profiles"] = "Профили"
 L["Recovery"] = "Восстановление"
@@ -52,6 +55,7 @@ L["Raid Markers"] = "Рейдовые метки"
 
 -- Shared settings labels (Settings)
 L["Text"] = "Текст"
+L["Open"] = "Открыть"
 L["Font"] = "Шрифт"
 L["Outline"] = "Контур"
 L["Font Scale"] = "Масштаб шрифта"
@@ -547,7 +551,6 @@ L["Button Size"] = "Размер кнопок"
 L["Spacing"] = "Отступ"
 L["Needs a Forever border style."] = "Требуется стиль рамки Forever."
 L["World Marker Cycle"] = "Метки на местности по очереди"
-L["Open"] = "Открыть"
 L["Bind Place Next World Marker and Clear World Markers under AeonUI."] = "Назначьте «Поставить следующую метку на местности» и «Убрать метки на местности» в разделе AeonUI."
 L["World Marker Order"] = "Порядок меток на местности"
 

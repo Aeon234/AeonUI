@@ -1357,6 +1357,16 @@ Profile:Create("Keeps Button")
 Equal("a profile change keeps the button's table", AeonUIDB.global.minimapButton, icon.registered.AeonUI)
 checkbox.set(true)
 Equal("showing shows the button", icon.hidden.AeonUI, false)
+local keyBindings = window.pages.general.sections.access.settings.keyBindings
+local openedBindings = 0
+AUI.Bindings = {
+	Open = function()
+		openedBindings = openedBindings + 1
+	end,
+}
+keyBindings.run()
+Equal("Access: Key Bindings, one line, opening AeonUI's section", keyBindings.label .. " " .. keyBindings.verb .. " "
+	.. tostring(keyBindings.description) .. " " .. openedBindings, "Key Bindings Open nil 1")
 
 -- Scale section ----------------------------------------------------------------------------------------------
 
