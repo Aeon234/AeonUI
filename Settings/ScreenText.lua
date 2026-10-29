@@ -5,11 +5,13 @@ local lib = LibStub("LibAeonSettings-1.0")
 
 -- Blizzard's sanctuary color, which the sample's zone lines take.
 local SANCTUARY_R, SANCTUARY_G, SANCTUARY_B = 0.41, 0.8, 0.94
--- The room between the zone lines and the message lines in the sample.
-local GROUP_GAP = 16
+-- The room between the sample's two columns.
+local COLUMN_GAP = 40
 local PREVIEW_HEIGHT = 150
--- The sample's lines, top to bottom: the zone, subzone and territory, then an error and an objective.
+-- The sample's lines: the zone, subzone and territory, then an error and an objective.
 local SAMPLE_LINES = { "zone", "subZone", "pvp", "messages", "messages" }
+-- The sample's columns, left to right, as indexes into `SAMPLE_LINES`, each read top to bottom.
+local SAMPLE_COLUMNS = { { 1, 2, 3 }, { 4, 5 } }
 
 local LINE_LABELS = {
 	messages = L["Errors and Objectives"],
@@ -104,6 +106,11 @@ function ScreenTextPreview:Refresh(preview)
 	local zone, subZone, pvp, errorLine, objectiveLine = texts[1], texts[2], texts[3], texts[4], texts[5]
 	local subZoneText = GetSubZoneText()
 
+	-- A font string without a font refuses text, so each line is styled first.
+	for index, line in ipairs(SAMPLE_LINES) do
+		ScreenText:Style(texts[index], line)
+	end
+
 	zone:SetText(GetZoneText())
 	subZone:SetText(subZoneText ~= "" and subZoneText or LINE_LABELS.subZone)
 	pvp:SetText(SANCTUARY_TERRITORY)
@@ -117,26 +124,39 @@ function ScreenTextPreview:Refresh(preview)
 	errorLine:SetTextColor(RED_FONT_COLOR:GetRGB())
 	objectiveLine:SetTextColor(YELLOW_FONT_COLOR:GetRGB())
 
+	local widths, heights = {}, {}
 	local width, height = 0, 0
-	local previous
 
-	for index, line in ipairs(SAMPLE_LINES) do
-		local text = texts[index]
-		local gap = text == errorLine and GROUP_GAP or 0
+	for column, indexes in ipairs(SAMPLE_COLUMNS) do
+		widths[column], heights[column] = 0, 0
 
-		ScreenText:Style(text, line)
-		text:ClearAllPoints()
+		for _, index in ipairs(indexes) do
+			local text = texts[index]
 
-		if previous then
-			text:SetPoint("TOP", previous, "BOTTOM", 0, -gap)
-		else
-			text:SetPoint("TOP", text:GetParent(), "TOP")
+			widths[column] = math.max(widths[column], math.ceil(text:GetUnboundedStringWidth()))
+			heights[column] = heights[column] + math.ceil(text:GetStringHeight())
 		end
 
-		width = math.max(width, math.ceil(text:GetUnboundedStringWidth()))
-		height = height + gap + math.ceil(text:GetStringHeight())
-		previous = text
-		preview:Part(text, DetailsID(line), { text = true })
+		width = width + (column > 1 and COLUMN_GAP or 0) + widths[column]
+		height = math.max(height, heights[column])
+	end
+
+	-- Each column's lines are centered across it, and the column is centered down the sample.
+	local left = 0
+
+	for column, indexes in ipairs(SAMPLE_COLUMNS) do
+		local top = math.floor((height - heights[column]) / 2)
+
+		for _, index in ipairs(indexes) do
+			local text = texts[index]
+
+			text:ClearAllPoints()
+			text:SetPoint("TOP", text:GetParent(), "TOPLEFT", left + widths[column] / 2, -top)
+			top = top + math.ceil(text:GetStringHeight())
+			preview:Part(text, DetailsID(SAMPLE_LINES[index]), { text = true })
+		end
+
+		left = left + widths[column] + COLUMN_GAP
 	end
 
 	return width, height

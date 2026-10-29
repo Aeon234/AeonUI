@@ -606,6 +606,7 @@ local sampleCanvas = {}
 function sampleCanvas:CreateFontString()
 	local text = { parent = self }
 	function text:SetText(value)
+		assert(self.size, "Font not set")
 		self.text = value
 	end
 	function text:SetTextColor() end
@@ -634,7 +635,7 @@ screenTextPage.preview.create(sampleCanvas)
 local sampleWidth, sampleHeight = screenTextPage.preview.refresh(sampleCanvas, nil, samplePreview)
 Equal("the sample's lines find their rows", table.concat(sampleParts, " | "), "Silvermoon City>zoneText | "
 	.. "Subzone>subZoneText | (Sanctuary)>pvpText | Out of range.>messagesText | Objective Complete.>messagesText")
-Equal("the sample's size, with a gap before the messages", sampleWidth .. "x" .. sampleHeight, "190x126")
+Equal("the sample's size, the zone lines beside the messages", sampleWidth .. "x" .. sampleHeight, "380x78")
 AUI.can.screenText = nil
 window = Load(nil)
 Equal("no Screen Text page without its frames", window.pages.screenText, nil)
