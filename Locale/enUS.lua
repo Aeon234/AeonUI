@@ -61,11 +61,13 @@ L["Player Menu"] = "Player Menu"
 L["Input"] = "Input"
 L["Alerts"] = "Alerts"
 L["Interface"] = "Interface"
+L["Screen Text"] = "Screen Text"
 
 -- Shared settings labels (Settings)
 L["Text"] = "Text"
 L["Font"] = "Font"
 L["Outline"] = "Outline"
+L["Font Scale"] = "Font Scale"
 L["Height"] = "Height"
 L["X Offset"] = "X Offset"
 L["Y Offset"] = "Y Offset"
@@ -318,7 +320,6 @@ L["Right-click: back to the map"] = "Right-click: back to the map"
 -- Tooltip pages (Settings)
 L["Tooltip"] = "Tooltip"
 L["Custom Font"] = "Custom Font"
-L["Font Scale"] = "Font Scale"
 L["Health Bar"] = "Health Bar"
 L["Show Health Bar"] = "Show Health Bar"
 L["Style"] = "Style"
@@ -509,6 +510,13 @@ L["No Key"] = "No Key"
 L["Auto Confirm Bind on Pickup"] = "Auto Confirm Bind on Pickup"
 L["Click-Through Toasts"] = "Click-Through Toasts"
 L["Level-up and new-zone banners; clicking no longer opens their details."] = "Level-up and new-zone banners; clicking no longer opens their details."
+
+-- Screen Text page (Settings)
+L["Style Screen Text"] = "Style Screen Text"
+L["All Text"] = "All Text"
+L["Errors and Objectives"] = "Errors and Objectives"
+L["Subzone"] = "Subzone"
+L["PvP Status"] = "PvP Status"
 
 -- Profiles page (Settings)
 L["AeonUI profile \"%s\"."] = "AeonUI profile \"%s\"."

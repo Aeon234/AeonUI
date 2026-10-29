@@ -45,11 +45,13 @@ L["Player Menu"] = "Меню игрока"
 L["Input"] = "Ввод"
 L["Alerts"] = "Оповещения"
 L["Interface"] = "Интерфейс"
+L["Screen Text"] = "Текст на экране"
 
 -- Shared settings labels (Settings)
 L["Text"] = "Текст"
 L["Font"] = "Шрифт"
 L["Outline"] = "Контур"
+L["Font Scale"] = "Масштаб шрифта"
 L["Height"] = "Высота"
 L["X Offset"] = "Смещение по X"
 L["Y Offset"] = "Смещение по Y"
@@ -290,7 +292,6 @@ L["Right-click: back to the map"] = "Правый щелчок: назад к к
 -- Tooltip pages (Settings)
 L["Tooltip"] = "Подсказка"
 L["Custom Font"] = "Свой шрифт"
-L["Font Scale"] = "Масштаб шрифта"
 L["Health Bar"] = "Полоса здоровья"
 L["Show Health Bar"] = "Показывать полосу здоровья"
 L["Style"] = "Стиль"
@@ -471,6 +472,13 @@ L["No Key"] = "Без клавиши"
 L["Auto Confirm Bind on Pickup"] = "Автоподтверждение «Персональный при получении»"
 L["Click-Through Toasts"] = "Сквозные уведомления"
 L["Level-up and new-zone banners; clicking no longer opens their details."] = "Баннеры уровня и новой зоны; щелчок больше не открывает подробности."
+
+-- Screen Text page (Settings)
+L["Style Screen Text"] = "Оформлять текст на экране"
+L["All Text"] = "Весь текст"
+L["Errors and Objectives"] = "Ошибки и задачи"
+L["Subzone"] = "Подзона"
+L["PvP Status"] = "Статус PvP"
 
 -- Profiles page (Settings)
 L["AeonUI profile \"%s\"."] = "Профиль AeonUI «%s»."

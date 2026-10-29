@@ -380,11 +380,12 @@ for _, file in ipairs({ "Core/Callbacks.lua", "Core/Capabilities.lua", "Core/Bro
 	"Minimap/Buttons.lua", "Minimap/Map.lua", "WorldMap/Markers.lua", "WorldMap/Options.lua", "Tooltip/Options.lua",
 	"Tooltip/Tooltip.lua", "Interface/UIScale.lua", "Interface/GameMenuScale.lua",
 	"Automation/Options.lua", "Automation/GameSettings.lua", "Menus/Options.lua", "Input/Options.lua",
-	"Input/FocusShortcut.lua", "Alerts/Options.lua", "Interface/Options.lua",
+	"Input/FocusShortcut.lua", "Alerts/Options.lua", "Interface/Options.lua", "ScreenText/Options.lua",
+	"ScreenText/ScreenText.lua",
 	"Settings/Window.lua", "Settings/MinimapEditor.lua", "Settings/General.lua", "Settings/Minimap.lua",
 	"Settings/WorldMap.lua", "Settings/Tooltip.lua", "Settings/Automation.lua", "Settings/PlayerMenu.lua",
-	"Settings/Input.lua", "Settings/Alerts.lua", "Settings/Interface.lua", "Settings/Profiles.lua", "Settings/Recovery.lua",
-	"Settings/EditTargets.lua" }) do
+	"Settings/Input.lua", "Settings/Alerts.lua", "Settings/Interface.lua", "Settings/ScreenText.lua",
+	"Settings/Profiles.lua", "Settings/Recovery.lua", "Settings/EditTargets.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 
@@ -550,6 +551,93 @@ for _, option in ipairs(window.pages.interface.sections.interfacePopups.settings
 end
 Equal("Hold to Skip's keys", table.concat(skipKeys, ","), "No Key,Shift,Ctrl,Alt")
 AUI.can.skipCountdown, AUI.can.confirmBind, AUI.can.clickThroughToasts = nil, nil, nil
+AUI.can.screenText = true
+window = Load(nil)
+Equal("Screen Text follows Alerts", table.concat(window.order, " "), "general #mapsHeader minimap #tooltipHeader "
+	.. "tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader automation alerts screenText - profiles")
+local screenTextPage = window.pages.screenText
+Equal("under the Quality of Life header", screenTextPage.info.under, "qualityOfLifeHeader")
+Equal("headed by the module's switch, off", screenTextPage.info.switch.path .. "=" .. tostring(
+	screenTextPage.info.switch.default) .. " " .. screenTextPage.info.switch.label,
+	"screenText.enabled=false Style Screen Text")
+Equal("a sample of every line as its preview", type(screenTextPage.preview.refresh), "function")
+local screenTextCard = screenTextPage.sections.screenTextLines
+local screenTextIDs = {}
+for _, setting in ipairs(screenTextCard.settings) do
+	if setting.kind == "Details" then
+		screenTextIDs[#screenTextIDs + 1] = setting.id .. ":" .. setting.label
+	end
+	Equal(setting.id .. " has no second line", setting.description, nil)
+	if setting.path then
+		local field = AUI.Schema:Field(setting.path)
+		Equal(setting.id .. " names a setting", field ~= nil, true)
+		Equal(setting.id .. " follows All Text, or is All Text", setting.inherits and setting.inherits.path or "shared",
+			field.shared or "shared")
+	end
+end
+Equal("one titled card: All Text, then each line", screenTextCard.title .. ": " .. table.concat(screenTextIDs, " "),
+	"Text: allText:All Text messagesText:Errors and Objectives zoneText:Zone subZoneText:Subzone pvpText:PvP Status")
+Equal("All Text can be reset", screenTextCard.settings.allText_size.resettable, true)
+Equal("a line's size follows All Text", screenTextCard.settings.zoneText_size.inherits.from, "All Text")
+Equal("sizes are percentages", screenTextCard.settings.allText_size.format .. " "
+	.. screenTextCard.settings.allText_size.min .. "-" .. screenTextCard.settings.allText_size.max, "percent 50-200")
+Equal("Slug by default", screenTextCard.settings.allText_outline.default, "SLUG")
+-- The sample, drawn against font strings that measure 10 units per character and their size in height.
+local function Color(r, g, b)
+	return { GetRGB = function()
+		return r, g, b
+	end }
+end
+RED_FONT_COLOR, YELLOW_FONT_COLOR = Color(1, 0.1, 0.1), Color(1, 1, 0)
+SANCTUARY_TERRITORY, ERR_OUT_OF_RANGE, ERR_QUEST_UNKNOWN_COMPLETE = "(Sanctuary)", "Out of range.", "Objective Complete."
+GetZoneText = function()
+	return "Silvermoon City"
+end
+GetSubZoneText = function()
+	return ""
+end
+ErrorFont, ZoneTextFont, SubZoneTextFont, PVPInfoTextFont = {}, {}, {}, {}
+for font, size in pairs({ [ErrorFont] = 16, [ZoneTextFont] = 32, [SubZoneTextFont] = 26, [PVPInfoTextFont] = 20 }) do
+	font.GetFont = function()
+		return "Fonts\\FRIZQT__.TTF", size, ""
+	end
+end
+local sampleCanvas = {}
+function sampleCanvas:CreateFontString()
+	local text = { parent = self }
+	function text:SetText(value)
+		self.text = value
+	end
+	function text:SetTextColor() end
+	function text:SetFont(_, size)
+		self.size = size
+	end
+	function text:ClearAllPoints() end
+	function text:SetPoint() end
+	function text:GetParent()
+		return self.parent
+	end
+	function text:GetUnboundedStringWidth()
+		return #self.text * 10
+	end
+	function text:GetStringHeight()
+		return self.size
+	end
+
+	return text
+end
+local sampleParts = {}
+local samplePreview = { Part = function(_, region, target, options)
+	sampleParts[#sampleParts + 1] = region.text .. ">" .. target .. (options.text and "" or "!")
+end }
+screenTextPage.preview.create(sampleCanvas)
+local sampleWidth, sampleHeight = screenTextPage.preview.refresh(sampleCanvas, nil, samplePreview)
+Equal("the sample's lines find their rows", table.concat(sampleParts, " | "), "Silvermoon City>zoneText | "
+	.. "Subzone>subZoneText | (Sanctuary)>pvpText | Out of range.>messagesText | Objective Complete.>messagesText")
+Equal("the sample's size, with a gap before the messages", sampleWidth .. "x" .. sampleHeight, "190x126")
+AUI.can.screenText = nil
+window = Load(nil)
+Equal("no Screen Text page without its frames", window.pages.screenText, nil)
 Equal("Settings:Window reuses the window", Settings:Window(), window)
 Equal("the store is the active config", declaration.store(), Profile.config)
 Equal("account settings are the store's", declaration.account(), AeonUIDB.global)

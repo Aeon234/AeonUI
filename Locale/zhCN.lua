@@ -45,11 +45,13 @@ L["Player Menu"] = "玩家菜单"
 L["Input"] = "输入"
 L["Alerts"] = "提醒"
 L["Interface"] = "界面"
+L["Screen Text"] = "屏幕文字"
 
 -- Shared settings labels (Settings)
 L["Text"] = "文字"
 L["Font"] = "字体"
 L["Outline"] = "描边"
+L["Font Scale"] = "字体缩放"
 L["Height"] = "高度"
 L["X Offset"] = "X偏移"
 L["Y Offset"] = "Y 偏移"
@@ -290,7 +292,6 @@ L["Right-click: back to the map"] = "右键点击：返回地图"
 -- Tooltip pages (Settings)
 L["Tooltip"] = "鼠标提示"
 L["Custom Font"] = "自定义字体"
-L["Font Scale"] = "字体缩放"
 L["Health Bar"] = "生命条"
 L["Show Health Bar"] = "显示生命条"
 L["Style"] = "样式"
@@ -471,6 +472,13 @@ L["No Key"] = "无需按键"
 L["Auto Confirm Bind on Pickup"] = "自动确认拾取后绑定"
 L["Click-Through Toasts"] = "可点穿的通知"
 L["Level-up and new-zone banners; clicking no longer opens their details."] = "升级和新区域横幅；点击不再打开详情。"
+
+-- Screen Text page (Settings)
+L["Style Screen Text"] = "设置屏幕文字样式"
+L["All Text"] = "所有文字"
+L["Errors and Objectives"] = "错误和目标"
+L["Subzone"] = "子区域"
+L["PvP Status"] = "PvP状态"
 
 -- Profiles page (Settings)
 L["AeonUI profile \"%s\"."] = "AeonUI 配置文件“%s”。"

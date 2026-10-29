@@ -45,11 +45,13 @@ L["Player Menu"] = "Menú de jugador"
 L["Input"] = "Entrada"
 L["Alerts"] = "Alertas"
 L["Interface"] = "Interfaz"
+L["Screen Text"] = "Texto en pantalla"
 
 -- Shared settings labels (Settings)
 L["Text"] = "Texto"
 L["Font"] = "Fuente"
 L["Outline"] = "Contorno"
+L["Font Scale"] = "Escala de fuente"
 L["Height"] = "Alto"
 L["X Offset"] = "Desplazamiento X"
 L["Y Offset"] = "Desplazamiento Y"
@@ -290,7 +292,6 @@ L["Right-click: back to the map"] = "Clic derecho: volver al mapa"
 -- Tooltip pages (Settings)
 L["Tooltip"] = "Descripción emergente"
 L["Custom Font"] = "Fuente personalizada"
-L["Font Scale"] = "Escala de fuente"
 L["Health Bar"] = "Barra de salud"
 L["Show Health Bar"] = "Mostrar barra de salud"
 L["Style"] = "Estilo"
@@ -471,6 +472,13 @@ L["No Key"] = "Ninguna tecla"
 L["Auto Confirm Bind on Pickup"] = "Confirmar automáticamente ligado al recogerlo"
 L["Click-Through Toasts"] = "Avisos traspasables"
 L["Level-up and new-zone banners; clicking no longer opens their details."] = "Avisos de subida de nivel y zona nueva; al hacer clic ya no se abren sus detalles."
+
+-- Screen Text page (Settings)
+L["Style Screen Text"] = "Estilo del texto en pantalla"
+L["All Text"] = "Todo el texto"
+L["Errors and Objectives"] = "Errores y objetivos"
+L["Subzone"] = "Subzona"
+L["PvP Status"] = "Estado JcJ"
 
 -- Profiles page (Settings)
 L["AeonUI profile \"%s\"."] = "Perfil de AeonUI \"%s\"."

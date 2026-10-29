@@ -26,6 +26,7 @@ Automation\Automation.xml
 Menus\Menus.xml
 Input\Input.xml
 Alerts\Alerts.xml
+ScreenText\ScreenText.xml
 Settings\Settings.xml
 
 #@do-not-package@

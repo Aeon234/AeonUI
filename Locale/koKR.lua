@@ -45,11 +45,13 @@ L["Player Menu"] = "플레이어 메뉴"
 L["Input"] = "입력"
 L["Alerts"] = "알림"
 L["Interface"] = "인터페이스"
+L["Screen Text"] = "화면 문자"
 
 -- Shared settings labels (Settings)
 L["Text"] = "글자"
 L["Font"] = "글꼴"
 L["Outline"] = "외곽선"
+L["Font Scale"] = "글꼴 배율"
 L["Height"] = "높이"
 L["X Offset"] = "X 오프셋"
 L["Y Offset"] = "Y 오프셋"
@@ -290,7 +292,6 @@ L["Right-click: back to the map"] = "오른쪽 클릭: 지도로 돌아가기"
 -- Tooltip pages (Settings)
 L["Tooltip"] = "툴팁"
 L["Custom Font"] = "사용자 글꼴"
-L["Font Scale"] = "글꼴 배율"
 L["Health Bar"] = "생명력 바"
 L["Show Health Bar"] = "생명력 바 표시"
 L["Style"] = "스타일"
@@ -471,6 +472,13 @@ L["No Key"] = "키 없음"
 L["Auto Confirm Bind on Pickup"] = "획득 시 귀속 자동 확인"
 L["Click-Through Toasts"] = "클릭 통과 알림"
 L["Level-up and new-zone banners; clicking no longer opens their details."] = "레벨 상승과 새 지역 알림. 클릭해도 세부 정보가 열리지 않습니다."
+
+-- Screen Text page (Settings)
+L["Style Screen Text"] = "화면 문자 스타일"
+L["All Text"] = "모든 문자"
+L["Errors and Objectives"] = "오류 및 목표"
+L["Subzone"] = "하위 지역"
+L["PvP Status"] = "PvP 상태"
 
 -- Profiles page (Settings)
 L["AeonUI profile \"%s\"."] = "AeonUI 프로필 \"%s\"."

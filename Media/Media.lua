@@ -34,6 +34,7 @@ local Media = {
 		input = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarInput.tga",
 		alerts = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarAlerts.tga",
 		interface = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarInterface.tga",
+		screenText = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarScreenText.tga",
 	},
 }
 AUI.Media = Media

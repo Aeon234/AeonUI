@@ -46,6 +46,10 @@ local function DeclareSidebar(window)
 	if AUI.SettingsInterface:IsAvailable() then
 		AUI.SettingsInterface:Declare(window)
 	end
+
+	if AUI.can.screenText then
+		AUI.SettingsScreenText:Declare(window)
+	end
 	window:Divider()
 	AUI.SettingsProfiles:Declare(window)
 end
