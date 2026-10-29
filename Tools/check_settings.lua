@@ -369,6 +369,8 @@ function Mixin(object, ...)
 	return object
 end
 
+ALWAYS, COLOR, OPACITY = "Always", "Color", "Opacity"
+
 local AUI = {}
 assert(loadfile(root .. "Core/Core.lua"))("AeonUI", AUI)
 AUI.L = setmetatable({}, { __index = function(_, key)
@@ -381,10 +383,11 @@ for _, file in ipairs({ "Core/Callbacks.lua", "Core/Capabilities.lua", "Core/Bro
 	"Tooltip/Tooltip.lua", "Interface/UIScale.lua", "Interface/GameMenuScale.lua",
 	"Automation/Options.lua", "Automation/GameSettings.lua", "Menus/Options.lua", "Input/Options.lua",
 	"Input/FocusShortcut.lua", "Alerts/Options.lua", "Interface/Options.lua", "ScreenText/Options.lua",
-	"ScreenText/ScreenText.lua",
+	"ScreenText/ScreenText.lua", "Cursor/Options.lua", "Cursor/CursorRing.lua",
 	"Settings/Window.lua", "Settings/MinimapEditor.lua", "Settings/General.lua", "Settings/Minimap.lua",
 	"Settings/WorldMap.lua", "Settings/Tooltip.lua", "Settings/Automation.lua", "Settings/PlayerMenu.lua",
 	"Settings/Input.lua", "Settings/Alerts.lua", "Settings/Interface.lua", "Settings/ScreenText.lua",
+	"Settings/Cursor.lua",
 	"Settings/Profiles.lua", "Settings/Recovery.lua", "Settings/EditTargets.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
@@ -647,6 +650,49 @@ Equal("the sample's size, the zone lines beside the messages", sampleWidth .. "x
 AUI.can.screenText = nil
 window = Load(nil)
 Equal("no Screen Text page without its frames", window.pages.screenText, nil)
+AUI.can.cursorRing, AUI.can.castSwipe = true, true
+window = Load(nil)
+Equal("Cursor follows Alerts", table.concat(window.order, " "), "general #mapsHeader minimap #tooltipHeader "
+	.. "tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader automation alerts cursor - profiles")
+local cursorPage = window.pages.cursor
+Equal("under the Quality of Life header, with its icon", cursorPage.info.under .. " "
+	.. tostring(cursorPage.info.icon == AUI.Media.sidebar.cursor), "qualityOfLifeHeader true")
+Equal("headed by the module's switch, off", cursorPage.info.switch.path .. "=" .. tostring(
+	cursorPage.info.switch.default) .. " " .. cursorPage.info.switch.label, "cursor.enabled=false Show Cursor Ring")
+local cursorCards = {}
+for _, section in ipairs(cursorPage.sections) do
+	local ids = {}
+	for _, setting in ipairs(section.settings) do
+		ids[#ids + 1] = setting.id
+		Equal(setting.id .. " has no second line", setting.description, nil)
+		Equal(setting.id .. " names a setting", AUI.Schema:Field(setting.path) ~= nil, true)
+	end
+	cursorCards[#cursorCards + 1] = section.title .. ": " .. table.concat(ids, " ")
+end
+Equal("three titled cards", table.concat(cursorCards, " | "), "Ring: size thickness color opacity dot | "
+	.. "Swipes: gcd casts | Visibility: show hideTurning")
+Equal("Class Color beside the swatch", cursorPage.sections.cursorRing.settings.color.classColor.label .. " "
+	.. cursorPage.sections.cursorRing.settings.color.classColor.path, "Class Color cursor.classColor")
+local function OptionTexts(setting)
+	local texts = {}
+	for index, option in ipairs(setting.options) do
+		texts[index] = option.text
+	end
+
+	return table.concat(texts, ",")
+end
+Equal("the thicknesses", OptionTexts(cursorPage.sections.cursorRing.settings.thickness), "Thin,Normal,Thick")
+Equal("when it shows", OptionTexts(cursorPage.sections.cursorVisibility.settings.show), "Always,In Combat,In Instances")
+Equal("opacity as a percentage", cursorPage.sections.cursorRing.settings.opacity.format .. " "
+	.. cursorPage.sections.cursorRing.settings.opacity.min, "percent 10")
+Equal("three preview states", table.concat(cursorPage.preview.states(), ","), "Idle,Global Cooldown,Casting")
+AUI.can.castSwipe = nil
+window = Load(nil)
+Equal("without cast durations: no Casts, no Casting state", tostring(
+	window.pages.cursor.sections.cursorSwipes.settings.casts) .. " " .. #window.pages.cursor.preview.states(), "nil 2")
+AUI.can.cursorRing = nil
+window = Load(nil)
+Equal("no Cursor page without the cursor ring", window.pages.cursor, nil)
 Equal("Settings:Window reuses the window", Settings:Window(), window)
 Equal("the store is the active config", declaration.store(), Profile.config)
 Equal("account settings are the store's", declaration.account(), AeonUIDB.global)

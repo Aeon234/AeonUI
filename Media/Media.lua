@@ -35,6 +35,7 @@ local Media = {
 		alerts = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarAlerts.tga",
 		interface = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarInterface.tga",
 		screenText = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarScreenText.tga",
+		cursor = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarCursor.tga",
 	},
 }
 AUI.Media = Media

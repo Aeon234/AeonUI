@@ -44,6 +44,8 @@ AUI.Capabilities = Capabilities
 ---@field clickThroughToasts boolean event toasts are shown by `EventToastManagerFrame`
 ---@field releaseProtection boolean the death dialog updates through `StaticPopupDialogs.DEATH.OnUpdate`
 ---@field screenText boolean the error frame and the zone, subzone and territory lines exist, with their font objects
+---@field cursorRing boolean the cursor's place and the global cooldown's duration object can be read
+---@field castSwipe boolean the player's casts and channels give duration objects
 AUI.can = {}
 
 ---The only place a client difference is detected. Runs once at login.
@@ -103,6 +105,8 @@ function Capabilities:Resolve()
 	can.screenText = UIErrorsFrame ~= nil and ErrorFont ~= nil and ZoneTextString ~= nil and ZoneTextFont ~= nil
 		and SubZoneTextString ~= nil and SubZoneTextFont ~= nil and PVPInfoTextString ~= nil
 		and PVPArenaTextString ~= nil and PVPInfoTextFont ~= nil
+	can.cursorRing = GetCursorPosition ~= nil and C_Spell ~= nil and C_Spell.GetSpellCooldownDuration ~= nil
+	can.castSwipe = UnitCastingDuration ~= nil and UnitChannelDuration ~= nil
 
 	self.resolved = true
 

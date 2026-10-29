@@ -50,6 +50,10 @@ local function DeclareSidebar(window)
 	if AUI.can.screenText then
 		AUI.SettingsScreenText:Declare(window)
 	end
+
+	if AUI.can.cursorRing then
+		AUI.SettingsCursor:Declare(window)
+	end
 	window:Divider()
 	AUI.SettingsProfiles:Declare(window)
 end

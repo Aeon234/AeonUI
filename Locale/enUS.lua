@@ -62,6 +62,7 @@ L["Input"] = "Input"
 L["Alerts"] = "Alerts"
 L["Interface"] = "Interface"
 L["Screen Text"] = "Screen Text"
+L["Cursor"] = "Cursor"
 
 -- Shared settings labels (Settings)
 L["Text"] = "Text"
@@ -80,6 +81,8 @@ L["Always Off"] = "Always Off"
 L["Shift"] = "Shift"
 L["Ctrl"] = "Ctrl"
 L["Alt"] = "Alt"
+L["Visibility"] = "Visibility"
+L["Show"] = "Show"
 
 -- General page (Settings)
 L["Access"] = "Access"
@@ -382,7 +385,6 @@ L["The crest the next upgrade costs, and whether it is discounted."] =
 	"The crest the next upgrade costs, and whether it is discounted."
 
 L["Items"] = "Items"
-L["Visibility"] = "Visibility"
 L["Show Tooltips"] = "Show Tooltips"
 L["Out of Combat"] = "Out of Combat"
 L["Out of Boss Combat"] = "Out of Boss Combat"
@@ -523,6 +525,25 @@ L["Errors and Objectives"] = "Errors and Objectives"
 L["Subzone"] = "Subzone"
 L["PvP Status"] = "PvP Status"
 
+-- Cursor page (Settings)
+L["Show Cursor Ring"] = "Show Cursor Ring"
+L["Ring"] = "Ring"
+L["Size"] = "Size"
+L["Thickness"] = "Thickness"
+L["Thin"] = "Thin"
+L["Normal"] = "Normal"
+L["Thick"] = "Thick"
+L["Class Color"] = "Class Color"
+L["Center Dot"] = "Center Dot"
+L["Swipes"] = "Swipes"
+L["Global Cooldown"] = "Global Cooldown"
+L["Casts"] = "Casts"
+L["In Combat"] = "In Combat"
+L["In Instances"] = "In Instances"
+L["Hide While Turning the Camera"] = "Hide While Turning the Camera"
+L["Idle"] = "Idle"
+L["Casting"] = "Casting"
+
 -- Profiles page (Settings)
 L["AeonUI profile \"%s\"."] = "AeonUI profile \"%s\"."
 L["It holds %d settings this version doesn't use; they are kept."] =
@@ -548,7 +569,6 @@ L["Diagnostic Export"] = "Diagnostic Export"
 L["Diagnostic Export (Incomplete)"] = "Diagnostic Export (Incomplete)"
 L["The saved settings as text, to keep or to share when reporting the problem. It is not a profile string."] =
 	"The saved settings as text, to keep or to share when reporting the problem. It is not a profile string."
-L["Show"] = "Show"
 L["Reset Saved Settings"] = "Reset Saved Settings"
 L["Erase every AeonUI profile and setting on this account and start again with defaults."] =
 	"Erase every AeonUI profile and setting on this account and start again with defaults."

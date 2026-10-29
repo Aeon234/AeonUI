@@ -27,6 +27,7 @@ Menus\Menus.xml
 Input\Input.xml
 Alerts\Alerts.xml
 ScreenText\ScreenText.xml
+Cursor\Cursor.xml
 Settings\Settings.xml
 
 #@do-not-package@
