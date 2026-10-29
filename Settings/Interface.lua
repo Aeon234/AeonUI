@@ -21,6 +21,7 @@ function SettingsInterface:IsAvailable()
 
 	return can.extraActionButton == true or can.helpTips == true or can.bossBanner == true or can.vaultOverlay == true
 		or can.skipCountdown == true or can.confirmBind == true or can.clickThroughToasts == true
+		or can.releaseProtection == true
 end
 
 ---@param section table
@@ -78,7 +79,7 @@ function SettingsInterface:DeclarePopups(page)
 	local Options = AUI.InterfaceOptions
 	local can = AUI.can
 
-	if not (can.skipCountdown or can.confirmBind or can.clickThroughToasts) then
+	if not (can.skipCountdown or can.confirmBind or can.clickThroughToasts or can.releaseProtection) then
 		return
 	end
 
@@ -111,6 +112,11 @@ function SettingsInterface:DeclarePopups(page)
 		Checkbox(card, "toastClickThrough", L["Click-Through Toasts"],
 			L["Level-up and new-zone banners; clicking no longer opens their details."],
 			Options.TOAST_CLICK_THROUGH_PATH)
+	end
+
+	if can.releaseProtection then
+		Checkbox(card, "releaseProtection", L["Confirm Release Spirit"],
+			L["Release Spirit stays disabled until you answer Yes."], Options.RELEASE_PROTECTION_PATH)
 	end
 end
 

@@ -14,6 +14,7 @@ local Schema = AUI.Schema
 ---@field SKIP_KEY_PATH string a `skipKey` choice: the key held to skip, or none
 ---@field CONFIRM_BIND_PATH string items that bind on pickup are looted without asking
 ---@field TOAST_CLICK_THROUGH_PATH string event toasts let clicks through to the world
+---@field RELEASE_PROTECTION_PATH string Release Spirit waits for a confirmation on death
 ---@field SKIP_KEYS string[] the Hold to Skip choices, in the order the page lists them
 local Options = {
 	CLICK_THROUGH_PATH = "interface.extraActionButton.clickThrough",
@@ -25,6 +26,7 @@ local Options = {
 	SKIP_KEY_PATH = "interface.popups.skipKey",
 	CONFIRM_BIND_PATH = "interface.popups.confirmBind",
 	TOAST_CLICK_THROUGH_PATH = "interface.popups.toastClickThrough",
+	RELEASE_PROTECTION_PATH = "interface.popups.releaseProtection",
 	SKIP_KEYS = { "NONE", "SHIFT", "CTRL", "ALT" },
 }
 AUI.InterfaceOptions = Options
@@ -40,6 +42,7 @@ Schema:Boolean(Options.SKIP_COUNTDOWN_PATH, false)
 Schema:Choice(Options.SKIP_KEY_PATH, "skipKey", "NONE")
 Schema:Boolean(Options.CONFIRM_BIND_PATH, false)
 Schema:Boolean(Options.TOAST_CLICK_THROUGH_PATH, false)
+Schema:Boolean(Options.RELEASE_PROTECTION_PATH, false)
 
 ---@param path string one of the paths above
 ---@return any value

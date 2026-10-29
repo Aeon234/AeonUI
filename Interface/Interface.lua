@@ -27,6 +27,7 @@ function Interface:Apply()
 	AUI.HelpTips:Apply()
 	AUI.HideFrames:Apply()
 	AUI.BlizzardPopups:Apply()
+	AUI.ReleaseProtection:Apply()
 end
 
 function Interface:Start()

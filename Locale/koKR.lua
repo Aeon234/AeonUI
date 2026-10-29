@@ -80,6 +80,9 @@ L["Game Menu Scale"] = "게임 메뉴 크기"
 L["%s is off. Its change stays until the interface reloads."] = "%s 기능이 꺼졌습니다. UI를 다시 불러올 때까지 변경 사항이 유지됩니다."
 L["Later"] = "나중에"
 
+-- Release Spirit confirmation popup (Interface)
+L["Do you want to release your spirit?"] = "영혼을 해방하시겠습니까?"
+
 -- Minimap page (Settings)
 L["Elements"] = "요소"
 L["Top 1"] = "위 1"
@@ -472,6 +475,8 @@ L["No Key"] = "키 없음"
 L["Auto Confirm Bind on Pickup"] = "획득 시 귀속 자동 확인"
 L["Click-Through Toasts"] = "클릭 통과 알림"
 L["Level-up and new-zone banners; clicking no longer opens their details."] = "레벨 상승과 새 지역 알림. 클릭해도 세부 정보가 열리지 않습니다."
+L["Confirm Release Spirit"] = "영혼 해방 확인"
+L["Release Spirit stays disabled until you answer Yes."] = "예를 누를 때까지 영혼 해방이 비활성화됩니다."
 
 -- Screen Text page (Settings)
 L["Style Screen Text"] = "화면 문자 스타일"

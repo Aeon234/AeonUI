@@ -80,6 +80,9 @@ L["Game Menu Scale"] = "Escala del menú del juego"
 L["%s is off. Its change stays until the interface reloads."] = "%s está desactivado. Su cambio se mantiene hasta que se recargue la interfaz."
 L["Later"] = "Más tarde"
 
+-- Release Spirit confirmation popup (Interface)
+L["Do you want to release your spirit?"] = "¿Quieres liberar tu espíritu?"
+
 -- Minimap page (Settings)
 L["Elements"] = "Elementos"
 L["Top 1"] = "Superior 1"
@@ -472,6 +475,8 @@ L["No Key"] = "Ninguna tecla"
 L["Auto Confirm Bind on Pickup"] = "Confirmar automáticamente ligado al recogerlo"
 L["Click-Through Toasts"] = "Avisos traspasables"
 L["Level-up and new-zone banners; clicking no longer opens their details."] = "Avisos de subida de nivel y zona nueva; al hacer clic ya no se abren sus detalles."
+L["Confirm Release Spirit"] = "Confirmar Liberar Espíritu"
+L["Release Spirit stays disabled until you answer Yes."] = "Liberar espíritu permanece desactivado hasta que respondas Sí."
 
 -- Screen Text page (Settings)
 L["Style Screen Text"] = "Estilo del texto en pantalla"

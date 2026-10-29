@@ -97,6 +97,9 @@ L["Game Menu Scale"] = "Game Menu Scale"
 L["%s is off. Its change stays until the interface reloads."] = "%s is off. Its change stays until the interface reloads."
 L["Later"] = "Later"
 
+-- Release Spirit confirmation popup (Interface)
+L["Do you want to release your spirit?"] = "Do you want to release your spirit?"
+
 -- Minimap page (Settings)
 L["Elements"] = "Elements"
 L["Top 1"] = "Top 1"
@@ -510,6 +513,8 @@ L["No Key"] = "No Key"
 L["Auto Confirm Bind on Pickup"] = "Auto Confirm Bind on Pickup"
 L["Click-Through Toasts"] = "Click-Through Toasts"
 L["Level-up and new-zone banners; clicking no longer opens their details."] = "Level-up and new-zone banners; clicking no longer opens their details."
+L["Confirm Release Spirit"] = "Confirm Release Spirit"
+L["Release Spirit stays disabled until you answer Yes."] = "Release Spirit stays disabled until you answer Yes."
 
 -- Screen Text page (Settings)
 L["Style Screen Text"] = "Style Screen Text"

@@ -535,6 +535,10 @@ Equal("Forever: no vault, and no extra action card without its frame", window.pa
 AUI.can.helpTips, AUI.can.bossBanner = nil, nil
 window = Load(nil)
 Equal("no Interface page without any of them", window.pages.interface, nil)
+AUI.can.releaseProtection = true
+window = Load(nil)
+Equal("Confirm Release Spirit alone keeps the page", window.pages.interface.sections[1].title .. ": "
+	.. window.pages.interface.sections[1].settings[1].id, "Pop-ups: releaseProtection")
 AUI.can.skipCountdown, AUI.can.confirmBind, AUI.can.clickThroughToasts = true, true, true
 window = Load(nil)
 local popupIDs = {}
@@ -544,13 +548,17 @@ for _, setting in ipairs(window.pages.interface.sections.interfacePopups.setting
 end
 Equal("the Pop-ups card alone, everything off", window.pages.interface.sections[1].title .. ": "
 	.. table.concat(popupIDs, " "), "Pop-ups: skipCountdown=false+ skipKey=NONE<skipCountdown confirmBind=false "
-	.. "toastClickThrough=false+")
+	.. "toastClickThrough=false+ releaseProtection=false+")
+Equal("Confirm Release Spirit's label and line", window.pages.interface.sections.interfacePopups.settings
+	.releaseProtection.label .. " / " .. window.pages.interface.sections.interfacePopups.settings.releaseProtection
+	.description, "Confirm Release Spirit / Release Spirit stays disabled until you answer Yes.")
 local skipKeys = {}
 for _, option in ipairs(window.pages.interface.sections.interfacePopups.settings.skipKey.options) do
 	skipKeys[#skipKeys + 1] = option.text
 end
 Equal("Hold to Skip's keys", table.concat(skipKeys, ","), "No Key,Shift,Ctrl,Alt")
 AUI.can.skipCountdown, AUI.can.confirmBind, AUI.can.clickThroughToasts = nil, nil, nil
+AUI.can.releaseProtection = nil
 AUI.can.screenText = true
 window = Load(nil)
 Equal("Screen Text follows Alerts", table.concat(window.order, " "), "general #mapsHeader minimap #tooltipHeader "

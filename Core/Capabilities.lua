@@ -42,6 +42,7 @@ AUI.Capabilities = Capabilities
 ---@field skipCountdown boolean static pop-ups count down through `StaticPopup_OnUpdate`
 ---@field confirmBind boolean a bind-on-pickup loot slot can be confirmed (`ConfirmLootSlot`)
 ---@field clickThroughToasts boolean event toasts are shown by `EventToastManagerFrame`
+---@field releaseProtection boolean the death dialog updates through `StaticPopupDialogs.DEATH.OnUpdate`
 ---@field screenText boolean the error frame and the zone, subzone and territory lines exist, with their font objects
 AUI.can = {}
 
@@ -97,6 +98,8 @@ function Capabilities:Resolve()
 	can.skipCountdown = StaticPopup_OnUpdate ~= nil and StaticPopupDialogs ~= nil
 	can.confirmBind = ConfirmLootSlot ~= nil and StaticPopup_Hide ~= nil
 	can.clickThroughToasts = EventToastManagerFrame ~= nil and EventToastManagerFrame.DisplayToast ~= nil
+	can.releaseProtection = StaticPopupDialogs ~= nil and StaticPopupDialogs.DEATH ~= nil
+		and StaticPopupDialogs.DEATH.OnUpdate ~= nil and StaticPopup_FindVisible ~= nil and StaticPopup_Show ~= nil
 	can.screenText = UIErrorsFrame ~= nil and ErrorFont ~= nil and ZoneTextString ~= nil and ZoneTextFont ~= nil
 		and SubZoneTextString ~= nil and SubZoneTextFont ~= nil and PVPInfoTextString ~= nil
 		and PVPArenaTextString ~= nil and PVPInfoTextFont ~= nil

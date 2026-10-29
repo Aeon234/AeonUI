@@ -80,6 +80,9 @@ L["Game Menu Scale"] = "Масштаб игрового меню"
 L["%s is off. Its change stays until the interface reloads."] = "%s выключено. Изменение сохранится до перезагрузки интерфейса."
 L["Later"] = "Позже"
 
+-- Release Spirit confirmation popup (Interface)
+L["Do you want to release your spirit?"] = "Освободить дух?"
+
 -- Minimap page (Settings)
 L["Elements"] = "Элементы"
 L["Top 1"] = "Верх 1"
@@ -472,6 +475,8 @@ L["No Key"] = "Без клавиши"
 L["Auto Confirm Bind on Pickup"] = "Автоподтверждение «Персональный при получении»"
 L["Click-Through Toasts"] = "Сквозные уведомления"
 L["Level-up and new-zone banners; clicking no longer opens their details."] = "Баннеры уровня и новой зоны; щелчок больше не открывает подробности."
+L["Confirm Release Spirit"] = "Подтверждать освобождение духа"
+L["Release Spirit stays disabled until you answer Yes."] = "«Освободить дух» недоступно, пока вы не ответите «Да»."
 
 -- Screen Text page (Settings)
 L["Style Screen Text"] = "Оформлять текст на экране"

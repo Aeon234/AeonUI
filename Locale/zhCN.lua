@@ -80,6 +80,9 @@ L["Game Menu Scale"] = "游戏菜单缩放"
 L["%s is off. Its change stays until the interface reloads."] = "%s 已关闭。重载界面前其更改仍会保留。"
 L["Later"] = "稍后"
 
+-- Release Spirit confirmation popup (Interface)
+L["Do you want to release your spirit?"] = "你要释放灵魂吗？"
+
 -- Minimap page (Settings)
 L["Elements"] = "元素"
 L["Top 1"] = "顶部 1"
@@ -472,6 +475,8 @@ L["No Key"] = "无需按键"
 L["Auto Confirm Bind on Pickup"] = "自动确认拾取后绑定"
 L["Click-Through Toasts"] = "可点穿的通知"
 L["Level-up and new-zone banners; clicking no longer opens their details."] = "升级和新区域横幅；点击不再打开详情。"
+L["Confirm Release Spirit"] = "确认释放灵魂"
+L["Release Spirit stays disabled until you answer Yes."] = "回答“是”之前，释放灵魂按钮保持禁用。"
 
 -- Screen Text page (Settings)
 L["Style Screen Text"] = "设置屏幕文字样式"

@@ -3,7 +3,8 @@
 -- turned off, the stand-down for addons that keep their own scale, and the game menu's scale; then the extra action
 -- button's click-through and art, out of combat, put back when off; help tips marked seen; the boss banner's events
 -- taken and given back; the Great Vault's cover hidden once its addon loads, and shown again when off; and the
--- pop-ups: accept countdowns skipped with or without a key, bind on pickup confirmed, and toasts let clicks through.
+-- pop-ups: accept countdowns skipped with or without a key, bind on pickup confirmed, and toasts let clicks through;
+-- and Release Spirit held until the confirmation, rearmed on each death and left to Blizzard after Yes.
 -- Run from any directory with Lua 5.1: lua Tools/check_interface.lua
 -- Loads the real files against stubbed globals. Exits non-zero on the first failed check.
 
@@ -14,6 +15,7 @@ local root = (arg and arg[0] or ""):match("^(.-)[^/\\]*$") .. "../"
 RELOADUI = "Reload UI"
 UI_SCALE = "UI Scale"
 StaticPopupDialogs = {}
+YES = "Yes"
 
 local loaded = {}
 C_AddOns = {
@@ -367,7 +369,7 @@ end
 
 for _, file in ipairs({ "Profile/Schema.lua", "Interface/Options.lua", "Interface/ExtraActionButton.lua",
 	"Interface/HelpTips.lua", "Interface/HideFrames.lua",
-	"Interface/Popups.lua", "Interface/Interface.lua" }) do
+	"Interface/Popups.lua", "Interface/ReleaseProtection.lua", "Interface/Interface.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 
@@ -452,6 +454,12 @@ local function Button()
 	end
 	function button:SetText(text)
 		self.text = text
+	end
+	function button:SetEnabled(enabled)
+		self.enabled = enabled
+	end
+	function button:IsEnabled()
+		return self.enabled
 	end
 
 	return button
@@ -551,5 +559,85 @@ Equal("off: every frame it changed catches clicks again", tostring(EventToastMan
 	.. tostring(toast.mouse) .. " " .. tostring(EventToastManagerFrame.currentDisplayingToast.mouse), "true true true")
 EventToastManagerFrame:DisplayToast()
 Equal("and new toasts are left alone", EventToastManagerFrame.currentDisplayingToast.mouse, true)
+
+-- Release protection ------------------------------------------------------------------------------------
+
+local dead, ghost, deathShown, blocked = false, false, false, false
+function UnitIsDead(unit)
+	assert(unit == "player", "unexpected unit " .. tostring(unit))
+
+	return dead
+end
+function UnitIsGhost()
+	return ghost
+end
+function StaticPopup_FindVisible(which)
+	return which == "DEATH" and deathShown and {} or nil
+end
+-- Blizzard's update: Release Spirit is enabled unless Blizzard blocks release.
+StaticPopupDialogs.DEATH = {
+	OnUpdate = function(dialog)
+		dialog.button:SetEnabled(not blocked)
+	end,
+}
+local death = Dialog("DEATH")
+local function Update()
+	StaticPopupDialogs.DEATH.OnUpdate(death)
+
+	return death.button.enabled
+end
+local function Asked()
+	return popups[#popups] and popups[#popups].which == "AEONUI_RELEASE_SPIRIT" or false
+end
+local function HiddenLast()
+	return hidden[#hidden]
+end
+
+Equal("Confirm Release Spirit is off by default", AUI.Profile:Get(Options.RELEASE_PROTECTION_PATH), false)
+dead, deathShown = true, true
+Set(Options.RELEASE_PROTECTION_PATH, true)
+Equal("a client without the death dialog's update is left alone", tostring(eventFrame.events.PLAYER_DEAD) .. " "
+	.. tostring(Asked()) .. " " .. tostring(Update()), "nil false true")
+Set(Options.RELEASE_PROTECTION_PATH, false)
+AUI.can.releaseProtection = true
+Equal("off: deaths are not followed", eventFrame.events.PLAYER_DEAD, nil)
+Set(Options.RELEASE_PROTECTION_PATH, true)
+Equal("turned on while dead: asks at once", Asked(), true)
+Equal("and Release Spirit stays disabled after Blizzard's update", Update(), false)
+StaticPopupDialogs.AEONUI_RELEASE_SPIRIT.OnAccept()
+Equal("after Yes it is Blizzard's again", Update(), true)
+blocked = true
+Equal("Blizzard's own block still holds after Yes", Update(), false)
+blocked = false
+dead, deathShown = false, false
+Fire("PLAYER_ALIVE")
+Equal("resurrected: the question is hidden", HiddenLast(), "AEONUI_RELEASE_SPIRIT:nil")
+local asked = #popups
+dead = true
+Fire("PLAYER_DEAD")
+Equal("the next death waits for Blizzard's dialog", #popups, asked)
+deathShown = true
+RunTimers()
+Equal("then asks again", tostring(Asked()) .. " " .. tostring(Update()), "true false")
+ghost = true
+Fire("PLAYER_ALIVE")
+Equal("released as a ghost: stood down", Update(), true)
+ghost = false
+asked = #popups
+Fire("PLAYER_ENTERING_WORLD")
+Fire("PLAYER_DEAD")
+RunTimers()
+Equal("a reload while dead asks again, once", tostring(#popups - asked) .. " " .. tostring(Update()), "1 false")
+local guarded = StaticPopupDialogs.DEATH.OnUpdate
+Set(Options.RELEASE_PROTECTION_PATH, false)
+Equal("off: the question is hidden and Release Spirit is Blizzard's", HiddenLast() .. " " .. tostring(Update()),
+	"AEONUI_RELEASE_SPIRIT:nil true")
+Equal("and deaths are no longer followed", tostring(eventFrame.events.PLAYER_DEAD) .. " "
+	.. tostring(eventFrame.events.PLAYER_UNGHOST), "nil nil")
+Set(Options.RELEASE_PROTECTION_PATH, true)
+Equal("hooked once", StaticPopupDialogs.DEATH.OnUpdate, guarded)
+Equal("the confirmation shows while dead and lasts", tostring(StaticPopupDialogs.AEONUI_RELEASE_SPIRIT.whileDead)
+	.. " " .. StaticPopupDialogs.AEONUI_RELEASE_SPIRIT.timeout .. " "
+	.. tostring(StaticPopupDialogs.AEONUI_RELEASE_SPIRIT.hideOnEscape), "true 0 false")
 
 io.stdout:write(("check_interface: %d checks passed\n"):format(checks))

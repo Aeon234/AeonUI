@@ -6,5 +6,6 @@
 	<Script file="HelpTips.lua" />
 	<Script file="HideFrames.lua" />
 	<Script file="Popups.lua" />
+	<Script file="ReleaseProtection.lua" />
 	<Script file="Interface.lua" />
 </Ui>
