@@ -105,6 +105,17 @@ function AUI:OpenSettings(page)
 	self.Settings:Open(page)
 end
 
+---Closes the settings window when it is open, else opens it as `OpenSettings` does.
+function AUI:ToggleSettings()
+	if self.Settings and self.Settings:IsOpen() then
+		self.Settings:Close()
+
+		return
+	end
+
+	self:OpenSettings()
+end
+
 function AUI:PrintDiagnostics()
 	local Profile = self.Profile
 
