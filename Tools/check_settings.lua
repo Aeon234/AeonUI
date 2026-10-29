@@ -136,6 +136,7 @@ local CONTROL_FIELDS = {
 	Toggle = {},
 	Details = { summary = true },
 	TextInput = { allowEmpty = true, maxLetters = true, validate = true },
+	OrderedList = { title = true, items = true, enabled = true },
 }
 local PAGE_FIELDS = { title = true, description = true, under = true, icon = true, iconTint = true, slot = true,
 	switch = true }
@@ -372,6 +373,8 @@ end
 
 ALWAYS, COLOR, OPACITY = "Always", "Color", "Opacity"
 COMBAT, PET, CHARACTER = "Combat", "Pet", "Character"
+READY_CHECK, PLAYER_COUNTDOWN_BUTTON, KEY_BINDINGS, NONE = "Ready Check", "Countdown", "Key Bindings", "None"
+RAID_TARGET_1, RAID_TARGET_8 = "Star", "Skull"
 
 local AUI = {}
 assert(loadfile(root .. "Core/Core.lua"))("AeonUI", AUI)
@@ -386,11 +389,12 @@ for _, file in ipairs({ "Core/Callbacks.lua", "Core/Capabilities.lua", "Core/Bro
 	"Automation/Options.lua", "Automation/GameSettings.lua", "Menus/Options.lua", "Input/Options.lua",
 	"Input/FocusShortcut.lua", "Alerts/Options.lua", "Interface/Options.lua", "ScreenText/Options.lua",
 	"ScreenText/ScreenText.lua", "Cursor/Options.lua", "Cursor/CursorRing.lua", "Notifications/Options.lua",
-	"Notifications/Notifications.lua",
+	"Notifications/Notifications.lua", "Markers/Options.lua", "Markers/Bar.lua", "Markers/Cycler.lua",
+	"Markers/Markers.lua",
 	"Settings/Window.lua", "Settings/MinimapEditor.lua", "Settings/General.lua", "Settings/Minimap.lua",
 	"Settings/WorldMap.lua", "Settings/Tooltip.lua", "Settings/Automation.lua", "Settings/PlayerMenu.lua",
 	"Settings/Input.lua", "Settings/Alerts.lua", "Settings/Interface.lua", "Settings/ScreenText.lua",
-	"Settings/Cursor.lua", "Settings/Notifications.lua",
+	"Settings/Cursor.lua", "Settings/Notifications.lua", "Settings/RaidMarkers.lua",
 	"Settings/Profiles.lua", "Settings/Recovery.lua", "Settings/EditTargets.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
@@ -748,6 +752,55 @@ Equal("Low Durability's mark", notificationsPage.sections.notificationsCharacter
 for _, flag in ipairs({ "potionNotice", "petNotices", "petHealthNotice", "talentNotice", "durabilityNotice" }) do
 	AUI.can[flag] = nil
 end
+local function MarkerCards(page)
+	local cards = {}
+	for _, section in ipairs(page.sections) do
+		local ids = {}
+		for _, setting in ipairs(section.settings) do
+			ids[#ids + 1] = setting.id .. (setting.description and "+" or "")
+		end
+		cards[#cards + 1] = section.title .. ": " .. table.concat(ids, " ")
+	end
+
+	return table.concat(cards, " | ")
+end
+AUI.can.raidMarkers, AUI.can.worldMarkers = true, true
+window = Load(nil)
+local markersPage = window.pages.raidMarkers
+Equal("Raid Markers follows Notifications", table.concat(window.order, " "), "general #mapsHeader minimap "
+	.. "#tooltipHeader tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader automation alerts notifications "
+	.. "raidMarkers - profiles")
+Equal("with its icon, a preview and no switch", markersPage.info.under .. " "
+	.. tostring(markersPage.info.icon == AUI.Media.sidebar.raidMarkers) .. " " .. tostring(markersPage.preview ~= nil)
+	.. " " .. tostring(markersPage.info.switch), "qualityOfLifeHeader true true nil")
+Equal("every card titled, a line only where the keys are bound", MarkerCards(markersPage),
+	"Bar: markersEnabled markersVisibility markersMouseover markersTooltips markersAnimate | "
+	.. "Buttons: markersReadyCheck markersCountdown markersSeconds | "
+	.. "Layout: markersOrientation markersSize markersSpacing | "
+	.. "Border: markersBorderStyle markersBorderColor markersBorderThickness | "
+	.. "World Marker Cycle: markersKeys+ markersCycleOrder")
+local barCard = markersPage.sections.markersBar
+Equal("the bar's switch, off; its settings follow it", barCard.settings.markersEnabled.kind .. " "
+	.. tostring(barCard.settings.markersEnabled.default) .. " " .. barCard.settings.markersAnimate.depends .. " "
+	.. markersPage.sections.markersButtons.settings.markersSeconds.depends, "Toggle false markersEnabled markersCountdown")
+local cycleCard = markersPage.sections.markersCycle
+local cycleOrder = cycleCard.settings.markersCycleOrder
+Equal("the cycle works without the bar", tostring(cycleOrder.depends) .. " "
+	.. tostring(cycleCard.settings.markersKeys.depends), "nil nil")
+Equal("its order: eight markers with their icons, each on", #cycleOrder.items() .. " " .. cycleOrder.items()[1].text
+	.. " " .. table.concat(cycleOrder.default, ",", 1, 2) .. " " .. tostring(cycleOrder.enabled.default.SKULL) .. " "
+	.. cycleOrder.enabled.path,
+	"8 |TInterface\\TargetingFrame\\UI-RaidTargetingIcon_1:16|t Star STAR,CIRCLE true markers.cycle.show")
+AUI.can.worldMarkers = nil
+window = Load(nil)
+Equal("without world markers: no cycle card", tostring(window.pages.raidMarkers.sections.markersCycle), "nil")
+AUI.can.raidMarkers, AUI.can.worldMarkers = nil, true
+window = Load(nil)
+Equal("without the bar: the cycle card alone, no preview", MarkerCards(window.pages.raidMarkers) .. " "
+	.. tostring(window.pages.raidMarkers.preview), "World Marker Cycle: markersKeys+ markersCycleOrder nil")
+AUI.can.worldMarkers = nil
+window = Load(nil)
+Equal("no Raid Markers page without either", window.pages.raidMarkers, nil)
 Equal("Settings:Window reuses the window", Settings:Window(), window)
 Equal("the store is the active config", declaration.store(), Profile.config)
 Equal("account settings are the store's", declaration.account(), AeonUIDB.global)

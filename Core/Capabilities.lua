@@ -52,6 +52,9 @@ AUI.Capabilities = Capabilities
 ---@field talentNotice boolean unspent talent points can be read
 ---@field durabilityNotice boolean equipped items' durability can be read
 ---@field potionNotice boolean the bags' potions, their use spells and their cooldown can be read
+---@field raidMarkers boolean a bar of secure marker buttons can follow a visibility driver and start a role check
+---@field worldMarkers boolean the client has world markers (`IsRaidMarkerSystemEnabled`)
+---@field secureSnippets boolean wrapped secure scripts run (Retail)
 AUI.can = {}
 
 ---The only place a client difference is detected. Runs once at login.
@@ -124,6 +127,13 @@ function Capabilities:Resolve()
 	can.potionNotice = C_Container ~= nil and C_Container.GetItemCooldown ~= nil
 		and C_Container.GetContainerItemID ~= nil and C_Item ~= nil and C_Item.GetItemSpell ~= nil
 		and C_Item.GetItemInfoInstant ~= nil and Enum.ItemConsumableSubclass ~= nil
+	can.raidMarkers = RegisterStateDriver ~= nil and UnregisterStateDriver ~= nil and InitiateRolePoll ~= nil
+		and IsEveryoneAssistant ~= nil and C_AddOns ~= nil and C_AddOns.IsAddOnLoaded ~= nil
+	can.worldMarkers = IsRaidMarkerSystemEnabled ~= nil and IsRaidMarkerSystemEnabled() == true
+		and IsRaidMarkerActive ~= nil
+	-- Forever lacks the restricted environment's compiler, so wrapped scripts never run there.
+	can.secureSnippets = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE and SecureHandlerWrapScript ~= nil
+		and SecureHandlerSetFrameRef ~= nil
 
 	self.resolved = true
 

@@ -63,6 +63,7 @@ frame:SetScript("OnEvent", function(self, event)
 		AUI.ScreenText:Start()
 		AUI.CursorRing:Start()
 		AUI.Notifications:Start()
+		AUI.Markers:Start()
 		AUI.EditTargets:Register()
 	end
 end)

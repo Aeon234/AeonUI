@@ -15,6 +15,7 @@ local PATHS = {
 	minimap = "minimap.position",
 	tooltip = "tooltip.position",
 	notifications = "notifications.position",
+	raidMarkers = "markers.position",
 }
 
 ---@return table[] targets the frames that exist this session, in the library's form
@@ -61,6 +62,24 @@ function EditTargets:Targets()
 				Notifications:Sample(shown)
 			end,
 			settings = { page = "notifications", section = "notificationsStyle" },
+		}
+	end
+
+	local MarkerBar = AUI.MarkerBar
+
+	if MarkerBar.bar and AUI.Profile:Get("markers.enabled") then
+		targets[#targets + 1] = {
+			key = "raidMarkers",
+			label = AUI.L["Raid Markers Bar"],
+			frame = MarkerBar.bar,
+			default = MarkerBar.DEFAULT_POSITION,
+			sample = function(shown)
+				MarkerBar:Sample(shown)
+			end,
+			settings = { page = "raidMarkers", section = "markersLayout" },
+			place = function(position)
+				MarkerBar:Place(position)
+			end,
 		}
 	end
 

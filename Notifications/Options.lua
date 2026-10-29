@@ -29,8 +29,8 @@ local Schema = AUI.Schema
 ---@field FADE_IN number seconds; the spring that brings a line's opacity up
 ---@field FADE_OUT number seconds; the spring that takes a line's opacity down
 ---@field TRAVEL number units a line moves down as it enters and up as it leaves
----@field REST_DISTANCE number units from its place at which a moving line is at rest
----@field REST_ALPHA number opacity from its target at which a fading line is at rest
+---@field REST_DISTANCE number units from its place within which a moving line comes to rest
+---@field REST_ALPHA number opacity from its target within which a fading line comes to rest
 ---@field COMBAT_GRACE number seconds after leaving combat in which entering it again shows nothing new
 ---@field DISMOUNT_GRACE number seconds after dismounting before pet reminders apply again
 ---@field LINE_GAP number
@@ -143,32 +143,6 @@ end
 ---@return { point: string, x: number, y: number }
 function Options:DefaultPosition(parentHeight)
 	return { point = "TOP", x = 0, y = -math.floor(parentHeight / 2 - 150 + 0.5) }
-end
-
----Steps a critically damped spring toward its target. The step is exact for any frame time, and a target changed
----mid-motion carries on from the current value and velocity, so motion stays continuous when it is redirected.
----@param value number
----@param velocity number units per second
----@param target number
----@param response number seconds, the undamped period; lower is quicker
----@param elapsed number seconds
----@param rest number distance from the target at which the spring stops
----@return number value the target once at rest
----@return number velocity 0 once at rest
----@return boolean settled
-function Options:Spring(value, velocity, target, response, elapsed, rest)
-	local omega = 2 * math.pi / response
-	local offset = value - target
-	local carry = velocity + omega * offset
-	local decay = math.exp(-omega * elapsed)
-	local nextOffset = (offset + carry * elapsed) * decay
-	local nextVelocity = (carry - omega * (offset + carry * elapsed)) * decay
-
-	if math.abs(nextOffset) < rest and math.abs(nextVelocity) < rest / response then
-		return target, 0, true
-	end
-
-	return target + nextOffset, nextVelocity, false
 end
 
 -- Pet --------------------------------------------------------------------------------------------------------

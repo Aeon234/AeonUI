@@ -1,0 +1,6 @@
+<Bindings>
+	<Binding name="CLICK AeonUIWorldMarkerPlace:LeftButton" header="AEONUI" category="ADDONS">
+	</Binding>
+	<Binding name="CLICK AeonUIWorldMarkerClear:LeftButton" category="ADDONS">
+	</Binding>
+</Bindings>

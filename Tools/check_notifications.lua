@@ -102,7 +102,7 @@ local function FontString()
 	end
 	function text:ClearAllPoints() end
 	function text:SetPoint(_, _, _, _, y)
-		self.offset = y + 0
+		self.shownOffset = y + 0
 	end
 	function text:GetStringWidth()
 		return #(self.text or "") * 10
@@ -329,6 +329,14 @@ local function Set(path, value)
 	AUI.Callbacks:Fire("Profile", path)
 end
 
+local settingsLibrary = {}
+local springs = assert(loadfile(root .. "Tools/springs.lua"))(settingsLibrary)
+function LibStub(name)
+	assert(name == "LibAeonSettings-1.0", name)
+
+	return settingsLibrary
+end
+
 for _, file in ipairs({ "Notifications/Options.lua", "Notifications/Notifications.lua", "Notifications/Combat.lua",
 	"Notifications/Pet.lua", "Notifications/Character.lua", "Notifications/Potion.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
@@ -369,18 +377,7 @@ local function Line(key)
 	end
 end
 
--- Runs the stack's OnUpdate for `seconds` at 60 frames a second, or until it stops.
-local function Frames(seconds)
-	for _ = 1, math.floor(seconds * 60 + 0.5) do
-		local onUpdate = Notifications.frame.onUpdate
-
-		if not onUpdate then
-			return
-		end
-
-		onUpdate(Notifications.frame, 1 / 60)
-	end
-end
+local Frames = springs.Frames
 
 local function On(key)
 	Set(Options:Path(key, "enabled"), true)
@@ -439,20 +436,6 @@ Equal("the lowest durability", Options:LowestDurability({ { current = 50, maximu
 Equal("nothing with durability", Options:LowestDurability({}), nil)
 Equal("a potion's cooldown waiting to start", (Options:PotionCooldown(0, 0, 0, 100)), "waiting")
 local cooldownState, remaining = Options:PotionCooldown(90, 300, 1, 100)
-local value, velocity, settled = Options:Spring(0, 0, 10, 0.35, 0.1, 0.1)
-Equal("a spring moves toward its target without passing it", value > 0 and value < 10 and velocity > 0
-	and not settled, true)
-local fine, fineVelocity = 0, 0
-for _ = 1, 10 do
-	fine, fineVelocity = Options:Spring(fine, fineVelocity, 10, 0.35, 0.01, 0.1)
-end
-Equal("the same wherever the frames fall", math.abs(fine - value) < 1e-9 and math.abs(fineVelocity - velocity) < 1e-9,
-	true)
-local turned, turnedVelocity = Options:Spring(value, velocity, 0, 0.35, 0, 0.1)
-Equal("redirected, it carries on from its value and velocity", turned .. " " .. turnedVelocity,
-	value .. " " .. velocity)
-local rested, restVelocity, rests = Options:Spring(9.99, 0, 10, 0.35, 1, 0.1)
-Equal("and comes to rest on its target", rested .. " " .. restVelocity .. " " .. tostring(rests), "10 0 true")
 Equal("running", cooldownState .. " " .. remaining, "running 290")
 Equal("the global cooldown is not the potion's", (Options:PotionCooldown(99, 1.5, 1, 100)), "over")
 
@@ -475,34 +458,41 @@ Equal("in the chosen style and the notice's color", Line("enter").font .. " / " 
 	"LSM:Friz Quadrata TT 22 SLUG / 1 0.25 0.25")
 local entering, below = Line("enter"), Line("durability")
 Equal("a new line starts clear, above its place, and pushes the line below down from where it was",
-	entering.shownAlpha .. " " .. entering.offset .. " " .. below.offset, "0 8 0")
-Equal("moving", Notifications.frame.onUpdate ~= nil, true)
+	entering.shownAlpha .. " " .. entering.shownOffset .. " " .. below.shownOffset, "0 8 0")
+Equal("moving", springs.Moving(), true)
 Frames(0.1)
-Equal("partway", entering.shownAlpha > 0.3 and entering.shownAlpha < 1 and entering.offset < 8 and entering.offset > 0
-	and below.offset < 0 and below.offset > -22, true)
+Equal("partway", entering.shownAlpha > 0.3 and entering.shownAlpha < 1 and entering.shownOffset < 8 and entering.shownOffset > 0
+	and below.shownOffset < 0 and below.shownOffset > -22, true)
 Frames(2)
-Equal("at rest: in place, opaque, and the OnUpdate stopped", entering.shownAlpha .. " " .. entering.offset .. " "
-	.. below.offset .. " " .. tostring(Notifications.frame.onUpdate), "1 0 -22 nil")
+Equal("at rest: in place, opaque, and nothing moving", entering.shownAlpha .. " " .. entering.shownOffset .. " "
+	.. below.shownOffset .. " " .. tostring(springs.Moving()), "1 0 -22 false")
 Notifications:Show("leave")
 Equal("Leaving replaces Entering in its slot", Shown(), "-Combat | Low Durability (20%)")
 local leaving = Line("leave")
-Equal("cross-fading in place", #Notifications.lines .. " " .. leaving.offset .. " " .. tostring(entering.leaving)
-	.. " " .. entering.offset, "3 0 true 0")
+Equal("cross-fading in place", #Notifications.lines .. " " .. leaving.shownOffset .. " " .. tostring(entering.leaving)
+	.. " " .. entering.shownOffset, "3 0 true 0")
 Frames(2)
 Equal("the replaced line is released", #Notifications.lines, 2)
 Advance(3)
 Equal("a timed notice leaves after the duration", Shown(), "Low Durability (20%)")
-Equal("giving its room to the line below", below.target, 0)
+Equal("giving its room to the line below", below.offset.target, 0)
 Frames(0.1)
-Equal("moving up as it fades", leaving.offset > 0 and leaving.shownAlpha < 1 and below.offset > -22, true)
+Equal("moving up as it fades", leaving.shownOffset > 0 and leaving.shownAlpha < 1 and below.shownOffset > -22, true)
 Notifications:Show("leave")
 Equal("shown again while leaving, it turns back from where it is", leaving.leaving == nil
-	and leaving.shownAlpha < 1 and leaving.offset > 0 and #Notifications.lines == 2, true)
+	and leaving.shownAlpha < 1 and leaving.shownOffset > 0 and #Notifications.lines == 2, true)
 Frames(2)
-Equal("back in place", leaving.shownAlpha .. " " .. leaving.offset .. " " .. below.offset, "1 0 -22")
+Equal("back in place", leaving.shownAlpha .. " " .. leaving.shownOffset .. " " .. below.shownOffset, "1 0 -22")
 Notifications:Dismiss("leave")
 Frames(2)
-Equal("and is gone", Shown() .. " " .. #Notifications.lines .. " " .. below.offset, "Low Durability (20%) 1 0")
+Equal("and is gone", Shown() .. " " .. #Notifications.lines .. " " .. below.shownOffset, "Low Durability (20%) 1 0")
+springs.reduce = true
+Notifications:Show("enter")
+Equal("Reduce Motion: in place at once", Line("enter").shownAlpha .. " " .. Line("enter").shownOffset .. " " .. below.shownOffset
+	.. " " .. tostring(springs.Moving()), "1 0 -22 false")
+Notifications:Dismiss("enter")
+Equal("and gone at once", #Notifications.lines .. " " .. below.shownOffset, "1 0")
+springs.reduce = false
 Advance(30)
 Equal("a reminder stays", Shown(), "Low Durability (20%)")
 Notifications:Sample(true)

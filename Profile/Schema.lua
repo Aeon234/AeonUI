@@ -12,12 +12,12 @@ local POINTS = {
 ---One setting a profile can hold: its type, default and bounds.
 ---@class AUISchemaField
 ---@field path string dot-separated path inside a profile's config
----@field kind "boolean"|"number"|"choice"|"string"|"color"|"position"|"lists"
+---@field kind "boolean"|"number"|"choice"|"string"|"color"|"position"|"lists"|"order"
 ---@field default any the factory value; nil for an optional field, which then follows a shared setting
 ---@field min number?
 ---@field max number?
 ---@field integer boolean? a number must be whole
----@field options table<string, true>? the values a choice accepts, or the list names a lists field accepts
+---@field options table<string, true>? the values a choice or an order accepts, or the list names a lists field accepts
 ---@field maxLength integer? the longest string accepted
 ---@field allowEmpty boolean? a string may be empty
 ---@field optional boolean? absence is meaningful: the setting follows a shared one
@@ -135,6 +135,20 @@ function Schema:Lists(path, names, maxLength)
 	Field(path, { kind = "lists", options = options, maxLength = maxLength, optional = true })
 end
 
+---An order of a choice list's values, each at most once; a value it leaves out takes its place in the default.
+---@param path string
+---@param list string a choice list in `Schema.choices`
+---@param default string[]
+function Schema:Order(path, list, default)
+	local options = {}
+
+	for _, value in ipairs(assert(self.choices[list], list)) do
+		options[value] = true
+	end
+
+	Field(path, { kind = "order", default = default, options = options })
+end
+
 ---A setting that follows a shared one until it holds its own value: optional, with the shared field's kind and
 ---bounds.
 ---@param path string
@@ -236,6 +250,33 @@ local function IsLists(value, field)
 	return true
 end
 
+---@param value any
+---@param field AUISchemaField an order field
+---@return boolean
+local function IsOrder(value, field)
+	if type(value) ~= "table" then
+		return false
+	end
+
+	local count, seen, options = 0, {}, field.options or {}
+
+	for _ in pairs(value) do
+		count = count + 1
+	end
+
+	for index = 1, count do
+		local item = value[index]
+
+		if type(item) ~= "string" or not options[item] or seen[item] then
+			return false
+		end
+
+		seen[item] = true
+	end
+
+	return true
+end
+
 ---@param path string
 ---@param value any nil clears an optional field
 ---@return boolean ok
@@ -292,6 +333,10 @@ function Schema:CheckValue(path, value)
 	elseif kind == "lists" then
 		if not IsLists(value, field) then
 			return false, ("%s must be named lists of short texts, each text once"):format(path)
+		end
+	elseif kind == "order" then
+		if not IsOrder(value, field) then
+			return false, ("%s must be an order of its choices, each once"):format(path)
 		end
 	elseif type(value) ~= kind then
 		return false, ("%s must be a %s"):format(path, kind)
