@@ -165,5 +165,6 @@
 		</Scripts>
 	</Frame>
 
+	<Script file="Openers.lua" />
 	<Script file="DeleteCheapestItem.lua" />
 </Ui>

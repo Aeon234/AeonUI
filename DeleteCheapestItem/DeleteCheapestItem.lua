@@ -4,6 +4,7 @@ local L = AUI.L
 local Options = AUI.DeleteCheapestItemOptions
 local Window = AUI.DeleteCheapestItemWindow
 local Actions = AUI.DeleteCheapestItemActions
+local Openers = AUI.DeleteCheapestItemOpeners
 
 -- The hidden button the key binding clicks (Bindings.xml).
 local TOGGLE_BUTTON = "AeonUIDeleteCheapestItemToggle"
@@ -13,8 +14,9 @@ _G["BINDING_NAME_CLICK " .. TOGGLE_BUTTON .. ":LeftButton"] = L["Delete Cheapest
 -- Events that change the list while the window is shown.
 local LIST_EVENTS = { "BAG_UPDATE_DELAYED", "GET_ITEM_INFO_RECEIVED" }
 
----The Delete Cheapest Item module: the window, opened by hand with `/aui dci` or the key binding. Nothing runs while
----the feature is off, and the list follows the bags only while the window is shown.
+---The Delete Cheapest Item module: the window, opened by hand with `/aui dci` or the key binding and by its openers
+---(loot, merchant, quest rewards). Nothing runs while the feature is off, and the list follows the bags only while
+---the window is shown.
 ---@class AUIDeleteCheapestItem
 ---@field active boolean started this session
 ---@field following boolean the list's events are followed
@@ -79,7 +81,11 @@ function DeleteCheapestItem:Toggle()
 end
 
 function DeleteCheapestItem:Apply()
-	if not self:IsOn() then
+	local on = self:IsOn()
+
+	Openers:Follow(on)
+
+	if not on then
 		Window:Close()
 
 		return
@@ -103,10 +109,15 @@ function DeleteCheapestItem:Start()
 	end
 
 	self.active = true
-	Window.onShown = function(shown)
+	Window.onShown = function(shown, byCode)
 		self:Follow(shown)
+
+		if not shown and not byCode then
+			Openers:Dismissed(Window.context)
+		end
 	end
 	AUI.Callbacks:Register("Profile", self, self.OnProfileChanged)
+	self:Apply()
 end
 
 local toggle = CreateFrame("Button", TOGGLE_BUTTON, UIParent)

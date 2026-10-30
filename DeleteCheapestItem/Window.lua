@@ -60,12 +60,15 @@ local BACKDROP = { bgFile = "Interface\\Buttons\\WHITE8x8", edgeFile = "Interfac
 ---@class AUIDeleteCheapestItemWindow
 ---@field frame AeonUIDeleteCheapestItemMixin?
 ---@field context AUIDeleteCheapestItemContext?
----@field onShown fun(shown: boolean)? called as the window shows and hides
+---@field onShown fun(shown: boolean, byCode: boolean)? called as the window shows and hides; `byCode` when it was
+---closed by `Window:Close` rather than by hand
+---@field closing boolean `Window:Close` started the hide
 ---@field hooked table<Frame, true> openers whose size changes re-place the window
 ---@field sliding AeonUIDeleteCheapestItemRowMixin? the row sliding out; the list is rebuilt when it finishes
 ---@field toastTimer table? hides the Undo message
 local Window = {
 	hooked = {},
+	closing = false,
 }
 AUI.DeleteCheapestItemWindow = Window
 
@@ -281,6 +284,7 @@ end
 ---@field Detail FontString
 ---@field Empty FontString
 ---@field Toast AUIDeleteCheapestItemToast
+---@field HideAnim AnimationGroup
 ---@field Open fun(self: AeonUIDeleteCheapestItemMixin) shows the panel, sizes it and plays its show animation
 ---@field Close fun(self: AeonUIDeleteCheapestItemMixin) plays the hide animation
 ---@field Resize fun(self: AeonUIDeleteCheapestItemMixin) sizes the panel to its rows
@@ -346,17 +350,22 @@ function Panel:OnHideAnimFinished()
 end
 
 function Panel:OnShow()
+	Window.closing = false
+
 	if Window.onShown then
-		Window.onShown(true)
+		Window.onShown(true, false)
 	end
 end
 
 function Panel:OnHide()
+	local byCode = Window.closing
+
+	Window.closing = false
 	Window:HideToast()
 	Window.sliding = nil
 
 	if Window.onShown then
-		Window.onShown(false)
+		Window.onShown(false, byCode)
 	end
 end
 
@@ -665,7 +674,9 @@ function Window:Open(context)
 	self.context = context
 	self:Fill(false)
 
-	if not frame:IsShown() then
+	-- A window still playing its hide animation shows again rather than hiding when the animation ends.
+	if not frame:IsShown() or frame.HideAnim:IsPlaying() then
+		self.closing = false
 		frame:Open()
 	else
 		frame:Resize()
@@ -686,6 +697,7 @@ function Window:Close()
 	local frame = self.frame
 
 	if frame and frame:IsShown() then
+		self.closing = true
 		frame:Close()
 	end
 end

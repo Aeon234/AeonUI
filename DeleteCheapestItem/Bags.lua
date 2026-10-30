@@ -73,3 +73,34 @@ function Bags:List(ignored)
 
 	return entries, free, uncached
 end
+
+---@return integer free free slots in general-purpose bags
+function Bags:FreeSlots()
+	local bags = {}
+
+	for bag = BACKPACK_CONTAINER, NUM_BAG_SLOTS do
+		local free, family = C_Container.GetContainerNumFreeSlots(bag)
+
+		bags[#bags + 1] = { free = free, family = family }
+	end
+
+	return Options.FreeSlots(bags)
+end
+
+---The item a loot slot holds and its worth by the price choice, the same way a row's worth is reckoned.
+---@param slot integer
+---@return { name: string, quality: integer, value: number }? incoming nil for an empty slot, money or currency
+function Bags:Incoming(slot)
+	if not LootSlotHasItem(slot) or GetLootSlotType(slot) ~= Enum.LootSlotType.Item then
+		return nil
+	end
+
+	local _, name, quantity, _, quality = GetLootSlotInfo(slot)
+	local link = GetLootSlotLink(slot)
+	local sellPrice = link and select(11, C_Item.GetItemInfo(link)) or 0
+	local rules = Options:Rules()
+	local auction = link and rules.price ~= "VENDOR" and Prices:Auction(link) or nil
+	local value = Options.Price({ vendor = sellPrice, auction = auction, count = quantity or 1 }, rules)
+
+	return { name = name or "", quality = quality or 1, value = value }
+end

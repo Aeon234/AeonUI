@@ -11,8 +11,14 @@ local AUCTION_CUT = 0.05
 local COPPER_PER_SILVER = 100
 local COPPER_PER_GOLD = 10000
 
+---What an item's worth is reckoned from.
+---@class AUIDeleteCheapestItemPriced
+---@field count integer the stack's size
+---@field vendor number? copper one item sells for; nil while not cached
+---@field auction number? copper one item fetches at auction, when an auction addon knows it
+
 ---A bag item as the scan reports it, before any rule applies.
----@class AUIDeleteCheapestItemCandidate
+---@class AUIDeleteCheapestItemCandidate : AUIDeleteCheapestItemPriced
 ---@field bag integer
 ---@field slot integer
 ---@field itemID integer
@@ -20,9 +26,6 @@ local COPPER_PER_GOLD = 10000
 ---@field icon number the item's icon file
 ---@field name string? nil while the item's info is not cached
 ---@field quality integer
----@field count integer the stack's size
----@field vendor number? copper one item sells for; nil while not cached
----@field auction number? copper one item fetches at auction, when an auction addon knows it
 ---@field bound boolean
 ---@field locked boolean
 ---@field quest boolean a quest item or one that starts a quest
@@ -48,8 +51,8 @@ local COPPER_PER_GOLD = 10000
 ---@field ENABLED_PATH string the feature is on
 ---@field OPEN_BAGS_FULL_PATH string the window opens when loot does not fit
 ---@field OPEN_FREE_SLOTS_PATH string the window opens on loot while free slots are at most this; 0 turns it off
----@field OPEN_MERCHANT_PATH string the window opens beside a merchant
----@field OPEN_QUEST_PATH string the window opens beside quest rewards
+---@field OPEN_MERCHANT_PATH string the window opens beside a merchant when a purchase does not fit
+---@field OPEN_QUEST_PATH string the window opens beside quest rewards that need more slots than are free
 ---@field MAX_QUALITY_PATH string a `dciQuality` choice
 ---@field HIDE_BOUND_PATH string
 ---@field HIDE_NO_VALUE_PATH string
@@ -148,7 +151,7 @@ end
 
 ---What a stack is worth, by the price choice. An auction price stands only when an auction addon knows one, and loses
 ---the auction house's cut.
----@param item AUIDeleteCheapestItemCandidate
+---@param item AUIDeleteCheapestItemPriced a candidate, or a loot slot's item
 ---@param rules AUIDeleteCheapestItemRules
 ---@return number value copper, whole
 ---@return "VENDOR"|"AUCTION" source
@@ -325,4 +328,15 @@ end
 ---@return string key
 function Options.RowKey(entry)
 	return ("%s#%d#%d#%d"):format(entry.link, entry.count, entry.bag, entry.slot)
+end
+
+---Bag slots a quest's rewards need: one for the chosen reward when there is a choice, one per other reward, less the
+---slots the items handed in free. Rewards that would stack onto items already carried are not known, so none is
+---assumed to.
+---@param choices integer `GetNumQuestChoices()`
+---@param rewards integer `GetNumQuestRewards()`
+---@param handedIn integer `GetNumQuestItems()` as the quest's progress showed it
+---@return integer needed
+function Options.QuestSlotsNeeded(choices, rewards, handedIn)
+	return math.max(0, (choices > 0 and 1 or 0) + rewards - handedIn)
 end

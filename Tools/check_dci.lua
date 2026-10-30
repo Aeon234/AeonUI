@@ -1,7 +1,8 @@
 -- Checks DeleteCheapestItem/ outside the game: the settings' defaults, which bag items are left out and why, what an
 -- item is worth by each price choice, identical stacks shown once, the order, when a delete asks first, free slots,
 -- money in coins, the ignore list, auction prices from Auctionator or TradeSkillMaster, the bag scan, the window's
--- side and row keys, and the actions (the ignore list's store, delete, sell, the loot taken after the bags settle).
+-- side and row keys, the actions (the ignore list's store, delete, sell, the loot taken after the bags settle), and
+-- the openers (loot, merchant, quest rewards, closing by hand).
 -- Run from any directory with Lua 5.1: lua Tools/check_dci.lua
 -- Loads the real files against stubbed globals. Exits non-zero on the first failed check.
 
@@ -556,5 +557,196 @@ Equal("sold", tostring(done), "true")
 Equal("from its slot", Calls(), "Use 0 1")
 done, problem = Actions:Sell(Row({ { bag = 0, slot = 4 } }))
 Equal("a moved stack is not sold", tostring(done) .. " " .. tostring(problem), "false changed")
+
+-- Openers -------------------------------------------------------------------------------------------------
+
+Equal("one slot for a choice, one per reward", Options.QuestSlotsNeeded(3, 1, 0), 2)
+Equal("rewards without a choice", Options.QuestSlotsNeeded(0, 2, 0), 2)
+Equal("items handed in free slots", Options.QuestSlotsNeeded(1, 1, 1), 1)
+Equal("never below none", Options.QuestSlotsNeeded(0, 0, 3), 0)
+
+ERR_INV_FULL = "Inventory is full."
+Enum.LootSlotType = { None = 0, Item = 1, Money = 2, Currency = 3 }
+
+local SECRET = {}
+
+function issecretvalue(value)
+	return value == SECRET
+end
+
+local function Shown(shown)
+	return { shown = shown, IsShown = function(self)
+		return self.shown
+	end }
+end
+
+LootFrame, MerchantFrame, QuestFrame = Shown(false), Shown(false), Shown(false)
+
+-- Loot slot 1 holds money, 2 three Cloth, 3 a Bone.
+local loot = {
+	{ kind = 2 },
+	{ kind = 1, name = "Cloth", quantity = 3, quality = 1, link = "item:2" },
+	{ kind = 1, name = "Bone", quantity = 1, quality = 0, link = "item:1" },
+}
+
+function GetNumLootItems()
+	return #loot
+end
+
+function LootSlotHasItem(slot)
+	return loot[slot] ~= nil and not loot[slot].taken
+end
+
+function GetLootSlotType(slot)
+	return loot[slot] and loot[slot].kind or 0
+end
+
+function GetLootSlotInfo(slot)
+	local item = loot[slot]
+
+	return 0, item.name, item.quantity, nil, item.quality
+end
+
+function GetLootSlotLink(slot)
+	return loot[slot] and loot[slot].link
+end
+
+local questChoices, questRewards, questItems = 0, 0, 0
+
+function GetNumQuestChoices()
+	return questChoices
+end
+
+function GetNumQuestRewards()
+	return questRewards
+end
+
+function GetNumQuestItems()
+	return questItems
+end
+
+-- The window as the openers see it: what it was asked to open, and whether it is shown.
+local opened = {}
+local window = { context = nil, shown = false }
+
+function window:Open(context)
+	self.context, self.shown = context, true
+	opened[#opened + 1] = context.kind .. ":" .. tostring(context.lootSlot)
+end
+
+function window:Close()
+	self.shown = false
+	opened[#opened + 1] = "close"
+end
+
+function window:IsShown()
+	return self.shown
+end
+
+AUI.DeleteCheapestItemWindow = window
+assert(loadfile(root .. "DeleteCheapestItem/Openers.lua"))("AeonUI", AUI)
+
+local Openers = AUI.DeleteCheapestItemOpeners
+
+local function Opened()
+	local text = table.concat(opened, ", ")
+
+	opened = {}
+
+	return text
+end
+
+local incoming = Bags:Incoming(2)
+
+Equal("loot: money is not incoming", Bags:Incoming(1), nil)
+Equal("loot: the incoming item", incoming.name .. " " .. incoming.quality, "Cloth 1")
+Equal("loot: its worth for the stack", incoming.value, 6)
+Equal("loot: worth by the price choice", Bags:Incoming(3).value, 380)
+
+Openers:OnEvent("UI_ERROR_MESSAGE", 1, "Something else")
+Openers:OnEvent("UI_ERROR_MESSAGE", 1, SECRET)
+Equal("other errors and secret ones open nothing", Opened(), "")
+
+Openers:OnEvent("UI_ERROR_MESSAGE", 1, ERR_INV_FULL)
+Equal("the error with no loot or merchant window waits for loot", Openers.waitingForLoot, true)
+LootFrame.shown = true
+Openers:OnEvent("LOOT_OPENED", false, false)
+Equal("the loot window opens it, for the first item", Opened(), "LOOT:2")
+Equal("no longer waiting", Openers.waitingForLoot, false)
+Equal("the incoming item is the slot's", window.context.incoming.name, "Cloth")
+
+LootFrame.selectedSlot = 3
+Openers:OnEvent("UI_ERROR_MESSAGE", 1, ERR_INV_FULL)
+Equal("the error while looting: the clicked slot", Opened(), "LOOT:3")
+
+loot[3].taken = true
+Openers:OnEvent("LOOT_SLOT_CLEARED", 3)
+Equal("its slot looted: the next item", Opened(), "LOOT:2")
+Openers:OnEvent("LOOT_SLOT_CLEARED", 1)
+Equal("another slot looted: nothing", Opened(), "")
+loot[2].taken = true
+Openers:OnEvent("LOOT_SLOT_CLEARED", 2)
+Equal("no item left: nothing incoming", window.context.incoming, nil)
+Opened()
+
+Openers:Dismissed(window.context)
+loot[2].taken, loot[3].taken = false, false
+Openers:OnEvent("UI_ERROR_MESSAGE", 1, ERR_INV_FULL)
+Equal("closed by hand: stays closed while the loot is open", Opened(), "")
+Openers:OnEvent("LOOT_CLOSED")
+Equal("the loot window closing closes it", Opened(), "close")
+Openers:OnEvent("UI_ERROR_MESSAGE", 1, ERR_INV_FULL)
+Equal("the next loot opens it again", Opened(), "LOOT:3")
+LootFrame.selectedSlot = nil
+
+Openers:OnEvent("LOOT_CLOSED")
+Opened()
+Set(Options.OPEN_FREE_SLOTS_PATH, 1)
+Openers:OnEvent("LOOT_OPENED", false, false)
+Equal("free slots at the threshold open it", Opened(), "LOOT:2")
+Openers:OnEvent("LOOT_CLOSED")
+Opened()
+Set(Options.OPEN_FREE_SLOTS_PATH, nil)
+Openers:OnEvent("LOOT_OPENED", false, false)
+Equal("no threshold: opening loot alone opens nothing", Opened(), "")
+
+Set(Options.OPEN_BAGS_FULL_PATH, false)
+Openers:OnEvent("UI_ERROR_MESSAGE", 1, ERR_INV_FULL)
+Equal("bags-full opening turned off", Opened(), "")
+Set(Options.OPEN_BAGS_FULL_PATH, nil)
+LootFrame.shown = false
+Openers:OnEvent("LOOT_CLOSED")
+Opened()
+
+MerchantFrame.shown = true
+Openers:OnEvent("UI_ERROR_MESSAGE", 1, ERR_INV_FULL)
+Equal("a purchase that does not fit opens it beside the merchant", Opened(), "MERCHANT:nil")
+Set(Options.OPEN_MERCHANT_PATH, false)
+Openers:OnEvent("UI_ERROR_MESSAGE", 1, ERR_INV_FULL)
+Equal("merchant opening turned off", Opened(), "")
+Set(Options.OPEN_MERCHANT_PATH, nil)
+Openers:OnEvent("MERCHANT_CLOSED")
+Equal("the merchant closing closes it", Opened(), "close")
+MerchantFrame.shown = false
+
+questChoices, questRewards, questItems = 2, 0, 0
+Openers:OnEvent("QUEST_COMPLETE")
+Equal("a reward that fits opens nothing", Opened(), "")
+questRewards = 1
+Openers:OnEvent("QUEST_COMPLETE")
+Equal("rewards needing more slots than are free open it", Opened(), "QUEST:nil")
+Openers:OnEvent("QUEST_FINISHED")
+Equal("the quest window closing closes it", Opened(), "close")
+questItems = 1
+Openers:OnEvent("QUEST_PROGRESS")
+Openers:OnEvent("QUEST_COMPLETE")
+Equal("items handed in make room", Opened(), "")
+Openers:OnEvent("QUEST_FINISHED")
+Opened()
+Equal("the handed-in count is forgotten", Openers.handedIn, 0)
+
+window.context = { kind = "HAND" }
+Openers:Dismissed(window.context)
+Equal("closing a window opened by hand dismisses nothing", next(Openers.dismissed), nil)
 
 io.stdout:write(("check_dci: %d checks passed\n"):format(checks))
