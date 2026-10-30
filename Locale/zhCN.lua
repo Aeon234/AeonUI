@@ -53,6 +53,7 @@ L["Cursor"] = "光标"
 L["Notifications"] = "通知"
 L["Raid Markers"] = "团队标记"
 L["Merchant Window"] = "商人窗口"
+L["Hidden Settings"] = "隐藏设置"
 
 -- Shared settings labels (Settings)
 L["Auctionator, TSM or Oribos Exchange provides auction prices."] = "拍卖价格由 Auctionator、TSM 或 Oribos Exchange 提供。"
@@ -460,6 +461,10 @@ L["Fill Order"] = "填充顺序"
 L["Rows First"] = "先按行"
 L["Columns First"] = "先按列"
 L["Show All Items"] = "显示所有物品"
+
+-- Hidden Settings page (Settings)
+L["Loot Sparkles"] = "战利品闪光"
+L["The sparkle stays until the game restarts. /reload is not enough."] = "闪光会一直保留到重启游戏。/reload 不够。"
 
 -- Player Menu page (Settings)
 L["Guild Invite"] = "公会邀请"

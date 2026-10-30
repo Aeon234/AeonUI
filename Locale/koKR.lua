@@ -53,6 +53,7 @@ L["Cursor"] = "커서"
 L["Notifications"] = "알림"
 L["Raid Markers"] = "공격대 징표"
 L["Merchant Window"] = "상인 창"
+L["Hidden Settings"] = "숨겨진 설정"
 
 -- Shared settings labels (Settings)
 L["Auctionator, TSM or Oribos Exchange provides auction prices."] = "Auctionator, TSM 또는 Oribos Exchange가 경매장 가격을 제공합니다."
@@ -460,6 +461,10 @@ L["Fill Order"] = "채우기 순서"
 L["Rows First"] = "행 우선"
 L["Columns First"] = "열 우선"
 L["Show All Items"] = "모든 아이템 표시"
+
+-- Hidden Settings page (Settings)
+L["Loot Sparkles"] = "전리품 반짝임"
+L["The sparkle stays until the game restarts. /reload is not enough."] = "반짝임은 게임을 다시 시작할 때까지 남아 있습니다. /reload로는 충분하지 않습니다."
 
 -- Player Menu page (Settings)
 L["Guild Invite"] = "길드 초대"

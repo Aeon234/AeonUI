@@ -53,6 +53,7 @@ L["Cursor"] = "Cursor"
 L["Notifications"] = "Benachrichtigungen"
 L["Raid Markers"] = "Schlachtzugsmarkierungen"
 L["Merchant Window"] = "Händlerfenster"
+L["Hidden Settings"] = "Versteckte Einstellungen"
 
 -- Shared settings labels (Settings)
 L["Auctionator, TSM or Oribos Exchange provides auction prices."] = "Auctionator, TSM oder Oribos Exchange liefert Auktionspreise."
@@ -460,6 +461,10 @@ L["Fill Order"] = "Füllreihenfolge"
 L["Rows First"] = "Zeilen zuerst"
 L["Columns First"] = "Spalten zuerst"
 L["Show All Items"] = "Alle Gegenstände anzeigen"
+
+-- Hidden Settings page (Settings)
+L["Loot Sparkles"] = "Beute-Funkeln"
+L["The sparkle stays until the game restarts. /reload is not enough."] = "Das Funkeln bleibt bis zum Neustart des Spiels. /reload reicht nicht."
 
 -- Player Menu page (Settings)
 L["Guild Invite"] = "Gildeneinladung"

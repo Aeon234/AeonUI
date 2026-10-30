@@ -66,6 +66,7 @@ frame:SetScript("OnEvent", function(self, event)
 		AUI.Markers:Start()
 		AUI.DeleteCheapestItem:Start()
 		AUI.MerchantWindow:Start()
+		AUI.HiddenSettings:Start()
 		AUI.EditTargets:Register()
 	end
 end)

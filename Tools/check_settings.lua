@@ -30,6 +30,7 @@ VIDEO_OPTIONS_LOW = "Low"
 VIDEO_OPTIONS_MEDIUM = "Good"
 VIDEO_OPTIONS_HIGH = "High"
 MERCHANT = "Merchant"
+BAG_FILTER_QUEST_ITEMS = "Quest Items"
 AUCTION_HOUSE_FILTER_CURRENTEXPANSION_ONLY = "Current Expansion Only"
 AUTO_LOOT_DEFAULT_TEXT = "Auto Loot"
 BLOCK_TRADES = "Block Trades"
@@ -407,6 +408,8 @@ for _, file in ipairs({ "Core/Callbacks.lua", "Core/Capabilities.lua", "Core/Bro
 	"Notifications/Notifications.lua", "Markers/Options.lua", "Markers/Bar.lua", "Markers/Cycler.lua",
 	"Markers/Markers.lua", "DeleteCheapestItem/Options.lua", "Core/AuctionPrices.lua",
 	"MerchantWindow/Options.lua", "MerchantWindow/BottomBar.lua", "MerchantWindow/MerchantWindow.lua", "Settings/MerchantWindow.lua",
+	"HiddenSettings/Options.lua", "HiddenSettings/CVarHolder.lua", "HiddenSettings/HiddenSettings.lua",
+	"Settings/HiddenSettings.lua",
 	"Settings/Window.lua", "Settings/MinimapEditor.lua", "Settings/General.lua", "Settings/Minimap.lua",
 	"Settings/WorldMap.lua", "Settings/Tooltip.lua", "Settings/Automation.lua", "Settings/DeleteCheapestItem.lua", "Settings/PlayerMenu.lua",
 	"Settings/Input.lua", "Settings/Alerts.lua", "Settings/Interface.lua", "Settings/ScreenText.lua",
@@ -1713,5 +1716,37 @@ AUI.can.merchantFilter = nil
 AUI.can.merchantWindow = nil
 window = Load(nil)
 Equal("no page without the merchant window's functions", window.pages.merchantWindow, nil)
+
+-- Hidden Settings page ------------------------------------------------------------------------------------
+
+AUI.can.merchantWindow, AUI.can.lootSparkle = true, true
+window = Load(nil)
+Equal("hidden settings after merchant window", table.concat(window.order, " "), "general #mapsHeader minimap "
+	.. "#tooltipHeader tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader automation merchantWindow "
+	.. "hiddenSettings alerts notifications - profiles")
+local hiddenPage = window.pages.hiddenSettings
+Equal("titled, under Quality of Life, with its icon, tinted", hiddenPage.info.title .. " " .. hiddenPage.info.under
+	.. " " .. tostring(hiddenPage.info.icon == AUI.Media.sidebar.hiddenSettings) .. " "
+	.. tostring(hiddenPage.info.iconTint), "Hidden Settings qualityOfLifeHeader true true")
+local hiddenCards = {}
+for _, section in ipairs(hiddenPage.sections) do
+	hiddenCards[#hiddenCards + 1] = section.title .. ": " .. SettingIDs(section)
+end
+Equal("loot sparkles card", table.concat(hiddenCards, " | "), "Loot Sparkles: hiddenSettingsQuestItems")
+local questItems = hiddenPage.sections.hiddenSettingsLootSparkles.settings.hiddenSettingsQuestItems
+Equal("Quest Items, off, with the restart line", questItems.kind .. " " .. questItems.label .. " "
+	.. tostring(questItems.default) .. " " .. tostring(questItems.description),
+	"Checkbox Quest Items false The sparkle stays until the game restarts. /reload is not enough.")
+local hiddenSettings, questItemsOn = AUI.HiddenSettings, false
+local isQuestItems, setQuestItems = hiddenSettings.IsQuestItems, hiddenSettings.SetQuestItems
+hiddenSettings.IsQuestItems = function() return questItemsOn end
+hiddenSettings.SetQuestItems = function(_, on) questItemsOn = on end
+questItems.set(true)
+Equal("quest items row follows the module", tostring(questItemsOn) .. " " .. tostring(questItems.get()), "true true")
+hiddenSettings.IsQuestItems, hiddenSettings.SetQuestItems = isQuestItems, setQuestItems
+AUI.can.lootSparkle = nil
+window = Load(nil)
+Equal("page left out without the CVar", window.pages.hiddenSettings, nil)
+AUI.can.merchantWindow = nil
 
 io.stdout:write(("check_settings: %d checks passed\n"):format(checks))

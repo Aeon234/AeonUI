@@ -53,6 +53,7 @@ L["Cursor"] = "Cursor"
 L["Notifications"] = "Notificaciones"
 L["Raid Markers"] = "Marcadores de banda"
 L["Merchant Window"] = "Ventana de mercader"
+L["Hidden Settings"] = "Configuración oculta"
 
 -- Shared settings labels (Settings)
 L["Auctionator, TSM or Oribos Exchange provides auction prices."] = "Auctionator, TSM u Oribos Exchange proporcionan los precios de subasta."
@@ -460,6 +461,10 @@ L["Fill Order"] = "Orden de llenado"
 L["Rows First"] = "Filas primero"
 L["Columns First"] = "Columnas primero"
 L["Show All Items"] = "Mostrar todos los objetos"
+
+-- Hidden Settings page (Settings)
+L["Loot Sparkles"] = "Destellos de botín"
+L["The sparkle stays until the game restarts. /reload is not enough."] = "El destello permanece hasta que reinicies el juego. /reload no basta."
 
 -- Player Menu page (Settings)
 L["Guild Invite"] = "Invitar a la hermandad"

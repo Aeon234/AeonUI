@@ -41,6 +41,10 @@ local function DeclareSidebar(window)
 		AUI.SettingsMerchantWindow:Declare(window)
 	end
 
+	if AUI.SettingsHiddenSettings:IsAvailable() then
+		AUI.SettingsHiddenSettings:Declare(window)
+	end
+
 	if AUI.SettingsPlayerMenu:IsAvailable() then
 		AUI.SettingsPlayerMenu:Declare(window)
 	end

@@ -107,6 +107,7 @@ local Media = {
 		automation = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarAutomation.tga",
 		deleteCheapestItem = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarDeleteCheapestItem.tga",
 		merchantWindow = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarMerchantWindow.tga",
+		hiddenSettings = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarHiddenSettings.tga",
 		playerMenu = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarPlayerMenu.tga",
 		input = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarInput.tga",
 		alerts = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarAlerts.tga",

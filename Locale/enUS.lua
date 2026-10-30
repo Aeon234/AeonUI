@@ -69,6 +69,7 @@ L["Cursor"] = "Cursor"
 L["Notifications"] = "Notifications"
 L["Raid Markers"] = "Raid Markers"
 L["Merchant Window"] = "Merchant Window"
+L["Hidden Settings"] = "Hidden Settings"
 
 -- Shared settings labels (Settings)
 L["Auctionator, TSM or Oribos Exchange provides auction prices."] =
@@ -500,6 +501,11 @@ L["Fill Order"] = "Fill Order"
 L["Rows First"] = "Rows First"
 L["Columns First"] = "Columns First"
 L["Show All Items"] = "Show All Items"
+
+-- Hidden Settings page (Settings)
+L["Loot Sparkles"] = "Loot Sparkles"
+L["The sparkle stays until the game restarts. /reload is not enough."] =
+	"The sparkle stays until the game restarts. /reload is not enough."
 
 -- Player Menu page (Settings)
 L["Guild Invite"] = "Guild Invite"

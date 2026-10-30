@@ -53,6 +53,7 @@ L["Cursor"] = "Курсор"
 L["Notifications"] = "Уведомления"
 L["Raid Markers"] = "Рейдовые метки"
 L["Merchant Window"] = "Окно торговца"
+L["Hidden Settings"] = "Скрытые настройки"
 
 -- Shared settings labels (Settings)
 L["Auctionator, TSM or Oribos Exchange provides auction prices."] = "Цены аукциона берутся из Auctionator, TSM или Oribos Exchange."
@@ -460,6 +461,10 @@ L["Fill Order"] = "Порядок заполнения"
 L["Rows First"] = "Сначала строки"
 L["Columns First"] = "Сначала столбцы"
 L["Show All Items"] = "Показывать все предметы"
+
+-- Hidden Settings page (Settings)
+L["Loot Sparkles"] = "Блеск добычи"
+L["The sparkle stays until the game restarts. /reload is not enough."] = "Блеск остается до перезапуска игры. /reload недостаточно."
 
 -- Player Menu page (Settings)
 L["Guild Invite"] = "Пригласить в гильдию"
