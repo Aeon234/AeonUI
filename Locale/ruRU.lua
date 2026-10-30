@@ -52,6 +52,7 @@ L["Screen Text"] = "Текст на экране"
 L["Cursor"] = "Курсор"
 L["Notifications"] = "Уведомления"
 L["Raid Markers"] = "Рейдовые метки"
+L["Merchant Window"] = "Окно торговца"
 
 -- Shared settings labels (Settings)
 L["Access"] = "Доступ"
@@ -448,6 +449,14 @@ L["Open Window"] = "Открыть окно"
 L["Or type /aui dci."] = "Или введите /aui dci."
 L["Ignored Items"] = "Игнорируемые предметы"
 L["Right-click an item in the window to stop suggesting it."] = "Щелкните правой кнопкой мыши по предмету в окне, чтобы больше его не предлагать."
+
+-- Merchant Window page (Settings)
+L["Item Grid"] = "Сетка предметов"
+L["Extend Merchant Window"] = "Расширить окно торговца"
+L["%s resizes the merchant window."] = "%s изменяет размер окна торговца."
+L["Fill Order"] = "Порядок заполнения"
+L["Rows First"] = "Сначала строки"
+L["Columns First"] = "Сначала столбцы"
 
 -- Player Menu page (Settings)
 L["Guild Invite"] = "Пригласить в гильдию"

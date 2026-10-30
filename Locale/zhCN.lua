@@ -52,6 +52,7 @@ L["Screen Text"] = "屏幕文字"
 L["Cursor"] = "光标"
 L["Notifications"] = "通知"
 L["Raid Markers"] = "团队标记"
+L["Merchant Window"] = "商人窗口"
 
 -- Shared settings labels (Settings)
 L["Access"] = "访问"
@@ -448,6 +449,14 @@ L["Open Window"] = "打开窗口"
 L["Or type /aui dci."] = "或输入 /aui dci。"
 L["Ignored Items"] = "已忽略的物品"
 L["Right-click an item in the window to stop suggesting it."] = "在窗口中右键点击物品即可不再建议它。"
+
+-- Merchant Window page (Settings)
+L["Item Grid"] = "物品网格"
+L["Extend Merchant Window"] = "扩展商人窗口"
+L["%s resizes the merchant window."] = "%s 会调整商人窗口的大小。"
+L["Fill Order"] = "填充顺序"
+L["Rows First"] = "先按行"
+L["Columns First"] = "先按列"
 
 -- Player Menu page (Settings)
 L["Guild Invite"] = "公会邀请"

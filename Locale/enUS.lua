@@ -68,6 +68,7 @@ L["Screen Text"] = "Screen Text"
 L["Cursor"] = "Cursor"
 L["Notifications"] = "Notifications"
 L["Raid Markers"] = "Raid Markers"
+L["Merchant Window"] = "Merchant Window"
 
 -- Shared settings labels (Settings)
 L["Access"] = "Access"
@@ -487,6 +488,14 @@ L["Or type /aui dci."] = "Or type /aui dci."
 L["Ignored Items"] = "Ignored Items"
 L["Right-click an item in the window to stop suggesting it."] =
 	"Right-click an item in the window to stop suggesting it."
+
+-- Merchant Window page (Settings)
+L["Item Grid"] = "Item Grid"
+L["Extend Merchant Window"] = "Extend Merchant Window"
+L["%s resizes the merchant window."] = "%s resizes the merchant window."
+L["Fill Order"] = "Fill Order"
+L["Rows First"] = "Rows First"
+L["Columns First"] = "Columns First"
 
 -- Player Menu page (Settings)
 L["Guild Invite"] = "Guild Invite"

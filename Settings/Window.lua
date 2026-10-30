@@ -37,6 +37,10 @@ local function DeclareSidebar(window)
 		AUI.SettingsDeleteCheapestItem:Declare(window)
 	end
 
+	if AUI.can.merchantWindow then
+		AUI.SettingsMerchantWindow:Declare(window)
+	end
+
 	if AUI.SettingsPlayerMenu:IsAvailable() then
 		AUI.SettingsPlayerMenu:Declare(window)
 	end

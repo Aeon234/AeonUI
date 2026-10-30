@@ -52,6 +52,7 @@ L["Screen Text"] = "화면 문자"
 L["Cursor"] = "커서"
 L["Notifications"] = "알림"
 L["Raid Markers"] = "공격대 징표"
+L["Merchant Window"] = "상인 창"
 
 -- Shared settings labels (Settings)
 L["Access"] = "접근"
@@ -448,6 +449,14 @@ L["Open Window"] = "창 열기"
 L["Or type /aui dci."] = "또는 /aui dci를 입력하세요."
 L["Ignored Items"] = "무시한 아이템"
 L["Right-click an item in the window to stop suggesting it."] = "창에서 아이템을 오른쪽 클릭하면 더 이상 제안하지 않습니다."
+
+-- Merchant Window page (Settings)
+L["Item Grid"] = "아이템 격자"
+L["Extend Merchant Window"] = "상인 창 확장"
+L["%s resizes the merchant window."] = "%s 애드온이 상인 창의 크기를 조절합니다."
+L["Fill Order"] = "채우기 순서"
+L["Rows First"] = "행 우선"
+L["Columns First"] = "열 우선"
 
 -- Player Menu page (Settings)
 L["Guild Invite"] = "길드 초대"

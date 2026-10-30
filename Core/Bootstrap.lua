@@ -65,6 +65,7 @@ frame:SetScript("OnEvent", function(self, event)
 		AUI.Notifications:Start()
 		AUI.Markers:Start()
 		AUI.DeleteCheapestItem:Start()
+		AUI.MerchantWindow:Start()
 		AUI.EditTargets:Register()
 	end
 end)

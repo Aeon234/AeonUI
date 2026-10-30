@@ -57,6 +57,7 @@ AUI.Capabilities = Capabilities
 ---@field raidMarkers boolean a bar of secure marker buttons can follow a visibility driver and start a role check
 ---@field worldMarkers boolean the client has world markers (`IsRaidMarkerSystemEnabled`)
 ---@field secureSnippets boolean wrapped secure scripts run (Retail)
+---@field merchantWindow boolean the merchant window's update functions and item helpers can be hooked and called
 ---@field deleteCheapestItem boolean bag items' quest status and sell prices can be read, and the cursor's item deleted
 AUI.can = {}
 
@@ -143,6 +144,11 @@ function Capabilities:Resolve()
 	can.deleteCheapestItem = C_Container ~= nil and C_Container.GetContainerItemQuestInfo ~= nil
 		and C_Container.PickupContainerItem ~= nil and C_Item ~= nil and C_Item.GetItemInfo ~= nil
 		and DeleteCursorItem ~= nil and Enum.ItemClass ~= nil and Enum.ItemClass.Questitem ~= nil
+	can.merchantWindow = MerchantFrame ~= nil and MerchantFrame_UpdateMerchantInfo ~= nil
+		and MerchantFrame_UpdateBuybackInfo ~= nil and MerchantFrame_UpdateItemQualityBorders ~= nil
+		and MerchantFrameItem_UpdateQuality ~= nil and C_MerchantFrame ~= nil and C_MerchantFrame.GetItemInfo ~= nil
+		and C_MerchantFrame.IsMerchantItemRefundable ~= nil and AltCurrencyFrame_Update ~= nil
+		and CurrencyContainerUtil ~= nil and StackSplitCancelButton_OnClick ~= nil
 
 	self.resolved = true
 

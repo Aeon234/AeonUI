@@ -65,6 +65,8 @@ PLAYER_DIFFICULTY6 = "Mythic"
 TIMEMANAGER_TITLE = "Clock"
 TIMEMANAGER_24HOURMODE = "24 Hour Mode"
 TIMEMANAGER_LOCALTIME = "Use Local Time"
+HUD_EDIT_MODE_SETTING_ACTION_BAR_NUM_ROWS = "# of Rows"
+HUD_EDIT_MODE_SETTING_ACTION_BAR_NUM_COLUMNS = "# of Columns"
 SlashCmdList = {}
 StaticPopupDialogs = {}
 local cliqueLoaded = false
@@ -404,6 +406,7 @@ for _, file in ipairs({ "Core/Callbacks.lua", "Core/Capabilities.lua", "Core/Bro
 	"ScreenText/ScreenText.lua", "Cursor/Options.lua", "Cursor/CursorRing.lua", "Notifications/Options.lua",
 	"Notifications/Notifications.lua", "Markers/Options.lua", "Markers/Bar.lua", "Markers/Cycler.lua",
 	"Markers/Markers.lua", "DeleteCheapestItem/Options.lua", "DeleteCheapestItem/Prices.lua",
+	"MerchantWindow/Options.lua", "MerchantWindow/MerchantWindow.lua", "Settings/MerchantWindow.lua",
 	"Settings/Window.lua", "Settings/MinimapEditor.lua", "Settings/General.lua", "Settings/Minimap.lua",
 	"Settings/WorldMap.lua", "Settings/Tooltip.lua", "Settings/Automation.lua", "Settings/DeleteCheapestItem.lua", "Settings/PlayerMenu.lua",
 	"Settings/Input.lua", "Settings/Alerts.lua", "Settings/Interface.lua", "Settings/ScreenText.lua",
@@ -1642,5 +1645,52 @@ _G.TSM_API = nil
 AUI.can.deleteCheapestItem = nil
 window = Load(nil)
 Equal("no page without the feature's functions", window.pages.deleteCheapestItem, nil)
+
+-- Merchant Window page --------------------------------------------------------------------------------------
+
+AUI.can.merchantWindow = true
+window = Load(nil)
+Equal("Merchant Window follows Automation", table.concat(window.order, " "), "general #mapsHeader minimap "
+	.. "#tooltipHeader tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader automation merchantWindow "
+	.. "alerts notifications - profiles")
+local merchantPage = window.pages.merchantWindow
+Equal("titled, under Quality of Life, with its icon and no page switch", merchantPage.info.title .. " "
+	.. merchantPage.info.under .. " " .. tostring(merchantPage.info.icon == AUI.Media.sidebar.merchantWindow) .. " "
+	.. tostring(merchantPage.info.switch), "Merchant Window qualityOfLifeHeader true nil")
+local merchantCards = {}
+for _, section in ipairs(merchantPage.sections) do
+	merchantCards[#merchantCards + 1] = section.title .. ": " .. SettingIDs(section)
+end
+Equal("one titled card headed by its switch", table.concat(merchantCards, " | "), "Item Grid: merchantWindowEnabled "
+	.. "merchantWindowRows merchantWindowColumns merchantWindowOrder")
+local grid = merchantPage.sections.merchantWindowGrid.settings
+Equal("the switch, off", grid.merchantWindowEnabled.kind .. " " .. grid.merchantWindowEnabled.label .. " "
+	.. tostring(grid.merchantWindowEnabled.default), "Toggle Extend Merchant Window false")
+Equal("the rest shown while it is on", grid.merchantWindowRows.depends .. " " .. grid.merchantWindowColumns.depends
+	.. " " .. grid.merchantWindowOrder.depends, "merchantWindowEnabled merchantWindowEnabled merchantWindowEnabled")
+Equal("Blizzard's grid labels", grid.merchantWindowRows.label .. ", " .. grid.merchantWindowColumns.label,
+	"# of Rows, # of Columns")
+Equal("rows and columns, 5 by 5 by default", grid.merchantWindowRows.min .. "-" .. grid.merchantWindowRows.max .. " "
+	.. grid.merchantWindowRows.default .. " " .. grid.merchantWindowColumns.min .. "-"
+	.. grid.merchantWindowColumns.max .. " " .. grid.merchantWindowColumns.default, "1-10 5 2-8 5")
+Equal("the fill orders", Texts(grid.merchantWindowOrder) .. " " .. grid.merchantWindowOrder.default,
+	"Rows First,Columns First ROWS")
+local merchantLines = {}
+for _, setting in ipairs(merchantPage.sections.merchantWindowGrid.settings) do
+	Equal(setting.id .. " names a setting", AUI.Schema:Field(setting.path) ~= nil, true)
+	if setting.description then
+		merchantLines[#merchantLines + 1] = setting.id
+	end
+end
+Equal("no second lines", #merchantLines, 0)
+Equal("nothing blocks the switch", grid.merchantWindowEnabled.blocked(), nil)
+local isLoaded = C_AddOns.IsAddOnLoaded
+C_AddOns.IsAddOnLoaded = function(name) return name == "Krowi_ExtendedVendorUI" end
+Equal("Krowi's Extended Vendor UI blocks it, by name", grid.merchantWindowEnabled.blocked(),
+	"Krowi_ExtendedVendorUI resizes the merchant window.")
+C_AddOns.IsAddOnLoaded = isLoaded
+AUI.can.merchantWindow = nil
+window = Load(nil)
+Equal("no page without the merchant window's functions", window.pages.merchantWindow, nil)
 
 io.stdout:write(("check_settings: %d checks passed\n"):format(checks))

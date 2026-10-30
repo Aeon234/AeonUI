@@ -52,6 +52,7 @@ L["Screen Text"] = "Bildschirmtext"
 L["Cursor"] = "Cursor"
 L["Notifications"] = "Benachrichtigungen"
 L["Raid Markers"] = "Schlachtzugsmarkierungen"
+L["Merchant Window"] = "Händlerfenster"
 
 -- Shared settings labels (Settings)
 L["Access"] = "Zugriff"
@@ -448,6 +449,14 @@ L["Open Window"] = "Fenster öffnen"
 L["Or type /aui dci."] = "Oder tippe /aui dci."
 L["Ignored Items"] = "Ignorierte Gegenstände"
 L["Right-click an item in the window to stop suggesting it."] = "Rechtsklicke im Fenster auf einen Gegenstand, um ihn nicht mehr vorzuschlagen."
+
+-- Merchant Window page (Settings)
+L["Item Grid"] = "Gegenstandsraster"
+L["Extend Merchant Window"] = "Händlerfenster erweitern"
+L["%s resizes the merchant window."] = "%s ändert die Größe des Händlerfensters."
+L["Fill Order"] = "Füllreihenfolge"
+L["Rows First"] = "Zeilen zuerst"
+L["Columns First"] = "Spalten zuerst"
 
 -- Player Menu page (Settings)
 L["Guild Invite"] = "Gildeneinladung"

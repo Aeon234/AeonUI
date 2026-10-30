@@ -31,6 +31,7 @@ Cursor\Cursor.xml
 Notifications\Notifications.xml
 Markers\Markers.xml
 DeleteCheapestItem\DeleteCheapestItem.xml
+MerchantWindow\MerchantWindow.xml
 Settings\Settings.xml
 
 #@do-not-package@

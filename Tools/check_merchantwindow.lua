@@ -1,0 +1,534 @@
+-- Checks MerchantWindow/ outside the game: the grid's cells in each fill order, slot places, the window's size, pages
+-- and the page kept in range, then the module against a stubbed merchant window: nothing hooked while off, the grid
+-- drawn after Blizzard's update with each slot filled or empty as Blizzard fills its own, the page controls corrected
+-- (Forever's gamepad indicators too), a quantity window closed when its slot changes item, item quality redrawn, the
+-- buyback tab and turning off giving Blizzard's slots and size back, and standing down for Krowi's Extended Vendor UI.
+-- Run from any directory with Lua 5.1: lua Tools/check_merchantwindow.lua
+-- Loads the real files against stubbed globals. Exits non-zero on the first failed check.
+
+local root = (arg and arg[0] or ""):match("^(.-)[^/\\]*$") .. "../"
+
+-- Environment ---------------------------------------------------------------------------------------------
+
+WOW_PROJECT_ID = 1
+SlashCmdList = {}
+MAX_ITEM_COST = 3
+MERCHANT_PAGE_NUMBER = "Page %s of %s"
+TEXTURE_ITEM_QUEST_BANG = "bang"
+
+local loaded = {}
+C_AddOns = {
+	GetAddOnMetadata = function(name, field)
+		if name == "Krowi_ExtendedVendorUI" and field == "Title" then
+			return "Krowi's Extended Vendor UI"
+		end
+
+		return field == "Version" and "dev" or "AeonUI"
+	end,
+	IsAddOnLoaded = function(name)
+		return loaded[name] == true
+	end,
+}
+
+function CallErrorHandler(message)
+	error(message, 0)
+end
+
+-- WoW's xpcall forwards extra arguments to the function, as Lua 5.2 does; Lua 5.1's does not.
+local luaXpcall = xpcall
+function xpcall(fn, handler, ...)
+	local count, args = select("#", ...), { ... }
+
+	return luaXpcall(function()
+		return fn(unpack(args, 1, count))
+	end, handler)
+end
+
+C_Timer = { After = function(_, callback)
+	callback()
+end }
+
+---A region: shown state, anchors and size, recorded.
+local function Region(name, shown)
+	local region = { name = name, shown = shown ~= false, points = {}, enabled = true }
+	function region:Show() self.shown = true end
+	function region:Hide() self.shown = false end
+	function region:SetShown(value) self.shown = value and true or false end
+	function region:IsShown() return self.shown end
+	function region:ClearAllPoints() self.points = {} end
+	function region:SetPoint(point, ...) self.points[#self.points + 1] = { point, ... } end
+	function region:SetSize(width, height) self.width, self.height = width, height end
+	function region:SetWidth(width) self.width = width end
+	function region:GetWidth() return self.width or 10 end
+	function region:GetName() return self.name end
+	function region:SetEnabled(value) self.enabled = value and true or false end
+	function region:IsEnabled() return self.enabled end
+	function region:SetText(text) self.text = text end
+	function region:SetFormattedText(format, ...) self.text = format:format(...) end
+	function region:SetTexture(texture) self.texture = texture end
+	if name then
+		_G[name] = region
+	end
+
+	return region
+end
+
+---A slot from MerchantItemTemplate: its named parts, as the template's `$parent` names make them.
+local function MerchantItem(name)
+	local slot = Region(name)
+	slot.Name = Region(name .. "Name")
+	slot.ItemButton = Region(name .. "ItemButton")
+	slot.ItemButton.IconQuestTexture = Region(nil, false)
+	function slot.ItemButton:SetID(id) self.id = id end
+	function slot.ItemButton:GetID() return self.id or 0 end
+	Region(name .. "NameFrame")
+	Region(name .. "MoneyFrame", false)
+	Region(name .. "AltCurrencyFrame", false)
+	for cost = 1, MAX_ITEM_COST do
+		Region(name .. "AltCurrencyFrameItem" .. cost, false)
+	end
+
+	return slot
+end
+
+local created = {}
+function CreateFrame(kind, name, parent, template)
+	if template == "MerchantItemTemplate" then
+		assert(kind == "Frame" and parent == MerchantFrame, "slots are frames on the merchant window")
+		created[#created + 1] = name
+
+		return MerchantItem(name)
+	end
+
+	return { RegisterEvent = function() end, UnregisterEvent = function() end, SetScript = function() end }
+end
+
+MerchantFrame = Region("MerchantFrame", false)
+MerchantFrame.selectedTab, MerchantFrame.page = 1, 1
+MerchantFrame:SetSize(336, 444)
+for number = 1, 12 do
+	MerchantItem("MerchantItem" .. number)
+end
+local MerchantPageText = Region("MerchantPageText", false)
+local MerchantPrevPageButton = Region("MerchantPrevPageButton", false)
+local MerchantNextPageButton = Region("MerchantNextPageButton", false)
+local MerchantFrameBottomLeftBorder = Region("MerchantFrameBottomLeftBorder")
+
+-- The merchant's items, by index.
+local items = {}
+local costs = {}
+local heirlooms = {}
+C_MerchantFrame = {
+	GetItemInfo = function(index)
+		return items[index]
+	end,
+	IsMerchantItemRefundable = function()
+		return true
+	end,
+}
+function GetMerchantNumItems()
+	return #items
+end
+function CanAffordMerchantItem(index)
+	return items[index].afford ~= false
+end
+function GetMerchantItemLink(index)
+	return "link" .. index
+end
+function GetMerchantItemID(index)
+	return 1000 + index
+end
+function GetMerchantItemCostInfo(index)
+	return costs[index] and #costs[index] or 0
+end
+function GetMerchantItemCostItem(index, cost)
+	local item = costs[index] and costs[index][cost]
+	if item then
+		return item.texture, item.value, item.link
+	end
+end
+C_Heirloom = {
+	IsItemHeirloom = function(id)
+		return heirlooms[id] ~= nil
+	end,
+	PlayerHasHeirloom = function(id)
+		return heirlooms[id] == true
+	end,
+}
+CurrencyContainerUtil = {
+	GetCurrencyContainerInfo = function(_, amount, name, texture)
+		return name .. " (container)", texture, amount
+	end,
+}
+
+function SetItemButtonCount(button, count) button.count = count end
+function SetItemButtonStock(button, stock) button.stock = stock end
+function SetItemButtonTexture(button, texture) button.icon = texture end
+function SetItemButtonDesaturated(button, value) button.desaturated = value and true or false end
+function SetItemButtonNameFrameVertexColor(slot, r, g, b) slot.nameColor = ("%g %g %g"):format(r, g, b) end
+function SetItemButtonSlotVertexColor(slot, r, g, b) slot.slotColor = ("%g %g %g"):format(r, g, b) end
+function SetItemButtonTextureVertexColor(button, r, g, b) button.iconColor = ("%g %g %g"):format(r, g, b) end
+function SetItemButtonNormalTextureVertexColor(button, r, g, b) button.normalColor = ("%g %g %g"):format(r, g, b) end
+function MoneyFrame_SetMaxDisplayWidth(frame, width) frame.maxWidth = width end
+function MoneyFrame_Update(name, price) _G[name].price = price end
+function SetMoneyFrameColor(name, color) _G[name].color = color end
+function AltCurrencyFrame_Update(name, texture, value) _G[name].cost = texture .. "x" .. value end
+local qualities = {}
+function MerchantFrameItem_UpdateQuality(slot, link)
+	qualities[#qualities + 1] = slot:GetName() .. "=" .. tostring(link)
+end
+
+StackSplitFrame = Region("StackSplitFrame", false)
+local splitCancels = 0
+function StackSplitCancelButton_OnClick()
+	splitCancels = splitCancels + 1
+	StackSplitFrame:Hide()
+end
+
+-- Blizzard's update: its tab's draw function, then whatever hooked it.
+local hooks = {}
+function hooksecurefunc(name, hook)
+	hooks[name] = hooks[name] or {}
+	table.insert(hooks[name], hook)
+end
+local function Run(name)
+	for _, hook in ipairs(hooks[name] or {}) do
+		hook()
+	end
+end
+local updates = 0
+function MerchantFrame_UpdateMerchantInfo()
+	-- Blizzard shows its page controls past ten items and hides its buyback slots.
+	local paged = #items > 10
+	MerchantPageText:SetShown(paged)
+	MerchantPrevPageButton:SetShown(paged)
+	MerchantNextPageButton:SetShown(paged)
+	MerchantItem11:Hide()
+	MerchantItem12:Hide()
+	Run("MerchantFrame_UpdateMerchantInfo")
+end
+function MerchantFrame_UpdateBuybackInfo()
+	MerchantItem11:Show()
+	MerchantItem12:Show()
+	Run("MerchantFrame_UpdateBuybackInfo")
+end
+function MerchantFrame_UpdateItemQualityBorders()
+	Run("MerchantFrame_UpdateItemQualityBorders")
+end
+function MerchantFrame_Update()
+	updates = updates + 1
+	if MerchantFrame.selectedTab == 1 then
+		MerchantFrame_UpdateMerchantInfo()
+	else
+		MerchantFrame_UpdateBuybackInfo()
+	end
+end
+
+-- Addon table ---------------------------------------------------------------------------------------------
+
+local AUI = {}
+AUI.L = setmetatable({}, { __index = function(_, key)
+	return key
+end })
+assert(loadfile(root .. "Core/Core.lua"))("AeonUI", AUI)
+AUI.can = { merchantWindow = true }
+
+for _, file in ipairs({ "Core/Callbacks.lua", "Core/Events.lua", "Profile/Schema.lua" }) do
+	assert(loadfile(root .. file))("AeonUI", AUI)
+end
+
+local values = {}
+AUI.Profile = {
+	Get = function(_, path)
+		local value = values[path]
+		local field = AUI.Schema:Field(path)
+
+		if value == nil then
+			value = field and field.default
+		end
+
+		return value
+	end,
+}
+
+local function Set(path, value)
+	values[path] = value
+	AUI.Callbacks:Fire("Profile", path)
+end
+
+for _, file in ipairs({ "MerchantWindow/Options.lua", "MerchantWindow/MerchantWindow.lua" }) do
+	assert(loadfile(root .. file))("AeonUI", AUI)
+end
+
+local Options, MerchantWindow = AUI.MerchantWindowOptions, AUI.MerchantWindow
+
+-- Harness -------------------------------------------------------------------------------------------------
+
+local checks = 0
+
+local function Equal(name, actual, expected)
+	checks = checks + 1
+	if actual ~= expected then
+		io.stderr:write(("FAIL: %s: expected %s, got %s\n"):format(name, tostring(expected), tostring(actual)))
+		os.exit(1)
+	end
+end
+
+local function Cell(slot, rows, columns, order)
+	local row, column = Options:Cell(slot, rows, columns, order)
+
+	return row .. "," .. column
+end
+
+local function Size(frame)
+	return frame.width .. "x" .. frame.height
+end
+
+local function Point(region)
+	return table.concat(region.points[1], " ", 1, 1) .. " " .. table.concat(
+		{ tostring(region.points[1][#region.points[1] - 1]), tostring(region.points[1][#region.points[1]]) }, " ")
+end
+
+local function Blizzard(shown)
+	for number = 1, 10 do
+		if _G["MerchantItem" .. number].shown ~= shown then
+			return false
+		end
+	end
+
+	return true
+end
+
+---Gives the merchant `count` plain items.
+local function Stock(count)
+	items = {}
+	for index = 1, count do
+		items[index] = { name = "Item " .. index, texture = index, stackCount = 1, numAvailable = -1, price = 100 * index,
+			isPurchasable = true, isUsable = true }
+	end
+end
+
+-- Arithmetic ----------------------------------------------------------------------------------------------
+
+Equal("off by default", AUI.Schema:Field(Options.ENABLED_PATH).default, false)
+Equal("5 rows by default", AUI.Schema:Field(Options.ROWS_PATH).default, 5)
+Equal("5 columns by default", AUI.Schema:Field(Options.COLUMNS_PATH).default, 5)
+Equal("rows first by default", AUI.Schema:Field(Options.ORDER_PATH).default, "ROWS")
+Equal("rows' range", AUI.Schema:Field(Options.ROWS_PATH).min .. "-" .. AUI.Schema:Field(Options.ROWS_PATH).max, "1-10")
+Equal("columns' range", AUI.Schema:Field(Options.COLUMNS_PATH).min .. "-"
+	.. AUI.Schema:Field(Options.COLUMNS_PATH).max, "2-8")
+Equal("whole rows", AUI.Schema:Field(Options.ROWS_PATH).integer, true)
+
+Equal("rows first: across", Cell(2, 3, 4, "ROWS"), "1,2")
+Equal("rows first: then down", Cell(5, 3, 4, "ROWS"), "2,1")
+Equal("rows first: the last cell", Cell(12, 3, 4, "ROWS"), "3,4")
+Equal("columns first: down", Cell(2, 3, 4, "COLUMNS"), "2,1")
+Equal("columns first: then across", Cell(4, 3, 4, "COLUMNS"), "1,2")
+Equal("columns first: the last cell", Cell(12, 3, 4, "COLUMNS"), "3,4")
+Equal("an unknown order fills rows first", Cell(2, 3, 4, "DIAGONAL"), "1,2")
+
+local x, y = Options:Offset(1, 1)
+Equal("the first slot sits where Blizzard's does", x .. "," .. y, "11,-69")
+x, y = Options:Offset(3, 2)
+Equal("each column a slot and a gap across, each row a slot and a gap down", x .. "," .. y, "176,-173")
+
+local width, height = Options:WindowSize(5, 2)
+Equal("Blizzard's grid keeps Blizzard's window", width .. "x" .. height, "336x444")
+width, height = Options:WindowSize(5, 5)
+Equal("the default grid", width .. "x" .. height, "831x444")
+width, height = Options:WindowSize(10, 8)
+Equal("the largest grid", width .. "x" .. height, "1326x704")
+width, height = Options:WindowSize(1, 2)
+Equal("one row shrinks the window", width .. "x" .. height, "336x236")
+
+Equal("no items is one page", Options:Pages(0, 25), 1)
+Equal("a full page", Options:Pages(25, 25), 1)
+Equal("one past a page", Options:Pages(26, 25), 2)
+Equal("a page in range", Options:ClampPage(2, 3), 2)
+Equal("past the last page", Options:ClampPage(9, 3), 3)
+Equal("before the first page", Options:ClampPage(0, 3), 1)
+Equal("not a number", Options:ClampPage(nil, 3), 1)
+
+-- Module --------------------------------------------------------------------------------------------------
+
+MerchantWindow:Start()
+Equal("off: nothing hooked", hooks.MerchantFrame_UpdateMerchantInfo, nil)
+Equal("off: not extended", MerchantWindow.extended, false)
+
+Stock(23)
+MerchantFrame:Show()
+MerchantFrame_Update()
+Equal("off: Blizzard's slots stay", Blizzard(true), true)
+Equal("off: no slots made", #created, 0)
+
+Set(Options.ENABLED_PATH, true)
+Equal("on: Blizzard's three updates hooked", #hooks.MerchantFrame_UpdateMerchantInfo + #hooks.MerchantFrame_UpdateBuybackInfo
+	+ #hooks.MerchantFrame_UpdateItemQualityBorders, 3)
+Equal("on: an open window redraws", updates, 2)
+Equal("the default grid's slots", #created, 25)
+Equal("slots are named for Blizzard's helpers", created[1], "AeonUIMerchantItem1")
+Equal("Blizzard's slots hidden", Blizzard(false), true)
+Equal("the window fits the grid", Size(MerchantFrame), "831x444")
+Equal("rows first: the second slot beside the first", Point(AeonUIMerchantItem2), "TOPLEFT 176 -69")
+Equal("the first item", AeonUIMerchantItem1.Name.text .. " " .. AeonUIMerchantItem1.ItemButton:GetID(), "Item 1 1")
+Equal("the item's price", AeonUIMerchantItem3MoneyFrame.price .. " " .. tostring(AeonUIMerchantItem3MoneyFrame.shown),
+	"300 true")
+Equal("a usable item is drawn as it is", AeonUIMerchantItem1.slotColor .. "/" .. AeonUIMerchantItem1.ItemButton.iconColor,
+	"1 1 1/1 1 1")
+Equal("past the last item: empty", tostring(AeonUIMerchantItem24.ItemButton.shown) .. " "
+	.. tostring(AeonUIMerchantItem24.ItemButton.hasItem) .. " " .. AeonUIMerchantItem24.slotColor, "false nil 0.4 0.4 0.4")
+Equal("23 items on one page: no page controls", tostring(MerchantPageText.shown) .. " "
+	.. tostring(MerchantNextPageButton.shown), "false false")
+Equal("the bottom bar's art spans the window", #MerchantFrameBottomLeftBorder.points, 2)
+Equal("the next page button at the right edge", Point(MerchantNextPageButton), "CENTER -26 96")
+
+Set(Options.ORDER_PATH, "COLUMNS")
+Equal("columns first: the second slot under the first", Point(AeonUIMerchantItem2), "TOPLEFT 11 -121")
+Set(Options.ORDER_PATH, "ROWS")
+
+-- Paging: 2 x 2 is four a page, so 23 items are six pages.
+Set(Options.ROWS_PATH, 2)
+Set(Options.COLUMNS_PATH, 2)
+Equal("slots past the page hidden", tostring(AeonUIMerchantItem5.shown) .. " " .. tostring(AeonUIMerchantItem4.shown),
+	"false true")
+Equal("the page text counts the grid's pages", MerchantPageText.text, "Page 1 of 6")
+Equal("page controls shown", tostring(MerchantPageText.shown) .. " " .. tostring(MerchantPrevPageButton.shown) .. " "
+	.. tostring(MerchantNextPageButton.shown), "true true true")
+Equal("first page: previous off, next on", tostring(MerchantPrevPageButton.enabled) .. " "
+	.. tostring(MerchantNextPageButton.enabled), "false true")
+Equal("the window shrinks with the grid", Size(MerchantFrame), "336x288")
+
+Stock(6)
+MerchantFrame_Update()
+Equal("six items still page at four a page, where Blizzard shows none", tostring(MerchantPageText.shown) .. " "
+	.. MerchantPageText.text, "true Page 1 of 2")
+Stock(23)
+
+MerchantFrame.page = 9
+MerchantFrame_Update()
+Equal("a page past the last is brought back", MerchantFrame.page, 6)
+Equal("the last page's items", AeonUIMerchantItem1.ItemButton:GetID() .. " " .. AeonUIMerchantItem3.ItemButton:GetID(),
+	"21 23")
+Equal("the last page's empty slot", tostring(AeonUIMerchantItem4.ItemButton.hasItem), "nil")
+Equal("last page: previous on, next off", tostring(MerchantPrevPageButton.enabled) .. " "
+	.. tostring(MerchantNextPageButton.enabled), "true false")
+
+-- A quantity window stays only while its slot keeps its item.
+StackSplitFrame:Show()
+StackSplitFrame.owner = AeonUIMerchantItem1.ItemButton
+MerchantFrame_Update()
+Equal("same item: the quantity window stays", splitCancels, 0)
+MerchantFrame.page = 1
+MerchantFrame_Update()
+Equal("another item: the quantity window closes", splitCancels, 1)
+StackSplitFrame:Show()
+StackSplitFrame.owner = MerchantItem1ItemButton
+MerchantFrame.page = 2
+MerchantFrame_Update()
+Equal("Blizzard's own quantity windows are left to Blizzard", splitCancels, 1)
+StackSplitFrame:Hide()
+MerchantFrame.page = 1
+
+-- How Blizzard fills a slot.
+items[1] = { name = "Token", texture = 1, stackCount = 1, numAvailable = -1, price = 0, hasExtendedCost = true,
+	isPurchasable = true, isUsable = true }
+costs[1] = { { texture = "badge", value = 5, link = "badgeLink" } }
+items[2] = { name = "Both", texture = 2, stackCount = 1, numAvailable = -1, price = 50, hasExtendedCost = true,
+	isPurchasable = true, isUsable = true, afford = false }
+costs[2] = { { texture = "mark", value = 2 }, { texture = "seal", value = 3 } }
+items[3] = { name = "Sword", texture = 3, stackCount = 1, numAvailable = 0, price = 10, isPurchasable = true,
+	isUsable = false, isQuestStartItem = true }
+items[4] = { name = "Crest", texture = 4, stackCount = 1, numAvailable = -1, price = 10, isPurchasable = true,
+	isUsable = true, currencyID = 7 }
+heirlooms[1003] = true
+MerchantFrame_Update()
+Equal("cost items alone: no money", tostring(AeonUIMerchantItem1MoneyFrame.shown) .. " "
+	.. tostring(AeonUIMerchantItem1AltCurrencyFrame.shown) .. " " .. AeonUIMerchantItem1AltCurrencyFrameItem1.cost,
+	"false true badgex5")
+Equal("a cost item's link", AeonUIMerchantItem1AltCurrencyFrameItem1.itemLink, "badgeLink")
+Equal("unused cost buttons hidden", tostring(AeonUIMerchantItem1AltCurrencyFrameItem2.shown), "false")
+Equal("money and cost items", tostring(AeonUIMerchantItem2MoneyFrame.shown) .. " "
+	.. tostring(AeonUIMerchantItem2AltCurrencyFrame.shown) .. " " .. AeonUIMerchantItem2AltCurrencyFrameItem2.cost,
+	"true true sealx3")
+Equal("the price leaves room for the cost items", AeonUIMerchantItem2MoneyFrame.maxWidth, 120 - 24)
+Equal("an unaffordable price is gray", AeonUIMerchantItem2MoneyFrame.color, "gray")
+Equal("a quest item's mark", tostring(AeonUIMerchantItem3.ItemButton.IconQuestTexture.shown) .. " "
+	.. tostring(AeonUIMerchantItem3.ItemButton.IconQuestTexture.texture), "true bang")
+Equal("a known heirloom, sold out, desaturated and dimmed", tostring(AeonUIMerchantItem3.ItemButton.desaturated) .. " "
+	.. AeonUIMerchantItem3.slotColor, "true 0.5 0.5 0.5")
+Equal("a currency's container name", AeonUIMerchantItem4.Name.text, "Crest (container)")
+items[3].numAvailable, heirlooms[1003] = -1, nil
+MerchantFrame_Update()
+Equal("not usable: red", AeonUIMerchantItem3.slotColor .. "/" .. AeonUIMerchantItem3.ItemButton.iconColor,
+	"1 0 0/0.9 0 0")
+items[3].numAvailable = 0
+MerchantFrame_Update()
+Equal("not usable and sold out: dim red", AeonUIMerchantItem3.nameColor, "0.5 0 0")
+Stock(23)
+costs = {}
+
+-- Item data arriving.
+qualities = {}
+MerchantFrame_UpdateItemQualityBorders()
+Equal("item quality redrawn for each shown item", table.concat(qualities, " "),
+	"AeonUIMerchantItem1=link1 AeonUIMerchantItem2=link2 AeonUIMerchantItem3=link3 AeonUIMerchantItem4=link4")
+
+-- Forever's gamepad interface pages with its indicators.
+local MerchantPageTurnIndicatorLeft = Region("MerchantPageTurnIndicatorLeft", false)
+local MerchantPageTurnIndicatorRight = Region("MerchantPageTurnIndicatorRight", false)
+InputUtil = { IsGamepadUIEnabled = function()
+	return true
+end }
+MerchantFrame_Update()
+Equal("gamepad: indicators in place of the buttons", tostring(MerchantPageTurnIndicatorLeft.shown) .. " "
+	.. tostring(MerchantPrevPageButton.shown) .. " " .. tostring(MerchantPageTurnIndicatorLeft.enabled) .. " "
+	.. tostring(MerchantPageTurnIndicatorRight.enabled), "true false false true")
+InputUtil = nil
+MerchantFrame_Update()
+Equal("mouse: buttons, no indicators", tostring(MerchantPageTurnIndicatorLeft.shown) .. " "
+	.. tostring(MerchantPrevPageButton.shown), "false true")
+
+-- Buyback.
+MerchantFrame.selectedTab = 2
+MerchantFrame_Update()
+Equal("buyback: Blizzard's slots", Blizzard(true), true)
+Equal("buyback: AeonUI's slots hidden", tostring(AeonUIMerchantItem1.shown), "false")
+Equal("buyback: Blizzard's size", Size(MerchantFrame), "336x444")
+Equal("buyback: the next page button back in place", Point(MerchantNextPageButton), "CENTER 310 96")
+Equal("buyback: the art at Blizzard's width", #MerchantFrameBottomLeftBorder.points .. " "
+	.. MerchantFrameBottomLeftBorder.width, "1 334")
+MerchantFrame.selectedTab = 1
+MerchantFrame_Update()
+Equal("back on the merchant tab: the grid", tostring(AeonUIMerchantItem1.shown) .. " " .. tostring(Blizzard(false)),
+	"true true")
+
+-- Turned off.
+MerchantFrame.page = 3
+local before = updates
+Set(Options.ENABLED_PATH, false)
+Equal("off: an open window redraws", updates, before + 1)
+Equal("off: Blizzard's slots back", Blizzard(true), true)
+Equal("off: AeonUI's slots hidden", tostring(AeonUIMerchantItem1.shown), "false")
+Equal("off: Blizzard's size", Size(MerchantFrame), "336x444")
+Equal("off: back to the first page", MerchantFrame.page, 1)
+MerchantFrame_Update()
+Equal("off: the hooks draw nothing", tostring(AeonUIMerchantItem1.shown), "false")
+Set(Options.ENABLED_PATH, true)
+Equal("on again: hooked once", #hooks.MerchantFrame_UpdateMerchantInfo, 1)
+Equal("on again: the grid", tostring(AeonUIMerchantItem1.shown), "true")
+
+-- Krowi's Extended Vendor UI resizes the window itself.
+loaded.Krowi_ExtendedVendorUI = true
+Equal("stands down for Krowi's", MerchantWindow:IsWanted(), false)
+Equal("names it", MerchantWindow:Blocked(), "Krowi's Extended Vendor UI resizes the merchant window.")
+MerchantWindow:Apply()
+Equal("stood down: Blizzard's slots back", Blizzard(true), true)
+loaded.Krowi_ExtendedVendorUI = nil
+Equal("nothing blocks it otherwise", MerchantWindow:Blocked(), nil)
+
+-- A client without the merchant window's functions.
+MerchantWindow.active = false
+AUI.can.merchantWindow = false
+Equal("unavailable: not wanted", MerchantWindow:IsWanted(), false)
+
+io.stdout:write(("check_merchantwindow: %d checks passed\n"):format(checks))
