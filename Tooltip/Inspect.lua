@@ -10,7 +10,6 @@ local MAX_KEPT = 300
 -- Gear still loading is averaged again this long after the last item arrives.
 local LOAD_SETTLE = 0.2
 local WAITING = "..."
-local ROLE_ATLASES = { TANK = "roleicon-tiny-tank", HEALER = "roleicon-tiny-healer", DAMAGER = "roleicon-tiny-dps" }
 local ICON_SIZE = 14
 local INSPECT_DISTANCE = 1
 
@@ -365,7 +364,7 @@ function Inspect:ItemLevelText(itemLevel)
 end
 
 ---@param specID number?
----@return string text the role's icon and the specialization's name
+---@return string text the role's icon, in the chosen style, and the specialization's name
 function Inspect:SpecText(specID)
 	local _, name, _, _, role = GetSpecializationInfoByID(specID or 0)
 
@@ -375,9 +374,9 @@ function Inspect:SpecText(specID)
 		return WAITING
 	end
 
-	local atlas = ROLE_ATLASES[role or ""]
+	local icon = AUI.Media:RoleMarkup(Options:Get(Options.ROLE_ICONS_PATH), role or "", ICON_SIZE)
 
-	return (atlas and CreateAtlasMarkup(atlas, ICON_SIZE, ICON_SIZE) .. " " or "") .. name
+	return (icon and icon .. " " or "") .. name
 end
 
 ---@param unit string

@@ -326,6 +326,10 @@ L["The player's average item level, inspected once the cursor rests on them."] =
 L["The player's specialization and role, from an inspect or shared by their addons."] = "A especialização e a função do jogador, de uma inspeção ou compartilhadas pelos addons dele."
 L["Aura Caster Names"] = "Lançadores de auras"
 L["Aura tooltips name who cast the aura."] = "As dicas de tela de auras indicam quem lançou a aura."
+L["Role Icons"] = "Ícones de função"
+L["Blizzard"] = "Blizzard"
+L["Square"] = "Quadrado"
+L["White"] = "Branco"
 
 L["Item Details"] = "Detalhes do item"
 L["Category and Type"] = "Categoria e tipo"

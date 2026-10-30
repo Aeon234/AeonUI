@@ -326,6 +326,10 @@ L["The player's average item level, inspected once the cursor rests on them."] =
 L["The player's specialization and role, from an inspect or shared by their addons."] = "플레이어의 전문화와 역할입니다. 살펴보기나 플레이어의 애드온이 공유한 정보로 확인합니다."
 L["Aura Caster Names"] = "오라 시전자 이름"
 L["Aura tooltips name who cast the aura."] = "오라 툴팁에 오라를 건 시전자를 표시합니다."
+L["Role Icons"] = "역할 아이콘"
+L["Blizzard"] = "블리자드"
+L["Square"] = "사각형"
+L["White"] = "흰색"
 
 L["Item Details"] = "아이템 세부 정보"
 L["Category and Type"] = "분류 및 종류"

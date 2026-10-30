@@ -358,8 +358,12 @@ function icon:AddButtonToCompartment(name)
 	self.compartment[name] = true
 end
 
+DEFAULT = "Default"
+COLOR = "Color"
+function CreateAtlasMarkup(atlas) return "|A:" .. atlas .. "|a" end
+
 local LSM = {
-	MediaType = { FONT = "font", STATUSBAR = "statusbar" },
+	MediaType = { BORDER = "border", FONT = "font", SOUND = "sound", STATUSBAR = "statusbar" },
 	Register = function() end,
 	Fetch = function() end,
 }
@@ -1006,8 +1010,14 @@ for id in pairs(AUI.SettingsTooltip.pageIDs) do
 			if id ~= "tooltipGeneral" then
 				local parent = setting
 
-				while parent.depends and parent.depends ~= TOOLTIP_SWITCH do
-					parent = section.settings[parent.depends]
+				while parent and parent.depends and parent.depends ~= TOOLTIP_SWITCH do
+					local depends = parent.depends
+
+					parent = nil
+
+					for _, other in ipairs(page.sections) do
+						parent = parent or other.settings[depends]
+					end
 				end
 
 				Equal(setting.id .. " follows the module's switch", parent and parent.depends, TOOLTIP_SWITCH)
@@ -1040,6 +1050,17 @@ Equal("the font follows Custom Font", tooltipFont.fontFace.depends, "customFont"
 Equal("the scale stands on its own", tooltipFont.fontScale.depends, nil)
 Equal("the bar's style follows Show Health Bar", tooltipBar.barStyle.depends, "showHealthBar")
 Equal("so does its height", tooltipBar.barHeight.depends, "showHealthBar")
+local unitRoles = window.pages.tooltipUnits.sections.tooltipUnitRoles
+Equal("the Role Icons card follows Specialization", unitRoles.settings.roleIcons.depends, "showSpecialization")
+Equal("a style for each, the client's first", unitRoles.settings.roleIcons.options[1].value .. " "
+	.. #unitRoles.settings.roleIcons.options, "DEFAULT 6")
+Equal("each style shows its three icons", select(2, unitRoles.settings.roleIcons.options[6].text:gsub("|T", "")), 3)
+local specializations = AUI.can.specializations
+AUI.can.specializations = nil
+Equal("no Role Icons card without specializations", unitRoles.info.show(), false)
+AUI.can.specializations = true
+Equal("the Role Icons card with them", unitRoles.info.show(), true)
+AUI.can.specializations = specializations
 local unitAdded = window.pages.tooltipUnits.sections.tooltipUnitAdded.settings
 local mythicPlus, auraCasterNames = AUI.can.mythicPlus, AUI.can.auraCasterNames
 AUI.can.mythicPlus, AUI.can.auraCasterNames = nil, nil

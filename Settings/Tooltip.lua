@@ -7,6 +7,16 @@ local BAR_STYLE_LABELS = {
 	BLIZZARD = L["Under the Tooltip"],
 	STRIP = L["Inside Bottom Edge"],
 }
+local ROLE_STYLE_LABELS = {
+	DEFAULT = DEFAULT,
+	BLIZZARD = L["Blizzard"],
+	COLOR = COLOR,
+	ELVUI = "ElvUI",
+	SQUARE = L["Square"],
+	WHITE = L["White"],
+}
+-- The size of each role icon beside its style's name in the Role Icons dropdown.
+local ROLE_SAMPLE_SIZE = 14
 local MODIFIER_LABELS = {
 	NONE = NONE,
 	SHIFT = SHIFT_KEY_TEXT,
@@ -550,6 +560,32 @@ function SettingsTooltip:DeclareUnits(window)
 		Options.AURA_CASTERS_PATH, function()
 			return AUI.can.auraCasterNames == true
 		end)
+
+	local roles = page:Section("tooltipUnitRoles", L["Role Icons"], {
+		show = function()
+			return AUI.can.specializations == true
+		end,
+	})
+	local styles = {}
+
+	for index, style in ipairs(AUI.Media.ROLE_STYLES) do
+		local icons = {}
+
+		for _, role in ipairs({ "TANK", "HEALER", "DAMAGER" }) do
+			icons[#icons + 1] = AUI.Media:RoleMarkup(style, role, ROLE_SAMPLE_SIZE)
+		end
+
+		styles[index] = { value = style, text = ROLE_STYLE_LABELS[style] .. "  " .. table.concat(icons) }
+	end
+
+	roles:Dropdown({
+		id = "roleIcons",
+		label = L["Style"],
+		path = Options.ROLE_ICONS_PATH,
+		default = AUI.Settings:Default(Options.ROLE_ICONS_PATH),
+		depends = "showSpecialization",
+		options = styles,
+	})
 end
 
 ---The Items page: the Details preview, the item lines, the IDs and, where the client has upgrade tracks, the upgrade

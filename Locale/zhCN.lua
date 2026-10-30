@@ -326,6 +326,10 @@ L["The player's average item level, inspected once the cursor rests on them."] =
 L["The player's specialization and role, from an inspect or shared by their addons."] = "玩家的专精和职责，来自观察或其插件共享的信息。"
 L["Aura Caster Names"] = "光环施放者名字"
 L["Aura tooltips name who cast the aura."] = "光环鼠标提示显示施放该光环的人。"
+L["Role Icons"] = "职责图标"
+L["Blizzard"] = "暴雪"
+L["Square"] = "方形"
+L["White"] = "白色"
 
 L["Item Details"] = "物品详情"
 L["Category and Type"] = "类别和类型"

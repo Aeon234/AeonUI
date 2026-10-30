@@ -30,11 +30,14 @@ STANDARD_TEXT_FONT = "Fonts\\FRIZQT__.TTF"
 local LSM_FILES = {
 	font = { ["Friz Quadrata TT"] = "Fonts\\FRIZQT__.TTF", ["Expressway"] = "Fonts\\Expressway.ttf" },
 	statusbar = {},
+	border = {},
+	sound = {},
 }
 local LSM = {
-	MediaType = { FONT = "font", STATUSBAR = "statusbar" },
+	MediaType = { BORDER = "border", FONT = "font", SOUND = "sound", STATUSBAR = "statusbar" },
+	-- The first file registered under a name keeps it, as in LibSharedMedia.
 	Register = function(_, kind, name, file)
-		LSM_FILES[kind][name] = file
+		LSM_FILES[kind][name] = LSM_FILES[kind][name] or file
 	end,
 	Fetch = function(_, kind, name)
 		local files = LSM_FILES[kind]
@@ -1456,6 +1459,10 @@ events.INSPECT_READY("Player-9")
 Equal("the answer fills the item level in place", rights[Inspect.shown.itemLevel].text, "312")
 Equal("in its grade", Rgb(rights[Inspect.shown.itemLevel].color), Rgb(Format.GRADES[2]))
 Equal("and the specialization, with its role", rights[Inspect.shown.spec].text, "|A:roleicon-tiny-healer|a Holy")
+values[Options.ROLE_ICONS_PATH] = "WHITE"
+Equal("the role icon in the chosen style", Inspect:SpecText(257),
+	"|TInterface\\AddOns\\AeonUI\\Media\\Textures\\Roles\\White\\Healer.png:14:14|t Holy")
+values[Options.ROLE_ICONS_PATH] = nil
 Equal("the tooltip is resized", shown.shows, showsBefore + 1)
 Equal("AeonUI's own inspect is cleared", inspects.cleared, 1)
 Hover("Player-9")

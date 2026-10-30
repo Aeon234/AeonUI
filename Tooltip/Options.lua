@@ -35,6 +35,7 @@ local CURSOR_POINTS = {
 ---@field AURA_CASTERS_PATH string aura tooltips name who cast the aura, where the client offers it
 ---@field ITEM_LEVEL_PATH string player tooltips add the player's item level
 ---@field SPECIALIZATION_PATH string player tooltips add the player's specialization, where the client has them
+---@field ROLE_ICONS_PATH string a `roleIconStyle` choice: the specialization line's role icon
 ---@field EXPANSION_PATH string item tooltips add the item's expansion, where the client has expansions
 ---@field ITEM_TYPE_PATH string item tooltips add the item's category and type
 ---@field MAX_STACK_PATH string item tooltips add how many stack in one slot
@@ -82,6 +83,7 @@ local Options = {
 	AURA_CASTERS_PATH = "tooltip.units.auraCasters",
 	ITEM_LEVEL_PATH = "tooltip.units.itemLevel",
 	SPECIALIZATION_PATH = "tooltip.units.specialization",
+	ROLE_ICONS_PATH = "tooltip.units.roleIcons",
 	EXPANSION_PATH = "tooltip.details.expansion",
 	ITEM_TYPE_PATH = "tooltip.details.itemType",
 	MAX_STACK_PATH = "tooltip.details.maxStack",
@@ -116,6 +118,7 @@ local Options = {
 AUI.TooltipOptions = Options
 
 Schema:Choices("tooltipBarStyle", Options.BAR_STYLES)
+Schema:Choices("roleIconStyle", AUI.Media.ROLE_STYLES)
 
 Schema:Boolean(Options.ENABLED_PATH, true)
 Schema:Boolean(Options.FONT_CUSTOM_PATH, false)
@@ -136,6 +139,7 @@ Schema:Boolean(Options.RATING_PATH, true)
 Schema:Boolean(Options.AURA_CASTERS_PATH, true)
 Schema:Boolean(Options.ITEM_LEVEL_PATH, true)
 Schema:Boolean(Options.SPECIALIZATION_PATH, true)
+Schema:Choice(Options.ROLE_ICONS_PATH, "roleIconStyle", "DEFAULT")
 Schema:Choices("tooltipModifier", Options.MODIFIERS)
 Schema:Boolean(Options.EXPANSION_PATH, true)
 Schema:Boolean(Options.ITEM_TYPE_PATH, true)

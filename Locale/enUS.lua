@@ -360,6 +360,10 @@ L["The player's specialization and role, from an inspect or shared by their addo
 	"The player's specialization and role, from an inspect or shared by their addons."
 L["Aura Caster Names"] = "Aura Caster Names"
 L["Aura tooltips name who cast the aura."] = "Aura tooltips name who cast the aura."
+L["Role Icons"] = "Role Icons"
+L["Blizzard"] = "Blizzard"
+L["Square"] = "Square"
+L["White"] = "White"
 
 L["Item Details"] = "Item Details"
 L["Category and Type"] = "Category and Type"
