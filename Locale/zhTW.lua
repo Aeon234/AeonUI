@@ -457,6 +457,7 @@ L["%s resizes the merchant window."] = "%s 會調整商人視窗的大小。"
 L["Fill Order"] = "填充順序"
 L["Rows First"] = "先按列"
 L["Columns First"] = "先按欄"
+L["Show All Items"] = "顯示所有物品"
 
 -- Player Menu page (Settings)
 L["Guild Invite"] = "公會邀請"

@@ -457,6 +457,7 @@ L["%s resizes the merchant window."] = "%s изменяет размер окн�
 L["Fill Order"] = "Порядок заполнения"
 L["Rows First"] = "Сначала строки"
 L["Columns First"] = "Сначала столбцы"
+L["Show All Items"] = "Показывать все предметы"
 
 -- Player Menu page (Settings)
 L["Guild Invite"] = "Пригласить в гильдию"

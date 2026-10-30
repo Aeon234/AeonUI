@@ -496,6 +496,7 @@ L["%s resizes the merchant window."] = "%s resizes the merchant window."
 L["Fill Order"] = "Fill Order"
 L["Rows First"] = "Rows First"
 L["Columns First"] = "Columns First"
+L["Show All Items"] = "Show All Items"
 
 -- Player Menu page (Settings)
 L["Guild Invite"] = "Guild Invite"

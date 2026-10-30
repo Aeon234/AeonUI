@@ -3,18 +3,21 @@ local AUI = select(2, ...)
 local Schema = AUI.Schema
 
 ---The Merchant Window settings and the frame-free grid arithmetic behind them: how many rows and columns of items the
----merchant tab shows, the order they fill, each slot's place and the window's size.
+---merchant tab shows, the order they fill, each slot's place and the window's size, and whether the merchant's filter
+---opens on all items.
 ---@class AUIMerchantWindowOptions
 ---@field ENABLED_PATH string the merchant tab shows AeonUI's grid
 ---@field ROWS_PATH string
 ---@field COLUMNS_PATH string
 ---@field ORDER_PATH string
+---@field SHOW_ALL_PATH string the merchant's filter is set to all items each time the window opens
 ---@field ORDERS string[] the fill orders, in the order the page lists them
 local Options = {
 	ENABLED_PATH = "merchantWindow.enabled",
 	ROWS_PATH = "merchantWindow.rows",
 	COLUMNS_PATH = "merchantWindow.columns",
 	ORDER_PATH = "merchantWindow.order",
+	SHOW_ALL_PATH = "merchantWindow.showAll",
 	-- ROWS: across each row, then down (Blizzard's order). COLUMNS: down each column, then across.
 	ORDERS = { "ROWS", "COLUMNS" },
 	MIN_ROWS = 1,
@@ -41,6 +44,7 @@ Schema:Boolean(Options.ENABLED_PATH, false)
 Schema:Number(Options.ROWS_PATH, 5, Options.MIN_ROWS, Options.MAX_ROWS, true)
 Schema:Number(Options.COLUMNS_PATH, 5, Options.MIN_COLUMNS, Options.MAX_COLUMNS, true)
 Schema:Choice(Options.ORDER_PATH, "merchantWindowOrder", "ROWS")
+Schema:Boolean(Options.SHOW_ALL_PATH, true)
 
 ---@param slot number a slot on the page, from 1
 ---@param rows number

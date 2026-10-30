@@ -11,7 +11,8 @@ local ORDER_LABELS = {
 }
 
 ---The Merchant Window page, under the Quality of Life header: the Item Grid card headed by its switch, with the rows,
----columns and fill order while it is on. Changes take effect at once, in an open merchant window too.
+---columns and fill order while it is on, and the Filter card's Show All Items. Changes take effect at once, in an
+---open merchant window too.
 ---@class AUISettingsMerchantWindow
 local SettingsMerchantWindow = {}
 AUI.SettingsMerchantWindow = SettingsMerchantWindow
@@ -76,4 +77,16 @@ function SettingsMerchantWindow:Declare(window)
 		depends = "merchantWindowEnabled",
 		options = options,
 	})
+
+	if AUI.can.merchantFilter then
+		page:Section("merchantWindowFilter", FILTER):Checkbox({
+			id = "merchantWindowShowAll",
+			label = L["Show All Items"],
+			path = Options.SHOW_ALL_PATH,
+			default = Settings:Default(Options.SHOW_ALL_PATH),
+			blocked = function()
+				return AUI.MerchantWindow:Blocked()
+			end,
+		})
+	end
 end

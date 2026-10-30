@@ -457,6 +457,7 @@ L["%s resizes the merchant window."] = "%s ändert die Größe des Händlerfenst
 L["Fill Order"] = "Füllreihenfolge"
 L["Rows First"] = "Zeilen zuerst"
 L["Columns First"] = "Spalten zuerst"
+L["Show All Items"] = "Alle Gegenstände anzeigen"
 
 -- Player Menu page (Settings)
 L["Guild Invite"] = "Gildeneinladung"

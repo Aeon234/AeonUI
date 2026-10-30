@@ -1,8 +1,10 @@
 -- Checks MerchantWindow/ outside the game: the grid's cells in each fill order, slot places, the window's size, pages
 -- and the page kept in range, then the module against a stubbed merchant window: nothing hooked while off, the grid
 -- drawn after Blizzard's update with each slot filled or empty as Blizzard fills its own, the page controls corrected
--- (Forever's gamepad indicators too), a quantity window closed when its slot changes item, item quality redrawn, the
--- buyback tab and turning off giving Blizzard's slots and size back, and standing down for Krowi's Extended Vendor UI.
+-- (Forever's gamepad indicators too), Blizzard's bottom section kept at the left (money, currencies, the junk button
+-- without repairs, the last item sold, the next page button at the right), a quantity window closed when its slot
+-- changes item, item quality redrawn, the buyback tab and turning off giving Blizzard's slots, size and anchors back,
+-- Show All Items setting the filter as the window opens, and standing down for Krowi's Extended Vendor UI.
 -- Run from any directory with Lua 5.1: lua Tools/check_merchantwindow.lua
 -- Loads the real files against stubbed globals. Exits non-zero on the first failed check.
 
@@ -59,6 +61,8 @@ local function Region(name, shown)
 	function region:SetPoint(point, ...) self.points[#self.points + 1] = { point, ... } end
 	function region:SetSize(width, height) self.width, self.height = width, height end
 	function region:SetWidth(width) self.width = width end
+	function region:SetHeight(height) self.height = height end
+	function region:HookScript(script, hook) self.scriptHooks = self.scriptHooks or {}; self.scriptHooks[script] = hook end
 	function region:GetWidth() return self.width or 10 end
 	function region:GetName() return self.name end
 	function region:SetEnabled(value) self.enabled = value and true or false end
@@ -113,11 +117,28 @@ local MerchantPageText = Region("MerchantPageText", false)
 local MerchantPrevPageButton = Region("MerchantPrevPageButton", false)
 local MerchantNextPageButton = Region("MerchantNextPageButton", false)
 local MerchantFrameBottomLeftBorder = Region("MerchantFrameBottomLeftBorder")
+local MerchantMoneyInset = Region("MerchantMoneyInset")
+local MerchantMoneyBg = Region("MerchantMoneyBg")
+local MerchantMoneyFrame = Region("MerchantMoneyFrame")
+local MerchantToken1 = Region("MerchantToken1")
+local MerchantBuyBackItem = Region("MerchantBuyBackItem")
+local MerchantRepairAllButton = Region("MerchantRepairAllButton")
+local MerchantRepairItemButton = Region("MerchantRepairItemButton")
+local MerchantGuildBankRepairButton = Region("MerchantGuildBankRepairButton", false)
+local MerchantSellAllJunkButton = Region("MerchantSellAllJunkButton")
+local canRepair, canGuildRepair = true, false
+function CanMerchantRepair()
+	return canRepair
+end
+function CanGuildBankRepair()
+	return canGuildRepair
+end
 
 -- The merchant's items, by index.
 local items = {}
 local costs = {}
 local heirlooms = {}
+local currencies = {}
 C_MerchantFrame = {
 	GetItemInfo = function(index)
 		return items[index]
@@ -125,7 +146,24 @@ C_MerchantFrame = {
 	IsMerchantItemRefundable = function()
 		return true
 	end,
+	GetMerchantCurrencies = function()
+		return currencies
+	end,
 }
+
+-- The merchant's filter, as Blizzard's show resets it: the class's items.
+LE_LOOT_FILTER_CLASS, LE_LOOT_FILTER_ALL = 1, 5
+local filter, filterHidden = LE_LOOT_FILTER_CLASS, false
+function GetMerchantFilter()
+	return filter
+end
+function SetMerchantFilter(value)
+	filter = value
+end
+Enum = { GameRule = { MerchantFilterDisabled = 7 } }
+C_GameRules = { IsGameRuleActive = function(rule)
+	return rule == 7 and filterHidden
+end }
 function GetMerchantNumItems()
 	return #items
 end
@@ -205,11 +243,30 @@ function MerchantFrame_UpdateMerchantInfo()
 	MerchantNextPageButton:SetShown(paged)
 	MerchantItem11:Hide()
 	MerchantItem12:Hide()
+	MerchantFrame_UpdateRepairButtons()
+	MerchantBuyBackItem:Show()
+	MerchantFrameBottomLeftBorder:Show()
 	Run("MerchantFrame_UpdateMerchantInfo")
+end
+-- Blizzard anchors the buttons again without clearing them first.
+function MerchantFrame_UpdateRepairButtons()
+	if canRepair then
+		MerchantRepairAllButton:SetPoint("BOTTOMRIGHT", MerchantFrame, "BOTTOMLEFT", 118, 33)
+		MerchantRepairItemButton:SetPoint("RIGHT", MerchantRepairAllButton, "LEFT", -8, 0)
+		MerchantSellAllJunkButton:SetPoint("RIGHT", MerchantRepairAllButton, "LEFT", 80, 0)
+	else
+		MerchantSellAllJunkButton:SetPoint("BOTTOMRIGHT", MerchantFrame, "BOTTOMRIGHT", -148, 33)
+	end
+	MerchantGuildBankRepairButton:SetShown(canGuildRepair)
+	Run("MerchantFrame_UpdateRepairButtons")
 end
 function MerchantFrame_UpdateBuybackInfo()
 	MerchantItem11:Show()
 	MerchantItem12:Show()
+	MerchantRepairAllButton:Hide()
+	MerchantRepairItemButton:Hide()
+	MerchantBuyBackItem:Hide()
+	MerchantFrameBottomLeftBorder:Hide()
 	Run("MerchantFrame_UpdateBuybackInfo")
 end
 function MerchantFrame_UpdateItemQualityBorders()
@@ -256,7 +313,7 @@ local function Set(path, value)
 	AUI.Callbacks:Fire("Profile", path)
 end
 
-for _, file in ipairs({ "MerchantWindow/Options.lua", "MerchantWindow/MerchantWindow.lua" }) do
+for _, file in ipairs({ "MerchantWindow/Options.lua", "MerchantWindow/BottomBar.lua", "MerchantWindow/MerchantWindow.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 
@@ -287,6 +344,26 @@ end
 local function Point(region)
 	return table.concat(region.points[1], " ", 1, 1) .. " " .. table.concat(
 		{ tostring(region.points[1][#region.points[1] - 1]), tostring(region.points[1][#region.points[1]]) }, " ")
+end
+
+---@return string anchor the region's anchor at `point`: the point, what it is relative to, and its offsets
+local function PointOf(region, point)
+	for _, anchor in ipairs(region.points) do
+		if anchor[1] == point then
+			local relative = "parent"
+
+			if #anchor == 5 then
+				local to = anchor[2]
+				local name = to == MerchantFrame and "frame" or tostring(to and to.name)
+
+				relative = name .. "." .. anchor[3]
+			end
+
+			return ("%s %s %s %s"):format(point, relative, tostring(anchor[#anchor - 1]), tostring(anchor[#anchor]))
+		end
+	end
+
+	return "none"
 end
 
 local function Blizzard(shown)
@@ -340,6 +417,7 @@ width, height = Options:WindowSize(10, 8)
 Equal("the largest grid", width .. "x" .. height, "1326x704")
 width, height = Options:WindowSize(1, 2)
 Equal("one row shrinks the window", width .. "x" .. height, "336x236")
+Equal("Show All Items on by default", AUI.Schema:Field(Options.SHOW_ALL_PATH).default, true)
 
 Equal("no items is one page", Options:Pages(0, 25), 1)
 Equal("a full page", Options:Pages(25, 25), 1)
@@ -379,8 +457,34 @@ Equal("past the last item: empty", tostring(AeonUIMerchantItem24.ItemButton.show
 	.. tostring(AeonUIMerchantItem24.ItemButton.hasItem) .. " " .. AeonUIMerchantItem24.slotColor, "false nil 0.4 0.4 0.4")
 Equal("23 items on one page: no page controls", tostring(MerchantPageText.shown) .. " "
 	.. tostring(MerchantNextPageButton.shown), "false false")
-Equal("the bottom bar's art spans the window", #MerchantFrameBottomLeftBorder.points, 2)
-Equal("the next page button at the right edge", Point(MerchantNextPageButton), "CENTER -26 96")
+Equal("Blizzard's bottom art left as Blizzard has it", tostring(MerchantFrameBottomLeftBorder.shown) .. " "
+	.. #MerchantFrameBottomLeftBorder.points, "true 0")
+Equal("the money well at Blizzard's place from the left", PointOf(MerchantMoneyInset, "TOPLEFT") .. ", "
+	.. PointOf(MerchantMoneyInset, "BOTTOMRIGHT"), "TOPLEFT frame.BOTTOMLEFT 165 27, BOTTOMRIGHT frame.BOTTOMLEFT 331 4")
+Equal("its border too", PointOf(MerchantMoneyBg, "TOPRIGHT") .. ", " .. PointOf(MerchantMoneyBg, "BOTTOMLEFT"),
+	"TOPRIGHT frame.BOTTOMLEFT 329 25, BOTTOMLEFT frame.BOTTOMLEFT 170 6")
+Equal("the money in it", PointOf(MerchantMoneyFrame, "BOTTOMRIGHT"), "BOTTOMRIGHT frame.BOTTOMLEFT 332 8")
+Equal("the first currency in it", PointOf(MerchantToken1, "BOTTOMRIGHT"), "BOTTOMRIGHT frame.BOTTOMLEFT 320 8")
+Equal("the last item sold where Blizzard's window has it", PointOf(MerchantBuyBackItem, "TOPLEFT"),
+	"TOPLEFT frame.BOTTOMLEFT 206 70")
+Equal("the next page button at the right edge", PointOf(MerchantNextPageButton, "CENTER"),
+	"CENTER frame.BOTTOMRIGHT -26 96")
+Equal("the repair buttons left to Blizzard", PointOf(MerchantRepairAllButton, "BOTTOMRIGHT"),
+	"BOTTOMRIGHT frame.BOTTOMLEFT 118 33")
+currencies = { 1 }
+MerchantFrame_Update()
+Equal("with currencies, the money sits left of them", PointOf(MerchantMoneyFrame, "BOTTOMRIGHT"),
+	"BOTTOMRIGHT frame.BOTTOMLEFT 167 8")
+currencies = {}
+canRepair = false
+MerchantFrame_Update()
+Equal("without repairs, the junk button where Blizzard's window has it", #MerchantSellAllJunkButton.points .. " "
+	.. PointOf(MerchantSellAllJunkButton, "BOTTOMRIGHT"), "1 BOTTOMRIGHT frame.BOTTOMLEFT 188 33")
+MerchantFrame_UpdateRepairButtons()
+Equal("and again after Blizzard's repair update", #MerchantSellAllJunkButton.points, 1)
+canRepair = true
+MerchantSellAllJunkButton:ClearAllPoints()
+MerchantFrame_Update()
 
 Set(Options.ORDER_PATH, "COLUMNS")
 Equal("columns first: the second slot under the first", Point(AeonUIMerchantItem2), "TOPLEFT 11 -121")
@@ -494,9 +598,20 @@ MerchantFrame_Update()
 Equal("buyback: Blizzard's slots", Blizzard(true), true)
 Equal("buyback: AeonUI's slots hidden", tostring(AeonUIMerchantItem1.shown), "false")
 Equal("buyback: Blizzard's size", Size(MerchantFrame), "336x444")
-Equal("buyback: the next page button back in place", Point(MerchantNextPageButton), "CENTER 310 96")
-Equal("buyback: the art at Blizzard's width", #MerchantFrameBottomLeftBorder.points .. " "
-	.. MerchantFrameBottomLeftBorder.width, "1 334")
+Equal("buyback: the next page button back in place", PointOf(MerchantNextPageButton, "CENTER"),
+	"CENTER frame.BOTTOMLEFT 310 96")
+Equal("buyback: Blizzard's money well", PointOf(MerchantMoneyInset, "TOPLEFT") .. ", "
+	.. PointOf(MerchantMoneyInset, "BOTTOMRIGHT") .. ", " .. PointOf(MerchantMoneyBg, "BOTTOMLEFT"),
+	"TOPLEFT frame.BOTTOMRIGHT -171 27, BOTTOMRIGHT frame.BOTTOMRIGHT -5 4, BOTTOMLEFT frame.BOTTOMRIGHT -166 6")
+Equal("buyback: Blizzard's money and currency", PointOf(MerchantMoneyFrame, "BOTTOMRIGHT") .. ", "
+	.. PointOf(MerchantToken1, "BOTTOMRIGHT"), "BOTTOMRIGHT frame.BOTTOMRIGHT -4 8, BOTTOMRIGHT frame.BOTTOMRIGHT -16 8")
+Equal("buyback: the last item sold back under the grid", PointOf(MerchantBuyBackItem, "TOPLEFT"),
+	"TOPLEFT MerchantItem10.BOTTOMLEFT 30 -53")
+canRepair = false
+MerchantFrame_Update()
+Equal("buyback without repairs: junk at Blizzard's right", PointOf(MerchantSellAllJunkButton, "BOTTOMRIGHT"),
+	"BOTTOMRIGHT frame.BOTTOMRIGHT -148 33")
+canRepair = true
 MerchantFrame.selectedTab = 1
 MerchantFrame_Update()
 Equal("back on the merchant tab: the grid", tostring(AeonUIMerchantItem1.shown) .. " " .. tostring(Blizzard(false)),
@@ -525,6 +640,38 @@ MerchantWindow:Apply()
 Equal("stood down: Blizzard's slots back", Blizzard(true), true)
 loaded.Krowi_ExtendedVendorUI = nil
 Equal("nothing blocks it otherwise", MerchantWindow:Blocked(), nil)
+
+-- Show All Items: after Blizzard's show resets the filter to the class's items.
+local onShow = MerchantFrame.scriptHooks and MerchantFrame.scriptHooks.OnShow
+Equal("hooked to the window's show once started", type(onShow), "function")
+AUI.can.merchantFilter = true
+MerchantFrame.page = 3
+before = updates
+onShow(MerchantFrame)
+Equal("the filter set to all items, back on the first page, redrawn", filter .. " " .. MerchantFrame.page .. " "
+	.. updates - before, "5 1 1")
+before = updates
+onShow(MerchantFrame)
+Equal("already all items: no redraw", updates - before, 0)
+local function OpensOnAll()
+	filter = LE_LOOT_FILTER_CLASS
+	onShow(MerchantFrame)
+
+	return filter == LE_LOOT_FILTER_ALL
+end
+Set(Options.SHOW_ALL_PATH, false)
+Equal("off: the class's items left", OpensOnAll(), false)
+Set(Options.SHOW_ALL_PATH, true)
+filterHidden = true
+Equal("the client hides the filter: left alone", OpensOnAll(), false)
+filterHidden = false
+loaded.Krowi_ExtendedVendorUI = true
+Equal("stands down for Krowi's", OpensOnAll(), false)
+loaded.Krowi_ExtendedVendorUI = nil
+AUI.can.merchantFilter = false
+Equal("without the filter functions: left alone", OpensOnAll(), false)
+AUI.can.merchantFilter = true
+Equal("otherwise all items", OpensOnAll(), true)
 
 -- A client without the merchant window's functions.
 MerchantWindow.active = false

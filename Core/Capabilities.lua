@@ -58,6 +58,7 @@ AUI.Capabilities = Capabilities
 ---@field worldMarkers boolean the client has world markers (`IsRaidMarkerSystemEnabled`)
 ---@field secureSnippets boolean wrapped secure scripts run (Retail)
 ---@field merchantWindow boolean the merchant window's update functions and item helpers can be hooked and called
+---@field merchantFilter boolean the merchant's item filter can be read and set to all items
 ---@field deleteCheapestItem boolean bag items' quest status and sell prices can be read, and the cursor's item deleted
 AUI.can = {}
 
@@ -149,6 +150,11 @@ function Capabilities:Resolve()
 		and MerchantFrameItem_UpdateQuality ~= nil and C_MerchantFrame ~= nil and C_MerchantFrame.GetItemInfo ~= nil
 		and C_MerchantFrame.IsMerchantItemRefundable ~= nil and AltCurrencyFrame_Update ~= nil
 		and CurrencyContainerUtil ~= nil and StackSplitCancelButton_OnClick ~= nil
+		and MerchantFrame_UpdateRepairButtons ~= nil and CanMerchantRepair ~= nil and MerchantMoneyInset ~= nil
+		and MerchantMoneyBg ~= nil and MerchantMoneyFrame ~= nil and MerchantBuyBackItem ~= nil
+		and C_MerchantFrame.GetMerchantCurrencies ~= nil
+	can.merchantFilter = can.merchantWindow and SetMerchantFilter ~= nil and GetMerchantFilter ~= nil
+		and LE_LOOT_FILTER_ALL ~= nil
 
 	self.resolved = true
 

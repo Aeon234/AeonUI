@@ -457,6 +457,7 @@ L["%s resizes the merchant window."] = "%s 애드온이 상인 창의 크기를 
 L["Fill Order"] = "채우기 순서"
 L["Rows First"] = "행 우선"
 L["Columns First"] = "열 우선"
+L["Show All Items"] = "모든 아이템 표시"
 
 -- Player Menu page (Settings)
 L["Guild Invite"] = "길드 초대"

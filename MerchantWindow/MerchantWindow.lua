@@ -10,9 +10,6 @@ local BLIZZARD_SLOTS = 10
 local MAX_MONEY_WIDTH = 120
 -- Named, so Blizzard's money and alternate currency helpers find each slot's parts through `$parent` names.
 local SLOT_PREFIX = "AeonUIMerchantItem"
--- Blizzard's places for the next page button and the bottom bar's art, and the art's width (MerchantFrame.xml).
-local NEXT_X, NEXT_Y = 310, 96
-local BORDER_WIDTH = 334
 -- Blizzard's tints for a slot: sold out or a known heirloom (dimmed), not usable (red), and as it is.
 local GRAY, WHITE = { 0.5, 0.5, 0.5 }, { 1, 1, 1 }
 local DIM_RED, RED, ICON_RED = { 0.5, 0, 0 }, { 1, 0, 0 }, { 0.9, 0, 0 }
@@ -28,7 +25,9 @@ local DIM_RED, RED, ICON_RED = { 0.5, 0, 0 }, { 1, 0, 0 }, { 0.9, 0, 0 }
 ---The Merchant Window module: the merchant tab shows a grid of AeonUI's own slots, of the chosen rows and columns in
 ---the chosen order, in place of Blizzard's ten, and the window grows or shrinks to fit. Each slot is filled as
 ---Blizzard fills its own, after Blizzard's update. Blizzard's page buttons, page text and page number stay in use,
----corrected for the grid's page size. The buyback tab keeps Blizzard's slots and size. Nothing is protected here, so
+---corrected for the grid's page size, and Blizzard's bottom section is kept at its own width against the window's
+---left edge (`AUI.MerchantBottomBar`). The buyback tab keeps Blizzard's slots, size and bottom section. Show All Items
+---sets the merchant's filter to all items each time the window opens, after Blizzard resets it to the class's. Nothing is protected here, so
 ---combat does not matter.
 ---@class AUIMerchantWindow
 ---@field active boolean started this session
@@ -276,25 +275,17 @@ local function UpdatePaging(page, pages)
 	end
 end
 
----Sizes the window and places the parts that sit against its right edge: the grid's size on the merchant tab while
----extended, otherwise Blizzard's.
+---Sizes the window and places its bottom section: the grid's size, Blizzard's section kept at the left, on the
+---merchant tab while extended; otherwise Blizzard's.
 ---@param rows number?
 ---@param columns number?
 local function Layout(rows, columns)
-	local border, nextButton = MerchantFrameBottomLeftBorder, MerchantNextPageButton
-
-	border:ClearAllPoints()
-	border:SetPoint("BOTTOMLEFT", 1, 26)
-	nextButton:ClearAllPoints()
-
 	if rows and columns then
 		MerchantFrame:SetSize(Options:WindowSize(rows, columns))
-		border:SetPoint("BOTTOMRIGHT", -1, 26)
-		nextButton:SetPoint("CENTER", MerchantFrame, "BOTTOMRIGHT", NEXT_X - Options.WINDOW_WIDTH, NEXT_Y)
+		AUI.MerchantBottomBar:Pin()
 	else
 		MerchantFrame:SetSize(Options.WINDOW_WIDTH, Options.WINDOW_HEIGHT)
-		border:SetWidth(BORDER_WIDTH)
-		nextButton:SetPoint("CENTER", MerchantFrame, "BOTTOMLEFT", NEXT_X, NEXT_Y)
+		AUI.MerchantBottomBar:Restore()
 	end
 end
 
@@ -396,6 +387,12 @@ function MerchantWindow:Hook()
 	hooksecurefunc("MerchantFrame_UpdateItemQualityBorders", function()
 		MerchantWindow:UpdateQuality()
 	end)
+	-- Blizzard places the junk button again whenever the player's money changes.
+	hooksecurefunc("MerchantFrame_UpdateRepairButtons", function()
+		if MerchantWindow.extended and MerchantFrame.selectedTab == 1 then
+			AUI.MerchantBottomBar:PlaceJunk(true)
+		end
+	end)
 end
 
 ---Gives the merchant tab AeonUI's grid or Blizzard's slots back, and redraws an open window.
@@ -434,6 +431,24 @@ function MerchantWindow:OnProfileChanged(path)
 	end
 end
 
+---@return boolean wanted the merchant's filter is set to all items as the window opens
+function MerchantWindow:ShowsAll()
+	local rules = C_GameRules and Enum.GameRule and Enum.GameRule.MerchantFilterDisabled
+	local filterHidden = rules ~= nil and C_GameRules.IsGameRuleActive(Enum.GameRule.MerchantFilterDisabled)
+
+	return AUI.can.merchantFilter == true and AUI.Profile:Get(Options.SHOW_ALL_PATH) == true and not self.Manager()
+		and not filterHidden
+end
+
+---Runs after Blizzard's `MerchantFrame_OnShow`, which resets the filter to the class's items and draws the window.
+function MerchantWindow:OnShow()
+	if self:ShowsAll() and GetMerchantFilter() ~= LE_LOOT_FILTER_ALL then
+		SetMerchantFilter(LE_LOOT_FILTER_ALL)
+		MerchantFrame.page = 1
+		MerchantFrame_Update()
+	end
+end
+
 function MerchantWindow:Start()
 	if self.active or not AUI.can.merchantWindow then
 		return
@@ -441,5 +456,8 @@ function MerchantWindow:Start()
 
 	self.active = true
 	AUI.Callbacks:Register("Profile", self, self.OnProfileChanged)
+	MerchantFrame:HookScript("OnShow", function()
+		MerchantWindow:OnShow()
+	end)
 	self:Apply()
 end

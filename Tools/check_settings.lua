@@ -406,7 +406,7 @@ for _, file in ipairs({ "Core/Callbacks.lua", "Core/Capabilities.lua", "Core/Bro
 	"ScreenText/ScreenText.lua", "Cursor/Options.lua", "Cursor/CursorRing.lua", "Notifications/Options.lua",
 	"Notifications/Notifications.lua", "Markers/Options.lua", "Markers/Bar.lua", "Markers/Cycler.lua",
 	"Markers/Markers.lua", "DeleteCheapestItem/Options.lua", "DeleteCheapestItem/Prices.lua",
-	"MerchantWindow/Options.lua", "MerchantWindow/MerchantWindow.lua", "Settings/MerchantWindow.lua",
+	"MerchantWindow/Options.lua", "MerchantWindow/BottomBar.lua", "MerchantWindow/MerchantWindow.lua", "Settings/MerchantWindow.lua",
 	"Settings/Window.lua", "Settings/MinimapEditor.lua", "Settings/General.lua", "Settings/Minimap.lua",
 	"Settings/WorldMap.lua", "Settings/Tooltip.lua", "Settings/Automation.lua", "Settings/DeleteCheapestItem.lua", "Settings/PlayerMenu.lua",
 	"Settings/Input.lua", "Settings/Alerts.lua", "Settings/Interface.lua", "Settings/ScreenText.lua",
@@ -1689,6 +1689,21 @@ C_AddOns.IsAddOnLoaded = function(name) return name == "Krowi_ExtendedVendorUI" 
 Equal("Krowi's Extended Vendor UI blocks it, by name", grid.merchantWindowEnabled.blocked(),
 	"Krowi_ExtendedVendorUI resizes the merchant window.")
 C_AddOns.IsAddOnLoaded = isLoaded
+FILTER = "Filter"
+AUI.can.merchantFilter = true
+window = Load(nil)
+merchantPage = window.pages.merchantWindow
+merchantCards = {}
+for _, section in ipairs(merchantPage.sections) do
+	merchantCards[#merchantCards + 1] = section.title .. ": " .. SettingIDs(section)
+end
+Equal("with the filter functions, a Filter card", table.concat(merchantCards, " | "), "Item Grid: "
+	.. "merchantWindowEnabled merchantWindowRows merchantWindowColumns merchantWindowOrder | Filter: merchantWindowShowAll")
+local showAll = merchantPage.sections.merchantWindowFilter.settings.merchantWindowShowAll
+Equal("Show All Items, on by default, no second line, apart from the grid's switch", showAll.label .. " "
+	.. tostring(showAll.default) .. " " .. tostring(showAll.description) .. " " .. tostring(showAll.depends),
+	"Show All Items true nil nil")
+AUI.can.merchantFilter = nil
 AUI.can.merchantWindow = nil
 window = Load(nil)
 Equal("no page without the merchant window's functions", window.pages.merchantWindow, nil)
