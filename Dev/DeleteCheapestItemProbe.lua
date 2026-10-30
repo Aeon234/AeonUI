@@ -537,7 +537,8 @@ function Window:OnDragStop()
 end
 
 local HELP = "dci probe: open, close, trace <on|off>, quality <0-4>, loot <after|immediate|off>, "
-	.. "side <auto|right|left>, gap <n>, closemode <override|blizzard>, drag <clear|dontsave|none>, edge <fade|shadow>, report, atlases; "
+	.. "side <auto|right|left>, gap <n>, closemode <override|blizzard>, drag <clear|dontsave|none>, "
+	.. "edge <fade|shadow>, report, atlases, feature <on|off>; "
 	.. "/reload undoes it"
 
 local OPTIONS = {
@@ -593,7 +594,11 @@ function Probe:Command(line)
 		self:ReportPlacement()
 	elseif command == "atlases" then
 		AUI.Dev:Atlases("looting_itemcard_bg looting_itemcard_stroke_normal looting_itemcard_stroke_clickstate "
-			.. "_looting_itemcard_shadow-center looting_raritytag_frame")
+			.. "_looting_itemcard_shadow-center looting_raritytag_frame common-icon-delete")
+	elseif command == "feature" and (value == "on" or value == "off") then
+		local ok, problem = AUI.Profile:Set(AUI.DeleteCheapestItemOptions.ENABLED_PATH, value == "on")
+
+		AUI:Print("dci: the feature %s", ok and value or tostring(problem))
 	else
 		AUI:Print(HELP)
 	end

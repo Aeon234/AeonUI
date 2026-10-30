@@ -2,4 +2,142 @@
 	<Script file="Options.lua" />
 	<Script file="Prices.lua" />
 	<Script file="Bags.lua" />
+	<Script file="Window.lua" />
+
+	<Button name="AeonUIDeleteCheapestItemActionTemplate" inherits="BackdropTemplate" virtual="true">
+		<Size x="28" y="28"/>
+		<Layers>
+			<Layer level="ARTWORK">
+				<Texture parentKey="Icon" atlas="common-icon-delete">
+					<Size x="16" y="16"/>
+					<Anchors>
+						<Anchor point="CENTER"/>
+					</Anchors>
+				</Texture>
+				<FontString parentKey="Label" inherits="GameFontHighlightSmall" hidden="true">
+					<Anchors>
+						<Anchor point="CENTER"/>
+					</Anchors>
+				</FontString>
+			</Layer>
+		</Layers>
+	</Button>
+
+	<Frame name="AeonUIDeleteCheapestItemRowTemplate" mixin="AeonUIDeleteCheapestItemRowMixin" enableMouse="true" virtual="true">
+		<Size x="262" y="48"/>
+		<Frames>
+			<Frame parentKey="Content" useParentLevel="true">
+				<Anchors>
+					<Anchor point="TOPLEFT"/>
+					<Anchor point="BOTTOMRIGHT"/>
+				</Anchors>
+				<Frames>
+					<ItemButton parentKey="Item" useParentLevel="true">
+						<Size x="37" y="37"/>
+						<Anchors>
+							<Anchor point="LEFT" x="5" y="0"/>
+						</Anchors>
+					</ItemButton>
+					<Button parentKey="Action" inherits="AeonUIDeleteCheapestItemActionTemplate">
+						<Anchors>
+							<Anchor point="RIGHT" x="-6" y="0"/>
+						</Anchors>
+					</Button>
+				</Frames>
+				<Layers>
+					<Layer level="BACKGROUND">
+						<Texture parentKey="NameFrame" atlas="looting_itemcard_bg" setAllPoints="true"/>
+					</Layer>
+					<Layer level="BORDER">
+						<Texture parentKey="BorderFrame" atlas="looting_itemcard_stroke_normal" setAllPoints="true"/>
+					</Layer>
+					<Layer level="ARTWORK">
+						<FontString parentKey="Name" inherits="GameFontNormal" justifyH="LEFT" justifyV="TOP" maxLines="2" wordwrap="true">
+							<Anchors>
+								<Anchor point="TOPLEFT" relativeKey="$parent.Item" relativePoint="TOPRIGHT" x="8" y="0"/>
+								<Anchor point="RIGHT" relativeKey="$parent.Action" relativePoint="LEFT" x="-6" y="0"/>
+							</Anchors>
+						</FontString>
+						<FontString parentKey="Source" inherits="GameFontDisableSmall" justifyH="LEFT">
+							<Anchors>
+								<Anchor point="BOTTOMLEFT" relativeKey="$parent.Item" relativePoint="BOTTOMRIGHT" x="8" y="1"/>
+							</Anchors>
+						</FontString>
+						<FontString parentKey="Price" inherits="GameFontHighlightSmall" justifyH="RIGHT">
+							<Anchors>
+								<Anchor point="BOTTOMRIGHT" relativeKey="$parent.Action" relativePoint="BOTTOMLEFT" x="-6" y="-3"/>
+							</Anchors>
+						</FontString>
+					</Layer>
+					<Layer level="OVERLAY">
+						<Texture parentKey="Highlight" alphaMode="ADD" atlas="looting_itemcard_stroke_clickstate" alpha="0.7" hidden="true" setAllPoints="true"/>
+					</Layer>
+				</Layers>
+			</Frame>
+		</Frames>
+		<Animations>
+			<AnimationGroup parentKey="SlideOutRightAnim" looping="NONE" setToFinalAlpha="true">
+				<Translation duration="0.3" offsetX="100" smoothing="IN"/>
+				<Alpha duration="0.2" fromAlpha="1" toAlpha="0" startDelay="0.1" smoothing="IN"/>
+			</AnimationGroup>
+		</Animations>
+		<Scripts>
+			<OnLoad method="OnLoad"/>
+			<OnEnter method="OnEnter"/>
+			<OnLeave method="OnLeave"/>
+		</Scripts>
+	</Frame>
+
+	<Frame name="AeonUIDeleteCheapestItemTemplate" mixin="AeonUIDeleteCheapestItemMixin" inherits="ScrollingFlatPanelTemplate" frameStrata="HIGH" toplevel="true" movable="true" hidden="true" virtual="true">
+		<Size x="280" y="320"/>
+		<KeyValues>
+			<KeyValue key="panelMaxHeight" value="380" type="number"/>
+			<KeyValue key="panelWidth" value="280" type="number"/>
+		</KeyValues>
+		<Frames>
+			<Frame parentKey="Chip">
+				<Size x="10" y="16"/>
+				<Anchors>
+					<Anchor point="TOPLEFT" x="12" y="-28"/>
+				</Anchors>
+				<Layers>
+					<Layer level="BACKGROUND">
+						<Texture parentKey="Background" setAllPoints="true"/>
+					</Layer>
+					<Layer level="ARTWORK">
+						<FontString parentKey="Text" inherits="GameFontHighlightSmall">
+							<Anchors>
+								<Anchor point="CENTER"/>
+							</Anchors>
+						</FontString>
+					</Layer>
+				</Layers>
+			</Frame>
+		</Frames>
+		<Layers>
+			<Layer level="ARTWORK">
+				<FontString parentKey="Free" inherits="GameFontHighlight" justifyH="LEFT">
+					<Anchors>
+						<Anchor point="LEFT" relativeKey="$parent.Chip" relativePoint="RIGHT" x="6" y="0"/>
+					</Anchors>
+				</FontString>
+				<FontString parentKey="Detail" inherits="GameFontDisableSmall" justifyH="LEFT" maxLines="1">
+					<Anchors>
+						<Anchor point="TOPLEFT" relativeKey="$parent.Chip" relativePoint="BOTTOMLEFT" x="0" y="-5"/>
+						<Anchor point="RIGHT" x="-12" y="0"/>
+					</Anchors>
+				</FontString>
+				<FontString parentKey="Empty" inherits="GameFontDisable" justifyH="CENTER" hidden="true"/>
+			</Layer>
+		</Layers>
+		<Scripts>
+			<OnLoad method="OnLoad"/>
+			<OnShow method="OnShow"/>
+			<OnHide method="OnHide"/>
+			<OnDragStart method="OnDragStart"/>
+			<OnDragStop method="OnDragStop"/>
+		</Scripts>
+	</Frame>
+
+	<Script file="DeleteCheapestItem.lua" />
 </Ui>

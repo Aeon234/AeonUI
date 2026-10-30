@@ -157,5 +157,11 @@ SlashCmdList.AEONUI = function(message)
 		return
 	end
 
+	if command == "dci" then
+		AUI.DeleteCheapestItem:Toggle()
+
+		return
+	end
+
 	AUI:OpenSettings(command ~= "" and command or nil)
 end

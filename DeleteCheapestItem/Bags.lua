@@ -24,6 +24,7 @@ function Bags:Candidate(bag, slot, info, auction)
 		slot = slot,
 		itemID = info.itemID,
 		link = info.hyperlink,
+		icon = info.iconFileID,
 		name = name,
 		quality = info.quality or 0,
 		count = info.stackCount,

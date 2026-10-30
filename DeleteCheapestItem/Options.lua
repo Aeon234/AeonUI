@@ -17,6 +17,7 @@ local COPPER_PER_GOLD = 10000
 ---@field slot integer
 ---@field itemID integer
 ---@field link string
+---@field icon number the item's icon file
 ---@field name string? nil while the item's info is not cached
 ---@field quality integer
 ---@field count integer the stack's size
@@ -296,4 +297,32 @@ function Options.IgnoredList(ignored)
 	table.sort(list)
 
 	return list
+end
+
+---Which side of its opener the window takes: the right when it fits on screen there, otherwise the left when it fits
+---there, otherwise the right, where the screen's clamp keeps it visible. All values are in the window's coordinates.
+---@param openerLeft number
+---@param openerRight number
+---@param width number the window's width
+---@param gap number the space between the opener and the window
+---@param screenLeft number
+---@param screenRight number
+---@return "RIGHT"|"LEFT" side
+function Options.Side(openerLeft, openerRight, width, gap, screenLeft, screenRight)
+	if openerRight + gap + width <= screenRight then
+		return "RIGHT"
+	end
+
+	if openerLeft - gap - width >= screenLeft then
+		return "LEFT"
+	end
+
+	return "RIGHT"
+end
+
+---The key that follows a row across list rebuilds: its item, stack size and first stack's place.
+---@param entry AUIDeleteCheapestItemEntry
+---@return string key
+function Options.RowKey(entry)
+	return ("%s#%d#%d#%d"):format(entry.link, entry.count, entry.bag, entry.slot)
 end

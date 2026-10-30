@@ -278,7 +278,6 @@ L["Ammunition"] = "Munitions"
 L["Food & Drink"] = "Nourriture et boissons"
 L["Stable Master"] = "Maître des écuries"
 L["Trade Goods"] = "Fournitures d’artisanat"
-L["Vendor"] = "Marchand"
 L["Raid, %d players"] = "Raid, %d joueurs"
 L["Level %d"] = "Niveau %d"
 L["Level %d-%d"] = "Niveau %d-%d"
@@ -583,6 +582,24 @@ L["Start a %d-second pull countdown"] = "Lancer un compte à rebours de %d secon
 L["Cancel the countdown"] = "Annuler le compte à rebours"
 L["Place Next World Marker"] = "Poser le marqueur au sol suivant"
 L["Clear World Markers"] = "Effacer les marqueurs au sol"
+
+-- Shared by the world map marker tooltips (World Map) and the Delete Cheapest Item rows (DeleteCheapestItem)
+L["Vendor"] = "Marchand"
+
+-- Delete Cheapest Item window, key binding and messages (DeleteCheapestItem)
+L["Delete Cheapest Item"] = "Supprimer l'objet le moins cher"
+L["Delete Cheapest Item is off. Turn it on in AeonUI's settings."] = "Supprimer l'objet le moins cher est désactivé. Activez-le dans les paramètres d'AeonUI."
+L["Bags Full"] = "Sacs pleins"
+L["Space"] = "Place libre"
+L["1 free slot"] = "1 emplacement libre"
+L["%d free slots"] = "%d emplacements libres"
+L["Looting %s · %s"] = "Ramassage : %s · %s"
+L["Sell the cheapest to make room."] = "Vendez le moins cher pour faire de la place."
+L["Auction"] = "Enchères"
+L["%d stacks"] = "%d piles"
+L["More than the loot"] = "Vaut plus que le butin"
+L["Delete %s"] = "Supprimer %s"
+L["Nothing to suggest. Ignored items and items above %s aren't listed."] = "Rien à suggérer. Les objets ignorés et ceux au-dessus de %s ne sont pas listés."
 
 -- Profiles page (Settings)
 L["AeonUI profile \"%s\"."] = "Profil AeonUI « %s »."

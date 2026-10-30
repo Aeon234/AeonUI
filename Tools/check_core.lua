@@ -253,9 +253,10 @@ for name, category, body in bindingsXML:gmatch('<Binding name="([^"]+)" category
 	end
 end
 Equal("the bindings in order", table.concat(order, ", "), "AEONUI_RELOAD, AEONUI_EJECT, "
-	.. "CLICK AeonUIWorldMarkerPlace:LeftButton, CLICK AeonUIWorldMarkerClear:LeftButton")
+	.. "CLICK AeonUIWorldMarkerPlace:LeftButton, CLICK AeonUIWorldMarkerClear:LeftButton, "
+	.. "CLICK AeonUIDeleteCheapestItemToggle:LeftButton")
 Equal("all in AeonUI's section", table.concat(categories, " "),
-	"BINDING_HEADER_AEONUI BINDING_HEADER_AEONUI BINDING_HEADER_AEONUI BINDING_HEADER_AEONUI")
+	"BINDING_HEADER_AEONUI BINDING_HEADER_AEONUI BINDING_HEADER_AEONUI BINDING_HEADER_AEONUI BINDING_HEADER_AEONUI")
 
 local reloads = 0
 C_UI = {

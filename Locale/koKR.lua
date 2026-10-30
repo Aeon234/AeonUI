@@ -278,7 +278,6 @@ L["Ammunition"] = "탄약"
 L["Food & Drink"] = "음식과 음료"
 L["Stable Master"] = "야수 관리인"
 L["Trade Goods"] = "거래 용품"
-L["Vendor"] = "상인"
 L["Raid, %d players"] = "공격대, %d인"
 L["Level %d"] = "레벨 %d"
 L["Level %d-%d"] = "레벨 %d-%d"
@@ -583,6 +582,24 @@ L["Start a %d-second pull countdown"] = "%d초 풀 카운트다운 시작"
 L["Cancel the countdown"] = "카운트다운 취소"
 L["Place Next World Marker"] = "다음 바닥 징표 설치"
 L["Clear World Markers"] = "바닥 징표 지우기"
+
+-- Shared by the world map marker tooltips (World Map) and the Delete Cheapest Item rows (DeleteCheapestItem)
+L["Vendor"] = "상인"
+
+-- Delete Cheapest Item window, key binding and messages (DeleteCheapestItem)
+L["Delete Cheapest Item"] = "가장 싼 아이템 삭제"
+L["Delete Cheapest Item is off. Turn it on in AeonUI's settings."] = "가장 싼 아이템 삭제가 꺼져 있습니다. AeonUI 설정에서 켜세요."
+L["Bags Full"] = "가방 가득 참"
+L["Space"] = "공간 있음"
+L["1 free slot"] = "빈 칸 1개"
+L["%d free slots"] = "빈 칸 %d개"
+L["Looting %s · %s"] = "획득 중: %s · %s"
+L["Sell the cheapest to make room."] = "가장 싼 아이템을 팔아 공간을 확보하세요."
+L["Auction"] = "경매"
+L["%d stacks"] = "%d묶음"
+L["More than the loot"] = "전리품보다 비쌈"
+L["Delete %s"] = "%s 삭제"
+L["Nothing to suggest. Ignored items and items above %s aren't listed."] = "제안할 아이템이 없습니다. 무시한 아이템과 %s 등급을 넘는 아이템은 표시되지 않습니다."
 
 -- Profiles page (Settings)
 L["AeonUI profile \"%s\"."] = "AeonUI 프로필 \"%s\"."

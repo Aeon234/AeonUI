@@ -278,7 +278,6 @@ L["Ammunition"] = "Боеприпасы"
 L["Food & Drink"] = "Еда и напитки"
 L["Stable Master"] = "Смотритель стойл"
 L["Trade Goods"] = "Хозяйственные товары"
-L["Vendor"] = "Торговец"
 L["Raid, %d players"] = "Рейд, %d игроков"
 L["Level %d"] = "Уровень %d"
 L["Level %d-%d"] = "Уровень %d-%d"
@@ -583,6 +582,24 @@ L["Start a %d-second pull countdown"] = "Начать отсчёт пула на
 L["Cancel the countdown"] = "Отменить отсчёт"
 L["Place Next World Marker"] = "Поставить следующую метку на местности"
 L["Clear World Markers"] = "Убрать метки на местности"
+
+-- Shared by the world map marker tooltips (World Map) and the Delete Cheapest Item rows (DeleteCheapestItem)
+L["Vendor"] = "Торговец"
+
+-- Delete Cheapest Item window, key binding and messages (DeleteCheapestItem)
+L["Delete Cheapest Item"] = "Удаление самого дешёвого предмета"
+L["Delete Cheapest Item is off. Turn it on in AeonUI's settings."] = "Удаление самого дешёвого предмета выключено. Включите его в настройках AeonUI."
+L["Bags Full"] = "Сумки полны"
+L["Space"] = "Есть место"
+L["1 free slot"] = "1 свободная ячейка"
+L["%d free slots"] = "Свободных ячеек: %d"
+L["Looting %s · %s"] = "Добыча: %s · %s"
+L["Sell the cheapest to make room."] = "Продайте самое дешёвое, чтобы освободить место."
+L["Auction"] = "Аукцион"
+L["%d stacks"] = "Стопок: %d"
+L["More than the loot"] = "Дороже добычи"
+L["Delete %s"] = "Удалить %s"
+L["Nothing to suggest. Ignored items and items above %s aren't listed."] = "Предложить нечего. Игнорируемые предметы и предметы выше качества «%s» не показываются."
 
 -- Profiles page (Settings)
 L["AeonUI profile \"%s\"."] = "Профиль AeonUI «%s»."

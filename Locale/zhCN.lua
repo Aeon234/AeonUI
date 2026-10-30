@@ -278,7 +278,6 @@ L["Ammunition"] = "弹药"
 L["Food & Drink"] = "食物和饮料"
 L["Stable Master"] = "兽栏管理员"
 L["Trade Goods"] = "商业货物"
-L["Vendor"] = "商人"
 L["Raid, %d players"] = "团队副本，%d人"
 L["Level %d"] = "等级 %d"
 L["Level %d-%d"] = "等级 %d-%d"
@@ -583,6 +582,24 @@ L["Start a %d-second pull countdown"] = "开始%d秒开怪倒计时"
 L["Cancel the countdown"] = "取消倒计时"
 L["Place Next World Marker"] = "放置下一个地面标记"
 L["Clear World Markers"] = "清除地面标记"
+
+-- Shared by the world map marker tooltips (World Map) and the Delete Cheapest Item rows (DeleteCheapestItem)
+L["Vendor"] = "商人"
+
+-- Delete Cheapest Item window, key binding and messages (DeleteCheapestItem)
+L["Delete Cheapest Item"] = "删除最便宜的物品"
+L["Delete Cheapest Item is off. Turn it on in AeonUI's settings."] = "删除最便宜的物品已关闭。请在 AeonUI 的设置中开启。"
+L["Bags Full"] = "背包已满"
+L["Space"] = "有空位"
+L["1 free slot"] = "1 个空位"
+L["%d free slots"] = "%d 个空位"
+L["Looting %s · %s"] = "正在拾取 %s · %s"
+L["Sell the cheapest to make room."] = "出售最便宜的物品以腾出空间。"
+L["Auction"] = "拍卖"
+L["%d stacks"] = "%d 组"
+L["More than the loot"] = "比战利品更值钱"
+L["Delete %s"] = "删除%s"
+L["Nothing to suggest. Ignored items and items above %s aren't listed."] = "没有可建议的物品。已忽略的物品和高于%s品质的物品不会列出。"
 
 -- Profiles page (Settings)
 L["AeonUI profile \"%s\"."] = "AeonUI 配置文件“%s”。"

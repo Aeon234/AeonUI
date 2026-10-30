@@ -278,7 +278,6 @@ L["Ammunition"] = "Munizioni"
 L["Food & Drink"] = "Cibi e bevande"
 L["Stable Master"] = "Maestro di stalla"
 L["Trade Goods"] = "Merci commerciali"
-L["Vendor"] = "Mercante"
 L["Raid, %d players"] = "Incursione, %d giocatori"
 L["Level %d"] = "Livello %d"
 L["Level %d-%d"] = "Livello %d-%d"
@@ -583,6 +582,24 @@ L["Start a %d-second pull countdown"] = "Avvia un conto alla rovescia di %d seco
 L["Cancel the countdown"] = "Annulla il conto alla rovescia"
 L["Place Next World Marker"] = "Piazza il segnalino a terra successivo"
 L["Clear World Markers"] = "Rimuovi i segnalini a terra"
+
+-- Shared by the world map marker tooltips (World Map) and the Delete Cheapest Item rows (DeleteCheapestItem)
+L["Vendor"] = "Mercante"
+
+-- Delete Cheapest Item window, key binding and messages (DeleteCheapestItem)
+L["Delete Cheapest Item"] = "Elimina l'oggetto più economico"
+L["Delete Cheapest Item is off. Turn it on in AeonUI's settings."] = "Elimina l'oggetto più economico è disattivato. Attivalo nelle impostazioni di AeonUI."
+L["Bags Full"] = "Borse piene"
+L["Space"] = "Spazio"
+L["1 free slot"] = "1 spazio libero"
+L["%d free slots"] = "%d spazi liberi"
+L["Looting %s · %s"] = "Raccolta di %s · %s"
+L["Sell the cheapest to make room."] = "Vendi il più economico per fare spazio."
+L["Auction"] = "Asta"
+L["%d stacks"] = "%d pile"
+L["More than the loot"] = "Vale più del bottino"
+L["Delete %s"] = "Elimina %s"
+L["Nothing to suggest. Ignored items and items above %s aren't listed."] = "Niente da suggerire. Gli oggetti ignorati e quelli sopra %s non sono elencati."
 
 -- Profiles page (Settings)
 L["AeonUI profile \"%s\"."] = "Profilo di AeonUI \"%s\"."

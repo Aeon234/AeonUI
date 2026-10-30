@@ -1,6 +1,7 @@
 -- Checks DeleteCheapestItem/ outside the game: the settings' defaults, which bag items are left out and why, what an
 -- item is worth by each price choice, identical stacks shown once, the order, when a delete asks first, free slots,
--- money in coins, the ignore list, auction prices from Auctionator or TradeSkillMaster, and the bag scan.
+-- money in coins, the ignore list, auction prices from Auctionator or TradeSkillMaster, the bag scan, and the
+-- window's side and row keys.
 -- Run from any directory with Lua 5.1: lua Tools/check_dci.lua
 -- Loads the real files against stubbed globals. Exits non-zero on the first failed check.
 
@@ -94,7 +95,7 @@ local function Item(fields)
 	nextSlot = nextSlot + 1
 
 	local item = {
-		bag = 0, slot = nextSlot, itemID = 1000 + nextSlot, link = "item:" .. (1000 + nextSlot), name = "Item",
+		bag = 0, slot = nextSlot, itemID = 1000 + nextSlot, link = "item:" .. (1000 + nextSlot), icon = 0, name = "Item",
 		quality = 0, count = 1, vendor = 10, bound = false, locked = false, quest = false,
 	}
 
@@ -401,5 +402,19 @@ Set(Options.PRICE_PATH, nil)
 rows = Bags:List({ [1] = true })
 Equal("the list: auction prices and the ignore list", Names(rows), "Cloth")
 Equal("the list: no auction price keeps the vendor's", rows[1].source, "VENDOR")
+
+-- Placement -----------------------------------------------------------------------------------------------
+
+Equal("the right side when it fits", Options.Side(100, 400, 280, 4, 0, 1920), "RIGHT")
+Equal("exactly fitting on the right", Options.Side(100, 400, 280, 4, 0, 684), "RIGHT")
+Equal("the left side when the right is short", Options.Side(1400, 1700, 280, 4, 0, 1920), "LEFT")
+Equal("exactly fitting on the left", Options.Side(284, 1700, 280, 4, 0, 1920), "LEFT")
+Equal("the right when neither side fits", Options.Side(200, 1700, 280, 4, 0, 1920), "RIGHT")
+
+local keyed = { link = "item:1", count = 20, bag = 0, slot = 3 }
+
+Equal("a row's key", Options.RowKey(keyed), "item:1#20#0#3")
+Equal("another stack size is another row", Options.RowKey({ link = "item:1", count = 5, bag = 0, slot = 3 }) ~=
+	Options.RowKey(keyed), true)
 
 io.stdout:write(("check_dci: %d checks passed\n"):format(checks))
