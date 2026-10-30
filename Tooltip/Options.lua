@@ -39,6 +39,7 @@ local CURSOR_POINTS = {
 ---@field EXPANSION_PATH string item tooltips add the item's expansion, where the client has expansions
 ---@field ITEM_TYPE_PATH string item tooltips add the item's category and type
 ---@field MAX_STACK_PATH string item tooltips add how many stack in one slot
+---@field AUCTION_PRICE_PATH string item tooltips add the realm's and the region's auction prices
 ---@field BLANK_LINE_PATH string a blank line separates the tooltip from AeonUI's detail lines
 ---@field ID_MODIFIER_PATH string a `tooltipModifier` choice: the key that must be held for the ID lines
 ---@field ID_PATHS table<string, string> each ID line's setting, by its key in `ID_KEYS`
@@ -87,6 +88,7 @@ local Options = {
 	EXPANSION_PATH = "tooltip.details.expansion",
 	ITEM_TYPE_PATH = "tooltip.details.itemType",
 	MAX_STACK_PATH = "tooltip.details.maxStack",
+	AUCTION_PRICE_PATH = "tooltip.details.auctionPrice",
 	BLANK_LINE_PATH = "tooltip.details.blankLine",
 	ID_MODIFIER_PATH = "tooltip.details.modifier",
 	-- item: items and toys; spell: spells, auras, pet actions and a mount's spell; macro: the spell or item a macro
@@ -144,6 +146,7 @@ Schema:Choices("tooltipModifier", Options.MODIFIERS)
 Schema:Boolean(Options.EXPANSION_PATH, true)
 Schema:Boolean(Options.ITEM_TYPE_PATH, true)
 Schema:Boolean(Options.MAX_STACK_PATH, true)
+Schema:Boolean(Options.AUCTION_PRICE_PATH, true)
 Schema:Boolean(Options.BLANK_LINE_PATH, true)
 Schema:Choice(Options.ID_MODIFIER_PATH, "tooltipModifier", "NONE")
 

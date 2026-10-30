@@ -147,6 +147,8 @@ Enum = {
 	TooltipDataType = { Item = 0, Spell = 1, Unit = 2, Corpse = 3, Object = 4, Currency = 5, UnitAura = 7, Mount = 10,
 		PetAction = 11, Toy = 19, Quest = 23, Macro = 25 },
 	TooltipDataLineType = { None = 0, UnitName = 2, UnitOwner = 16, ItemUpgradeLevel = 32, UnitLevel = 47 },
+	ItemBind = { None = 0, OnAcquire = 1, OnEquip = 2, OnUse = 3, Quest = 4, ToWoWAccount = 7, ToBnetAccount = 8,
+		ToBnetAccountUntilEquipped = 9 },
 }
 local postCalls = {}
 local preCalls = {}
@@ -318,7 +320,8 @@ AUI.L = setmetatable({}, { __index = function(_, key)
 	return key
 end })
 AUI.can = {}
-for _, file in ipairs({ "Profile/Schema.lua", "Media/Media.lua", "Minimap/Elements.lua", "Tooltip/Options.lua",
+for _, file in ipairs({ "Profile/Schema.lua", "Media/Media.lua", "Core/AuctionPrices.lua", "Minimap/Elements.lua",
+	"Tooltip/Options.lua",
 	"Tooltip/Format.lua", "Tooltip/Appearance.lua", "Tooltip/Units.lua", "Tooltip/Details.lua", "Tooltip/UpgradeSeasons.lua",
 	"Tooltip/Upgrades.lua", "Tooltip/Inspect.lua", "Tooltip/Anchor.lua", "Tooltip/Visibility.lua",
 	"Tooltip/Tooltip.lua" }) do
@@ -1003,6 +1006,8 @@ local items = {
 	[6948] = { "Hearthstone", "Miscellaneous", "Junk", 1, 0, 134414 },
 	[2589] = { "Linen Cloth", "Tradeskill", "Cloth", 200, 1, 132889 },
 }
+-- Each item's bind type (GetItemInfo's 14th return).
+local binds = { [6948] = 1, [19019] = 2 }
 local keys = { shift = false }
 local serverTime = PERIOD * 100 + 1000
 
@@ -1011,7 +1016,7 @@ C_Item = {
 		local item = items[id]
 
 		if item then
-			return item[1], nil, nil, nil, nil, item[2], item[3], item[4], nil, nil, nil, nil, nil, nil, item[5]
+			return item[1], nil, nil, nil, nil, item[2], item[3], item[4], nil, nil, nil, nil, nil, binds[id], item[5]
 		end
 	end,
 	GetItemIconByID = function(id) return items[id] and items[id][6] end,
@@ -1098,6 +1103,121 @@ Post("Item", { id = 6948 })
 Equal("other tooltips get nothing with the module off", #added, 0)
 values[Options.ENABLED_PATH] = nil
 values[Options.ID_MODIFIER_PATH] = nil
+
+-- Auction prices ------------------------------------------------------------------------------------------
+
+function GetMoneyString(copper, separate)
+	assert(separate == true, "thousands separated")
+
+	return copper .. "c"
+end
+function GetNormalizedRealmName() return "Silvermoon" end
+function GetCurrentRegionName() return "US" end
+items[19019] = { "Thunderfury", "Weapon", "Sword", 1, 0, 135349 }
+values[Options.EXPANSION_PATH] = false
+values[Options.ITEM_TYPE_PATH] = false
+values[Options.MAX_STACK_PATH] = false
+values[Options.BLANK_LINE_PATH] = false
+values[Options.ID_PATHS.item] = false
+values[Options.ID_PATHS.icon] = false
+Equal("Auction Prices on by default", Schema:Field(Options.AUCTION_PRICE_PATH).default, true)
+Post("Item", { id = 19019 })
+Equal("no auction addon, no price", #added, 0)
+Post("Item", { id = 19019 }, preview)
+Equal("the preview shows sample prices", Labels(), "Silvermoon=1234c US Region=1150c")
+
+local quotes = { auctionator = {}, age = {}, tsm = {}, oribos = {} }
+_G.Auctionator = { API = { v1 = {
+	GetAuctionPriceByItemLink = function(caller, link)
+		assert(caller == "AeonUI", "the caller name")
+		if link == "item:6" then
+			error("Auctionator failed")
+		end
+
+		return quotes.auctionator[link]
+	end,
+	GetAuctionAgeByItemLink = function(_, link) return quotes.age[link] end,
+} } }
+quotes.auctionator["item:19019"], quotes.age["item:19019"] = 500000, 3
+Post("Item", { id = 19019 })
+Equal("Auctionator: the realm's price, by the item's link", Labels(), "Silvermoon=500000c")
+Post("Item", { id = 19019, hyperlink = "item:19019:bonus" })
+Equal("the tooltip's own link is asked", #added, 0)
+
+_G.TSM_API = {
+	ToItemString = function(link) return "i:" .. link:match("%d+") end,
+	GetCustomPriceValue = function(source, itemString)
+		return (quotes.tsm[source] or {})[itemString]
+	end,
+}
+quotes.tsm.DBMinBuyout = { ["i:19019"] = 480000 }
+quotes.tsm.DBRegionMarketAvg = { ["i:19019"] = 450000 }
+Post("Item", { id = 19019 })
+Equal("TSM's data counts as today's, newer than Auctionator's three days", Labels(),
+	"Silvermoon=480000c US Region=450000c")
+quotes.age["item:19019"] = 0
+Post("Item", { id = 19019 })
+Equal("a tie in age goes to Auctionator", Added("Silvermoon").right, "500000c")
+quotes.age["item:19019"] = nil
+Post("Item", { id = 19019 })
+Equal("Auctionator without an age (over 21 days) counts as today's", Added("Silvermoon").right, "500000c")
+
+_G.TSM_API = nil
+_G.OEMarketInfo = function(item, info)
+	assert(item == 19019, "Oribos Exchange is asked by item ID")
+	local quote = quotes.oribos[item]
+
+	if quote then
+		info.market, info.region, info.age = quote.market, quote.region, quote.age
+	end
+end
+quotes.oribos[19019] = { market = 470000, region = 440000, age = 3600 }
+quotes.age["item:19019"] = 1
+Post("Item", { id = 19019 })
+Equal("Oribos Exchange's hour-old prices beat Auctionator's day-old one", Labels(),
+	"Silvermoon=470000c US Region=440000c")
+quotes.oribos[19019] = { region = 440000, age = 2 * 86400 }
+Post("Item", { id = 19019 })
+Equal("each line takes the newest price it has", Labels(), "Silvermoon=500000c US Region=440000c")
+_G.OEMarketInfo = function() error("Oribos Exchange failed") end
+Post("Item", { id = 19019 })
+Equal("an addon's error is no price", Labels(), "Silvermoon=500000c")
+_G.OEMarketInfo = nil
+
+AUI.can.commodities = true
+quotes.auctionator["item:2589"] = 25
+Post("Item", { id = 2589 })
+Equal("a commodity's realm price is its region's", Labels(), "US Region=25c")
+AUI.can.commodities = nil
+Post("Item", { id = 2589 })
+Equal("without commodities, a stack is priced by realm", Labels(), "Silvermoon=25c")
+
+quotes.auctionator["item:6948"] = 100
+Post("Item", { id = 6948 })
+Equal("a soulbound item has no price", #added, 0)
+binds[6948] = 9
+Post("Item", { id = 6948 })
+Equal("nor a Warband-bound one", #added, 0)
+binds[6948] = 1
+Post("Item", { id = 99 })
+Equal("an uncached item waits for its data", #added, 0)
+
+AUI.can.surnames = true
+Post("Item", { id = 19019 })
+Equal("a client without realms names the line Auction", Labels(), "Auction=500000c")
+AUI.can.surnames = nil
+values[Options.AUCTION_PRICE_PATH] = false
+Post("Item", { id = 19019 })
+Equal("turned off", #added, 0)
+values[Options.AUCTION_PRICE_PATH] = nil
+_G.Auctionator = nil
+values[Options.EXPANSION_PATH] = nil
+values[Options.ITEM_TYPE_PATH] = nil
+values[Options.MAX_STACK_PATH] = nil
+values[Options.BLANK_LINE_PATH] = nil
+values[Options.ID_PATHS.item] = nil
+values[Options.ID_PATHS.icon] = nil
+items[19019] = nil
 
 Post("Item", { id = 6948 }, NewTooltip("ItemSocketingDescription"))
 Equal("the socketing window's text is left alone", #added, 0)

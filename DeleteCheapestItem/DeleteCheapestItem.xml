@@ -1,6 +1,5 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/">
 	<Script file="Options.lua" />
-	<Script file="Prices.lua" />
 	<Script file="Bags.lua" />
 	<Script file="Actions.lua" />
 	<Script file="Window.lua" />

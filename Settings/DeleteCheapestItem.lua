@@ -78,7 +78,7 @@ function SettingsDeleteCheapestItem:DeclareList(page)
 	card:Dropdown({
 		id = "dciPrice",
 		label = L["Price"],
-		description = AUI.DeleteCheapestItemPrices:Source() == nil and L["Auctionator or TSM provides auction prices."]
+		description = not AUI.AuctionPrices:HasSource() and L["Auctionator, TSM or Oribos Exchange provides auction prices."]
 			or nil,
 		path = Options.PRICE_PATH,
 		default = AUI.Settings:Default(Options.PRICE_PATH),

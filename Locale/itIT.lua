@@ -55,6 +55,7 @@ L["Raid Markers"] = "Segnalini dell'incursione"
 L["Merchant Window"] = "Finestra del mercante"
 
 -- Shared settings labels (Settings)
+L["Auctionator, TSM or Oribos Exchange provides auction prices."] = "Auctionator, TSM o Oribos Exchange forniscono i prezzi d'asta."
 L["Access"] = "Accesso"
 L["Text"] = "Testo"
 L["Open"] = "Apri"
@@ -388,6 +389,8 @@ L["Instead of beside the button. A game setting, so profiles don't keep it."] = 
 -- Tooltip lines (Tooltip; the ID labels also name the Details page's checkboxes, the samples fill the Units preview)
 L["Rare"] = "Raro"
 L["Max Stack"] = "Pila max"
+L["Auction Prices"] = "Prezzi d'asta"
+L["%s Region"] = "Regione %s"
 L["Item ID"] = "ID oggetto"
 L["Spell ID"] = "ID incantesimo"
 L["Icon ID"] = "ID icona"
@@ -442,7 +445,6 @@ L["List"] = "Elenco"
 L["Highest Quality"] = "Qualità massima"
 L["Price"] = "Prezzo"
 L["Higher"] = "Il più alto"
-L["Auctionator or TSM provides auction prices."] = "Auctionator o TSM fornisce i prezzi d'asta."
 L["Leave Out Soulbound Items"] = "Escludi oggetti vincolati"
 L["Leave Out Worthless Items"] = "Escludi oggetti senza valore"
 L["Open Window"] = "Apri finestra"
@@ -619,6 +621,10 @@ L["Clear World Markers"] = "Rimuovi i segnalini a terra"
 -- Shared by the world map marker tooltips (World Map) and the Delete Cheapest Item rows (DeleteCheapestItem)
 L["Vendor"] = "Mercante"
 
+-- Shared by the Delete Cheapest Item rows (DeleteCheapestItem) and the item tooltips' auction price line on a
+-- client without realms (Tooltip)
+L["Auction"] = "Asta"
+
 -- Delete Cheapest Item window, key binding and messages (DeleteCheapestItem)
 L["Delete Cheapest Item"] = "Elimina l'oggetto più economico"
 L["Delete Cheapest Item is off. Turn it on in AeonUI's settings."] = "Elimina l'oggetto più economico è disattivato. Attivalo nelle impostazioni di AeonUI."
@@ -628,7 +634,6 @@ L["1 free slot"] = "1 spazio libero"
 L["%d free slots"] = "%d spazi liberi"
 L["Looting %s · %s"] = "Raccolta di %s · %s"
 L["Sell the cheapest to make room."] = "Vendi il più economico per fare spazio."
-L["Auction"] = "Asta"
 L["%d stacks"] = "%d pile"
 L["More than the loot"] = "Vale più del bottino"
 L["Delete %s"] = "Elimina %s"

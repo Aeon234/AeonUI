@@ -71,6 +71,8 @@ L["Raid Markers"] = "Raid Markers"
 L["Merchant Window"] = "Merchant Window"
 
 -- Shared settings labels (Settings)
+L["Auctionator, TSM or Oribos Exchange provides auction prices."] =
+	"Auctionator, TSM or Oribos Exchange provides auction prices."
 L["Access"] = "Access"
 L["Text"] = "Text"
 L["Open"] = "Open"
@@ -424,6 +426,8 @@ L["Instead of beside the button. A game setting, so profiles don't keep it."] =
 -- Tooltip lines (Tooltip; the ID labels also name the Details page's checkboxes, the samples fill the Units preview)
 L["Rare"] = "Rare"
 L["Max Stack"] = "Max Stack"
+L["Auction Prices"] = "Auction Prices"
+L["%s Region"] = "%s Region"
 L["Item ID"] = "Item ID"
 L["Spell ID"] = "Spell ID"
 L["Icon ID"] = "Icon ID"
@@ -480,7 +484,6 @@ L["List"] = "List"
 L["Highest Quality"] = "Highest Quality"
 L["Price"] = "Price"
 L["Higher"] = "Higher"
-L["Auctionator or TSM provides auction prices."] = "Auctionator or TSM provides auction prices."
 L["Leave Out Soulbound Items"] = "Leave Out Soulbound Items"
 L["Leave Out Worthless Items"] = "Leave Out Worthless Items"
 L["Open Window"] = "Open Window"
@@ -658,6 +661,10 @@ L["Clear World Markers"] = "Clear World Markers"
 -- Shared by the world map marker tooltips (World Map) and the Delete Cheapest Item rows (DeleteCheapestItem)
 L["Vendor"] = "Vendor"
 
+-- Shared by the Delete Cheapest Item rows (DeleteCheapestItem) and the item tooltips' auction price line on a
+-- client without realms (Tooltip)
+L["Auction"] = "Auction"
+
 -- Delete Cheapest Item window, key binding and messages (DeleteCheapestItem)
 L["Delete Cheapest Item"] = "Delete Cheapest Item"
 L["Delete Cheapest Item is off. Turn it on in AeonUI's settings."] =
@@ -668,7 +675,6 @@ L["1 free slot"] = "1 free slot"
 L["%d free slots"] = "%d free slots"
 L["Looting %s · %s"] = "Looting %s · %s"
 L["Sell the cheapest to make room."] = "Sell the cheapest to make room."
-L["Auction"] = "Auction"
 L["%d stacks"] = "%d stacks"
 L["More than the loot"] = "More than the loot"
 L["Delete %s"] = "Delete %s"

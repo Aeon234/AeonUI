@@ -1,7 +1,7 @@
 local AUI = select(2, ...)
 
 local Options = AUI.DeleteCheapestItemOptions
-local Prices = AUI.DeleteCheapestItemPrices
+local Prices = AUI.AuctionPrices
 
 ---Reads the general-purpose bags into candidates for the list. Profession bags are skipped: emptying one of their
 ---slots makes no room for ordinary loot.
@@ -29,7 +29,7 @@ function Bags:Candidate(bag, slot, info, auction)
 		quality = info.quality or 0,
 		count = info.stackCount,
 		vendor = cached and (info.hasNoValue and 0 or sellPrice) or nil,
-		auction = cached and auction and Prices:Auction(info.hyperlink) or nil,
+		auction = cached and auction and Prices:Auction(info.hyperlink, info.itemID) or nil,
 		bound = info.isBound,
 		locked = info.isLocked,
 		quest = classID == Enum.ItemClass.Questitem or quest.isQuestItem or quest.questID ~= nil,

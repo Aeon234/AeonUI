@@ -405,7 +405,7 @@ for _, file in ipairs({ "Core/Callbacks.lua", "Core/Capabilities.lua", "Core/Bro
 	"Input/FocusShortcut.lua", "Alerts/Options.lua", "Interface/Options.lua", "ScreenText/Options.lua",
 	"ScreenText/ScreenText.lua", "Cursor/Options.lua", "Cursor/CursorRing.lua", "Notifications/Options.lua",
 	"Notifications/Notifications.lua", "Markers/Options.lua", "Markers/Bar.lua", "Markers/Cycler.lua",
-	"Markers/Markers.lua", "DeleteCheapestItem/Options.lua", "DeleteCheapestItem/Prices.lua",
+	"Markers/Markers.lua", "DeleteCheapestItem/Options.lua", "Core/AuctionPrices.lua",
 	"MerchantWindow/Options.lua", "MerchantWindow/BottomBar.lua", "MerchantWindow/MerchantWindow.lua", "Settings/MerchantWindow.lua",
 	"Settings/Window.lua", "Settings/MinimapEditor.lua", "Settings/General.lua", "Settings/Minimap.lua",
 	"Settings/WorldMap.lua", "Settings/Tooltip.lua", "Settings/Automation.lua", "Settings/DeleteCheapestItem.lua", "Settings/PlayerMenu.lua",
@@ -1104,6 +1104,12 @@ AUI.can.expansions = nil
 Equal("the expansion is offered only where items have one",
 	items.sections.tooltipDetailLines.settings.showExpansion.show(), false)
 AUI.can.expansions = expansions
+local auctionPrice = items.sections.tooltipDetailLines.settings.showAuctionPrice
+Equal("Auction Prices after Max Stack, on by default", auctionPrice.label .. " " .. auctionPrice.path .. " "
+	.. tostring(auctionPrice.default) .. " " .. items.sections.tooltipDetailLines.settings[4].id,
+	"Auction Prices tooltip.details.auctionPrice true showAuctionPrice")
+Equal("without an auction addon, its tooltip names them", auctionPrice.tooltip,
+	"Auctionator, TSM or Oribos Exchange provides auction prices.")
 
 -- Choice cards ---------------------------------------------------------------------------------------------------
 
@@ -1635,7 +1641,7 @@ Equal("qualities by the client's names", Texts(dci.sections.dciList.settings.dci
 	"Poor,Common,Uncommon,Rare,Epic")
 Equal("the prices", Texts(dci.sections.dciList.settings.dciPrice), "Vendor,Auction,Higher")
 Equal("without an auction addon, Price says where auction prices come from",
-	dci.sections.dciList.settings.dciPrice.description, "Auctionator or TSM provides auction prices.")
+	dci.sections.dciList.settings.dciPrice.description, "Auctionator, TSM or Oribos Exchange provides auction prices.")
 local ignored = dci.sections.dciIgnored.settings.dciIgnoredItems
 Equal("the ignore list across its card", tostring(ignored.wide) .. " " .. ignored.kind, "true Custom")
 _G.TSM_API = { GetCustomPriceValue = function() end, ToItemString = function() end }

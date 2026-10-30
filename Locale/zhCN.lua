@@ -55,6 +55,7 @@ L["Raid Markers"] = "团队标记"
 L["Merchant Window"] = "商人窗口"
 
 -- Shared settings labels (Settings)
+L["Auctionator, TSM or Oribos Exchange provides auction prices."] = "拍卖价格由 Auctionator、TSM 或 Oribos Exchange 提供。"
 L["Access"] = "访问"
 L["Text"] = "文字"
 L["Open"] = "打开"
@@ -388,6 +389,8 @@ L["Instead of beside the button. A game setting, so profiles don't keep it."] = 
 -- Tooltip lines (Tooltip; the ID labels also name the Details page's checkboxes, the samples fill the Units preview)
 L["Rare"] = "稀有"
 L["Max Stack"] = "最大堆叠"
+L["Auction Prices"] = "拍卖价格"
+L["%s Region"] = "%s 地区"
 L["Item ID"] = "物品ID"
 L["Spell ID"] = "法术ID"
 L["Icon ID"] = "图标ID"
@@ -442,7 +445,6 @@ L["List"] = "列表"
 L["Highest Quality"] = "最高品质"
 L["Price"] = "价格"
 L["Higher"] = "较高者"
-L["Auctionator or TSM provides auction prices."] = "拍卖价格由 Auctionator 或 TSM 提供。"
 L["Leave Out Soulbound Items"] = "不列出灵魂绑定物品"
 L["Leave Out Worthless Items"] = "不列出无价值物品"
 L["Open Window"] = "打开窗口"
@@ -619,6 +621,10 @@ L["Clear World Markers"] = "清除地面标记"
 -- Shared by the world map marker tooltips (World Map) and the Delete Cheapest Item rows (DeleteCheapestItem)
 L["Vendor"] = "商人"
 
+-- Shared by the Delete Cheapest Item rows (DeleteCheapestItem) and the item tooltips' auction price line on a
+-- client without realms (Tooltip)
+L["Auction"] = "拍卖"
+
 -- Delete Cheapest Item window, key binding and messages (DeleteCheapestItem)
 L["Delete Cheapest Item"] = "删除最便宜的物品"
 L["Delete Cheapest Item is off. Turn it on in AeonUI's settings."] = "删除最便宜的物品已关闭。请在 AeonUI 的设置中开启。"
@@ -628,7 +634,6 @@ L["1 free slot"] = "1 个空位"
 L["%d free slots"] = "%d 个空位"
 L["Looting %s · %s"] = "正在拾取 %s · %s"
 L["Sell the cheapest to make room."] = "出售最便宜的物品以腾出空间。"
-L["Auction"] = "拍卖"
 L["%d stacks"] = "%d 组"
 L["More than the loot"] = "比战利品更值钱"
 L["Delete %s"] = "删除%s"

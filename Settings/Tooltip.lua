@@ -627,6 +627,8 @@ function SettingsTooltip:DeclareItems(window)
 	Choice(lines, "showItemType", L["Category and Type"], L["An item's category and type, such as Armor / Plate."],
 		Options.ITEM_TYPE_PATH)
 	Choice(lines, "showMaxStack", L["Max Stack"], nil, Options.MAX_STACK_PATH)
+	Choice(lines, "showAuctionPrice", L["Auction Prices"], not AUI.AuctionPrices:HasSource()
+		and L["Auctionator, TSM or Oribos Exchange provides auction prices."] or nil, Options.AUCTION_PRICE_PATH)
 	Choice(lines, "blankLine", L["Blank Line Before"], nil, Options.BLANK_LINE_PATH)
 
 	local ids = page:Section("tooltipDetailIDs", L["ID Lines"])

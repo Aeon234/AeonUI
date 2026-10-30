@@ -15,6 +15,8 @@ local QUEST_EVENTS = {
 }
 -- The sample tooltip's values, for the lines of tooltips the settings preview cannot build.
 local SAMPLE = { npc = 3100, age = 754, currency = 3008, mount = 6, quest = 86, macro = 8690 }
+-- The preview's auction prices when no auction addon knows the sample item's.
+local SAMPLE_REALM_PRICE, SAMPLE_REGION_PRICE = 1234, 1150
 
 ---@param value any
 ---@return number? id a readable number, or nil
@@ -24,7 +26,36 @@ local function ID(value)
 	return type(value) == "number" and value or nil
 end
 
----Adds detail lines to every data tooltip: an item's expansion, category and type, and maximum stack, and the IDs of
+---@param data table an item tooltip's data
+---@return string? link the item's link, readable
+local function ItemLink(data)
+	local guid = AUI:Readable(data.guid)
+
+	if guid then
+		return AUI:Readable(C_Item.GetItemLinkByGUID(guid))
+	end
+
+	return AUI:Readable(data.hyperlink)
+end
+
+---@param bindType number? the item's bind type
+---@return boolean sellable it can be listed at the auction house
+local function Auctionable(bindType)
+	local bind = Enum.ItemBind
+
+	return bindType ~= bind.OnAcquire and bindType ~= bind.Quest and bindType ~= bind.ToWoWAccount
+		and bindType ~= bind.ToBnetAccount and bindType ~= bind.ToBnetAccountUntilEquipped
+end
+
+---@return string label the realm's auction price line's label: the realm's name, where the client has realms
+local function RealmLabel()
+	local realm = not AUI.can.surnames and GetNormalizedRealmName() or nil
+
+	return type(realm) == "string" and realm ~= "" and realm or L["Auction"]
+end
+
+---Adds detail lines to every data tooltip: an item's expansion, category and type, maximum stack and auction prices
+---(`AUI.AuctionPrices`), and the IDs of
 ---items, spells, auras, icons, NPCs (with how long they have been spawned), currencies, mounts, quests and the spell or
 ---item a macro uses. Each line is a gold label with a white value, after an optional blank line; the ID lines can wait
 ---for a held modifier, and a change of that key rebuilds `GameTooltip` out of combat. The settings preview's tooltips
@@ -115,18 +146,49 @@ function Details:Finish(tooltip)
 	self.count = 0
 end
 
+---Adds the realm's and the region's auction prices for one item, for items that can be listed. A commodity's realm
+---price is a region price. The settings preview shows sample prices when no auction addon knows the sample item's.
+---@param id number
+---@param link string
+---@param stack number? the item's stack size
+---@param bindType number?
+---@param preview boolean
+function Details:AuctionPrices(id, link, stack, bindType, preview)
+	if not Auctionable(bindType) then
+		return
+	end
+
+	local commodity = AUI.can.commodities == true and type(stack) == "number" and stack > 1
+	local realm, region = AUI.AuctionPrices:Lookup(link, id, commodity)
+
+	if preview and not realm and not region then
+		realm, region = not commodity and SAMPLE_REALM_PRICE or nil, SAMPLE_REGION_PRICE
+	end
+
+	if realm then
+		self:Add(RealmLabel(), GetMoneyString(realm, true))
+	end
+
+	if region then
+		self:Add(L["%s Region"]:format(GetCurrentRegionName()), GetMoneyString(region, true))
+	end
+end
+
 ---@param id number
 ---@param ids boolean the ID lines show
-function Details:Item(id, ids)
+---@param link string? the item's link
+---@param preview boolean the settings preview's tooltip
+function Details:Item(id, ids, link, preview)
 	local expansionLine = AUI.can.expansions and Options:Get(Options.EXPANSION_PATH) == true
 	local typeLine = Options:Get(Options.ITEM_TYPE_PATH) == true
 	local stackLine = Options:Get(Options.MAX_STACK_PATH) == true
-	local itemType, subType, stack, expansion
+	local priceLines = link ~= nil and Options:Get(Options.AUCTION_PRICE_PATH) == true
+	local itemType, subType, stack, bindType, expansion
 
-	if expansionLine or typeLine or stackLine then
+	if expansionLine or typeLine or stackLine or priceLines then
 		local _
 
-		_, _, _, _, _, itemType, subType, stack, _, _, _, _, _, _, expansion = C_Item.GetItemInfo(id)
+		_, _, _, _, _, itemType, subType, stack, _, _, _, _, _, bindType, expansion = C_Item.GetItemInfo(id)
 	end
 
 	if expansionLine then
@@ -145,6 +207,10 @@ function Details:Item(id, ids)
 
 	if stackLine and type(stack) == "number" and stack > 1 then
 		self:Add(L["Max Stack"], stack)
+	end
+
+	if priceLines and itemType then
+		self:AuctionPrices(id, link --[[@as string]], stack, bindType, preview)
 	end
 
 	if not ids then
@@ -268,7 +334,7 @@ function Details:OnTooltip(tooltip, kind, data)
 
 	if kind == "item" then
 		if id then
-			self:Item(id, ids)
+			self:Item(id, ids, ItemLink(data) or ("item:" .. id), preview)
 		end
 	elseif not ids then
 		return

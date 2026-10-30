@@ -55,6 +55,7 @@ L["Raid Markers"] = "Рейдовые метки"
 L["Merchant Window"] = "Окно торговца"
 
 -- Shared settings labels (Settings)
+L["Auctionator, TSM or Oribos Exchange provides auction prices."] = "Цены аукциона берутся из Auctionator, TSM или Oribos Exchange."
 L["Access"] = "Доступ"
 L["Text"] = "Текст"
 L["Open"] = "Открыть"
@@ -388,6 +389,8 @@ L["Instead of beside the button. A game setting, so profiles don't keep it."] = 
 -- Tooltip lines (Tooltip; the ID labels also name the Details page's checkboxes, the samples fill the Units preview)
 L["Rare"] = "Редкий"
 L["Max Stack"] = "Макс. в стопке"
+L["Auction Prices"] = "Цены аукциона"
+L["%s Region"] = "Регион %s"
 L["Item ID"] = "ID предмета"
 L["Spell ID"] = "ID заклинания"
 L["Icon ID"] = "ID значка"
@@ -442,7 +445,6 @@ L["List"] = "Список"
 L["Highest Quality"] = "Наивысшее качество"
 L["Price"] = "Цена"
 L["Higher"] = "Более высокая"
-L["Auctionator or TSM provides auction prices."] = "Цены аукциона берутся из Auctionator или TSM."
 L["Leave Out Soulbound Items"] = "Не показывать персональные предметы"
 L["Leave Out Worthless Items"] = "Не показывать предметы без цены"
 L["Open Window"] = "Открыть окно"
@@ -619,6 +621,10 @@ L["Clear World Markers"] = "Убрать метки на местности"
 -- Shared by the world map marker tooltips (World Map) and the Delete Cheapest Item rows (DeleteCheapestItem)
 L["Vendor"] = "Торговец"
 
+-- Shared by the Delete Cheapest Item rows (DeleteCheapestItem) and the item tooltips' auction price line on a
+-- client without realms (Tooltip)
+L["Auction"] = "Аукцион"
+
 -- Delete Cheapest Item window, key binding and messages (DeleteCheapestItem)
 L["Delete Cheapest Item"] = "Удаление самого дешёвого предмета"
 L["Delete Cheapest Item is off. Turn it on in AeonUI's settings."] = "Удаление самого дешёвого предмета выключено. Включите его в настройках AeonUI."
@@ -628,7 +634,6 @@ L["1 free slot"] = "1 свободная ячейка"
 L["%d free slots"] = "Свободных ячеек: %d"
 L["Looting %s · %s"] = "Добыча: %s · %s"
 L["Sell the cheapest to make room."] = "Продайте самое дешёвое, чтобы освободить место."
-L["Auction"] = "Аукцион"
 L["%d stacks"] = "Стопок: %d"
 L["More than the loot"] = "Дороже добычи"
 L["Delete %s"] = "Удалить %s"

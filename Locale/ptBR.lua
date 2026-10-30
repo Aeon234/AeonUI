@@ -55,6 +55,7 @@ L["Raid Markers"] = "Marcadores de raide"
 L["Merchant Window"] = "Janela do mercador"
 
 -- Shared settings labels (Settings)
+L["Auctionator, TSM or Oribos Exchange provides auction prices."] = "Auctionator, TSM ou Oribos Exchange fornece os preços de leilão."
 L["Access"] = "Acesso"
 L["Text"] = "Texto"
 L["Open"] = "Abrir"
@@ -388,6 +389,8 @@ L["Instead of beside the button. A game setting, so profiles don't keep it."] = 
 -- Tooltip lines (Tooltip; the ID labels also name the Details page's checkboxes, the samples fill the Units preview)
 L["Rare"] = "Raro"
 L["Max Stack"] = "Pilha máx."
+L["Auction Prices"] = "Preços de leilão"
+L["%s Region"] = "Região %s"
 L["Item ID"] = "ID do item"
 L["Spell ID"] = "ID do feitiço"
 L["Icon ID"] = "ID do ícone"
@@ -442,7 +445,6 @@ L["List"] = "Lista"
 L["Highest Quality"] = "Qualidade máxima"
 L["Price"] = "Preço"
 L["Higher"] = "O maior"
-L["Auctionator or TSM provides auction prices."] = "Auctionator ou TSM fornece os preços de leilão."
 L["Leave Out Soulbound Items"] = "Deixar de fora itens vinculados"
 L["Leave Out Worthless Items"] = "Deixar de fora itens sem valor"
 L["Open Window"] = "Abrir janela"
@@ -619,6 +621,10 @@ L["Clear World Markers"] = "Limpar marcadores de mundo"
 -- Shared by the world map marker tooltips (World Map) and the Delete Cheapest Item rows (DeleteCheapestItem)
 L["Vendor"] = "Vendedor"
 
+-- Shared by the Delete Cheapest Item rows (DeleteCheapestItem) and the item tooltips' auction price line on a
+-- client without realms (Tooltip)
+L["Auction"] = "Leilão"
+
 -- Delete Cheapest Item window, key binding and messages (DeleteCheapestItem)
 L["Delete Cheapest Item"] = "Excluir o item mais barato"
 L["Delete Cheapest Item is off. Turn it on in AeonUI's settings."] = "Excluir o item mais barato está desativado. Ative-o nas configurações do AeonUI."
@@ -628,7 +634,6 @@ L["1 free slot"] = "1 espaço livre"
 L["%d free slots"] = "%d espaços livres"
 L["Looting %s · %s"] = "Saqueando %s · %s"
 L["Sell the cheapest to make room."] = "Venda o mais barato para abrir espaço."
-L["Auction"] = "Leilão"
 L["%d stacks"] = "%d pilhas"
 L["More than the loot"] = "Vale mais que o saque"
 L["Delete %s"] = "Excluir %s"

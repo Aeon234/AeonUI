@@ -55,6 +55,7 @@ L["Raid Markers"] = "공격대 징표"
 L["Merchant Window"] = "상인 창"
 
 -- Shared settings labels (Settings)
+L["Auctionator, TSM or Oribos Exchange provides auction prices."] = "Auctionator, TSM 또는 Oribos Exchange가 경매장 가격을 제공합니다."
 L["Access"] = "접근"
 L["Text"] = "글자"
 L["Open"] = "열기"
@@ -388,6 +389,8 @@ L["Instead of beside the button. A game setting, so profiles don't keep it."] = 
 -- Tooltip lines (Tooltip; the ID labels also name the Details page's checkboxes, the samples fill the Units preview)
 L["Rare"] = "희귀"
 L["Max Stack"] = "최대 묶음"
+L["Auction Prices"] = "경매장 가격"
+L["%s Region"] = "%s 지역"
 L["Item ID"] = "아이템 ID"
 L["Spell ID"] = "주문 ID"
 L["Icon ID"] = "아이콘 ID"
@@ -442,7 +445,6 @@ L["List"] = "목록"
 L["Highest Quality"] = "최고 품질"
 L["Price"] = "가격"
 L["Higher"] = "더 높은 가격"
-L["Auctionator or TSM provides auction prices."] = "Auctionator 또는 TSM이 경매 가격을 제공합니다."
 L["Leave Out Soulbound Items"] = "귀속 아이템 제외"
 L["Leave Out Worthless Items"] = "가치 없는 아이템 제외"
 L["Open Window"] = "창 열기"
@@ -619,6 +621,10 @@ L["Clear World Markers"] = "바닥 징표 지우기"
 -- Shared by the world map marker tooltips (World Map) and the Delete Cheapest Item rows (DeleteCheapestItem)
 L["Vendor"] = "상인"
 
+-- Shared by the Delete Cheapest Item rows (DeleteCheapestItem) and the item tooltips' auction price line on a
+-- client without realms (Tooltip)
+L["Auction"] = "경매"
+
 -- Delete Cheapest Item window, key binding and messages (DeleteCheapestItem)
 L["Delete Cheapest Item"] = "가장 싼 아이템 삭제"
 L["Delete Cheapest Item is off. Turn it on in AeonUI's settings."] = "가장 싼 아이템 삭제가 꺼져 있습니다. AeonUI 설정에서 켜세요."
@@ -628,7 +634,6 @@ L["1 free slot"] = "빈 칸 1개"
 L["%d free slots"] = "빈 칸 %d개"
 L["Looting %s · %s"] = "획득 중: %s · %s"
 L["Sell the cheapest to make room."] = "가장 싼 아이템을 팔아 공간을 확보하세요."
-L["Auction"] = "경매"
 L["%d stacks"] = "%d묶음"
 L["More than the loot"] = "전리품보다 비쌈"
 L["Delete %s"] = "%s 삭제"

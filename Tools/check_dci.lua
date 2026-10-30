@@ -273,30 +273,31 @@ Equal("a removed ID leaves no key", list[30], nil)
 
 -- Auction prices ------------------------------------------------------------------------------------------
 
-assert(loadfile(root .. "DeleteCheapestItem/Prices.lua"))("AeonUI", AUI)
+assert(loadfile(root .. "Core/AuctionPrices.lua"))("AeonUI", AUI)
 
-local Prices = AUI.DeleteCheapestItemPrices
+local Prices = AUI.AuctionPrices
 local auctionCalls = 0
 
-Equal("no auction addon", Prices:Source(), nil)
-Equal("no auction price", Prices:Auction("item:1"), nil)
+Equal("no auction addon", Prices:HasSource(), false)
+Equal("no auction price", Prices:Auction("item:1", 1), nil)
 
 _G.TSM_API = {
 	ToItemString = function(link)
 		return link ~= "item:bad" and ("i:" .. link:match("%d+")) or nil
 	end,
 	GetCustomPriceValue = function(source, itemString)
-		assert(source == "dbmarket", "TSM's market value")
 		auctionCalls = auctionCalls + 1
 
-		return ({ ["i:1"] = 250, ["i:2"] = 0 })[itemString]
+		return source == "DBMinBuyout" and ({ ["i:1"] = 250, ["i:2"] = 0 })[itemString]
+			or source == "DBRegionMarketAvg" and ({ ["i:3"] = 300 })[itemString] or nil
 	end,
 }
-Equal("TSM", Prices:Source(), "TSM")
-Equal("TSM's market value", Prices:Auction("item:1"), 250)
-Equal("TSM: no price of 0", Prices:Auction("item:2"), nil)
-Equal("TSM: unknown item", Prices:Auction("item:3"), nil)
-Equal("TSM: no item string", Prices:Auction("item:bad"), nil)
+Equal("TSM", table.concat(Prices:Sources(), ","), "TSM")
+Equal("TSM's lowest buyout on the realm", Prices:Auction("item:1", 1), 250)
+Equal("TSM: no price of 0", Prices:Auction("item:2", 2), nil)
+Equal("TSM: the region's price without the realm's", Prices:Auction("item:3", 3), 300)
+Equal("TSM: unknown item", Prices:Auction("item:4", 4), nil)
+Equal("TSM: no item string", Prices:Auction("item:bad", 5), nil)
 
 _G.Auctionator = { API = { v1 = { GetAuctionPriceByItemLink = function(caller, link)
 	assert(caller == "AeonUI", "the caller name")
@@ -308,9 +309,11 @@ _G.Auctionator = { API = { v1 = { GetAuctionPriceByItemLink = function(caller, l
 
 	return link == "item:1" and 400 or nil
 end } } }
-Equal("Auctionator before TSM", Prices:Source(), "AUCTIONATOR")
-Equal("Auctionator's price", Prices:Auction("item:1"), 400)
-Equal("an auction addon's error is no price", Prices:Auction("item:9"), nil)
+Equal("Auctionator first", table.concat(Prices:Sources(), ","), "AUCTIONATOR,TSM")
+Equal("Auctionator's price on a tie with TSM", Prices:Auction("item:1", 1), 400)
+Equal("an auction addon's error is no price", Prices:Auction("item:9", 9), nil)
+Equal("the newest of each source's quotes", Prices.Newest({ { price = 1, age = 2, rank = 1 },
+	{ price = 2, age = 1, rank = 3 }, { price = 3, age = 1, rank = 2 } }), 3)
 
 -- Bag scan ------------------------------------------------------------------------------------------------
 
