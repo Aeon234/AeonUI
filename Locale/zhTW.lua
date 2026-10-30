@@ -468,7 +468,11 @@ L["Loot Sparkles"] = "戰利品閃光"
 L["Ore"] = "礦石"
 L["Quest Objects"] = "任務物件"
 L["Corpses with Loot"] = "有戰利品的屍體"
-L["Ore, herbs, quest objects and corpses use the game's soft targeting: while one is on, the Interact Key reaches all around you."] = "礦石、草藥、任務物件和屍體使用遊戲的軟目標：只要開啟其中一項，互動鍵就能觸及你周圍的一切。"
+L["Chests"] = "寶箱"
+L["Fishing Bobber"] = "魚漂"
+L["Approached objects use the game's soft targeting: while one of them is on, the Interact Key reaches all around you."] = "附近的物體使用遊戲的軟目標：只要開啟其中一項，互動鍵就能觸及你周圍的一切。"
+-- Space-separated words a chest's name starts or ends with, in this language (HiddenSettings/Target.lua).
+L["chest strongbox lockbox coffer footlocker trunk"] = "寶箱 箱子"
 L["The sparkle stays until the game restarts. /reload is not enough."] = "閃光會一直保留到重新啟動遊戲。/reload 不夠。"
 
 -- Player Menu page (Settings)

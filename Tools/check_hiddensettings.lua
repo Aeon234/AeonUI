@@ -225,7 +225,8 @@ C_NamePlate = {
 
 -- Cursors: file IDs for paths, and the cursor the target shows.
 local FILE_IDS = { ["Interface\\Cursor\\Mine"] = 1001, ["Interface\\Cursor\\UnableMine"] = 1002,
-	["Interface\\Cursor\\GatherHerbs"] = 1003, ["Interface\\Cursor\\Quest"] = 1004, ["Interface\\Cursor\\Interact"] = 1005 }
+	["Interface\\Cursor\\GatherHerbs"] = 1003, ["Interface\\Cursor\\Quest"] = 1004, ["Interface\\Cursor\\Interact"] = 1005,
+	["Interface\\Cursor\\Mail"] = 1006 }
 function GetFileIDFromPath(path)
 	return FILE_IDS[path]
 end
@@ -251,6 +252,15 @@ C_QuestLog = {
 	end,
 	UnitIsRelatedToActiveQuest = function(unit) return Unit(unit).questRelated == true end,
 }
+-- The loot window: each slot's sources, as `GetLootSourceInfo` gives them (GUID, quantity pairs).
+local lootSlots = {}
+function GetNumLootItems()
+	return #lootSlots
+end
+function GetLootSourceInfo(slot)
+	return unpack(lootSlots[slot] or {})
+end
+
 local tooltipReads = 0
 C_TooltipInfo = {
 	GetUnit = function(unit)
@@ -506,7 +516,8 @@ Equal("soft target values", Join(Options.SOFT_TARGET), "SoftTargetInteract=3 Sof
 	.. "SoftTargetInteractArc=2 SoftTargetInteractOnlyInRange=0 SoftTargetIconInteract=1 SoftTargetIconGameObject=1 "
 	.. "SoftTargetLowPriorityIcons=1 SoftTargetNameplateInteract=0")
 Equal("the gate", Options.GATE, "SoftTargetNameplateInteract")
-Equal("sparkle types", table.concat(Options.SPARKLE_TYPES, " "), "ore herbs questObjects corpses")
+Equal("sparkle types with chests and bobber", table.concat(Options.SPARKLE_TYPES, " "),
+	"ore herbs questObjects corpses chests bobber")
 
 ---@param name string?
 local function Cursor(name)
@@ -516,7 +527,7 @@ local function Cursor(name)
 end
 Equal("cursor types", table.concat({ Cursor("Mine"), Cursor("UnableMine"), Cursor("Cursor_Crosshair_UnableMine_64"),
 	Cursor("Interface\\Cursor\\GatherHerbs"), Cursor("QuestTurnIn"), Cursor("PickLock"), Cursor("Point"), Cursor(nil) },
-	", "), "ore, ore unable, ore unable, herbs, questObjects, other, nil, nil")
+	", "), "ore, ore unable, ore unable, herbs, questObjects, chests, nil, nil")
 Equal("objective normalize", Options.NormalizeObjective("Soaked Saw: 0/1"), "soaked saw")
 Equal("objective normalize spaces and apostrophes",
 	Options.NormalizeObjective("- Kurzen\194\160Supplies\226\128\153s 3 / 8 :"), "kurzen supplies's")
@@ -554,6 +565,30 @@ Equal("blend ready", Blend(1, 1, 0), "1.00 1.20 1.00 0.88 0.52")
 Equal("blend far", Blend(1, 0, 0), "0.55 0.80 1.00 0.88 0.52")
 Equal("blend locked", Blend(1, 0, 1), "0.25 0.40 0.62 0.62 0.62")
 Equal("blend appearing", Blend(0, 1, 0), "0.00 1.20 1.00 0.88 0.52")
+
+Equal("chest cursors", table.concat({ Cursor("LootAll"), Cursor("UnablePickLock"), Cursor("Pickup"),
+	Cursor("Interact"), Cursor("Mail"), Cursor("UnableSpeak"), Cursor("Interface\\Cursor\\Taxi") }, ", "),
+	"chests, chests unable, chests, other, service, service unable, service")
+Equal("object ID from a GUID", tostring(Options.ObjectID("GameObject-0-1-2-3-35591-0000AB")) .. " "
+	.. tostring(Options.ObjectID("Creature-0-1-2-3-299-0000AB")) .. " " .. tostring(Options.ObjectID(nil)), "35591 nil nil")
+Equal("the bobber", Options.BOBBER_ID, 35591)
+local words = Options.ChestWords("Chest  strongbox Coffer")
+Equal("chest words", table.concat(words, " "), "chest strongbox coffer")
+Equal("names a chest", table.concat({ tostring(Options.NamesChest("Battered Chest", words)),
+	tostring(Options.NamesChest("Large Iron-Bound Strongbox", words)), tostring(Options.NamesChest("Chesterfield", words)),
+	tostring(Options.NamesChest("Mailbox", words)), tostring(Options.NamesChest("Copper Vein", words)),
+	tostring(Options.NamesChest(nil, words)) }, " "), "true true true false false false")
+local chineseWords = Options.ChestWords("宝箱 箱子")
+Equal("Chinese chest words, without the mailbox", table.concat({ tostring(Options.NamesChest("破损的箱子", chineseWords)),
+	tostring(Options.NamesChest("宝箱", chineseWords)), tostring(Options.NamesChest("邮箱", chineseWords)),
+	tostring(Options.NamesChest("工具箱", chineseWords)) }, " "), "true true false false")
+local list = {}
+for id = 1, Options.CONTAINER_CAP do
+	list[id] = id
+end
+Equal("learn skips a listed ID", tostring(Options.Learn(list, 7, Options.CONTAINER_CAP)) .. " " .. #list, "false 500")
+Equal("cap 500 drops the oldest", tostring(Options.Learn(list, 9001, Options.CONTAINER_CAP)) .. " " .. #list .. " "
+	.. list[1] .. " " .. list[#list], "true 500 2 9001")
 
 -- The gate: a held value that moves -------------------------------------------------------------------------
 
@@ -806,6 +841,77 @@ global = { hiddenSettings = { saved = { softTarget = { SoftTargetInteract = "1" 
 Login({ SoftTargetInteract = "3" })
 Equal("a soft target save left at login is restored", cvars.SoftTargetInteract .. " "
 	.. tostring(global.hiddenSettings.saved.softTarget), "1 nil")
+
+-- Chests and the bobber ---------------------------------------------------------------------------------
+
+global = {}
+Login()
+HiddenSettings:SetSparkle("bobber", true)
+Target({ object = true, name = "Fishing Bobber", cursor = 1005, guid = "GameObject-0-1-2-3-35591-00AB", inRange = true,
+	questRelated = true })
+Fire("PLAYER_SOFT_INTERACT_CHANGED", "", "GameObject-20")
+Equal("bobber by object ID", tostring(Showing()), "true")
+HiddenSettings:SetSparkle("questObjects", true)
+Fire("PLAYER_SOFT_INTERACT_CHANGED", "GameObject-20", "GameObject-21")
+Equal("bobber beats quest", tostring(Showing()), "true")
+HiddenSettings:SetSparkle("questObjects", false)
+HiddenSettings:SetSparkle("bobber", false)
+
+HiddenSettings:SetSparkle("chests", true)
+Target({ object = true, name = "Locked Box", cursor = "Interface\\Cursor\\PickLock", guid = "GameObject-0-1-2-3-500-01",
+	inRange = true })
+Fire("PLAYER_SOFT_INTERACT_CHANGED", "", "GameObject-22")
+Equal("chest by cursor", tostring(Showing()), "true")
+Target({ object = true, name = "Battered Chest", cursor = 1005, guid = "GameObject-0-1-2-3-501-01", inRange = true })
+Fire("PLAYER_SOFT_INTERACT_CHANGED", "GameObject-22", "GameObject-23")
+Equal("chest by name", tostring(Showing()), "true")
+Target({ object = true, name = "Mailbox", cursor = 1005, guid = "GameObject-0-1-2-3-502-01", inRange = true })
+Fire("PLAYER_SOFT_INTERACT_CHANGED", "GameObject-23", "GameObject-24")
+Equal("mailbox is not a chest", tostring(Glint().shown), "false")
+Target({ object = true, name = "Battered Chest", cursor = 1004, guid = "GameObject-0-1-2-3-506-01", inRange = true })
+Fire("PLAYER_SOFT_INTERACT_CHANGED", "GameObject-24", "GameObject-24b")
+Equal("a quest cursor is not a chest by name", tostring(Glint().shown), "false")
+Target({ object = true, name = "Old Chest Mailbox", cursor = 1006, guid = "GameObject-0-1-2-3-507-01", inRange = true })
+Fire("PLAYER_SOFT_INTERACT_CHANGED", "GameObject-24b", "GameObject-24c")
+Equal("a service cursor is never a chest", tostring(Glint().shown), "false")
+
+Target({ object = true, name = "Copper Vein", cursor = 1001, guid = "GameObject-0-1-2-3-1731-01", inRange = true })
+Fire("PLAYER_SOFT_INTERACT_CHANGED", "GameObject-24", "GameObject-25")
+lootSlots = { { "GameObject-0-1-2-3-1731-01", 1 }, { "GameObject-0-1-2-3-503-01", 1, "GameObject-0-1-2-3-35591-01", 1 } }
+Fire("LOOT_OPENED")
+Equal("gathered nodes and the bobber are not learned", table.concat(global.hiddenSettings.containers, " "), "503")
+Target({ object = true, name = "Dusty Barrel", cursor = 1005, guid = "GameObject-0-1-2-3-503-02", inRange = true })
+Fire("PLAYER_SOFT_INTERACT_CHANGED", "GameObject-25", "GameObject-26")
+Equal("chest by learned ID", tostring(Showing()), "true")
+
+HiddenSettings:SetSparkle("questObjects", true)
+Target({ object = true, name = "Supply Crate", cursor = "Interface\\Cursor\\Pickup", guid = "GameObject-0-1-2-3-504-01",
+	tooltipQuest = true, inRange = true })
+Fire("PLAYER_SOFT_INTERACT_CHANGED", "GameObject-26", "GameObject-27")
+Equal("quest beats chest", tostring(Showing()) .. " " .. Approach.kind, "true questObjects")
+HiddenSettings:SetSparkle("questObjects", false)
+Fire("PLAYER_SOFT_INTERACT_CHANGED", "GameObject-27", "GameObject-28")
+Equal("a quest crate is a chest without Quest Objects", tostring(Showing()) .. " " .. Approach.kind, "true chests")
+
+lootSlots = { { SECRET, 1 }, { "Item-0-1-2", 1 } }
+Fire("LOOT_OPENED")
+Equal("secret GUID", table.concat(global.hiddenSettings.containers, " "), "503")
+Target({ object = true, name = SECRET, cursor = 1005, guid = SECRET, inRange = true })
+Fire("PLAYER_SOFT_INTERACT_CHANGED", "GameObject-28", "GameObject-29")
+Equal("a secret object is nothing", tostring(Glint().shown), "false")
+
+HiddenSettings:SetSparkle("chests", false)
+HiddenSettings:SetSparkle("ore", true)
+lootSlots = { { "GameObject-0-1-2-3-505-01", 1 } }
+Fire("LOOT_OPENED")
+Equal("loot learns only with Chests on", table.concat(global.hiddenSettings.containers, " "), "503")
+HiddenSettings:SetSparkle("ore", false)
+Login()
+HiddenSettings:SetSparkle("chests", true)
+Target({ object = true, name = "Dusty Barrel", cursor = 1005, guid = "GameObject-0-1-2-3-503-03", inRange = true })
+Fire("PLAYER_SOFT_INTERACT_CHANGED", "", "GameObject-30")
+Equal("learned list survives a login", tostring(Showing()), "true")
+HiddenSettings:SetSparkle("chests", false)
 
 AUI.can.approachSparkles = false
 global = {}

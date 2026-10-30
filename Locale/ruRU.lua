@@ -468,7 +468,11 @@ L["Loot Sparkles"] = "Блеск добычи"
 L["Ore"] = "Руда"
 L["Quest Objects"] = "Объекты заданий"
 L["Corpses with Loot"] = "Трупы с добычей"
-L["Ore, herbs, quest objects and corpses use the game's soft targeting: while one is on, the Interact Key reaches all around you."] = "Руда, травы, объекты заданий и трупы используют мягкий выбор цели игры: пока включен хотя бы один пункт, клавиша взаимодействия достает до всего вокруг вас."
+L["Chests"] = "Сундуки"
+L["Fishing Bobber"] = "Поплавок"
+L["Approached objects use the game's soft targeting: while one of them is on, the Interact Key reaches all around you."] = "Ближайшие объекты используют мягкий выбор цели игры: пока включен хотя бы один из них, клавиша взаимодействия достает до всего вокруг вас."
+-- Space-separated words a chest's name starts or ends with, in this language (HiddenSettings/Target.lua).
+L["chest strongbox lockbox coffer footlocker trunk"] = "сундук ларец Сундук Ларец"
 L["The sparkle stays until the game restarts. /reload is not enough."] = "Блеск остается до перезапуска игры. /reload недостаточно."
 
 -- Player Menu page (Settings)

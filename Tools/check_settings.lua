@@ -1752,20 +1752,22 @@ for _, section in ipairs(hiddenPage.sections) do
 	hiddenCards[#hiddenCards + 1] = section.title .. ": " .. SettingIDs(section)
 end
 Equal("approach rows on Forever", table.concat(hiddenCards, " | "), "Loot Sparkles: hiddenSettingsQuestItems "
-	.. "hiddenSettingsOre hiddenSettingsHerbs hiddenSettingsQuestObjects hiddenSettingsCorpses")
+	.. "hiddenSettingsOre hiddenSettingsHerbs hiddenSettingsQuestObjects hiddenSettingsCorpses hiddenSettingsChests "
+	.. "hiddenSettingsBobber")
 local lootSparkles = hiddenPage.sections.hiddenSettingsLootSparkles
 local rowLabels = {}
 for _, id in ipairs({ "hiddenSettingsOre", "hiddenSettingsHerbs", "hiddenSettingsQuestObjects",
-	"hiddenSettingsCorpses" }) do
+	"hiddenSettingsCorpses", "hiddenSettingsChests", "hiddenSettingsBobber" }) do
 	local row = lootSparkles.settings[id]
 	rowLabels[#rowLabels + 1] = row.kind .. " " .. row.label .. " " .. tostring(row.default) .. " "
 		.. tostring(row.description)
 end
 Equal("their labels, off, no second lines", table.concat(rowLabels, ", "), "Checkbox Ore false nil, Checkbox Herbs "
-	.. "false nil, Checkbox Quest Objects false nil, Checkbox Corpses with Loot false nil")
+	.. "false nil, Checkbox Quest Objects false nil, Checkbox Corpses with Loot false nil, Checkbox Chests false nil, "
+	.. "Checkbox Fishing Bobber false nil")
 Equal("the soft targeting note", lootSparkles.notes and lootSparkles.notes[1] and lootSparkles.notes[1].text,
-	"Ore, herbs, quest objects and corpses use the game's soft targeting: while one is on, the Interact Key reaches "
-	.. "all around you.")
+	"Approached objects use the game's soft targeting: while one of them is on, the Interact Key reaches all around "
+	.. "you.")
 local sparkles, setSparkle = {}, hiddenSettings.SetSparkle
 local isSparkle = hiddenSettings.IsSparkle
 hiddenSettings.IsSparkle = function(_, kind) return sparkles[kind] == true end
@@ -1782,7 +1784,8 @@ for _, section in ipairs(window.pages.hiddenSettings.sections) do
 	hiddenCards[#hiddenCards + 1] = section.title .. ": " .. SettingIDs(section)
 end
 Equal("Quest Items absent without the CVar, page kept for the rows", table.concat(hiddenCards, " | "),
-	"Loot Sparkles: hiddenSettingsOre hiddenSettingsHerbs hiddenSettingsQuestObjects hiddenSettingsCorpses")
+	"Loot Sparkles: hiddenSettingsOre hiddenSettingsHerbs hiddenSettingsQuestObjects hiddenSettingsCorpses "
+	.. "hiddenSettingsChests hiddenSettingsBobber")
 AUI.can.approachSparkles = nil
 window = Load(nil)
 Equal("page left out without the CVar", window.pages.hiddenSettings, nil)

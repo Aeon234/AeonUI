@@ -468,7 +468,11 @@ L["Loot Sparkles"] = "Scintillement du butin"
 L["Ore"] = "Minerai"
 L["Quest Objects"] = "Objets de quête du décor"
 L["Corpses with Loot"] = "Cadavres avec butin"
-L["Ore, herbs, quest objects and corpses use the game's soft targeting: while one is on, the Interact Key reaches all around you."] = "Minerai, herbes, objets de quête et cadavres utilisent le ciblage souple du jeu : tant que l'un d'eux est activé, la touche d'interaction porte tout autour de vous."
+L["Chests"] = "Coffres"
+L["Fishing Bobber"] = "Flotteur de pêche"
+L["Approached objects use the game's soft targeting: while one of them is on, the Interact Key reaches all around you."] = "Les objets proches utilisent le ciblage souple du jeu : tant que l'un d'eux est activé, la touche d'interaction porte tout autour de vous."
+-- Space-separated words a chest's name starts or ends with, in this language (HiddenSettings/Target.lua).
+L["chest strongbox lockbox coffer footlocker trunk"] = "coffre malle cantine"
 L["The sparkle stays until the game restarts. /reload is not enough."] = "Le scintillement reste jusqu'au redémarrage du jeu. /reload ne suffit pas."
 
 -- Player Menu page (Settings)

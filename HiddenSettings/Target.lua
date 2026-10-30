@@ -1,12 +1,13 @@
 local AUI = select(2, ...)
 
+local L = AUI.L
 local Options = AUI.HiddenSettingsOptions
 
 local SOFT = "softinteract"
 local CURSOR_PATH = "Interface\\Cursor\\"
 -- Cursor files whose names `Options.CursorType` reads, each also in its Unable variant.
 local CURSORS = { "Mine", "GatherHerbs", "Quest", "QuestRepeatable", "QuestTurnIn", "Interact", "PickLock", "LootAll",
-	"Pickup" }
+	"Pickup", "Mail", "Speak", "Buy", "Trainer", "Taxi", "Innkeeper", "Repair", "Stablemaster" }
 local QUEST_LINE = 8 -- Enum.TooltipDataLineType.QuestObjective
 
 ---Calls `fn`, returning nothing when it is missing or errors, and nil for each secret result.
@@ -35,10 +36,13 @@ end
 ---@field cursors table<number, { [1]: string?, [2]: boolean }>? cursor file IDs, built on first use
 ---@field objectives string[] the unfinished objectives, normalized
 ---@field questsDirty boolean the objectives are rebuilt before the next match
+---@field gathered table<number, true> object IDs of ore and herbs classified this session, never learned as containers
+---@field chestWords string[]? the locale's chest words, read on first use
 local Target = {
 	plates = {},
 	objectives = {},
 	questsDirty = true,
+	gathered = {},
 }
 AUI.SparkleTarget = Target
 
@@ -189,16 +193,49 @@ function Target:Cursor(unit)
 	return fromAtlas, unable or atlasUnable
 end
 
+---@param name string?
+---@return boolean
+function Target:NamesChest(name)
+	if not self.chestWords then
+		-- Space-separated words a chest's name starts or ends with, in the client's language.
+		self.chestWords = Options.ChestWords(L["chest strongbox lockbox coffer footlocker trunk"])
+	end
+
+	return Options.NamesChest(name, self.chestWords)
+end
+
+---A game object's type, first match winning: the bobber, ore or herbs, a quest object, a chest. A chest has a chest
+---cursor, or none of its own and a chest's name or an object ID the account has looted before.
 ---@param unit string
 ---@param quests boolean look the object up in the quest log, which is costlier than its cursor
----@return string? type `ore`, `herbs`, `questObjects`, `corpses` or `other`; nil for anything that never sparkles
+---@param containers table<number, true> object IDs of containers the account has looted
+---@return string? type `ore`, `herbs`, `questObjects`, `corpses`, `chests`, `bobber` or `other`; nil for anything
+---that never sparkles
 ---@return boolean unable the game refuses it now, as for a vein above the player's skill
-function Target:Classify(unit, quests)
+function Target:Classify(unit, quests, containers)
 	if Read(UnitIsGameObject, unit) == true then
+		local id = Options.ObjectID(Read(UnitGUID, unit))
+
+		if id == Options.BOBBER_ID then
+			return "bobber", false
+		end
+
 		local kind, unable = self:Cursor(unit)
 
-		if quests and kind ~= "ore" and kind ~= "herbs" and self:IsQuest(unit) then
-			kind = "questObjects"
+		if kind == "ore" or kind == "herbs" then
+			if id then
+				self.gathered[id] = true
+			end
+
+			return kind, unable
+		end
+
+		if quests and self:IsQuest(unit) then
+			return "questObjects", unable
+		end
+
+		if (kind == nil or kind == "other") and ((id and containers[id]) or self:NamesChest(Read(UnitName, unit))) then
+			return "chests", unable
 		end
 
 		return kind, unable
@@ -214,6 +251,33 @@ function Target:Classify(unit, quests)
 	end
 
 	return nil, false
+end
+
+---@return number[] ids the object IDs the open loot window's items come from, leaving out the bobber and ore and herbs
+function Target:LootSources()
+	local ids = {}
+
+	if not GetLootSourceInfo then
+		return ids
+	end
+
+	for slot = 1, Read(GetNumLootItems) or 0 do
+		local ok, sources = pcall(function()
+			return { GetLootSourceInfo(slot) }
+		end)
+
+		if ok and type(sources) == "table" then
+			for index = 1, #sources, 2 do
+				local id = Options.ObjectID(AUI:Readable(sources[index]))
+
+				if id and id ~= Options.BOBBER_ID and not self.gathered[id] then
+					ids[#ids + 1] = id
+				end
+			end
+		end
+	end
+
+	return ids
 end
 
 ---@param unit string

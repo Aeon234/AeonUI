@@ -23,8 +23,10 @@ end
 function Probe:Command()
 	local Target, Options = AUI.SparkleTarget, AUI.HiddenSettingsOptions
 
-	AUI:Print("sparkles: exists %s  object %s  name %s  guid %s", Show(UnitExists(SOFT)), Show(UnitIsGameObject(SOFT)),
-		Show(UnitName(SOFT)), Show(UnitGUID(SOFT)))
+	local guid = UnitGUID(SOFT)
+
+	AUI:Print("sparkles: exists %s  object %s  name %s  guid %s  id %s", Show(UnitExists(SOFT)),
+		Show(UnitIsGameObject(SOFT)), Show(UnitName(SOFT)), Show(guid), tostring(Options.ObjectID(AUI:Readable(guid))))
 
 	local unit, plate = Target:Resolve()
 
@@ -34,7 +36,7 @@ function Probe:Command()
 
 		AUI:Print("cursor %s  texture %s  atlas %s", tostring(cursor), Show(probe:GetTexture()), Show(probe:GetAtlas()))
 
-		local kind, unable = Target:Classify(unit, true)
+		local kind, unable = Target:Classify(unit, true, AUI.HiddenSettings:Containers())
 		local inRange = Target.InRange(unit)
 
 		AUI:Print("type %s  unable %s  in range %s  state %s  plate %s", tostring(kind), tostring(unable),
@@ -57,6 +59,13 @@ function Probe:Command()
 		end
 	end
 
-	AUI:Print("rows on: %s  active %s  shown %s", #rows > 0 and table.concat(rows, ", ") or "none",
-		tostring(AUI.ApproachSparkles.active), tostring(AUI.ApproachSparkles.state))
+	local containers = 0
+
+	for _ in pairs(AUI.HiddenSettings:Containers()) do
+		containers = containers + 1
+	end
+
+	AUI:Print("rows on: %s  active %s  shown %s %s", #rows > 0 and table.concat(rows, ", ") or "none",
+		tostring(AUI.ApproachSparkles.active), tostring(AUI.ApproachSparkles.kind), tostring(AUI.ApproachSparkles.state))
+	AUI:Print("GetLootSourceInfo %s  learned containers %d", tostring(GetLootSourceInfo ~= nil), containers)
 end

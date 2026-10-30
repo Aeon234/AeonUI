@@ -8,6 +8,8 @@ local SPARKLE_ROWS = {
 	{ kind = "herbs", id = "hiddenSettingsHerbs", label = L["Herbs"] },
 	{ kind = "questObjects", id = "hiddenSettingsQuestObjects", label = L["Quest Objects"] },
 	{ kind = "corpses", id = "hiddenSettingsCorpses", label = L["Corpses with Loot"] },
+	{ kind = "chests", id = "hiddenSettingsChests", label = L["Chests"] },
+	{ kind = "bobber", id = "hiddenSettingsBobber", label = L["Fishing Bobber"] },
 }
 
 ---The Hidden Settings page, under the Quality of Life header: the Loot Sparkles card, with Quest Items where the
@@ -72,6 +74,6 @@ function SettingsHiddenSettings:Declare(window)
 	end
 
 	card:Note(
-		L["Ore, herbs, quest objects and corpses use the game's soft targeting: while one is on, the Interact Key reaches all around you."]
+		L["Approached objects use the game's soft targeting: while one of them is on, the Interact Key reaches all around you."]
 	)
 end

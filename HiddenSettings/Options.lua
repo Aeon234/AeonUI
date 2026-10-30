@@ -16,6 +16,8 @@ local AUI = select(2, ...)
 ---@field POLL_INTERVAL number seconds between checks of the target while a soft target exists
 ---@field STATE_DELAY number seconds a new state must hold before it shows
 ---@field LOCK_DELAY number the same for the locked state
+---@field BOBBER_ID number the fishing bobber's object ID
+---@field CONTAINER_CAP number the most looted containers the account remembers
 local Options = {
 	LOOT_SPARKLE = {
 		{ name = "outlineModeShowLootEffectWhenDisabled", value = "1" },
@@ -36,10 +38,12 @@ local Options = {
 		{ name = "SoftTargetNameplateInteract", value = "0" },
 	},
 	GATE = "SoftTargetNameplateInteract",
-	SPARKLE_TYPES = { "ore", "herbs", "questObjects", "corpses" },
+	SPARKLE_TYPES = { "ore", "herbs", "questObjects", "corpses", "chests", "bobber" },
 	POLL_INTERVAL = 0.15,
 	STATE_DELAY = 0.15,
 	LOCK_DELAY = 0.6,
+	BOBBER_ID = 35591,
+	CONTAINER_CAP = 500,
 }
 
 -- Keywords in a cursor's file path or atlas name, lowercased, and the type each names; the first match wins.
@@ -48,10 +52,18 @@ local CURSOR_KEYWORDS = {
 	{ "herb", "herbs" },
 	{ "mine", "ore" },
 	{ "quest", "questObjects" },
-	{ "lootall", "other" },
-	{ "pickup", "other" },
-	{ "picklock", "other" },
+	{ "lootall", "chests" },
+	{ "pickup", "chests" },
+	{ "picklock", "chests" },
 	{ "interact", "other" },
+	{ "mail", "service" },
+	{ "speak", "service" },
+	{ "buy", "service" },
+	{ "trainer", "service" },
+	{ "taxi", "service" },
+	{ "innkeeper", "service" },
+	{ "repair", "service" },
+	{ "stablemaster", "service" },
 }
 local GOLD = { 1, 0.88, 0.52 }
 local GRAY = { 0.62, 0.62, 0.62 }
@@ -127,7 +139,8 @@ function Options.Watches(names, cvar)
 end
 
 ---@param name string? a cursor's file path or atlas name
----@return string? type `ore`, `herbs`, `questObjects` or `other`; nil for a cursor that names none
+---@return string? type `ore`, `herbs`, `questObjects`, `chests`, `service` (a mailbox or an NPC's service, never a chest)
+---or `other`; nil for a cursor that names none
 ---@return boolean unable the cursor's Unable variant: the object cannot be used now
 function Options.CursorType(name)
 	if type(name) ~= "string" then
@@ -241,4 +254,67 @@ end
 function Options.Blend(appear, ready, locked)
 	return appear * Lerp(0.55, 1, ready) * (1 - 0.55 * locked), Lerp(0.8, 1.2, ready) * (1 - 0.5 * locked),
 		Lerp(GOLD[1], GRAY[1], locked), Lerp(GOLD[2], GRAY[2], locked), Lerp(GOLD[3], GRAY[3], locked)
+end
+
+---@param guid string? a game object's GUID: `GameObject-0-<server>-<instance>-<zone>-<id>-<spawn>`
+---@return number? id the object's ID, the same for every object of its kind; nil for anything else
+function Options.ObjectID(guid)
+	if type(guid) ~= "string" then
+		return nil
+	end
+
+	return tonumber(guid:match("^GameObject%-%d+%-%d+%-%d+%-%d+%-(%d+)"))
+end
+
+---@param text string space-separated words
+---@return string[] words lowercased
+function Options.ChestWords(text)
+	local words = {}
+
+	for word in text:lower():gmatch("%S+") do
+		words[#words + 1] = word
+	end
+
+	return words
+end
+
+---A name names a chest when one of its words starts or ends with a chest word.
+---@param name string?
+---@param words string[] chest words, lowercased
+---@return boolean
+function Options.NamesChest(name, words)
+	if type(name) ~= "string" then
+		return false
+	end
+
+	for part in name:lower():gmatch("[^%s%p]+") do
+		for _, word in ipairs(words) do
+			if part:sub(1, #word) == word or (#part > #word and part:sub(-#word) == word) then
+				return true
+			end
+		end
+	end
+
+	return false
+end
+
+---Adds a looted container's object ID, then drops the oldest beyond `cap`.
+---@param list number[] the IDs, oldest first
+---@param id number
+---@param cap number
+---@return boolean added false when it was listed already
+function Options.Learn(list, id, cap)
+	for _, listed in ipairs(list) do
+		if listed == id then
+			return false
+		end
+	end
+
+	list[#list + 1] = id
+
+	while #list > cap do
+		table.remove(list, 1)
+	end
+
+	return true
 end

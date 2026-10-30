@@ -508,8 +508,12 @@ L["Loot Sparkles"] = "Loot Sparkles"
 L["Ore"] = "Ore"
 L["Quest Objects"] = "Quest Objects"
 L["Corpses with Loot"] = "Corpses with Loot"
-L["Ore, herbs, quest objects and corpses use the game's soft targeting: while one is on, the Interact Key reaches all around you."] =
-	"Ore, herbs, quest objects and corpses use the game's soft targeting: while one is on, the Interact Key reaches all around you."
+L["Chests"] = "Chests"
+L["Fishing Bobber"] = "Fishing Bobber"
+L["Approached objects use the game's soft targeting: while one of them is on, the Interact Key reaches all around you."] =
+	"Approached objects use the game's soft targeting: while one of them is on, the Interact Key reaches all around you."
+-- Space-separated words a chest's name starts or ends with, in this language (HiddenSettings/Target.lua).
+L["chest strongbox lockbox coffer footlocker trunk"] = "chest strongbox lockbox coffer footlocker trunk"
 L["The sparkle stays until the game restarts. /reload is not enough."] =
 	"The sparkle stays until the game restarts. /reload is not enough."
 

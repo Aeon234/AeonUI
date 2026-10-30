@@ -468,7 +468,11 @@ L["Loot Sparkles"] = "Scintillii del bottino"
 L["Ore"] = "Minerali"
 L["Quest Objects"] = "Oggetti delle missioni nel mondo"
 L["Corpses with Loot"] = "Cadaveri con bottino"
-L["Ore, herbs, quest objects and corpses use the game's soft targeting: while one is on, the Interact Key reaches all around you."] = "Minerali, erbe, oggetti delle missioni e cadaveri usano il bersaglio morbido del gioco: finché uno è attivo, il tasto di interazione arriva tutto intorno a te."
+L["Chests"] = "Forzieri"
+L["Fishing Bobber"] = "Galleggiante da pesca"
+L["Approached objects use the game's soft targeting: while one of them is on, the Interact Key reaches all around you."] = "Gli oggetti vicini usano il bersaglio morbido del gioco: finché uno di essi è attivo, il tasto di interazione arriva tutto intorno a te."
+-- Space-separated words a chest's name starts or ends with, in this language (HiddenSettings/Target.lua).
+L["chest strongbox lockbox coffer footlocker trunk"] = "forziere scrigno baule"
 L["The sparkle stays until the game restarts. /reload is not enough."] = "Lo scintillio resta fino al riavvio del gioco. /reload non basta."
 
 -- Player Menu page (Settings)

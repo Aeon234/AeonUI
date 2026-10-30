@@ -5,9 +5,10 @@ local Target = AUI.SparkleTarget
 local Glints = AUI.LootSparkleGlints
 
 local EVENTS = { "PLAYER_SOFT_INTERACT_CHANGED", "NAME_PLATE_UNIT_ADDED", "NAME_PLATE_UNIT_REMOVED", "QUEST_LOG_UPDATE",
-	"PLAYER_ENTERING_WORLD", "PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED" }
+	"LOOT_OPENED", "PLAYER_ENTERING_WORLD", "PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED" }
 
----Glints on approached ore, herbs, quest objects and corpses with loot, each its own row (Forever). While any row is on,
+---Glints on approached ore, herbs, quest objects, corpses with loot, chests and the fishing bobber, each its own row
+---(Forever); while Chests is on, each looted container is remembered so others of its kind glint too. While any row is on,
 ---interaction soft targeting is held all around and far (`softTarget` holder), and the game's nameplate on the target,
 ---the gate, is open only while the target should sparkle, so NPCs and mailboxes get none. Target changes come from
 ---events; a ticker follows range while a soft target exists, out of combat. Nothing runs while every row is off. The
@@ -19,6 +20,7 @@ local EVENTS = { "PLAYER_SOFT_INTERACT_CHANGED", "NAME_PLATE_UNIT_ADDED", "NAME_
 ---@field retarget boolean the soft target moved to another object, so the glints start over even on the same plate
 ---@field ticker table? the range check while a soft target exists
 ---@field state string? the state the glints show, for the probe and the offline checks
+---@field kind string? the type the glints show
 local ApproachSparkles = {
 	active = false,
 	retarget = false,
@@ -127,7 +129,7 @@ end
 
 function ApproachSparkles:Hide()
 	Glints:Release()
-	self.state = nil
+	self.state, self.kind = nil, nil
 end
 
 ---Finds the soft target and brings the gate, the ticker and the glints in line with it.
@@ -156,7 +158,7 @@ function ApproachSparkles:Evaluate()
 	self:StartTicker()
 
 	local HiddenSettings = AUI.HiddenSettings
-	local kind, unable = Target:Classify(unit, HiddenSettings:IsSparkle("questObjects"))
+	local kind, unable = Target:Classify(unit, HiddenSettings:IsSparkle("questObjects"), HiddenSettings:Containers())
 
 	if not kind or not HiddenSettings:IsSparkle(kind) then
 		self:SetGate(false)
@@ -182,7 +184,7 @@ function ApproachSparkles:Evaluate()
 		Glints:Propose(state, GetTime())
 	end
 
-	self.state = Glints.shown
+	self.state, self.kind = Glints.shown, kind
 end
 
 ---@param event string
@@ -209,6 +211,14 @@ function ApproachSparkles:OnEvent(event, ...)
 		end
 	elseif event == "QUEST_LOG_UPDATE" then
 		Target:MarkQuestsDirty()
+	elseif event == "LOOT_OPENED" then
+		local HiddenSettings = AUI.HiddenSettings
+
+		if HiddenSettings:IsSparkle("chests") then
+			for _, id in ipairs(Target:LootSources()) do
+				HiddenSettings:LearnContainer(id)
+			end
+		end
 	elseif event == "PLAYER_ENTERING_WORLD" then
 		local holder = self.holder --[[@as AUICVarHolder]]
 
