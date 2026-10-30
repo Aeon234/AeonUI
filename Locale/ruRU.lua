@@ -54,6 +54,7 @@ L["Notifications"] = "Уведомления"
 L["Raid Markers"] = "Рейдовые метки"
 
 -- Shared settings labels (Settings)
+L["Access"] = "Доступ"
 L["Text"] = "Текст"
 L["Open"] = "Открыть"
 L["Font"] = "Шрифт"
@@ -88,7 +89,6 @@ L["Border Thickness"] = "Толщина рамки"
 L["Needs a Metal, Forever or Slate border style."] = "Требуется стиль рамки «Металл», Forever или «Сланец»."
 
 -- General page (Settings)
-L["Access"] = "Доступ"
 L["Show Minimap Button"] = "Показывать кнопку у миникарты"
 L["Left-click opens settings."] = "Левый щелчок открывает настройки."
 L["Goes below the game's own minimum. Turning it off needs a reload."] = "Ниже минимума игры. Чтобы выключить, нужна перезагрузка интерфейса."
@@ -425,6 +425,25 @@ L["Block Channel Invites"] = "Запрет приглашений в канал�
 L["Block Duels"] = "Запрет дуэлей"
 L["Includes duels to the death."] = "Включая дуэли насмерть."
 L["Blocked"] = "Запрещено"
+
+-- Delete Cheapest Item page (Settings)
+L["Suggest Items to Delete"] = "Предлагать предметы для удаления"
+L["Open Automatically"] = "Открывать автоматически"
+L["Loot Doesn't Fit"] = "Добыча не помещается"
+L["Loot With Few Free Slots"] = "Добыча при малом числе ячеек"
+L["Purchase Doesn't Fit"] = "Покупка не помещается"
+L["Quest Rewards Don't Fit"] = "Награды за задание не помещаются"
+L["List"] = "Список"
+L["Highest Quality"] = "Наивысшее качество"
+L["Price"] = "Цена"
+L["Higher"] = "Более высокая"
+L["Auctionator or TSM provides auction prices."] = "Цены аукциона берутся из Auctionator или TSM."
+L["Leave Out Soulbound Items"] = "Не показывать персональные предметы"
+L["Leave Out Worthless Items"] = "Не показывать предметы без цены"
+L["Open Window"] = "Открыть окно"
+L["Or type /aui dci."] = "Или введите /aui dci."
+L["Ignored Items"] = "Игнорируемые предметы"
+L["Right-click an item in the window to stop suggesting it."] = "Щелкните правой кнопкой мыши по предмету в окне, чтобы больше его не предлагать."
 
 -- Player Menu page (Settings)
 L["Guild Invite"] = "Пригласить в гильдию"

@@ -54,6 +54,7 @@ L["Notifications"] = "Notifiche"
 L["Raid Markers"] = "Segnalini dell'incursione"
 
 -- Shared settings labels (Settings)
+L["Access"] = "Accesso"
 L["Text"] = "Testo"
 L["Open"] = "Apri"
 L["Font"] = "Carattere"
@@ -88,7 +89,6 @@ L["Border Thickness"] = "Spessore del bordo"
 L["Needs a Metal, Forever or Slate border style."] = "Richiede lo stile del bordo Metallo, Forever o Ardesia."
 
 -- General page (Settings)
-L["Access"] = "Accesso"
 L["Show Minimap Button"] = "Mostra pulsante della minimappa"
 L["Left-click opens settings."] = "Il clic sinistro apre le impostazioni."
 L["Goes below the game's own minimum. Turning it off needs a reload."] = "Scende sotto il minimo del gioco. Disattivarla richiede un ricaricamento."
@@ -425,6 +425,25 @@ L["Block Channel Invites"] = "Blocca inviti ai canali"
 L["Block Duels"] = "Blocca duelli"
 L["Includes duels to the death."] = "Compresi i duelli all'ultimo sangue."
 L["Blocked"] = "Bloccato"
+
+-- Delete Cheapest Item page (Settings)
+L["Suggest Items to Delete"] = "Suggerisci oggetti da eliminare"
+L["Open Automatically"] = "Apri automaticamente"
+L["Loot Doesn't Fit"] = "Il bottino non entra"
+L["Loot With Few Free Slots"] = "Bottino con pochi spazi liberi"
+L["Purchase Doesn't Fit"] = "L'acquisto non entra"
+L["Quest Rewards Don't Fit"] = "Le ricompense della missione non entrano"
+L["List"] = "Elenco"
+L["Highest Quality"] = "Qualità massima"
+L["Price"] = "Prezzo"
+L["Higher"] = "Il più alto"
+L["Auctionator or TSM provides auction prices."] = "Auctionator o TSM fornisce i prezzi d'asta."
+L["Leave Out Soulbound Items"] = "Escludi oggetti vincolati"
+L["Leave Out Worthless Items"] = "Escludi oggetti senza valore"
+L["Open Window"] = "Apri finestra"
+L["Or type /aui dci."] = "Oppure digita /aui dci."
+L["Ignored Items"] = "Oggetti ignorati"
+L["Right-click an item in the window to stop suggesting it."] = "Fai clic destro su un oggetto nella finestra per non suggerirlo più."
 
 -- Player Menu page (Settings)
 L["Guild Invite"] = "Invito in gilda"

@@ -54,6 +54,7 @@ L["Notifications"] = "Notifications"
 L["Raid Markers"] = "Marqueurs de raid"
 
 -- Shared settings labels (Settings)
+L["Access"] = "Accès"
 L["Text"] = "Texte"
 L["Open"] = "Ouvrir"
 L["Font"] = "Police"
@@ -88,7 +89,6 @@ L["Border Thickness"] = "Épaisseur de la bordure"
 L["Needs a Metal, Forever or Slate border style."] = "Nécessite le style de bordure Métal, Forever ou Ardoise."
 
 -- General page (Settings)
-L["Access"] = "Accès"
 L["Show Minimap Button"] = "Afficher le bouton de la minicarte"
 L["Left-click opens settings."] = "Un clic gauche ouvre les paramètres."
 L["Goes below the game's own minimum. Turning it off needs a reload."] = "Descend sous le minimum du jeu. La désactiver demande un rechargement."
@@ -425,6 +425,25 @@ L["Block Channel Invites"] = "Bloquer les invitations aux canaux"
 L["Block Duels"] = "Bloquer les duels"
 L["Includes duels to the death."] = "Y compris les duels à mort."
 L["Blocked"] = "Bloqué"
+
+-- Delete Cheapest Item page (Settings)
+L["Suggest Items to Delete"] = "Suggérer des objets à supprimer"
+L["Open Automatically"] = "Ouvrir automatiquement"
+L["Loot Doesn't Fit"] = "Le butin ne rentre pas"
+L["Loot With Few Free Slots"] = "Butin avec peu d'emplacements libres"
+L["Purchase Doesn't Fit"] = "L'achat ne rentre pas"
+L["Quest Rewards Don't Fit"] = "Les récompenses de quête ne rentrent pas"
+L["List"] = "Liste"
+L["Highest Quality"] = "Qualité maximale"
+L["Price"] = "Prix"
+L["Higher"] = "Le plus élevé"
+L["Auctionator or TSM provides auction prices."] = "Auctionator ou TSM fournit les prix des enchères."
+L["Leave Out Soulbound Items"] = "Exclure les objets liés"
+L["Leave Out Worthless Items"] = "Exclure les objets sans valeur"
+L["Open Window"] = "Ouvrir la fenêtre"
+L["Or type /aui dci."] = "Ou tapez /aui dci."
+L["Ignored Items"] = "Objets ignorés"
+L["Right-click an item in the window to stop suggesting it."] = "Faites un clic droit sur un objet dans la fenêtre pour ne plus le suggérer."
 
 -- Player Menu page (Settings)
 L["Guild Invite"] = "Inviter dans la guilde"

@@ -27,6 +27,7 @@ function Actions:Ignored()
 	return global[IGNORED_KEY]
 end
 
+---Adds or removes an item in the ignore list and fires `DeleteCheapestItemIgnored` for views that show it.
 ---@param itemID integer
 ---@param ignore boolean
 function Actions:SetIgnored(itemID, ignore)
@@ -34,6 +35,7 @@ function Actions:SetIgnored(itemID, ignore)
 
 	if ignored then
 		Options.SetIgnored(ignored, itemID, ignore)
+		AUI.Callbacks:Fire("DeleteCheapestItemIgnored", itemID, ignore)
 	end
 end
 

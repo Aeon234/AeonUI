@@ -59,8 +59,8 @@ function DeleteCheapestItem:Follow(shown)
 	end
 end
 
----Opens the window beside the open bags, or at the screen's left edge, or closes it when it is open.
-function DeleteCheapestItem:Toggle()
+---Opens the window by hand, beside the open bags or at the screen's left edge.
+function DeleteCheapestItem:Open()
 	if not self.active then
 		return
 	end
@@ -71,13 +71,18 @@ function DeleteCheapestItem:Toggle()
 		return
 	end
 
+	Window:Open({ kind = "HAND", opener = Window:OpenBags() })
+end
+
+---Opens the window by hand, or closes it when it is open.
+function DeleteCheapestItem:Toggle()
 	if Window:IsShown() then
 		Window:Close()
 
 		return
 	end
 
-	Window:Open({ kind = "HAND", opener = Window:OpenBags() })
+	self:Open()
 end
 
 function DeleteCheapestItem:Apply()

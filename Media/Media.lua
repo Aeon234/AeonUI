@@ -31,6 +31,7 @@ local Media = {
 		tooltipUnits = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarTooltipUnits.tga",
 		tooltipItems = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarTooltipItems.tga",
 		automation = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarAutomation.tga",
+		deleteCheapestItem = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarDeleteCheapestItem.tga",
 		playerMenu = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarPlayerMenu.tga",
 		input = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarInput.tga",
 		alerts = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarAlerts.tga",

@@ -70,6 +70,7 @@ L["Notifications"] = "Notifications"
 L["Raid Markers"] = "Raid Markers"
 
 -- Shared settings labels (Settings)
+L["Access"] = "Access"
 L["Text"] = "Text"
 L["Open"] = "Open"
 L["Font"] = "Font"
@@ -104,7 +105,6 @@ L["Border Thickness"] = "Border Thickness"
 L["Needs a Metal, Forever or Slate border style."] = "Needs a Metal, Forever or Slate border style."
 
 -- General page (Settings)
-L["Access"] = "Access"
 L["Show Minimap Button"] = "Show Minimap Button"
 L["Left-click opens settings."] = "Left-click opens settings."
 L["Goes below the game's own minimum. Turning it off needs a reload."] =
@@ -463,6 +463,26 @@ L["Block Channel Invites"] = "Block Channel Invites"
 L["Block Duels"] = "Block Duels"
 L["Includes duels to the death."] = "Includes duels to the death."
 L["Blocked"] = "Blocked"
+
+-- Delete Cheapest Item page (Settings)
+L["Suggest Items to Delete"] = "Suggest Items to Delete"
+L["Open Automatically"] = "Open Automatically"
+L["Loot Doesn't Fit"] = "Loot Doesn't Fit"
+L["Loot With Few Free Slots"] = "Loot With Few Free Slots"
+L["Purchase Doesn't Fit"] = "Purchase Doesn't Fit"
+L["Quest Rewards Don't Fit"] = "Quest Rewards Don't Fit"
+L["List"] = "List"
+L["Highest Quality"] = "Highest Quality"
+L["Price"] = "Price"
+L["Higher"] = "Higher"
+L["Auctionator or TSM provides auction prices."] = "Auctionator or TSM provides auction prices."
+L["Leave Out Soulbound Items"] = "Leave Out Soulbound Items"
+L["Leave Out Worthless Items"] = "Leave Out Worthless Items"
+L["Open Window"] = "Open Window"
+L["Or type /aui dci."] = "Or type /aui dci."
+L["Ignored Items"] = "Ignored Items"
+L["Right-click an item in the window to stop suggesting it."] =
+	"Right-click an item in the window to stop suggesting it."
 
 -- Player Menu page (Settings)
 L["Guild Invite"] = "Guild Invite"

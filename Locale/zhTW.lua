@@ -54,6 +54,7 @@ L["Notifications"] = "通知"
 L["Raid Markers"] = "團隊標記"
 
 -- Shared settings labels (Settings)
+L["Access"] = "存取"
 L["Text"] = "文字"
 L["Open"] = "開啟"
 L["Font"] = "字型"
@@ -88,7 +89,6 @@ L["Border Thickness"] = "外框粗細"
 L["Needs a Metal, Forever or Slate border style."] = "需要金屬、Forever 或石板外框樣式。"
 
 -- General page (Settings)
-L["Access"] = "存取"
 L["Show Minimap Button"] = "顯示小地圖按鈕"
 L["Left-click opens settings."] = "左鍵點擊開啟設定。"
 L["Goes below the game's own minimum. Turning it off needs a reload."] = "可低於遊戲的最小值。關閉後需要重新載入介面。"
@@ -425,6 +425,25 @@ L["Block Channel Invites"] = "阻擋頻道邀請"
 L["Block Duels"] = "阻擋決鬥"
 L["Includes duels to the death."] = "包括生死決鬥。"
 L["Blocked"] = "已阻擋"
+
+-- Delete Cheapest Item page (Settings)
+L["Suggest Items to Delete"] = "建議要刪除的物品"
+L["Open Automatically"] = "自動開啟"
+L["Loot Doesn't Fit"] = "戰利品放不下"
+L["Loot With Few Free Slots"] = "空位較少時拾取"
+L["Purchase Doesn't Fit"] = "購買的物品放不下"
+L["Quest Rewards Don't Fit"] = "任務獎勵放不下"
+L["List"] = "列表"
+L["Highest Quality"] = "最高品質"
+L["Price"] = "價格"
+L["Higher"] = "較高者"
+L["Auctionator or TSM provides auction prices."] = "拍賣價格由 Auctionator 或 TSM 提供。"
+L["Leave Out Soulbound Items"] = "不列出靈魂綁定物品"
+L["Leave Out Worthless Items"] = "不列出無價值物品"
+L["Open Window"] = "開啟視窗"
+L["Or type /aui dci."] = "或輸入 /aui dci。"
+L["Ignored Items"] = "已忽略的物品"
+L["Right-click an item in the window to stop suggesting it."] = "在視窗中右鍵點擊物品即可不再建議它。"
 
 -- Player Menu page (Settings)
 L["Guild Invite"] = "公會邀請"

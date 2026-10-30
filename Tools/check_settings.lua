@@ -144,6 +144,7 @@ local CONTROL_FIELDS = {
 	Details = { summary = true },
 	TextInput = { allowEmpty = true, maxLetters = true, validate = true },
 	OrderedList = { title = true, items = true, enabled = true },
+	Custom = { width = true, height = true, create = true, refresh = true },
 }
 local PAGE_FIELDS = { title = true, description = true, under = true, icon = true, iconTint = true, slot = true,
 	switch = true, show = true }
@@ -398,9 +399,9 @@ for _, file in ipairs({ "Core/Callbacks.lua", "Core/Capabilities.lua", "Core/Bro
 	"Input/FocusShortcut.lua", "Alerts/Options.lua", "Interface/Options.lua", "ScreenText/Options.lua",
 	"ScreenText/ScreenText.lua", "Cursor/Options.lua", "Cursor/CursorRing.lua", "Notifications/Options.lua",
 	"Notifications/Notifications.lua", "Markers/Options.lua", "Markers/Bar.lua", "Markers/Cycler.lua",
-	"Markers/Markers.lua",
+	"Markers/Markers.lua", "DeleteCheapestItem/Options.lua", "DeleteCheapestItem/Prices.lua",
 	"Settings/Window.lua", "Settings/MinimapEditor.lua", "Settings/General.lua", "Settings/Minimap.lua",
-	"Settings/WorldMap.lua", "Settings/Tooltip.lua", "Settings/Automation.lua", "Settings/PlayerMenu.lua",
+	"Settings/WorldMap.lua", "Settings/Tooltip.lua", "Settings/Automation.lua", "Settings/DeleteCheapestItem.lua", "Settings/PlayerMenu.lua",
 	"Settings/Input.lua", "Settings/Alerts.lua", "Settings/Interface.lua", "Settings/ScreenText.lua",
 	"Settings/Cursor.lua", "Settings/Notifications.lua", "Settings/RaidMarkers.lua",
 	"Settings/Profiles.lua", "Settings/Recovery.lua", "Settings/EditTargets.lua" }) do
@@ -1560,5 +1561,65 @@ Equal("a setting the client lacks is left out", SettingIDs(automation.sections.a
 Equal("as is the guild-invite block", SettingIDs(automation.sections.automationBlocks),
 	"managedtrades managedchannelInvites managedduels")
 cvars.weatherDensity = "3"
+
+-- Delete Cheapest Item page ---------------------------------------------------------------------------------
+
+ITEM_QUALITY0_DESC, ITEM_QUALITY1_DESC, ITEM_QUALITY2_DESC = "Poor", "Common", "Uncommon"
+ITEM_QUALITY3_DESC, ITEM_QUALITY4_DESC = "Rare", "Epic"
+AUI.can.mail, AUI.can.expansionFilter, AUI.can.autoDeclineGuildInvites = nil, nil, nil
+AUI.can.deleteCheapestItem = true
+window = Load(nil)
+Equal("Delete Cheapest Item follows Automation", table.concat(window.order, " "), "general #mapsHeader minimap "
+	.. "#tooltipHeader tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader automation deleteCheapestItem "
+	.. "alerts notifications - profiles")
+local dci = window.pages.deleteCheapestItem
+Equal("titled, under Quality of Life, with its icon", dci.info.title .. " " .. dci.info.under .. " "
+	.. tostring(dci.info.icon == AUI.Media.sidebar.deleteCheapestItem), "Delete Cheapest Item qualityOfLifeHeader true")
+Equal("headed by its switch, off", dci.info.switch.path .. "=" .. tostring(dci.info.switch.default) .. " "
+	.. dci.info.switch.label, "deleteCheapestItem.enabled=false Suggest Items to Delete")
+local dciCards = {}
+for _, section in ipairs(dci.sections) do
+	dciCards[#dciCards + 1] = section.title .. ": " .. SettingIDs(section)
+end
+Equal("four titled cards", table.concat(dciCards, " | "), "Open Automatically: dciBagsFull dciFreeSlots dciMerchant "
+	.. "dciQuest | List: dciMaxQuality dciPrice dciHideBound dciHideNoValue | Access: dciOpenWindow dciKeys | "
+	.. "Ignored Items: dciIgnoredItems")
+local dciSecondLines = {}
+for _, section in ipairs(dci.sections) do
+	for _, setting in ipairs(section.settings) do
+		if setting.path then
+			Equal(setting.id .. " names a setting", AUI.Schema:Field(setting.path) ~= nil, true)
+		end
+
+		if setting.description then
+			dciSecondLines[#dciSecondLines + 1] = setting.id
+		end
+	end
+end
+Equal("second lines only on Price and Key Bindings", table.concat(dciSecondLines, " "), "dciPrice dciKeys")
+local freeSlots = dci.sections.dciOpen.settings.dciFreeSlots
+Equal("the threshold from Off to 20", freeSlots.format(0) .. " " .. freeSlots.format(5) .. " " .. freeSlots.max, "Off 5 20")
+local function Texts(setting)
+	local texts = {}
+	for index, option in ipairs(setting.options) do
+		texts[index] = option.text
+	end
+
+	return table.concat(texts, ",")
+end
+Equal("qualities by the client's names", Texts(dci.sections.dciList.settings.dciMaxQuality),
+	"Poor,Common,Uncommon,Rare,Epic")
+Equal("the prices", Texts(dci.sections.dciList.settings.dciPrice), "Vendor,Auction,Higher")
+Equal("without an auction addon, Price says where auction prices come from",
+	dci.sections.dciList.settings.dciPrice.description, "Auctionator or TSM provides auction prices.")
+local ignored = dci.sections.dciIgnored.settings.dciIgnoredItems
+Equal("the ignore list across its card", tostring(ignored.wide) .. " " .. ignored.kind, "true Custom")
+_G.TSM_API = { GetCustomPriceValue = function() end, ToItemString = function() end }
+window = Load(nil)
+Equal("with one, no second line", window.pages.deleteCheapestItem.sections.dciList.settings.dciPrice.description, nil)
+_G.TSM_API = nil
+AUI.can.deleteCheapestItem = nil
+window = Load(nil)
+Equal("no page without the feature's functions", window.pages.deleteCheapestItem, nil)
 
 io.stdout:write(("check_settings: %d checks passed\n"):format(checks))

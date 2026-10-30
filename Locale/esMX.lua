@@ -54,6 +54,7 @@ L["Notifications"] = "Notificaciones"
 L["Raid Markers"] = "Marcadores de banda"
 
 -- Shared settings labels (Settings)
+L["Access"] = "Acceso"
 L["Text"] = "Texto"
 L["Open"] = "Abrir"
 L["Font"] = "Fuente"
@@ -88,7 +89,6 @@ L["Border Thickness"] = "Grosor del borde"
 L["Needs a Metal, Forever or Slate border style."] = "Requiere un estilo de borde Metal, Forever o Pizarra."
 
 -- General page (Settings)
-L["Access"] = "Acceso"
 L["Show Minimap Button"] = "Mostrar botón del minimapa"
 L["Left-click opens settings."] = "Clic izquierdo abre la configuración."
 L["Goes below the game's own minimum. Turning it off needs a reload."] = "Baja del mínimo del juego. Desactivarla requiere recargar."
@@ -425,6 +425,25 @@ L["Block Channel Invites"] = "Bloquear invitaciones a canales"
 L["Block Duels"] = "Bloquear duelos"
 L["Includes duels to the death."] = "Incluidos los duelos a muerte."
 L["Blocked"] = "Bloqueado"
+
+-- Delete Cheapest Item page (Settings)
+L["Suggest Items to Delete"] = "Sugerir objetos para borrar"
+L["Open Automatically"] = "Abrir automáticamente"
+L["Loot Doesn't Fit"] = "El botín no cabe"
+L["Loot With Few Free Slots"] = "Botín con pocos espacios libres"
+L["Purchase Doesn't Fit"] = "La compra no cabe"
+L["Quest Rewards Don't Fit"] = "Las recompensas de misión no caben"
+L["List"] = "Lista"
+L["Highest Quality"] = "Calidad máxima"
+L["Price"] = "Precio"
+L["Higher"] = "El más alto"
+L["Auctionator or TSM provides auction prices."] = "Auctionator o TSM proporciona los precios de subasta."
+L["Leave Out Soulbound Items"] = "Excluir objetos ligados"
+L["Leave Out Worthless Items"] = "Excluir objetos sin valor"
+L["Open Window"] = "Abrir ventana"
+L["Or type /aui dci."] = "O escribe /aui dci."
+L["Ignored Items"] = "Objetos ignorados"
+L["Right-click an item in the window to stop suggesting it."] = "Haz clic derecho en un objeto de la ventana para dejar de sugerirlo."
 
 -- Player Menu page (Settings)
 L["Guild Invite"] = "Invitar a la hermandad"

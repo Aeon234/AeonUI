@@ -54,6 +54,7 @@ L["Notifications"] = "Benachrichtigungen"
 L["Raid Markers"] = "Schlachtzugsmarkierungen"
 
 -- Shared settings labels (Settings)
+L["Access"] = "Zugriff"
 L["Text"] = "Text"
 L["Open"] = "Öffnen"
 L["Font"] = "Schriftart"
@@ -88,7 +89,6 @@ L["Border Thickness"] = "Rahmenstärke"
 L["Needs a Metal, Forever or Slate border style."] = "Benötigt den Rahmenstil Metall, Forever oder Schiefer."
 
 -- General page (Settings)
-L["Access"] = "Zugriff"
 L["Show Minimap Button"] = "Minikartenknopf anzeigen"
 L["Left-click opens settings."] = "Linksklick öffnet die Einstellungen."
 L["Goes below the game's own minimum. Turning it off needs a reload."] = "Geht unter das Minimum des Spiels. Zum Ausschalten ist ein Neuladen nötig."
@@ -425,6 +425,25 @@ L["Block Channel Invites"] = "Kanaleinladungen blockieren"
 L["Block Duels"] = "Duelle blockieren"
 L["Includes duels to the death."] = "Auch Duelle auf Leben und Tod."
 L["Blocked"] = "Blockiert"
+
+-- Delete Cheapest Item page (Settings)
+L["Suggest Items to Delete"] = "Zu löschende Gegenstände vorschlagen"
+L["Open Automatically"] = "Automatisch öffnen"
+L["Loot Doesn't Fit"] = "Beute passt nicht"
+L["Loot With Few Free Slots"] = "Beute bei wenigen freien Plätzen"
+L["Purchase Doesn't Fit"] = "Kauf passt nicht"
+L["Quest Rewards Don't Fit"] = "Questbelohnungen passen nicht"
+L["List"] = "Liste"
+L["Highest Quality"] = "Höchste Qualität"
+L["Price"] = "Preis"
+L["Higher"] = "Höherer"
+L["Auctionator or TSM provides auction prices."] = "Auctionator oder TSM liefert Auktionspreise."
+L["Leave Out Soulbound Items"] = "Seelengebundene Gegenstände auslassen"
+L["Leave Out Worthless Items"] = "Wertlose Gegenstände auslassen"
+L["Open Window"] = "Fenster öffnen"
+L["Or type /aui dci."] = "Oder tippe /aui dci."
+L["Ignored Items"] = "Ignorierte Gegenstände"
+L["Right-click an item in the window to stop suggesting it."] = "Rechtsklicke im Fenster auf einen Gegenstand, um ihn nicht mehr vorzuschlagen."
 
 -- Player Menu page (Settings)
 L["Guild Invite"] = "Gildeneinladung"

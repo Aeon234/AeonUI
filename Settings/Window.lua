@@ -33,6 +33,10 @@ local function DeclareSidebar(window)
 	AUI.SettingsTooltip:Declare(window)
 	AUI.SettingsAutomation:Declare(window)
 
+	if AUI.can.deleteCheapestItem then
+		AUI.SettingsDeleteCheapestItem:Declare(window)
+	end
+
 	if AUI.SettingsPlayerMenu:IsAvailable() then
 		AUI.SettingsPlayerMenu:Declare(window)
 	end

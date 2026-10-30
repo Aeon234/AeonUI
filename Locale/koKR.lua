@@ -54,6 +54,7 @@ L["Notifications"] = "알림"
 L["Raid Markers"] = "공격대 징표"
 
 -- Shared settings labels (Settings)
+L["Access"] = "접근"
 L["Text"] = "글자"
 L["Open"] = "열기"
 L["Font"] = "글꼴"
@@ -88,7 +89,6 @@ L["Border Thickness"] = "테두리 두께"
 L["Needs a Metal, Forever or Slate border style."] = "금속, Forever 또는 슬레이트 테두리 스타일이 필요합니다."
 
 -- General page (Settings)
-L["Access"] = "접근"
 L["Show Minimap Button"] = "미니맵 버튼 표시"
 L["Left-click opens settings."] = "왼쪽 클릭으로 설정을 엽니다."
 L["Goes below the game's own minimum. Turning it off needs a reload."] = "게임 최소값보다 작게 할 수 있습니다. 끄려면 UI를 다시 불러와야 합니다."
@@ -425,6 +425,25 @@ L["Block Channel Invites"] = "채널 초대 차단"
 L["Block Duels"] = "결투 차단"
 L["Includes duels to the death."] = "목숨을 건 결투도 포함합니다."
 L["Blocked"] = "차단"
+
+-- Delete Cheapest Item page (Settings)
+L["Suggest Items to Delete"] = "삭제할 아이템 제안"
+L["Open Automatically"] = "자동으로 열기"
+L["Loot Doesn't Fit"] = "전리품이 들어가지 않을 때"
+L["Loot With Few Free Slots"] = "빈 칸이 적을 때 전리품"
+L["Purchase Doesn't Fit"] = "구매품이 들어가지 않을 때"
+L["Quest Rewards Don't Fit"] = "퀘스트 보상이 들어가지 않을 때"
+L["List"] = "목록"
+L["Highest Quality"] = "최고 품질"
+L["Price"] = "가격"
+L["Higher"] = "더 높은 가격"
+L["Auctionator or TSM provides auction prices."] = "Auctionator 또는 TSM이 경매 가격을 제공합니다."
+L["Leave Out Soulbound Items"] = "귀속 아이템 제외"
+L["Leave Out Worthless Items"] = "가치 없는 아이템 제외"
+L["Open Window"] = "창 열기"
+L["Or type /aui dci."] = "또는 /aui dci를 입력하세요."
+L["Ignored Items"] = "무시한 아이템"
+L["Right-click an item in the window to stop suggesting it."] = "창에서 아이템을 오른쪽 클릭하면 더 이상 제안하지 않습니다."
 
 -- Player Menu page (Settings)
 L["Guild Invite"] = "길드 초대"
