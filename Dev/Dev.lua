@@ -6,6 +6,8 @@ local Codec = AUI.Codec
 ---@class AUIDev
 ---@field MinimapProbe AUIMinimapProbe? the M0 minimap probe, from Dev/MinimapProbe.lua
 ---@field WorldMapProbe AUIWorldMapProbe? the W0 world map probe, from Dev/WorldMapProbe.lua
+---@field DeleteCheapestItemProbe AUIDeleteCheapestItemProbe? the S0 Delete Cheapest Item probe, from
+---Dev/DeleteCheapestItemProbe.lua
 local Dev = {}
 AUI.Dev = Dev
 
@@ -307,5 +309,11 @@ function Dev:Command(line)
 		return
 	end
 
-	AUI:Print("dev commands: codec, map, atlas [names], row, preview, minimap, worldmap, mark [note]")
+	if command == "dci" and self.DeleteCheapestItemProbe then
+		self.DeleteCheapestItemProbe:Command(rest)
+
+		return
+	end
+
+	AUI:Print("dev commands: codec, map, atlas [names], row, preview, minimap, worldmap, dci, mark [note]")
 end

@@ -30,10 +30,12 @@ ScreenText\ScreenText.xml
 Cursor\Cursor.xml
 Notifications\Notifications.xml
 Markers\Markers.xml
+DeleteCheapestItem\DeleteCheapestItem.xml
 Settings\Settings.xml
 
 #@do-not-package@
 Dev\Dev.lua
 Dev\MinimapProbe.lua
 Dev\WorldMapProbe.xml
+Dev\DeleteCheapestItemProbe.xml
 #@end-do-not-package@
