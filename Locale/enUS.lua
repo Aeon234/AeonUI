@@ -640,6 +640,14 @@ L["More than the loot"] = "More than the loot"
 L["Delete %s"] = "Delete %s"
 L["Nothing to suggest. Ignored items and items above %s aren't listed."] =
 	"Nothing to suggest. Ignored items and items above %s aren't listed."
+L["Confirm"] = "Confirm"
+L["Sell"] = "Sell"
+L["Sell %s"] = "Sell %s"
+L["Delete %s, then loot %s"] = "Delete %s, then loot %s"
+L["Never Suggest"] = "Never Suggest"
+L["Link in Chat"] = "Link in Chat"
+L["Won't suggest %s."] = "Won't suggest %s."
+L["Undo"] = "Undo"
 
 -- Profiles page (Settings)
 L["AeonUI profile \"%s\"."] = "AeonUI profile \"%s\"."

@@ -2,6 +2,7 @@
 	<Script file="Options.lua" />
 	<Script file="Prices.lua" />
 	<Script file="Bags.lua" />
+	<Script file="Actions.lua" />
 	<Script file="Window.lua" />
 
 	<Button name="AeonUIDeleteCheapestItemActionTemplate" inherits="BackdropTemplate" virtual="true">
@@ -108,6 +109,31 @@
 						<FontString parentKey="Text" inherits="GameFontHighlightSmall">
 							<Anchors>
 								<Anchor point="CENTER"/>
+							</Anchors>
+						</FontString>
+					</Layer>
+				</Layers>
+			</Frame>
+			<Frame parentKey="Toast" inherits="BackdropTemplate" hidden="true">
+				<Size y="30"/>
+				<Anchors>
+					<Anchor point="BOTTOMLEFT" x="10" y="8"/>
+					<Anchor point="BOTTOMRIGHT" x="-10" y="8"/>
+				</Anchors>
+				<Frames>
+					<Button parentKey="Undo" inherits="UIPanelButtonTemplate">
+						<Size x="62" y="22"/>
+						<Anchors>
+							<Anchor point="RIGHT" x="-4" y="0"/>
+						</Anchors>
+					</Button>
+				</Frames>
+				<Layers>
+					<Layer level="ARTWORK">
+						<FontString parentKey="Text" inherits="GameFontHighlightSmall" justifyH="LEFT" maxLines="1">
+							<Anchors>
+								<Anchor point="LEFT" x="8" y="0"/>
+								<Anchor point="RIGHT" x="-72" y="0"/>
 							</Anchors>
 						</FontString>
 					</Layer>

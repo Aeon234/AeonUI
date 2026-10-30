@@ -4,6 +4,7 @@ local L = AUI.L
 local lib = LibStub("LibAeonSettings-1.0")
 local Options = AUI.DeleteCheapestItemOptions
 local Bags = AUI.DeleteCheapestItemBags
+local Actions = AUI.DeleteCheapestItemActions
 
 local NAME = "AeonUIDeleteCheapestItem"
 local ROW_HEIGHT = 48
@@ -16,9 +17,31 @@ local EDGE_INSET = 20
 local SETTLE_RESPONSE = 0.3
 local PRESS_SCALE = 0.85
 local PRESS_RESPONSE = 0.15
+local ACTION_SIZE = 28
+local LABEL_PADDING = 14
+-- Seconds a row asking to confirm waits for the second click.
+local CONFIRM_SECONDS = 3
+-- Seconds the Undo message stays.
+local TOAST_SECONDS = 6
 
-local ACTION_REST = { bg = { 0.14, 0.125, 0.1 }, edge = { 0.3, 0.27, 0.2 }, icon = 0.8 }
-local ACTION_HOVER = { bg = { 0.42, 0.08, 0.06 }, edge = { 0.82, 0.34, 0.25 }, icon = 1 }
+-- Each action mode's colors at rest, hovered and pressed: background, edge, and the icon's or label's color.
+local ACTION_STYLES = {
+	DELETE = {
+		rest = { bg = { 0.14, 0.125, 0.1 }, edge = { 0.3, 0.27, 0.2 }, fg = { 0.8, 0.8, 0.8 } },
+		hover = { bg = { 0.42, 0.08, 0.06 }, edge = { 0.82, 0.34, 0.25 }, fg = { 1, 1, 1 } },
+		press = { bg = { 0.3, 0.05, 0.04 }, edge = { 0.82, 0.34, 0.25 }, fg = { 1, 1, 1 } },
+	},
+	CONFIRM = {
+		rest = { bg = { 0.64, 0.13, 0.1 }, edge = { 1, 0.56, 0.45 }, fg = { 1, 1, 1 } },
+		hover = { bg = { 0.76, 0.17, 0.13 }, edge = { 1, 0.66, 0.55 }, fg = { 1, 1, 1 } },
+		press = { bg = { 0.5, 0.1, 0.08 }, edge = { 1, 0.56, 0.45 }, fg = { 1, 1, 1 } },
+	},
+	SELL = {
+		rest = { bg = { 0.14, 0.125, 0.1 }, edge = { 0.3, 0.27, 0.2 }, fg = { 0.96, 0.84, 0.49 } },
+		hover = { bg = { 0.3, 0.23, 0.05 }, edge = { 0.88, 0.7, 0.3 }, fg = { 1, 0.95, 0.77 } },
+		press = { bg = { 0.22, 0.17, 0.04 }, edge = { 0.88, 0.7, 0.3 }, fg = { 1, 0.95, 0.77 } },
+	},
+}
 local CHIP_FULL = { bg = { 0.36, 0.08, 0.06 }, text = { 1, 0.7, 0.66 } }
 local CHIP_OK = { bg = { 0.12, 0.23, 0.09 }, text = { 0.71, 0.95, 0.65 } }
 local WARN_COLOR = { 1, 0.69, 0.25 }
@@ -30,6 +53,7 @@ local BACKDROP = { bgFile = "Interface\\Buttons\\WHITE8x8", edgeFile = "Interfac
 ---@field kind "LOOT"|"MERCHANT"|"QUEST"|"HAND"
 ---@field opener Frame? the window it sits beside; the screen's left edge when nil
 ---@field incoming { name: string, quality: integer, value: number }? the item it makes room for
+---@field lootSlot integer? the loot slot a delete makes room for, taken once the bags have settled
 
 ---The Delete Cheapest Item window: `ScrollingFlatPanelTemplate`, as the loot window uses, beside the window that
 ---opened it with their tops level. Created the first time it opens.
@@ -38,6 +62,8 @@ local BACKDROP = { bgFile = "Interface\\Buttons\\WHITE8x8", edgeFile = "Interfac
 ---@field context AUIDeleteCheapestItemContext?
 ---@field onShown fun(shown: boolean)? called as the window shows and hides
 ---@field hooked table<Frame, true> openers whose size changes re-place the window
+---@field sliding AeonUIDeleteCheapestItemRowMixin? the row sliding out; the list is rebuilt when it finishes
+---@field toastTimer table? hides the Undo message
 local Window = {
 	hooked = {},
 }
@@ -62,19 +88,22 @@ AUI.DeleteCheapestItemWindow = Window
 ---@field Text FontString
 ---@field Background Texture
 
----@param button AUIDeleteCheapestItemAction
----@param style table
-local function PaintAction(button, style)
-	button:SetBackdropColor(style.bg[1], style.bg[2], style.bg[3], 1)
-	button:SetBackdropBorderColor(style.edge[1], style.edge[2], style.edge[3], 1)
-	button.Icon:SetVertexColor(style.icon, style.icon, style.icon)
-end
+---The Undo message at the window's foot.
+---@class AUIDeleteCheapestItemToast : Frame, BackdropTemplate
+---@field Text FontString
+---@field Undo Button
+---@field itemID integer?
 
 ---A list row: an item card as the loot window draws them, with the item's worth and its action button.
 ---@class AeonUIDeleteCheapestItemRowMixin : Frame
 ---@field Content AUIDeleteCheapestItemRowContent
 ---@field SlideOutRightAnim AnimationGroup
 ---@field entry AUIDeleteCheapestItemEntry
+---@field mode "DELETE"|"CONFIRM"|"SELL" what the action button does
+---@field hovered boolean
+---@field pressed boolean
+---@field busy boolean its action ran; it is leaving the list
+---@field confirmTimer table? returns the row from Confirm to Delete
 ---@field settle table the spring that brings the content back to the row after the list moves
 ---@field press table the spring that shrinks the action's icon while pressed
 AeonUIDeleteCheapestItemRowMixin = {}
@@ -86,6 +115,7 @@ function Row:OnLoad()
 	local action = content.Action
 
 	content.Item:EnableMouse(false)
+	self.mode, self.hovered, self.pressed, self.busy = "DELETE", false, false, false
 	self.settle = lib:CreateSpring(0, function(offset)
 		content:SetPoint("TOPLEFT", 0, offset)
 		content:SetPoint("BOTTOMRIGHT", 0, offset)
@@ -93,38 +123,109 @@ function Row:OnLoad()
 	self.press = lib:CreateSpring(1, function(scale)
 		action.Icon:SetSize(16 * scale, 16 * scale)
 	end, { response = PRESS_RESPONSE, epsilon = 0.002 })
+	self.SlideOutRightAnim:SetScript("OnFinished", function()
+		Window:OnSlideFinished(self)
+	end)
+	self:SetScript("OnMouseUp", function(_, button)
+		if button == "RightButton" and self.entry and not self.busy then
+			Window:ShowMenu(self)
+		end
+	end)
 
 	action:SetBackdrop(BACKDROP)
-	PaintAction(action, ACTION_REST)
 	action:SetScript("OnEnter", function()
-		PaintAction(action, ACTION_HOVER)
+		self.hovered = true
+		self:PaintAction()
 		self:ShowActionTooltip()
 	end)
 	action:SetScript("OnLeave", function()
-		PaintAction(action, ACTION_REST)
+		self.hovered, self.pressed = false, false
+		self:PaintAction()
 		self.press:To(1)
 		GameTooltip:Hide()
 	end)
 	action:SetScript("OnMouseDown", function()
+		self.pressed = true
+		self:PaintAction()
 		self.press:To(PRESS_SCALE)
 	end)
 	action:SetScript("OnMouseUp", function()
+		self.pressed = false
+		self:PaintAction()
 		self.press:To(1)
 	end)
+	action:SetScript("OnClick", function()
+		Window:Act(self)
+	end)
+	self:SetMode("DELETE")
+end
+
+function Row:PaintAction()
+	local action = self.Content.Action
+	local styles = ACTION_STYLES[self.mode]
+	local style = self.pressed and styles.press or self.hovered and styles.hover or styles.rest
+
+	action:SetBackdropColor(style.bg[1], style.bg[2], style.bg[3], 1)
+	action:SetBackdropBorderColor(style.edge[1], style.edge[2], style.edge[3], 1)
+	action.Icon:SetVertexColor(style.fg[1], style.fg[2], style.fg[3])
+	action.Label:SetTextColor(style.fg[1], style.fg[2], style.fg[3])
+end
+
+---@param mode "DELETE"|"CONFIRM"|"SELL"
+function Row:SetMode(mode)
+	local action = self.Content.Action
+	local label = mode == "CONFIRM" and L["Confirm"] or mode == "SELL" and L["Sell"] or nil
+
+	self.mode = mode
+	action.Icon:SetShown(label == nil)
+	action.Label:SetShown(label ~= nil)
+	action.Label:SetText(label or "")
+	action:SetWidth(label and math.max(ACTION_SIZE, action.Label:GetStringWidth() + LABEL_PADDING) or ACTION_SIZE)
+	self:PaintAction()
+end
+
+---Asks for a second click within a few seconds, or stops asking.
+---@param on boolean
+function Row:SetConfirming(on)
+	if self.confirmTimer then
+		self.confirmTimer:Cancel()
+		self.confirmTimer = nil
+	end
+
+	if on then
+		self.confirmTimer = C_Timer.NewTimer(CONFIRM_SECONDS, function()
+			self.confirmTimer = nil
+			self:SetMode("DELETE")
+		end)
+	end
+
+	self:SetMode(on and "CONFIRM" or "DELETE")
+
+	if self.hovered then
+		self:ShowActionTooltip()
+	end
 end
 
 ---@param entry AUIDeleteCheapestItemEntry
 ---@param incoming number? copper the incoming item is worth
-function Row:Init(entry, incoming)
+---@param selling boolean the action sells instead of deleting
+function Row:Init(entry, incoming, selling)
 	local content = self.Content
 	local color = ITEM_QUALITY_COLORS[entry.quality] or HIGHLIGHT_FONT_COLOR
 	local source = entry.source == "AUCTION" and L["Auction"] or L["Vendor"]
 
+	if self.confirmTimer then
+		self.confirmTimer:Cancel()
+		self.confirmTimer = nil
+	end
+
 	self.entry = entry
+	self.busy = false
 	self.SlideOutRightAnim:Stop()
 	self:SetAlpha(1)
 	self.settle:Jump(0)
 	self.press:Jump(1)
+	self:SetMode(selling and "SELL" or "DELETE")
 
 	SetItemButtonTexture(content.Item, entry.icon)
 	SetItemButtonCount(content.Item, entry.count)
@@ -137,7 +238,7 @@ function Row:Init(entry, incoming)
 		source = ("%s · %s"):format(source, L["%d stacks"]:format(entry.stacks))
 	end
 
-	if Options.NeedsConfirm(entry.value, incoming) then
+	if not selling and Options.NeedsConfirm(entry.value, incoming) then
 		content.Source:SetText(L["More than the loot"])
 		content.Source:SetTextColor(WARN_COLOR[1], WARN_COLOR[2], WARN_COLOR[3])
 	else
@@ -155,7 +256,7 @@ end
 
 function Row:ShowActionTooltip()
 	GameTooltip:SetOwner(self.Content.Action, "ANCHOR_RIGHT")
-	GameTooltip:SetText(L["Delete %s"]:format(self.entry.name), 1, 1, 1)
+	GameTooltip:SetText(Window:ActionText(self.entry), 1, 1, 1, 1, true)
 	GameTooltip:Show()
 end
 
@@ -179,6 +280,7 @@ end
 ---@field Free FontString
 ---@field Detail FontString
 ---@field Empty FontString
+---@field Toast AUIDeleteCheapestItemToast
 ---@field Open fun(self: AeonUIDeleteCheapestItemMixin) shows the panel, sizes it and plays its show animation
 ---@field Close fun(self: AeonUIDeleteCheapestItemMixin) plays the hide animation
 ---@field Resize fun(self: AeonUIDeleteCheapestItemMixin) sizes the panel to its rows
@@ -202,9 +304,10 @@ function Panel:OnLoad()
 	local view = CreateScrollBoxListLinearView(ROW_PAD, ROW_PAD, ROW_PAD, ROW_PAD, ROW_SPACING)
 
 	view:SetElementInitializer("AeonUIDeleteCheapestItemRowTemplate", function(row, entry)
-		local incoming = Window.context and Window.context.incoming
+		local context = Window.context
+		local incoming = context and context.incoming
 
-		row:Init(entry, incoming and incoming.value)
+		row:Init(entry, incoming and incoming.value, context ~= nil and context.kind == "MERCHANT")
 	end)
 	ScrollUtil.InitScrollBoxWithScrollBar(scrollBox, self.ScrollBar, view)
 
@@ -216,6 +319,17 @@ function Panel:OnLoad()
 	scrollBox:GetUpperShadowTexture():SetPoint("TOPRIGHT", -30, 0)
 	scrollBox:GetLowerShadowTexture():SetPoint("BOTTOMLEFT", 30, 0)
 	scrollBox:GetLowerShadowTexture():SetPoint("BOTTOMRIGHT", -30, 0)
+
+	local toast = self.Toast
+
+	toast:SetFrameLevel(scrollBox.ScrollTarget:GetFrameLevel() + 20)
+	toast:SetBackdrop(BACKDROP)
+	toast:SetBackdropColor(0.07, 0.065, 0.06, 0.95)
+	toast:SetBackdropBorderColor(0.42, 0.35, 0.22, 1)
+	toast.Undo:SetText(L["Undo"])
+	toast.Undo:SetScript("OnClick", function()
+		Window:Undo()
+	end)
 end
 
 ---@return number height the rows' height, at least one row's for the empty state, and the status lines
@@ -238,6 +352,9 @@ function Panel:OnShow()
 end
 
 function Panel:OnHide()
+	Window:HideToast()
+	Window.sliding = nil
+
 	if Window.onShown then
 		Window.onShown(false)
 	end
@@ -368,13 +485,13 @@ function Window:Fill(settle)
 
 	if settle then
 		scrollBox:ForEachFrame(function(row)
-			if row.entry then
+			if row.entry and not row.busy then
 				tops[Options.RowKey(row.entry)] = row:GetTop()
 			end
 		end)
 	end
 
-	local entries, free = Bags:List(nil)
+	local entries, free = Bags:List(Actions:Ignored())
 	local provider = CreateDataProvider()
 
 	for _, entry in ipairs(entries) do
@@ -400,6 +517,146 @@ function Window:Fill(settle)
 	end
 end
 
+---@param entry AUIDeleteCheapestItemEntry
+---@return string text what the row's action does
+function Window:ActionText(entry)
+	local context = self.context
+	local incoming = context and context.incoming
+
+	if context and context.kind == "MERCHANT" then
+		return L["Sell %s"]:format(entry.name)
+	end
+
+	if context and context.kind == "LOOT" and incoming then
+		return L["Delete %s, then loot %s"]:format(entry.name, incoming.name)
+	end
+
+	return L["Delete %s"]:format(entry.name)
+end
+
+---Runs a row's action: sells at a merchant; otherwise deletes, after a second click when the row is worth more than
+---the incoming item. A row whose stack moved is not acted on; the list is rebuilt instead.
+---@param row AeonUIDeleteCheapestItemRowMixin
+function Window:Act(row)
+	local context, entry = self.context, row.entry
+
+	if row.busy or not context or not entry then
+		return
+	end
+
+	local done
+
+	if context.kind == "MERCHANT" then
+		done = Actions:Sell(entry)
+	else
+		local incoming = context.incoming
+
+		if row.mode ~= "CONFIRM" and Options.NeedsConfirm(entry.value, incoming and incoming.value) then
+			row:SetConfirming(true)
+
+			return
+		end
+
+		done = Actions:Delete(entry, context.lootSlot)
+	end
+
+	if done then
+		self:SlideOut(row)
+	else
+		self:Refresh()
+	end
+end
+
+---Slides an acted-on row out to the right, as the loot window's cards leave; the list is rebuilt when it has gone.
+---With Reduce Motion the row hides at once and the bags' update rebuilds the list.
+---@param row AeonUIDeleteCheapestItemRowMixin
+function Window:SlideOut(row)
+	row.busy = true
+	row:SetConfirming(false)
+	GameTooltip:Hide()
+
+	if lib:ReduceMotion() then
+		row:SetAlpha(0)
+
+		return
+	end
+
+	self.sliding = row
+	row.SlideOutRightAnim:Play()
+end
+
+---@param row AeonUIDeleteCheapestItemRowMixin
+function Window:OnSlideFinished(row)
+	if self.sliding ~= row then
+		return
+	end
+
+	self.sliding = nil
+
+	if self:IsShown() then
+		self:Fill(true)
+	end
+end
+
+---@param row AeonUIDeleteCheapestItemRowMixin
+function Window:ShowMenu(row)
+	local entry = row.entry
+
+	MenuUtil.CreateContextMenu(row, function(_, root)
+		root:CreateTitle(entry.name)
+		root:CreateButton(L["Never Suggest"], function()
+			self:Ignore(entry)
+		end)
+		root:CreateButton(L["Link in Chat"], function()
+			ChatFrameUtil.LinkItem(entry.itemID, entry.link)
+		end)
+	end)
+end
+
+---Leaves an item out of every list from now on, with an Undo message.
+---@param entry AUIDeleteCheapestItemEntry
+function Window:Ignore(entry)
+	local toast = (self.frame --[[@as AeonUIDeleteCheapestItemMixin]]).Toast
+
+	Actions:SetIgnored(entry.itemID, true)
+	toast.itemID = entry.itemID
+	toast.Text:SetText(L["Won't suggest %s."]:format(entry.name))
+	toast:Show()
+
+	if self.toastTimer then
+		self.toastTimer:Cancel()
+	end
+
+	self.toastTimer = C_Timer.NewTimer(TOAST_SECONDS, function()
+		self.toastTimer = nil
+		self:HideToast()
+	end)
+	self:Refresh()
+end
+
+function Window:Undo()
+	local toast = (self.frame --[[@as AeonUIDeleteCheapestItemMixin]]).Toast
+
+	if toast.itemID then
+		Actions:SetIgnored(toast.itemID, false)
+	end
+
+	self:HideToast()
+	self:Refresh()
+end
+
+function Window:HideToast()
+	if self.toastTimer then
+		self.toastTimer:Cancel()
+		self.toastTimer = nil
+	end
+
+	if self.frame then
+		self.frame.Toast.itemID = nil
+		self.frame.Toast:Hide()
+	end
+end
+
 ---Opens the window, or brings an open one to a new context.
 ---@param context AUIDeleteCheapestItemContext
 function Window:Open(context)
@@ -417,9 +674,10 @@ function Window:Open(context)
 	self:Place()
 end
 
----Rebuilds an open window's list, its rows settling into their new places.
+---Rebuilds an open window's list, its rows settling into their new places. While a row slides out, its finish
+---rebuilds the list instead.
 function Window:Refresh()
-	if self:IsShown() then
+	if self:IsShown() and not self.sliding then
 		self:Fill(true)
 	end
 end

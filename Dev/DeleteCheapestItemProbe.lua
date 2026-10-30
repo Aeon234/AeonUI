@@ -536,9 +536,44 @@ function Window:OnDragStop()
 		tostring(self:IsUserPlaced()), tostring(self:GetDontSavePosition()))
 end
 
+---Opens the feature's window as S5's openers will: beside the merchant, or beside the loot window making room for its
+---first item, which a delete then loots.
+---@param kind "merchant"|"loot"
+function Probe:OpenWindow(kind)
+	if kind == "merchant" then
+		if not MerchantFrame:IsShown() then
+			AUI:Print("dci: open a merchant first")
+
+			return
+		end
+
+		AUI.DeleteCheapestItemWindow:Open({ kind = "MERCHANT", opener = MerchantFrame })
+
+		return
+	end
+
+	local slot = FirstLootItem()
+
+	if not slot then
+		AUI:Print("dci: open a loot window holding an item first")
+
+		return
+	end
+
+	local _, name, quantity, _, quality = GetLootSlotInfo(slot)
+	local sellPrice = select(11, C_Item.GetItemInfo(GetLootSlotLink(slot) or ""))
+
+	AUI.DeleteCheapestItemWindow:Open({
+		kind = "LOOT",
+		opener = LootFrame,
+		incoming = { name = name, quality = quality or 1, value = (sellPrice or 0) * (quantity or 1) },
+		lootSlot = slot,
+	})
+end
+
 local HELP = "dci probe: open, close, trace <on|off>, quality <0-4>, loot <after|immediate|off>, "
 	.. "side <auto|right|left>, gap <n>, closemode <override|blizzard>, drag <clear|dontsave|none>, "
-	.. "edge <fade|shadow>, report, atlases, feature <on|off>; "
+	.. "edge <fade|shadow>, report, atlases, feature <on|off>, window <merchant|loot>; "
 	.. "/reload undoes it"
 
 local OPTIONS = {
@@ -595,6 +630,8 @@ function Probe:Command(line)
 	elseif command == "atlases" then
 		AUI.Dev:Atlases("looting_itemcard_bg looting_itemcard_stroke_normal looting_itemcard_stroke_clickstate "
 			.. "_looting_itemcard_shadow-center looting_raritytag_frame common-icon-delete")
+	elseif command == "window" and (value == "merchant" or value == "loot") then
+		self:OpenWindow(value)
 	elseif command == "feature" and (value == "on" or value == "off") then
 		local ok, problem = AUI.Profile:Set(AUI.DeleteCheapestItemOptions.ENABLED_PATH, value == "on")
 

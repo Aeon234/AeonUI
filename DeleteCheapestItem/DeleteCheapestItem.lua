@@ -3,6 +3,7 @@ local AUI = select(2, ...)
 local L = AUI.L
 local Options = AUI.DeleteCheapestItemOptions
 local Window = AUI.DeleteCheapestItemWindow
+local Actions = AUI.DeleteCheapestItemActions
 
 -- The hidden button the key binding clicks (Bindings.xml).
 local TOGGLE_BUTTON = "AeonUIDeleteCheapestItemToggle"
@@ -28,7 +29,12 @@ function DeleteCheapestItem:IsOn()
 	return AUI.can.deleteCheapestItem == true and Options:Get(Options.ENABLED_PATH) == true
 end
 
-function DeleteCheapestItem:OnListChanged()
+---@param event string
+function DeleteCheapestItem:OnListChanged(event)
+	if event == "BAG_UPDATE_DELAYED" then
+		Actions:OnBagsSettled()
+	end
+
 	AUI.Events:Coalesce("dciRefresh", function()
 		Window:Refresh()
 	end)

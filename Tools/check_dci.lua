@@ -1,7 +1,7 @@
 -- Checks DeleteCheapestItem/ outside the game: the settings' defaults, which bag items are left out and why, what an
 -- item is worth by each price choice, identical stacks shown once, the order, when a delete asks first, free slots,
--- money in coins, the ignore list, auction prices from Auctionator or TradeSkillMaster, the bag scan, and the
--- window's side and row keys.
+-- money in coins, the ignore list, auction prices from Auctionator or TradeSkillMaster, the bag scan, the window's
+-- side and row keys, and the actions (the ignore list's store, delete, sell, the loot taken after the bags settle).
 -- Run from any directory with Lua 5.1: lua Tools/check_dci.lua
 -- Loads the real files against stubbed globals. Exits non-zero on the first failed check.
 
@@ -416,5 +416,145 @@ local keyed = { link = "item:1", count = 20, bag = 0, slot = 3 }
 Equal("a row's key", Options.RowKey(keyed), "item:1#20#0#3")
 Equal("another stack size is another row", Options.RowKey({ link = "item:1", count = 5, bag = 0, slot = 3 }) ~=
 	Options.RowKey(keyed), true)
+
+-- Actions -------------------------------------------------------------------------------------------------
+
+local global
+AUI.Profile.Global = function()
+	return global
+end
+
+local cursor, calls = nil, {}
+
+local function Call(name, ...)
+	calls[#calls + 1] = table.concat({ name, ... }, " ")
+end
+
+function CursorHasItem()
+	return cursor ~= nil
+end
+
+function GetCursorInfo()
+	if cursor then
+		return "item", cursor
+	end
+end
+
+function ClearCursor()
+	Call("ClearCursor")
+	cursor = nil
+end
+
+function DeleteCursorItem()
+	Call("DeleteCursorItem", cursor)
+	cursor = nil
+end
+
+C_Container.PickupContainerItem = function(bag, slot)
+	Call("Pickup", bag, slot)
+	cursor = contents[bag .. ":" .. slot] and contents[bag .. ":" .. slot].itemID
+end
+C_Container.UseContainerItem = function(bag, slot)
+	Call("Use", bag, slot)
+end
+
+local lootItems = {}
+
+function GetNumLootItems()
+	return #lootItems
+end
+
+function LootSlotHasItem(slot)
+	return lootItems[slot] == true
+end
+
+function LootSlot(slot)
+	Call("LootSlot", slot)
+end
+
+assert(loadfile(root .. "DeleteCheapestItem/Actions.lua"))("AeonUI", AUI)
+
+local Actions = AUI.DeleteCheapestItemActions
+
+Equal("no ignore list without saved data", Actions:Ignored(), nil)
+Actions:SetIgnored(1, true)
+global = { deleteCheapestItemIgnored = "damaged" }
+Equal("a damaged ignore list starts again", next(Actions:Ignored()), nil)
+Actions:SetIgnored(42, true)
+Equal("ignored, account-wide", global.deleteCheapestItemIgnored[42], true)
+Actions:SetIgnored(42, false)
+Equal("no longer ignored", global.deleteCheapestItemIgnored[42], nil)
+
+---@return table entry a row standing for the given stacks of item 1 (a single Bone)
+local function Row(slots)
+	return { itemID = 1, link = "item:1", count = 1, slots = slots }
+end
+
+local function Calls()
+	local text = table.concat(calls, ", ")
+
+	calls = {}
+
+	return text
+end
+
+cursor = 99
+local done, problem = Actions:Delete(Row({ { bag = 0, slot = 1 } }))
+Equal("never deletes while the cursor holds something", tostring(done) .. " " .. tostring(problem), "false cursor")
+Equal("the cursor is left alone", Calls(), "")
+cursor = nil
+
+done, problem = Actions:Delete(Row({ { bag = 0, slot = 2 } }))
+Equal("a slot holding something else is refused", tostring(done) .. " " .. tostring(problem), "false changed")
+Equal("nothing picked up", Calls(), "")
+
+contents["0:1"].isLocked = true
+done, problem = Actions:Delete(Row({ { bag = 0, slot = 1 } }))
+Equal("a locked slot is refused", tostring(problem), "changed")
+contents["0:1"].isLocked = false
+
+contents["3:1"] = { itemID = 1, hyperlink = "item:1", quality = 0, stackCount = 1, isBound = false, isLocked = false }
+done = Actions:Delete(Row({ { bag = 0, slot = 2 }, { bag = 3, slot = 1 } }), 2)
+Equal("an identical stack still in place is deleted", tostring(done), "true")
+Equal("picked up, then deleted", Calls(), "Pickup 3 1, DeleteCursorItem 1")
+Equal("the loot slot waits for the bags", Actions.pending.loot, 2)
+
+lootItems = { true, true }
+Actions:OnBagsSettled()
+Equal("the loot is taken once the bags settle", Calls(), "LootSlot 2")
+Equal("once", Actions.pending, nil)
+Actions:OnBagsSettled()
+Equal("nothing more to take", Calls(), "")
+
+Actions:Delete(Row({ { bag = 0, slot = 1 } }), 2)
+Calls()
+lootItems = { true, false }
+Actions:OnBagsSettled()
+Equal("an emptied loot slot is not taken", Calls(), "")
+Actions:Delete(Row({ { bag = 0, slot = 1 } }), 3)
+Calls()
+Actions:OnBagsSettled()
+Equal("a closed loot window's slot is not taken", Calls(), "")
+
+local swapped = Row({ { bag = 0, slot = 2 } })
+swapped.link, swapped.count, swapped.itemID = "item:2", 5, 3
+done, problem = Actions:Delete(swapped)
+Equal("the cursor holding another item is refused", tostring(problem), "pickup")
+Equal("and cleared", Calls(), "Pickup 0 2, ClearCursor")
+
+local deletes = DeleteCursorItem
+
+DeleteCursorItem = function()
+	Call("DeleteCursorItem", cursor)
+end
+Actions:Delete(Row({ { bag = 0, slot = 1 } }))
+DeleteCursorItem = deletes
+Equal("an item still on the cursor after the delete is cleared", Calls(), "Pickup 0 1, DeleteCursorItem 1, ClearCursor")
+
+done = Actions:Sell(Row({ { bag = 0, slot = 1 } }))
+Equal("sold", tostring(done), "true")
+Equal("from its slot", Calls(), "Use 0 1")
+done, problem = Actions:Sell(Row({ { bag = 0, slot = 4 } }))
+Equal("a moved stack is not sold", tostring(done) .. " " .. tostring(problem), "false changed")
 
 io.stdout:write(("check_dci: %d checks passed\n"):format(checks))
