@@ -57,6 +57,7 @@ AUI.Capabilities = Capabilities
 ---@field raidMarkers boolean a bar of secure marker buttons can follow a visibility driver and start a role check
 ---@field worldMarkers boolean the client has world markers (`IsRaidMarkerSystemEnabled`)
 ---@field secureSnippets boolean wrapped secure scripts run (Retail)
+---@field deleteCheapestItem boolean bag items' quest status and sell prices can be read, and the cursor's item deleted
 AUI.can = {}
 
 ---The only place a client difference is detected. Runs once at login.
@@ -139,6 +140,9 @@ function Capabilities:Resolve()
 	-- Forever lacks the restricted environment's compiler, so wrapped scripts never run there.
 	can.secureSnippets = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE and SecureHandlerWrapScript ~= nil
 		and SecureHandlerSetFrameRef ~= nil
+	can.deleteCheapestItem = C_Container ~= nil and C_Container.GetContainerItemQuestInfo ~= nil
+		and C_Container.PickupContainerItem ~= nil and C_Item ~= nil and C_Item.GetItemInfo ~= nil
+		and DeleteCursorItem ~= nil and Enum.ItemClass ~= nil and Enum.ItemClass.Questitem ~= nil
 
 	self.resolved = true
 

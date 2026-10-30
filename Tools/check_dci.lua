@@ -1,6 +1,6 @@
 -- Checks DeleteCheapestItem/ outside the game: the settings' defaults, which bag items are left out and why, what an
 -- item is worth by each price choice, identical stacks shown once, the order, when a delete asks first, free slots,
--- money in coins, and the ignore list.
+-- money in coins, the ignore list, auction prices from Auctionator or TradeSkillMaster, and the bag scan.
 -- Run from any directory with Lua 5.1: lua Tools/check_dci.lua
 -- Loads the real files against stubbed globals. Exits non-zero on the first failed check.
 
@@ -268,5 +268,138 @@ Options.SetIgnored(list, 17, true)
 Options.SetIgnored(list, 30, false)
 Equal("removed one at a time, the rest in order", table.concat(Options.IgnoredList(list), ","), "4,17")
 Equal("a removed ID leaves no key", list[30], nil)
+
+-- Auction prices ------------------------------------------------------------------------------------------
+
+assert(loadfile(root .. "DeleteCheapestItem/Prices.lua"))("AeonUI", AUI)
+
+local Prices = AUI.DeleteCheapestItemPrices
+local auctionCalls = 0
+
+Equal("no auction addon", Prices:Source(), nil)
+Equal("no auction price", Prices:Auction("item:1"), nil)
+
+_G.TSM_API = {
+	ToItemString = function(link)
+		return link ~= "item:bad" and ("i:" .. link:match("%d+")) or nil
+	end,
+	GetCustomPriceValue = function(source, itemString)
+		assert(source == "dbmarket", "TSM's market value")
+		auctionCalls = auctionCalls + 1
+
+		return ({ ["i:1"] = 250, ["i:2"] = 0 })[itemString]
+	end,
+}
+Equal("TSM", Prices:Source(), "TSM")
+Equal("TSM's market value", Prices:Auction("item:1"), 250)
+Equal("TSM: no price of 0", Prices:Auction("item:2"), nil)
+Equal("TSM: unknown item", Prices:Auction("item:3"), nil)
+Equal("TSM: no item string", Prices:Auction("item:bad"), nil)
+
+_G.Auctionator = { API = { v1 = { GetAuctionPriceByItemLink = function(caller, link)
+	assert(caller == "AeonUI", "the caller name")
+	auctionCalls = auctionCalls + 1
+
+	if link == "item:9" then
+		error("Auctionator failed")
+	end
+
+	return link == "item:1" and 400 or nil
+end } } }
+Equal("Auctionator before TSM", Prices:Source(), "AUCTIONATOR")
+Equal("Auctionator's price", Prices:Auction("item:1"), 400)
+Equal("an auction addon's error is no price", Prices:Auction("item:9"), nil)
+
+-- Bag scan ------------------------------------------------------------------------------------------------
+
+BACKPACK_CONTAINER = 0
+NUM_BAG_SLOTS = 4
+Enum = { ItemClass = { Questitem = 12 } }
+
+-- Bag 0 is the backpack, bag 1 a herb bag, bag 3 a general bag; bags 2 and 4 are empty sockets.
+local bagFamilies = { [0] = 0, [1] = 32, [3] = 0 }
+local bagSlots = { [0] = 4, [1] = 2, [3] = 2 }
+local bagFree = { [0] = 1, [1] = 2, [2] = 0, [3] = 0, [4] = 0 }
+local contents = {
+	["0:1"] = { itemID = 1, hyperlink = "item:1", quality = 0, stackCount = 1, isBound = false, isLocked = false },
+	["0:2"] = { itemID = 2, hyperlink = "item:2", quality = 1, stackCount = 5, isBound = false, isLocked = false },
+	["0:4"] = { itemID = 4, hyperlink = "item:4", quality = 0, stackCount = 1, isBound = false, isLocked = false,
+		hasNoValue = true },
+	["1:1"] = { itemID = 5, hyperlink = "item:5", quality = 0, stackCount = 1, isBound = false, isLocked = false },
+	["3:1"] = { itemID = 6, hyperlink = "item:6", quality = 0, stackCount = 1, isBound = false, isLocked = false },
+	["3:2"] = { itemID = 7, hyperlink = "item:7", quality = 0, stackCount = 1, isBound = false, isLocked = false },
+}
+-- Name, sell price and class ID by link; item:7 is not cached.
+local itemInfo = {
+	["item:1"] = { "Bone", 3, 0 },
+	["item:2"] = { "Cloth", 2, 7 },
+	["item:4"] = { "Token", 50, 15 },
+	["item:5"] = { "Herb", 9, 7 },
+	["item:6"] = { "Note", 1, 12 },
+}
+local questInfo = { ["3:2"] = { isQuestItem = true, isActive = false } }
+
+C_Container = {
+	GetContainerNumFreeSlots = function(bag)
+		return bagFree[bag], bagFamilies[bag]
+	end,
+	GetContainerNumSlots = function(bag)
+		return bagSlots[bag] or 0
+	end,
+	GetContainerItemInfo = function(bag, slot)
+		return contents[bag .. ":" .. slot]
+	end,
+	GetContainerItemQuestInfo = function(bag, slot)
+		return questInfo[bag .. ":" .. slot] or { isQuestItem = false, isActive = false }
+	end,
+}
+C_Item = {
+	GetItemInfo = function(link)
+		local info = itemInfo[link]
+
+		if info then
+			return info[1], link, 0, 1, 1, "", "", 20, "", 0, info[2], info[3]
+		end
+	end,
+}
+
+assert(loadfile(root .. "DeleteCheapestItem/Bags.lua"))("AeonUI", AUI)
+
+local Bags = AUI.DeleteCheapestItemBags
+
+auctionCalls = 0
+local scanned, free = Bags:Scan(false)
+
+Equal("general bags only: the backpack's and bag 3's items", #scanned, 5)
+Equal("free slots in general bags", free, 1)
+Equal("bag and slot order", scanned[1].bag .. ":" .. scanned[1].slot, "0:1")
+Equal("the stack's count", scanned[2].count, 5)
+Equal("the sell price", scanned[1].vendor, 3)
+Equal("no auction lookups when not wanted", auctionCalls, 0)
+Equal("no auction price when not wanted", scanned[1].auction, nil)
+Equal("an item that sells for nothing", scanned[3].vendor, 0)
+Equal("a quest item by class", scanned[4].quest, true)
+Equal("a quest item by its quest info", scanned[5].quest, true)
+Equal("not a quest item", scanned[1].quest, false)
+Equal("uncached: no name", scanned[5].name, nil)
+Equal("uncached: no price", scanned[5].vendor, nil)
+
+scanned = Bags:Scan(true)
+Equal("auction price when wanted", scanned[1].auction, 400)
+Equal("no auction price for an uncached item", scanned[5].auction, nil)
+
+auctionCalls = 0
+Set(Options.PRICE_PATH, "VENDOR")
+local rows, listFree, listUncached = Bags:List({})
+
+Equal("the list: by the profile's rules", Names(rows), "Bone,Cloth")
+Equal("the list: free slots", listFree, 1)
+Equal("the list: uncached", listUncached, 1)
+Equal("the list: vendor prices look up no auction", auctionCalls, 0)
+
+Set(Options.PRICE_PATH, nil)
+rows = Bags:List({ [1] = true })
+Equal("the list: auction prices and the ignore list", Names(rows), "Cloth")
+Equal("the list: no auction price keeps the vendor's", rows[1].source, "VENDOR")
 
 io.stdout:write(("check_dci: %d checks passed\n"):format(checks))
