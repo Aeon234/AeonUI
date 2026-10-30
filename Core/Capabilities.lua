@@ -38,6 +38,7 @@ AUI.Capabilities = Capabilities
 ---@field extraActionButton boolean the extra action button's frame exists (`ExtraActionBarFrame`)
 ---@field helpTips boolean help tips are marked seen in a console variable's bits (`closedInfoFramesAccountWide`)
 ---@field lootSparkle boolean quest items can sparkle with the outline off (`outlineModeShowLootEffectWhenDisabled`)
+---@field approachSparkles boolean approached objects can glint under the soft target's nameplate (Forever)
 ---@field bossBanner boolean the boss banner exists (`BossBanner`)
 ---@field vaultOverlay boolean the Great Vault covers itself away from the vault (Retail)
 ---@field skipCountdown boolean static pop-ups count down through `StaticPopup_OnUpdate`
@@ -112,6 +113,9 @@ function Capabilities:Resolve()
 	can.extraActionButton = ExtraActionBarFrame ~= nil
 	can.helpTips = C_CVar.SetCVarBitfield ~= nil and C_CVar.GetCVarInfo("closedInfoFramesAccountWide") ~= nil
 	can.lootSparkle = C_CVar.GetCVarInfo("outlineModeShowLootEffectWhenDisabled") ~= nil
+	can.approachSparkles = WOW_PROJECT_ID == WOW_PROJECT_CAMELOT and SetUnitCursorTexture ~= nil
+		and UnitIsGameObject ~= nil and C_NamePlate ~= nil and C_NamePlate.GetNamePlateForUnit ~= nil
+		and C_Timer.NewTicker ~= nil and C_CVar.GetCVarInfo("SoftTargetInteract") ~= nil
 	can.bossBanner = BossBanner ~= nil and BossBanner.UnregisterEvent ~= nil
 	can.vaultOverlay = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE and C_WeeklyRewards ~= nil
 	can.skipCountdown = StaticPopup_OnUpdate ~= nil and StaticPopupDialogs ~= nil

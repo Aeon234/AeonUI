@@ -56,6 +56,7 @@ L["Merchant Window"] = "Fenêtre du marchand"
 L["Hidden Settings"] = "Paramètres cachés"
 
 -- Shared settings labels (Settings)
+L["Herbs"] = "Herbes"
 L["Auctionator, TSM or Oribos Exchange provides auction prices."] = "Auctionator, TSM ou Oribos Exchange fournit les prix des enchères."
 L["Access"] = "Accès"
 L["Text"] = "Texte"
@@ -464,6 +465,10 @@ L["Show All Items"] = "Afficher tous les objets"
 
 -- Hidden Settings page (Settings)
 L["Loot Sparkles"] = "Scintillement du butin"
+L["Ore"] = "Minerai"
+L["Quest Objects"] = "Objets de quête du décor"
+L["Corpses with Loot"] = "Cadavres avec butin"
+L["Ore, herbs, quest objects and corpses use the game's soft targeting: while one is on, the Interact Key reaches all around you."] = "Minerai, herbes, objets de quête et cadavres utilisent le ciblage souple du jeu : tant que l'un d'eux est activé, la touche d'interaction porte tout autour de vous."
 L["The sparkle stays until the game restarts. /reload is not enough."] = "Le scintillement reste jusqu'au redémarrage du jeu. /reload ne suffit pas."
 
 -- Player Menu page (Settings)
@@ -578,7 +583,6 @@ L["Demons"] = "Démons"
 L["Giants"] = "Géants"
 L["Dragonkin"] = "Draconiens"
 L["Treasure"] = "Trésors"
-L["Herbs"] = "Herbes"
 L["Minerals"] = "Minerais"
 
 -- Raid Markers page (Settings)

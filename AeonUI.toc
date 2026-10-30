@@ -40,4 +40,5 @@ Dev\Dev.lua
 Dev\MinimapProbe.lua
 Dev\WorldMapProbe.xml
 Dev\DeleteCheapestItemProbe.xml
+Dev\SparklesProbe.lua
 #@end-do-not-package@

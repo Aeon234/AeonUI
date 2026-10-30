@@ -32,7 +32,7 @@ function AUI.CreateCVarHolder(key, held, triggers, saved, clear)
 		local value, _, _, _, _, isSecure, isReadOnly = C_CVar.GetCVarInfo(entry.name)
 
 		if value ~= nil and not isSecure and not isReadOnly then
-			available[#available + 1] = entry
+			available[#available + 1] = { name = entry.name, value = entry.value }
 			watched[#watched + 1] = entry.name
 		end
 	end
@@ -95,6 +95,21 @@ function CVarHolderMixin:Hold()
 	self.wanted = true
 	self:Follow(true)
 	self:Apply()
+end
+
+---Moves one held value, as the gate opens and closes; written at once while holding.
+---@param name string
+---@param value string
+function CVarHolderMixin:Change(name, value)
+	for _, entry in ipairs(self.held) do
+		if entry.name == name then
+			entry.value = value
+		end
+	end
+
+	if self.wanted then
+		self:Apply()
+	end
 end
 
 function CVarHolderMixin:Release()

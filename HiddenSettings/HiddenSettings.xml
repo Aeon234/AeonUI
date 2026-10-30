@@ -1,5 +1,8 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/">
 	<Script file="Options.lua" />
 	<Script file="CVarHolder.lua" />
+	<Script file="Target.lua" />
+	<Script file="Glints.lua" />
+	<Script file="Approach.lua" />
 	<Script file="HiddenSettings.lua" />
 </Ui>

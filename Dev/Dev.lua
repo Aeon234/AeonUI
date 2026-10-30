@@ -8,6 +8,7 @@ local Codec = AUI.Codec
 ---@field WorldMapProbe AUIWorldMapProbe? the W0 world map probe, from Dev/WorldMapProbe.lua
 ---@field DeleteCheapestItemProbe AUIDeleteCheapestItemProbe? the S0 Delete Cheapest Item probe, from
 ---Dev/DeleteCheapestItemProbe.lua
+---@field SparklesProbe AUISparklesProbe? the S2 Loot Sparkles probe, from Dev/SparklesProbe.lua
 local Dev = {}
 AUI.Dev = Dev
 
@@ -315,5 +316,11 @@ function Dev:Command(line)
 		return
 	end
 
-	AUI:Print("dev commands: codec, map, atlas [names], row, preview, minimap, worldmap, dci, mark [note]")
+	if command == "sparkles" and self.SparklesProbe and AUI.can.approachSparkles then
+		self.SparklesProbe:Command()
+
+		return
+	end
+
+	AUI:Print("dev commands: codec, map, atlas [names], row, preview, minimap, worldmap, dci, sparkles, mark [note]")
 end

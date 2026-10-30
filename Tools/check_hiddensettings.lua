@@ -75,21 +75,190 @@ C_CVar = {
 	end,
 }
 
-local eventFrame
-function CreateFrame()
-	eventFrame = { events = {} }
-	function eventFrame:RegisterEvent(event)
-		self.events[event] = true
+-- Stands in for a secret value; `issecretvalue` knows it.
+local SECRET = {}
+function issecretvalue(value)
+	return value == SECRET
+end
+
+local clock = 100
+function GetTime()
+	return clock
+end
+
+-- Tickers, recorded; `Tick` runs the live ones once.
+local tickers = {}
+C_Timer.NewTicker = function(interval, callback)
+	local ticker = { interval = interval, callback = callback }
+	function ticker:Cancel()
+		self.cancelled = true
 	end
-	function eventFrame:UnregisterEvent(event)
-		self.events[event] = nil
-	end
-	function eventFrame:SetScript(_, handler)
-		self.onEvent = handler
+	tickers[#tickers + 1] = ticker
+
+	return ticker
+end
+
+local function LiveTickers()
+	local live = 0
+	for _, ticker in ipairs(tickers) do
+		if not ticker.cancelled then
+			live = live + 1
+		end
 	end
 
-	return eventFrame
+	return live
 end
+
+local function Tick()
+	for _, ticker in ipairs(tickers) do
+		if not ticker.cancelled then
+			ticker.callback()
+		end
+	end
+end
+
+-- A texture: what it was given, and the methods a Texture has that the code uses.
+local function Texture()
+	local texture = { points = {} }
+	function texture:SetTexture(file) self.file = file end
+	function texture:GetTexture() return self.file end
+	function texture:GetAtlas() return self.atlas end
+	function texture:SetBlendMode(mode) self.blend = mode end
+	function texture:SetVertexColor(r, g, b, a) self.color = { r, g, b, a } end
+	function texture:SetPoint(...) self.points[#self.points + 1] = { ... } end
+	function texture:ClearAllPoints() self.points = {} end
+	function texture:SetSize(width, height) self.width, self.height = width, height end
+	function texture:SetRotation(angle) self.rotation = angle end
+	function texture:SetSnapToPixelGrid(snap) self.snap = snap end
+	function texture:SetTexelSnappingBias(bias) self.bias = bias end
+	function texture:Hide() self.shown = false end
+	function texture:Show() self.shown = true end
+
+	return texture
+end
+
+-- A frame: the first one made is `Core/Events.lua`'s; the rest are recorded by name.
+local eventFrame ---@type table
+local frames = {}
+function CreateFrame(_, name, parent)
+	local frame = { events = {}, shown = true, points = {}, parent = parent, name = name, textures = {} }
+	function frame:RegisterEvent(event)
+		self.events[event] = true
+	end
+	function frame:UnregisterEvent(event)
+		self.events[event] = nil
+	end
+	function frame:SetScript(script, handler)
+		if script == "OnEvent" then
+			self.onEvent = handler
+		else
+			self[script] = handler
+		end
+	end
+	function frame:SetSize(width, height) self.width, self.height = width, height end
+	function frame:Show() self.shown = true end
+	function frame:Hide() self.shown = false end
+	function frame:IsShown() return self.shown end
+	function frame:SetParent(newParent) self.parent = newParent end
+	function frame:GetParent() return self.parent end
+	function frame:ClearAllPoints() self.points = {} end
+	function frame:SetPoint(...) self.points[#self.points + 1] = { ... } end
+	function frame:SetFrameLevel(level) self.level = level end
+	function frame:GetFrameLevel() return self.level or 5 end
+	function frame:SetIgnoreParentAlpha(ignore) self.ignoreParentAlpha = ignore end
+	function frame:CreateTexture()
+		local texture = Texture()
+		self.textures[#self.textures + 1] = texture
+
+		return texture
+	end
+	if not eventFrame then
+		eventFrame = frame
+	end
+	if name then
+		frames[name] = frame
+		_G[name] = frame
+	end
+
+	return frame
+end
+UIParent = { CreateTexture = Texture }
+
+-- The `softinteract` unit and the nameplates.
+local soft = {}
+local plates = {}
+local function Unit(unit)
+	if unit == "softinteract" then
+		return soft
+	end
+
+	return soft.plateUnit == unit and soft or {}
+end
+function UnitExists(unit) return Unit(unit).unit == true end
+function UnitIsGameObject(unit) return Unit(unit).object == true end
+function UnitName(unit) return Unit(unit).name end
+function UnitGUID(unit) return Unit(unit).guid end
+function UnitIsDead(unit) return Unit(unit).dead == true end
+function UnitIsUnit(a, b)
+	return Unit(a) == Unit(b) and Unit(a) == soft
+end
+function UnitIsInInteractRange(unit) return Unit(unit).inRange end
+function CanLootUnit(guid)
+	if guid ~= soft.guid or not soft.loot then
+		return false, false
+	end
+
+	return soft.loot[1], soft.loot[2]
+end
+C_NamePlate = {
+	GetNamePlateForUnit = function(unit)
+		if unit == "softinteract" and soft.plateByToken == false then
+			return nil
+		end
+		if unit == "softinteract" or unit == soft.plateUnit then
+			return soft.plate
+		end
+
+		return plates[unit]
+	end,
+}
+
+-- Cursors: file IDs for paths, and the cursor the target shows.
+local FILE_IDS = { ["Interface\\Cursor\\Mine"] = 1001, ["Interface\\Cursor\\UnableMine"] = 1002,
+	["Interface\\Cursor\\GatherHerbs"] = 1003, ["Interface\\Cursor\\Quest"] = 1004, ["Interface\\Cursor\\Interact"] = 1005 }
+function GetFileIDFromPath(path)
+	return FILE_IDS[path]
+end
+function SetUnitCursorTexture(texture, unit)
+	local target = Unit(unit)
+	texture.file, texture.atlas = target.cursor, target.atlas
+
+	return target.cursor ~= nil or target.atlas ~= nil
+end
+
+-- The quest log and tooltips.
+Enum = { TooltipDataLineType = { QuestObjective = 8 } }
+local quests = {}
+C_QuestLog = {
+	GetNumQuestLogEntries = function() return #quests end,
+	GetQuestIDForLogIndex = function(index) return quests[index] and quests[index].id end,
+	GetQuestObjectives = function(id)
+		for _, quest in ipairs(quests) do
+			if quest.id == id then
+				return quest.objectives
+			end
+		end
+	end,
+	UnitIsRelatedToActiveQuest = function(unit) return Unit(unit).questRelated == true end,
+}
+local tooltipReads = 0
+C_TooltipInfo = {
+	GetUnit = function(unit)
+		tooltipReads = tooltipReads + 1
+
+		return { lines = Unit(unit).tooltipQuest and { { type = 0 }, { type = 8 } } or { { type = 0 } } }
+	end,
+}
 
 local function Fire(event, ...)
 	if eventFrame.events[event] then
@@ -104,7 +273,7 @@ AUI.L = setmetatable({}, { __index = function(_, key)
 	return key
 end })
 assert(loadfile(root .. "Core/Core.lua"))("AeonUI", AUI)
-AUI.can = { lootSparkle = true }
+AUI.can = { lootSparkle = true, approachSparkles = true }
 
 local global = {}
 AUI.Profile = {
@@ -114,7 +283,8 @@ AUI.Profile = {
 }
 
 for _, file in ipairs({ "Core/Callbacks.lua", "Core/Events.lua", "HiddenSettings/Options.lua",
-	"HiddenSettings/CVarHolder.lua", "HiddenSettings/HiddenSettings.lua" }) do
+	"HiddenSettings/CVarHolder.lua", "HiddenSettings/Target.lua", "HiddenSettings/Glints.lua",
+	"HiddenSettings/Approach.lua", "HiddenSettings/HiddenSettings.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 
@@ -329,5 +499,318 @@ Login()
 HiddenSettings:SetQuestItems(true)
 Equal("no saved data, no writes", #writes, 0)
 Equal("and the row reads off", tostring(HiddenSettings:IsQuestItems()), "false")
+
+-- Approached objects: rules ------------------------------------------------------------------------------
+
+Equal("soft target values", Join(Options.SOFT_TARGET), "SoftTargetInteract=3 SoftTargetInteractRange=60 "
+	.. "SoftTargetInteractArc=2 SoftTargetInteractOnlyInRange=0 SoftTargetIconInteract=1 SoftTargetIconGameObject=1 "
+	.. "SoftTargetLowPriorityIcons=1 SoftTargetNameplateInteract=0")
+Equal("the gate", Options.GATE, "SoftTargetNameplateInteract")
+Equal("sparkle types", table.concat(Options.SPARKLE_TYPES, " "), "ore herbs questObjects corpses")
+
+---@param name string?
+local function Cursor(name)
+	local kind, unable = Options.CursorType(name)
+
+	return tostring(kind) .. (unable and " unable" or "")
+end
+Equal("cursor types", table.concat({ Cursor("Mine"), Cursor("UnableMine"), Cursor("Cursor_Crosshair_UnableMine_64"),
+	Cursor("Interface\\Cursor\\GatherHerbs"), Cursor("QuestTurnIn"), Cursor("PickLock"), Cursor("Point"), Cursor(nil) },
+	", "), "ore, ore unable, ore unable, herbs, questObjects, other, nil, nil")
+Equal("objective normalize", Options.NormalizeObjective("Soaked Saw: 0/1"), "soaked saw")
+Equal("objective normalize spaces and apostrophes",
+	Options.NormalizeObjective("- Kurzen\194\160Supplies\226\128\153s 3 / 8 :"), "kurzen supplies's")
+local objectives = { "soaked saw", "supplies" }
+Equal("objective match both ways", tostring(Options.MatchesObjective("Soaked Saw", objectives)) .. " "
+	.. tostring(Options.MatchesObjective("Crate of Supplies", objectives)) .. " "
+	.. tostring(Options.MatchesObjective("Copper Vein", objectives)), "true true false")
+Equal("short names never match", tostring(Options.MatchesObjective("Saw", { "saw" })) .. " "
+	.. tostring(Options.MatchesObjective(nil, objectives)), "false false")
+Equal("short objectives only match whole", tostring(Options.MatchesObjective("Sawmill Crate", { "saw" })), "false")
+Equal("states", table.concat({ Options.State(false, false), Options.State(true, false), Options.State(nil, false),
+	Options.State(true, true), Options.State(nil, true), Options.State(false, true) }, " "),
+	"far ready ready locked far far")
+
+local shown, pending, since = Options.Propose("far", nil, nil, "ready", 10)
+Equal("proposal waits", shown .. " " .. tostring(pending), "far ready")
+shown, pending, since = Options.Propose(shown, pending, since, "ready", 10.1)
+Equal("still waiting before 0.15", shown, "far")
+shown, pending, since = Options.Propose(shown, pending, since, "ready", 10.15)
+Equal("shows after 0.15", shown .. " " .. tostring(pending), "ready nil")
+shown, pending, since = Options.Propose(shown, nil, nil, "locked", 20)
+shown, pending, since = Options.Propose(shown, pending, since, "locked", 20.5)
+Equal("locked waits 0.6", shown, "ready")
+shown, pending, since = Options.Propose(shown, pending, since, "locked", 20.6)
+Equal("locked after 0.6", shown, "locked")
+shown, pending = Options.Propose(shown, "far", 30, "locked", 30.1)
+Equal("the shown state cancels a pending one", shown .. " " .. tostring(pending), "locked nil")
+
+local function Blend(...)
+	local alpha, speed, r, g, b = Options.Blend(...)
+
+	return ("%.2f %.2f %.2f %.2f %.2f"):format(alpha, speed, r, g, b)
+end
+Equal("blend ready", Blend(1, 1, 0), "1.00 1.20 1.00 0.88 0.52")
+Equal("blend far", Blend(1, 0, 0), "0.55 0.80 1.00 0.88 0.52")
+Equal("blend locked", Blend(1, 0, 1), "0.25 0.40 0.62 0.62 0.62")
+Equal("blend appearing", Blend(0, 1, 0), "0.00 1.20 1.00 0.88 0.52")
+
+-- The gate: a held value that moves -------------------------------------------------------------------------
+
+for _, entry in ipairs(Options.SOFT_TARGET) do
+	cvars[entry.name] = "9"
+end
+for index = #writes, 1, -1 do
+	writes[index] = nil
+end
+local gateSave = {}
+local gate = AUI.CreateCVarHolder("gateCheck", Options.SOFT_TARGET, {}, function()
+	return gateSave
+end, function()
+	gateSave = {}
+end)
+gate:Hold()
+Equal("gate starts closed", cvars.SoftTargetNameplateInteract, "0")
+gate:Change(Options.GATE, "1")
+Equal("gate opens", cvars.SoftTargetNameplateInteract, "1")
+cvars.SoftTargetNameplateInteract = "0"
+Fire("CVAR_UPDATE", "SoftTargetNameplateInteract")
+Equal("gate held at its moving value", cvars.SoftTargetNameplateInteract, "1")
+Equal("the rules keep their value", Options.SOFT_TARGET[#Options.SOFT_TARGET].value, "0")
+gate:Release()
+Equal("release restores the gate too", cvars.SoftTargetNameplateInteract .. " " .. cvars.SoftTargetInteract, "9 9")
+count = #writes
+gate:Change(Options.GATE, "1")
+Equal("a change while released writes nothing", #writes, count)
+
+-- Approached objects: the module ------------------------------------------------------------------------
+
+local Approach = AUI.ApproachSparkles
+local SOFT_OWN = { SoftTargetInteract = "1", SoftTargetInteractRange = "20", SoftTargetInteractArc = "0",
+	SoftTargetInteractOnlyInRange = "1", SoftTargetIconInteract = "0", SoftTargetIconGameObject = "0",
+	SoftTargetLowPriorityIcons = "0", SoftTargetNameplateInteract = "1" }
+
+local function SoftHeld()
+	local values = {}
+	for index, entry in ipairs(Options.SOFT_TARGET) do
+		values[index] = cvars[entry.name]
+	end
+
+	return table.concat(values, " ")
+end
+
+---A target near the player: a game object with a cursor, a unit, or nothing.
+---@param fields table?
+local function Target(fields)
+	for key in pairs(soft) do
+		soft[key] = nil
+	end
+	for key, value in pairs(fields or {}) do
+		soft[key] = value
+	end
+	if fields and fields.plate == nil and fields.plateByToken == nil then
+		soft.plate = CreateFrame("Frame")
+	end
+end
+
+local function Glint()
+	return frames.AeonUILootSparkle
+end
+
+local function Showing()
+	local glint = Glint()
+
+	return glint ~= nil and glint.shown and glint.parent == soft.plate and soft.plate ~= nil
+end
+
+global = {}
+for name, value in pairs(SOFT_OWN) do
+	cvars[name] = value
+end
+Target()
+Login()
+Equal("approach: never enabled writes no soft target", SoftHeld(), "1 20 0 1 0 0 0 1")
+Equal("registers no soft target events", tostring(eventFrame.events.PLAYER_SOFT_INTERACT_CHANGED), "nil")
+Equal("starts no ticker", LiveTickers(), 0)
+Equal("makes no glint", Glint(), nil)
+
+HiddenSettings:SetSparkle("ore", true)
+Equal("ore row on holds the soft target", SoftHeld(), "3 60 2 0 1 1 1 0")
+Equal("saving the player's values", Keys(global.hiddenSettings.saved.softTarget), "SoftTargetIconGameObject=0 "
+	.. "SoftTargetIconInteract=0 SoftTargetInteract=1 SoftTargetInteractArc=0 SoftTargetInteractOnlyInRange=1 "
+	.. "SoftTargetInteractRange=20 SoftTargetLowPriorityIcons=0 SoftTargetNameplateInteract=1")
+Equal("and follows the soft target", tostring(eventFrame.events.PLAYER_SOFT_INTERACT_CHANGED), "true")
+Equal("the row reads on", tostring(HiddenSettings:IsSparkle("ore")) .. " " .. tostring(HiddenSettings:IsSparkle("herbs")),
+	"true false")
+
+Target({ object = true, name = "Copper Vein", cursor = 1001, inRange = true })
+Fire("PLAYER_SOFT_INTERACT_CHANGED", "GameObject-1", "GameObject-2")
+Equal("ore target opens the gate", cvars.SoftTargetNameplateInteract, "1")
+Equal("glints on its plate", tostring(Showing()), "true")
+Equal("below the plate's content, ignoring its alpha", Glint().level .. " " .. tostring(Glint().ignoreParentAlpha), "4 true")
+Equal("seven glints", #Glint().textures, 7)
+Equal("ticker while a soft target exists", LiveTickers(), 1)
+Glint().OnUpdate(Glint(), 0.05)
+Equal("the glints animate", Glint().textures[1].color ~= nil, true)
+
+Target({ object = true, name = "Peacebloom", cursor = 1003, inRange = true })
+Fire("PLAYER_SOFT_INTERACT_CHANGED", "GameObject-2", "GameObject-3")
+Equal("herb target with only ore on closes the gate", cvars.SoftTargetNameplateInteract, "0")
+Equal("and shows nothing", tostring(Glint().shown), "false")
+
+Target({ object = true, name = "Mithril Deposit", cursor = 1002, inRange = true })
+Fire("PLAYER_SOFT_INTERACT_CHANGED", "GameObject-3", "GameObject-4")
+Equal("unable ore in range is locked", Approach.state, "locked")
+Target({ object = true, name = "Mithril Deposit", atlas = "Cursor_Crosshair_UnableMine_64", inRange = false })
+Fire("PLAYER_SOFT_INTERACT_CHANGED", "GameObject-4", "GameObject-5")
+Equal("out of range is far, by the atlas", Approach.state, "far")
+
+clock = 200
+Target({ object = true, name = "Copper Vein", cursor = 1001, inRange = false })
+Fire("PLAYER_SOFT_INTERACT_CHANGED", "GameObject-5", "GameObject-6")
+local plate = soft.plate
+soft.inRange = true
+Tick()
+Equal("walking into range waits", Approach.state, "far")
+clock = 200.2
+Tick()
+Equal("then shows ready", Approach.state, "ready")
+Equal("on the same plate", tostring(Glint().parent == plate), "true")
+soft.cursor, soft.name = 1002, "Mithril Deposit"
+Fire("PLAYER_SOFT_INTERACT_CHANGED", "GameObject-6", "GameObject-12")
+Equal("a recycled plate on a new object starts over", Approach.state, "locked")
+
+Target({ object = true, name = "Copper Vein", cursor = 1001, inRange = true, plateByToken = false,
+	plateUnit = "nameplate3" })
+soft.plate = CreateFrame("Frame")
+Fire("NAME_PLATE_UNIT_ADDED", "nameplate3")
+Equal("a plate found by its unit when the token gives none", tostring(Showing()), "true")
+Fire("NAME_PLATE_UNIT_REMOVED", "nameplate3")
+Equal("plate removed releases", tostring(Glint().shown) .. " " .. tostring(Glint().parent), "false nil")
+
+Target({ unit = true, name = "Defias Thug" })
+Fire("PLAYER_SOFT_INTERACT_CHANGED", "GameObject-6", "Creature-1")
+Equal("an NPC target closes the gate", cvars.SoftTargetNameplateInteract, "0")
+
+Target()
+Fire("PLAYER_SOFT_INTERACT_CHANGED", "Creature-1", "")
+Tick()
+Equal("ticker only while a soft target exists", LiveTickers(), 0)
+
+Target({ unit = SECRET, object = SECRET, name = SECRET })
+UnitExists = function() return SECRET end
+UnitIsGameObject = function() return SECRET end
+Fire("PLAYER_SOFT_INTERACT_CHANGED", SECRET, SECRET)
+Equal("secret target gets nothing", cvars.SoftTargetNameplateInteract .. " " .. tostring(Glint().shown), "0 false")
+function UnitExists(unit) return Unit(unit).unit == true end
+function UnitIsGameObject(unit) return Unit(unit).object == true end
+
+HiddenSettings:SetSparkle("questObjects", true)
+Target({ object = true, name = "Sealed Crate", cursor = 1005, tooltipQuest = true, inRange = true })
+Fire("PLAYER_SOFT_INTERACT_CHANGED", "", "GameObject-7")
+Equal("quest object by tooltip line", tostring(Showing()), "true")
+quests[1] = { id = 7, objectives = { { text = "Soaked Saw: 0/1", finished = false },
+	{ text = "Crates: 3/3", finished = true } } }
+Fire("QUEST_LOG_UPDATE")
+Target({ object = true, name = "Soaked Saw", cursor = 1005, inRange = true })
+Fire("PLAYER_SOFT_INTERACT_CHANGED", "GameObject-7", "GameObject-8")
+Equal("quest object by objective name", tostring(Showing()), "true")
+Target({ object = true, name = "Crates", cursor = 1005, inRange = true })
+Fire("PLAYER_SOFT_INTERACT_CHANGED", "GameObject-8", "GameObject-9")
+Equal("a finished objective does not count", tostring(Glint().shown), "false")
+HiddenSettings:SetSparkle("ore", false)
+Target({ object = true, name = "Copper Vein", cursor = 1001, questRelated = true, inRange = true })
+Fire("PLAYER_SOFT_INTERACT_CHANGED", "GameObject-9", "GameObject-10")
+Equal("ore stays ore with a quest", tostring(Glint().shown), "false")
+HiddenSettings:SetSparkle("questObjects", false)
+
+HiddenSettings:SetSparkle("corpses", true)
+Target({ unit = true, dead = true, guid = "Creature-2", loot = { true, true } })
+Fire("PLAYER_SOFT_INTERACT_CHANGED", "", "Creature-2")
+Equal("corpse with loot", tostring(Showing()), "true")
+Target({ unit = true, dead = true, guid = "Creature-3", loot = { false, false } })
+Fire("PLAYER_SOFT_INTERACT_CHANGED", "Creature-2", "Creature-3")
+Equal("a corpse without loot gets nothing", tostring(Glint().shown) .. " " .. cvars.SoftTargetNameplateInteract,
+	"false 0")
+
+Target({ unit = true, dead = true, guid = "Creature-4", loot = { true, true } })
+Fire("PLAYER_SOFT_INTERACT_CHANGED", "Creature-3", "Creature-4")
+Fire("PLAYER_REGEN_DISABLED")
+Equal("combat closes the gate", cvars.SoftTargetNameplateInteract .. " " .. tostring(Glint().shown), "0 false")
+inCombat = true
+Fire("PLAYER_SOFT_INTERACT_CHANGED", "Creature-4", "Creature-5")
+Equal("and keeps it closed in combat, glints hidden", cvars.SoftTargetNameplateInteract .. " "
+	.. tostring(Glint().shown), "0 false")
+inCombat = false
+Fire("PLAYER_REGEN_ENABLED")
+Equal("after combat it opens again", tostring(Showing()) .. " " .. cvars.SoftTargetNameplateInteract, "true 1")
+
+HiddenSettings:SetQuestItems(true)
+Equal("two holders apart", tostring(global.hiddenSettings.saved.lootSparkles ~= nil) .. " "
+	.. tostring(global.hiddenSettings.saved.softTarget ~= nil) .. " " .. cvars.outlineModeShowLootEffectWhenDisabled
+	.. " " .. cvars.SoftTargetInteract, "true true 1 3")
+
+HiddenSettings:SetSparkle("corpses", false)
+Equal("off stops everything", table.concat({ tostring(Glint().shown), tostring(LiveTickers()),
+	tostring(eventFrame.events.PLAYER_SOFT_INTERACT_CHANGED), tostring(eventFrame.events.NAME_PLATE_UNIT_ADDED) }, " "),
+	"false 0 nil nil")
+Equal("and restores the soft target", SoftHeld(), "1 20 0 1 0 0 0 1")
+Equal("clearing its save", tostring(global.hiddenSettings.saved.softTarget), "nil")
+Equal("Quest Items holds on", cvars.outlineModeShowLootEffectWhenDisabled, "1")
+HiddenSettings:SetQuestItems(false)
+
+HiddenSettings:SetSparkle("herbs", true)
+Target({ object = true, name = "Peacebloom", atlas = "Cursor_GatherHerbs_64", inRange = true })
+Fire("PLAYER_SOFT_INTERACT_CHANGED", "", "GameObject-11")
+Equal("re-enable", SoftHeld() .. " " .. tostring(Showing()), "3 60 2 0 1 1 1 1 true")
+HiddenSettings:SetSparkle("herbs", false)
+
+HiddenSettings:SetSparkle("ore", true)
+Target({ object = true, name = "Mailbox", cursor = 1005, inRange = true })
+Fire("PLAYER_SOFT_INTERACT_CHANGED", "", "GameObject-13")
+local reads = tooltipReads
+Tick()
+Tick()
+Equal("no quest lookup while Quest Objects is off", tooltipReads, reads)
+HiddenSettings:SetSparkle("questObjects", true)
+Tick()
+Equal("a quest lookup once it is on", tooltipReads > reads, true)
+Fire("PLAYER_REGEN_DISABLED")
+Equal("combat stops the ticker", LiveTickers(), 0)
+inCombat = true
+reads = tooltipReads
+Fire("PLAYER_SOFT_INTERACT_CHANGED", "GameObject-13", "GameObject-14")
+Equal("and nothing is classified in combat", tooltipReads, reads)
+inCombat = false
+Fire("PLAYER_REGEN_ENABLED")
+Equal("the ticker comes back after combat", LiveTickers(), 1)
+HiddenSettings:SetSparkle("questObjects", false)
+
+Target({ object = true, name = "Copper Vein", cursor = 1001, inRange = true })
+Fire("PLAYER_SOFT_INTERACT_CHANGED", "GameObject-14", "GameObject-15")
+Equal("the gate open on ore", cvars.SoftTargetNameplateInteract, "1")
+HiddenSettings:SetSparkle("ore", false)
+Target({ unit = true, name = "Defias Thug" })
+for index = #writes, 1, -1 do
+	writes[index] = nil
+end
+HiddenSettings:SetSparkle("ore", true)
+local gateOpened = false
+for _, write in ipairs(writes) do
+	gateOpened = gateOpened or write == "SoftTargetNameplateInteract=1"
+end
+Equal("turning back on starts with the gate closed", gateOpened, false)
+HiddenSettings:SetSparkle("ore", false)
+
+global = { hiddenSettings = { saved = { softTarget = { SoftTargetInteract = "1" } } } }
+Login({ SoftTargetInteract = "3" })
+Equal("a soft target save left at login is restored", cvars.SoftTargetInteract .. " "
+	.. tostring(global.hiddenSettings.saved.softTarget), "1 nil")
+
+AUI.can.approachSparkles = false
+global = {}
+Login()
+HiddenSettings:SetSparkle("ore", true)
+Equal("no capability, no soft target", cvars.SoftTargetInteract, "1")
 
 print(("check_hiddensettings: %d checks passed"):format(checks))

@@ -72,6 +72,7 @@ L["Merchant Window"] = "Merchant Window"
 L["Hidden Settings"] = "Hidden Settings"
 
 -- Shared settings labels (Settings)
+L["Herbs"] = "Herbs"
 L["Auctionator, TSM or Oribos Exchange provides auction prices."] =
 	"Auctionator, TSM or Oribos Exchange provides auction prices."
 L["Access"] = "Access"
@@ -504,6 +505,11 @@ L["Show All Items"] = "Show All Items"
 
 -- Hidden Settings page (Settings)
 L["Loot Sparkles"] = "Loot Sparkles"
+L["Ore"] = "Ore"
+L["Quest Objects"] = "Quest Objects"
+L["Corpses with Loot"] = "Corpses with Loot"
+L["Ore, herbs, quest objects and corpses use the game's soft targeting: while one is on, the Interact Key reaches all around you."] =
+	"Ore, herbs, quest objects and corpses use the game's soft targeting: while one is on, the Interact Key reaches all around you."
 L["The sparkle stays until the game restarts. /reload is not enough."] =
 	"The sparkle stays until the game restarts. /reload is not enough."
 
@@ -619,7 +625,6 @@ L["Demons"] = "Demons"
 L["Giants"] = "Giants"
 L["Dragonkin"] = "Dragonkin"
 L["Treasure"] = "Treasure"
-L["Herbs"] = "Herbs"
 L["Minerals"] = "Minerals"
 
 -- Raid Markers page (Settings)

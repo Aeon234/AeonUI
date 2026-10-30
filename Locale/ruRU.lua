@@ -56,6 +56,7 @@ L["Merchant Window"] = "Окно торговца"
 L["Hidden Settings"] = "Скрытые настройки"
 
 -- Shared settings labels (Settings)
+L["Herbs"] = "Травы"
 L["Auctionator, TSM or Oribos Exchange provides auction prices."] = "Цены аукциона берутся из Auctionator, TSM или Oribos Exchange."
 L["Access"] = "Доступ"
 L["Text"] = "Текст"
@@ -464,6 +465,10 @@ L["Show All Items"] = "Показывать все предметы"
 
 -- Hidden Settings page (Settings)
 L["Loot Sparkles"] = "Блеск добычи"
+L["Ore"] = "Руда"
+L["Quest Objects"] = "Объекты заданий"
+L["Corpses with Loot"] = "Трупы с добычей"
+L["Ore, herbs, quest objects and corpses use the game's soft targeting: while one is on, the Interact Key reaches all around you."] = "Руда, травы, объекты заданий и трупы используют мягкий выбор цели игры: пока включен хотя бы один пункт, клавиша взаимодействия достает до всего вокруг вас."
 L["The sparkle stays until the game restarts. /reload is not enough."] = "Блеск остается до перезапуска игры. /reload недостаточно."
 
 -- Player Menu page (Settings)
@@ -578,7 +583,6 @@ L["Demons"] = "Демоны"
 L["Giants"] = "Великаны"
 L["Dragonkin"] = "Драконы"
 L["Treasure"] = "Сокровища"
-L["Herbs"] = "Травы"
 L["Minerals"] = "Минералы"
 
 -- Raid Markers page (Settings)

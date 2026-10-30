@@ -56,6 +56,7 @@ L["Merchant Window"] = "商人視窗"
 L["Hidden Settings"] = "隱藏設定"
 
 -- Shared settings labels (Settings)
+L["Herbs"] = "草藥"
 L["Auctionator, TSM or Oribos Exchange provides auction prices."] = "拍賣價格由 Auctionator、TSM 或 Oribos Exchange 提供。"
 L["Access"] = "存取"
 L["Text"] = "文字"
@@ -464,6 +465,10 @@ L["Show All Items"] = "顯示所有物品"
 
 -- Hidden Settings page (Settings)
 L["Loot Sparkles"] = "戰利品閃光"
+L["Ore"] = "礦石"
+L["Quest Objects"] = "任務物件"
+L["Corpses with Loot"] = "有戰利品的屍體"
+L["Ore, herbs, quest objects and corpses use the game's soft targeting: while one is on, the Interact Key reaches all around you."] = "礦石、草藥、任務物件和屍體使用遊戲的軟目標：只要開啟其中一項，互動鍵就能觸及你周圍的一切。"
 L["The sparkle stays until the game restarts. /reload is not enough."] = "閃光會一直保留到重新啟動遊戲。/reload 不夠。"
 
 -- Player Menu page (Settings)
@@ -578,7 +583,6 @@ L["Demons"] = "惡魔"
 L["Giants"] = "巨人"
 L["Dragonkin"] = "龍類"
 L["Treasure"] = "寶藏"
-L["Herbs"] = "草藥"
 L["Minerals"] = "礦物"
 
 -- Raid Markers page (Settings)
