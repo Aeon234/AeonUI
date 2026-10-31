@@ -1,7 +1,7 @@
 local AUI = select(2, ...)
 
----The Input module: Click Down and Focus Shortcut. Changes take effect at once, out of combat for Focus Shortcut, and a
----profile change applies the new profile's choices.
+---The Input module: Click Down, Focus Shortcut and the key labels. Changes take effect at once, out of combat for
+---Focus Shortcut, and a profile change applies the new profile's choices.
 ---@class AUIInput
 ---@field active boolean started this session
 local Input = {
@@ -24,6 +24,8 @@ function Input:Apply()
 	if AUI.can.focusShortcut then
 		AUI.FocusShortcut:Apply()
 	end
+
+	AUI.KeyLabels:Apply()
 end
 
 function Input:Start()

@@ -203,7 +203,13 @@ function print(text)
 end
 
 -- Game settings.
-local cvars = { autoLootDefault = "0", weatherDensity = "3", blockTrades = "0", blockChannelInvites = "0" }
+local cvars = {
+	autoLootDefault = "0",
+	weatherDensity = "3",
+	cameraDistanceMaxZoomFactor = "1.9",
+	blockTrades = "0",
+	blockChannelInvites = "0",
+}
 local cvarSets = 0
 C_CVar = {
 	GetCVarInfo = function(name)
@@ -364,6 +370,11 @@ Equal("short of money", tostring(source) .. " " .. shortage, "nil money")
 Equal("a managed switch", Options.Wanted("ON") .. Options.Wanted("OFF"), "10")
 Equal("a level", Options.Wanted("2"), "2")
 Equal("unmanaged holds nothing", Options.Wanted("UNMANAGED"), nil)
+Equal("the largest camera distance", Options.Wanted("MAX"), "2.6")
+Equal("a value held as written", Options.Holds("1", "1"), true)
+Equal("a decimal formatted differently", Options.Holds("2.600000", "2.6"), true)
+Equal("a different value", Options.Holds("1.9", "2.6"), false)
+Equal("no value", Options.Holds(nil, "2.6"), false)
 Equal("one sale", Merchant.SaleReport(1, "5c"), "Sold 1 junk item for 5c.")
 Equal("several", Merchant.SaleReport(3, "5c"), "Sold 3 junk items for 5c.")
 
@@ -561,6 +572,18 @@ Equal("an unmanaged change is left alone", cvarSets, sets)
 
 Set(Options.MANAGED.weather.path, "1")
 Equal("a level is set", cvars.weatherDensity, "1")
+
+Set(Options.MANAGED.cameraDistance.path, "MAX")
+Equal("Maximum sets the largest camera distance", cvars.cameraDistanceMaxZoomFactor, "2.6")
+cvars.cameraDistanceMaxZoomFactor = "2.600000"
+sets = cvarSets
+Fire("CVAR_UPDATE", "cameraDistanceMaxZoomFactor")
+RunNextFrame()
+Equal("the same distance formatted differently is not set again", cvarSets, sets)
+cvars.cameraDistanceMaxZoomFactor = "1.9"
+Fire("CVAR_UPDATE", "cameraDistanceMaxZoomFactor")
+RunNextFrame()
+Equal("a changed distance is put back", cvars.cameraDistanceMaxZoomFactor, "2.6")
 
 Set(Options.MANAGED.guildInvites.path, "ON")
 Equal("guild invites are declined", declineGuild, true)

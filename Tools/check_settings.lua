@@ -29,6 +29,9 @@ OFF = "Off"
 VIDEO_OPTIONS_LOW = "Low"
 VIDEO_OPTIONS_MEDIUM = "Good"
 VIDEO_OPTIONS_HIGH = "High"
+MAXIMUM = "Maximum"
+MAX_FOLLOW_DIST = "Max Camera Distance"
+OPTION_TOOLTIP_MAX_FOLLOW_DIST = "Adjust the maximum distance the camera will follow behind you."
 MERCHANT = "Merchant"
 BAG_FILTER_QUEST_ITEMS = "Quest Items"
 AUCTION_HOUSE_FILTER_CURRENTEXPANSION_ONLY = "Current Expansion Only"
@@ -36,7 +39,13 @@ AUTO_LOOT_DEFAULT_TEXT = "Auto Loot"
 BLOCK_TRADES = "Block Trades"
 BLOCK_GUILD_INVITES = "Block Guild Invites"
 BLOCK_CHAT_CHANNEL_INVITE = "Block Chat Channel Invites"
-local cvars = { autoLootDefault = "0", weatherDensity = "3", blockTrades = "0", blockChannelInvites = "0" }
+local cvars = {
+	autoLootDefault = "0",
+	weatherDensity = "3",
+	cameraDistanceMaxZoomFactor = "1.9",
+	blockTrades = "0",
+	blockChannelInvites = "0",
+}
 C_CVar = {
 	GetCVarInfo = function(name)
 		return cvars[name]
@@ -545,6 +554,18 @@ Equal("without the console variable, Focus Shortcut alone", window.pages.input.s
 AUI.can.focusShortcut = nil
 window = Load(nil)
 Equal("no Input page without either", window.pages.input, nil)
+AUI.can.keyLabels = true
+window = Load(nil)
+local keyLabelIDs = {}
+for _, setting in ipairs(window.pages.input.sections.inputClickDown.settings) do
+	keyLabelIDs[#keyLabelIDs + 1] = setting.id .. "=" .. tostring(setting.default) .. ":" .. tostring(setting.depends)
+end
+Equal("key labels alone make the Action Bars card", table.concat(keyLabelIDs, " "), "keyLabels=false:nil "
+	.. "keyLabelsFont=Arial Narrow:keyLabels keyLabelsSize=12:keyLabels keyLabelsOutline=SLUG:keyLabels")
+local keyLabels = window.pages.input.sections.inputClickDown.settings.keyLabels
+Equal("the switch shows an example", keyLabels.kind .. " " .. keyLabels.label .. ": " .. keyLabels.description,
+	"Checkbox Short Key Labels: Shows Shift + Mouse Button 4 as SM4.")
+AUI.can.keyLabels = nil
 local alertsPage = window.pages.alerts
 local alertIDs = {}
 for _, setting in ipairs(alertsPage.sections.alertsSound.settings) do
@@ -596,6 +617,8 @@ window = Load(nil)
 Equal("Confirm Release Spirit alone keeps the page", window.pages.interface.sections[1].title .. ": "
 	.. window.pages.interface.sections[1].settings[1].id, "Pop-ups: releaseProtection")
 AUI.can.skipCountdown, AUI.can.confirmBind, AUI.can.clickThroughToasts = true, true, true
+AUI.can.easyDestroy = true
+DELETE_ITEM_CONFIRM_STRING = "DELETE"
 window = Load(nil)
 local popupIDs = {}
 for _, setting in ipairs(window.pages.interface.sections.interfacePopups.settings) do
@@ -604,7 +627,9 @@ for _, setting in ipairs(window.pages.interface.sections.interfacePopups.setting
 end
 Equal("the Pop-ups card alone, everything off", window.pages.interface.sections[1].title .. ": "
 	.. table.concat(popupIDs, " "), "Pop-ups: skipCountdown=false+ skipKey=NONE<skipCountdown confirmBind=false "
-	.. "toastClickThrough=false+ releaseProtection=false+")
+	.. "easyDestroy=false+ toastClickThrough=false+ releaseProtection=false+")
+Equal("Easy Item Destroy names the word", window.pages.interface.sections.interfacePopups.settings.easyDestroy
+	.description, "No need to type \"DELETE\" to destroy an item.")
 Equal("Confirm Release Spirit's label and line", window.pages.interface.sections.interfacePopups.settings
 	.releaseProtection.label .. " / " .. window.pages.interface.sections.interfacePopups.settings.releaseProtection
 	.description, "Confirm Release Spirit / Release Spirit stays disabled until you answer Yes.")
@@ -614,7 +639,7 @@ for _, option in ipairs(window.pages.interface.sections.interfacePopups.settings
 end
 Equal("Hold to Skip's keys", table.concat(skipKeys, ","), "No Key,Shift,Ctrl,Alt")
 AUI.can.skipCountdown, AUI.can.confirmBind, AUI.can.clickThroughToasts = nil, nil, nil
-AUI.can.releaseProtection = nil
+AUI.can.releaseProtection, AUI.can.easyDestroy = nil, nil
 AUI.can.screenText = true
 window = Load(nil)
 Equal("Screen Text follows Alerts", table.concat(window.order, " "), "general #mapsHeader minimap #tooltipHeader "
@@ -1592,13 +1617,19 @@ Equal("guild funds first by default", merchantCard.settings.repairFunds.default,
 Equal("three funds", #merchantCard.settings.repairFunds.options, 3)
 Equal("the filter's windows follow it", automation.sections.automationAuctionHouse.settings.expansionAuctionHouse.depends,
 	"expansionFilter")
-Equal("the game settings card", SettingIDs(automation.sections.automationGameSettings), "managedautoLoot managedweather")
+Equal("the game settings card", SettingIDs(automation.sections.automationGameSettings),
+	"managedautoLoot managedweather managedcameraDistance")
 Equal("the blocks card", SettingIDs(automation.sections.automationBlocks),
 	"managedtrades managedguildInvites managedchannelInvites managedduels")
 local weather = automation.sections.automationGameSettings.settings.managedweather
 Equal("weather offers Not Managed and four levels", #weather.options, 5)
 Equal("managed settings start unmanaged", weather.default, "UNMANAGED")
 Equal("the weather levels use Blizzard's names", weather.options[2].text .. " " .. weather.options[5].text, "Off High")
+local camera = automation.sections.automationGameSettings.settings.managedcameraDistance
+Equal("camera distance offers Not Managed and Maximum", camera.options[1].value .. " " .. camera.options[2].text,
+	"UNMANAGED Maximum")
+Equal("and uses Blizzard's label and description", camera.label .. ": " .. camera.description,
+	"Max Camera Distance: Adjust the maximum distance the camera will follow behind you.")
 Equal("a setting Blizzard also offers has no second line",
 	automation.sections.automationBlocks.settings.managedtrades.description, nil)
 Equal("the merchant card ends with the Shift note", merchantCard.notes[1].text,
@@ -1607,7 +1638,7 @@ Equal("a value is written to the profile", (declaration.write("automation.sellJu
 Equal("and read back", Profile:Get("automation.sellJunk"), true)
 
 AUI.can.mail, AUI.can.expansionFilter, AUI.can.autoDeclineGuildInvites = nil, nil, nil
-cvars.weatherDensity = nil
+cvars.weatherDensity, cvars.cameraDistanceMaxZoomFactor = nil, nil
 window = Load(nil)
 automation = window.pages.automation
 Equal("Forever: no Auction House card", automation.sections.automationAuctionHouse, nil)
@@ -1615,7 +1646,7 @@ Equal("no Mail card without the send form", automation.sections.automationMail, 
 Equal("a setting the client lacks is left out", SettingIDs(automation.sections.automationGameSettings), "managedautoLoot")
 Equal("as is the guild-invite block", SettingIDs(automation.sections.automationBlocks),
 	"managedtrades managedchannelInvites managedduels")
-cvars.weatherDensity = "3"
+cvars.weatherDensity, cvars.cameraDistanceMaxZoomFactor = "3", "1.9"
 
 -- Delete Cheapest Item page ---------------------------------------------------------------------------------
 

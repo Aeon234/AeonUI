@@ -1,6 +1,7 @@
 local AUI = select(2, ...)
 
 local L = AUI.L
+local lib = LibStub("LibAeonSettings-1.0")
 
 local CLICK_DOWN_LABELS = {
 	UNMANAGED = L["Not Managed"],
@@ -24,15 +25,16 @@ local BUTTON_LABELS = {
 	["5"] = L["Button 5"],
 }
 
----The Input page, under the Quality of Life header: the Action Bars card's Click Down and the Focus Keybind card, headed
----by Focus Shortcut's switch. Changes take effect at once; Focus Shortcut's wait for combat to end.
+---The Input page, under the Quality of Life header: the Action Bars card's Click Down and key labels, and the Focus
+---Keybind card, headed by Focus Shortcut's switch. Changes take effect at once; Focus Shortcut's wait for combat to
+---end.
 ---@class AUISettingsInput
 local SettingsInput = {}
 AUI.SettingsInput = SettingsInput
 
 ---@return boolean
 function SettingsInput:IsAvailable()
-	return AUI.can.clickDown == true or AUI.can.focusShortcut == true
+	return AUI.can.clickDown == true or AUI.can.keyLabels == true or AUI.can.focusShortcut == true
 end
 
 ---@param values string[]
@@ -49,16 +51,57 @@ local function DropdownOptions(values, labels)
 end
 
 ---@param page table
-function SettingsInput:DeclareClickDown(page)
+function SettingsInput:DeclareActionBars(page)
 	local Options = AUI.InputOptions
+	local Settings = AUI.Settings
 	local card = page:Section("inputClickDown", ACTIONBARS_LABEL)
 
+	if AUI.can.clickDown then
+		card:Dropdown({
+			id = "clickDown",
+			label = L["Cast on Key Down"],
+			path = Options.CLICK_DOWN_PATH,
+			default = Settings:Default(Options.CLICK_DOWN_PATH),
+			options = DropdownOptions(Options.CLICK_DOWN, CLICK_DOWN_LABELS),
+		})
+	end
+
+	if not AUI.can.keyLabels then
+		return
+	end
+
+	card:Checkbox({
+		id = "keyLabels",
+		label = L["Short Key Labels"],
+		description = L["Shows Shift + Mouse Button 4 as %s."]:format(Options.KeyLabel("SHIFT-BUTTON4")),
+		path = Options.KEY_LABELS_PATH,
+		default = Settings:Default(Options.KEY_LABELS_PATH),
+	})
 	card:Dropdown({
-		id = "clickDown",
-		label = L["Cast on Key Down"],
-		path = Options.CLICK_DOWN_PATH,
-		default = AUI.Settings:Default(Options.CLICK_DOWN_PATH),
-		options = DropdownOptions(Options.CLICK_DOWN, CLICK_DOWN_LABELS),
+		id = "keyLabelsFont",
+		label = L["Font"],
+		path = Options.KEY_FONT_PATH,
+		default = Settings:Default(Options.KEY_FONT_PATH),
+		depends = "keyLabels",
+		picker = "font",
+	})
+	card:Slider({
+		id = "keyLabelsSize",
+		label = L["Size"],
+		path = Options.KEY_SIZE_PATH,
+		default = Settings:Default(Options.KEY_SIZE_PATH),
+		depends = "keyLabels",
+		min = Options.MIN_KEY_SIZE,
+		max = Options.MAX_KEY_SIZE,
+		step = 1,
+	})
+	card:Dropdown({
+		id = "keyLabelsOutline",
+		label = L["Outline"],
+		path = Options.KEY_OUTLINE_PATH,
+		default = Settings:Default(Options.KEY_OUTLINE_PATH),
+		depends = "keyLabels",
+		options = lib.OUTLINES,
 	})
 end
 
@@ -136,8 +179,8 @@ function SettingsInput:Declare(window)
 		return
 	end
 
-	if AUI.can.clickDown then
-		self:DeclareClickDown(page)
+	if AUI.can.clickDown or AUI.can.keyLabels then
+		self:DeclareActionBars(page)
 	end
 
 	if AUI.can.focusShortcut then

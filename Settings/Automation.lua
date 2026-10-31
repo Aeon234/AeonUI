@@ -11,6 +11,7 @@ local FUNDS_LABELS = {
 local MANAGED_LABELS = {
 	autoLoot = { label = L["Auto Loot"] },
 	weather = { label = L["Weather"] },
+	cameraDistance = { label = MAX_FOLLOW_DIST, description = OPTION_TOOLTIP_MAX_FOLLOW_DIST },
 	trades = { label = L["Block Trades"] },
 	guildInvites = { label = L["Block Guild Invites"] },
 	channelInvites = { label = L["Block Channel Invites"] },
@@ -33,6 +34,8 @@ local function ManagedOptions(list)
 	if list == "managedSwitch" then
 		options[2] = { value = "ON", text = L["Always On"] }
 		options[3] = { value = "OFF", text = L["Always Off"] }
+	elseif list == "managedCamera" then
+		options[2] = { value = "MAX", text = MAXIMUM }
 	elseif list == "managedBlock" then
 		options[2] = { value = "BLOCKED", text = L["Blocked"] }
 	else

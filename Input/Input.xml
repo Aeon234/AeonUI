@@ -2,5 +2,6 @@
 	<Script file="Options.lua" />
 	<Script file="ClickDown.lua" />
 	<Script file="FocusShortcut.lua" />
+	<Script file="KeyLabels.lua" />
 	<Script file="Input.lua" />
 </Ui>

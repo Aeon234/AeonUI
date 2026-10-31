@@ -543,6 +543,51 @@ Equal("on: the slot is looted and the question hidden", tostring(confirmed[1]) .
 Set(Options.CONFIRM_BIND_PATH, false)
 Equal("off again: no longer followed", eventFrame.events.LOOT_BIND_CONFIRM, nil)
 
+DELETE_ITEM_CONFIRM_STRING = "DELETE"
+local shownDialogs = {}
+local function DestroyDialog(which)
+	local editBox = { text = "" }
+	function editBox:SetText(text)
+		self.text = text
+	end
+	local dialog = { which = which, editBox = editBox }
+	function dialog:GetEditBox()
+		return self.editBox
+	end
+	shownDialogs[which] = dialog
+
+	return dialog
+end
+function StaticPopup_FindVisible(which)
+	return shownDialogs[which]
+end
+local good, quest, plain = DestroyDialog("DELETE_GOOD_ITEM"), DestroyDialog("DELETE_GOOD_QUEST_ITEM"),
+	DestroyDialog("DELETE_ITEM")
+AUI.can.easyDestroy = true
+local showPopup = StaticPopup_Show
+Equal("easy destroy is off by default", AUI.Profile:Get(Options.EASY_DESTROY_PATH), false)
+StaticPopup_Show("DELETE_GOOD_ITEM", "Thunderfury")
+Equal("off: nothing is hooked or typed", tostring(StaticPopup_Show == showPopup) .. " " .. good.editBox.text, "true ")
+Set(Options.EASY_DESTROY_PATH, true)
+StaticPopup_Show("DELETE_GOOD_ITEM", "Thunderfury")
+StaticPopup_Show("DELETE_GOOD_QUEST_ITEM", "Head of Onyxia")
+StaticPopup_Show("DELETE_ITEM", "Linen Cloth")
+Equal("on: the confirmation word is typed into both pop-ups that ask for it",
+	good.editBox.text .. " " .. quest.editBox.text .. " [" .. plain.editBox.text .. "]", "DELETE DELETE []")
+local destroyHook = StaticPopup_Show
+Set(Options.EASY_DESTROY_PATH, false)
+Set(Options.EASY_DESTROY_PATH, true)
+Equal("hooked once", StaticPopup_Show, destroyHook)
+Set(Options.EASY_DESTROY_PATH, false)
+good.editBox.text = ""
+StaticPopup_Show("DELETE_GOOD_ITEM", "Thunderfury")
+Equal("off again: the word is left to the player", good.editBox.text, "")
+shownDialogs = {}
+StaticPopup_Show("DELETE_GOOD_ITEM", "Thunderfury")
+Set(Options.EASY_DESTROY_PATH, true)
+StaticPopup_Show("DELETE_GOOD_ITEM", "Thunderfury")
+Equal("a pop-up that did not show is left alone", good.editBox.text, "")
+
 EventToastManagerFrame:DisplayToast()
 Equal("toasts: off, they catch clicks", EventToastManagerFrame.currentDisplayingToast.mouse, true)
 Set(Options.TOAST_CLICK_THROUGH_PATH, true)

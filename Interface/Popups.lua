@@ -9,23 +9,29 @@ local DELAYED_POPUPS = {
 	ITEM_INTERACTION_CONFIRMATION_DELAYED_WITH_CHARGE_INFO = true,
 }
 
+-- Destroy pop-ups that ask for the confirmation word.
+local DESTROY_POPUPS = { DELETE_GOOD_ITEM = true, DELETE_GOOD_QUEST_ITEM = true }
+
 -- Each Hold to Skip key and the function that reports it held; NONE needs no key.
 local KEY_CHECKS = { SHIFT = "IsShiftKeyDown", CTRL = "IsControlKeyDown", ALT = "IsAltKeyDown" }
 
----Changes how three of Blizzard's pop-ups behave. Skip Accept Countdowns enables the accept button of the Great Vault
+---Changes how four of Blizzard's pop-ups behave. Skip Accept Countdowns enables the accept button of the Great Vault
 ---and item upgrade pop-ups during their countdown, always or while a key is held: Blizzard disables it on every update
 ---of the countdown, so a post-hook on that update enables it again, and the button goes back to the countdown when the
----key is released. Auto Confirm Bind on Pickup loots such an item without asking. Click-Through Toasts turns off the
+---key is released. Auto Confirm Bind on Pickup loots such an item without asking. Easy Item Destroy types the confirmation word
+---into the destroy pop-up as it is shown, so Blizzard's own text handler enables the accept button. Click-Through Toasts turns off the
 ---mouse on event toasts as each is shown, and turns it on again on each frame it changed when switched off. Hooks are
 ---installed once, the first time a feature is on.
 ---@class AUIBlizzardPopups
 ---@field hookedCountdown boolean the pop-ups' update is hooked
 ---@field hookedToasts boolean the toast manager's display is hooked
+---@field hookedDestroy boolean `StaticPopup_Show` is hooked
 ---@field confirming boolean bind-on-pickup questions are answered
 ---@field released table<Frame, true> toast frames whose mouse this turned off
 local BlizzardPopups = {
 	hookedCountdown = false,
 	hookedToasts = false,
+	hookedDestroy = false,
 	confirming = false,
 	released = {},
 }
@@ -99,6 +105,31 @@ function BlizzardPopups:ApplyConfirmBind()
 	end
 end
 
+---Types the confirmation word into a destroy pop-up that was just shown.
+---@param which string the pop-up shown
+function BlizzardPopups:FillDestroy(which)
+	if not DESTROY_POPUPS[which] or not Options:On(Options.EASY_DESTROY_PATH) then
+		return
+	end
+
+	local dialog = StaticPopup_FindVisible(which)
+
+	if dialog then
+		dialog:GetEditBox():SetText(DELETE_ITEM_CONFIRM_STRING)
+	end
+end
+
+function BlizzardPopups:ApplyDestroy()
+	if self.hookedDestroy or not AUI.can.easyDestroy or not Options:On(Options.EASY_DESTROY_PATH) then
+		return
+	end
+
+	self.hookedDestroy = true
+	hooksecurefunc("StaticPopup_Show", function(which)
+		self:FillDestroy(which)
+	end)
+end
+
 ---@param frame table?
 function BlizzardPopups:Release(frame)
 	if frame and frame:IsMouseEnabled() then
@@ -153,5 +184,6 @@ end
 function BlizzardPopups:Apply()
 	self:ApplyCountdown()
 	self:ApplyConfirmBind()
+	self:ApplyDestroy()
 	self:ApplyToasts()
 end

@@ -1,6 +1,7 @@
 -- Checks Input/ outside the game: Click Down's value for each choice, in and out of combat, and the game's changes put
 -- back; Focus Shortcut's attribute keys, binding and macros, the unit frames it covers, Mark Focus, combat, Blizzard's
--- compact frames, Clique, and everything removed when it is turned off.
+-- compact frames, Clique, and everything removed when it is turned off; the key labels' codes, the buttons hooked only
+-- once turned on, the range dot and gamepad keys left to Blizzard, the font, and Blizzard's text and font put back.
 -- Run from any directory with Lua 5.1: lua Tools/check_input.lua
 -- Loads the real files against stubbed globals. Exits non-zero on the first failed check.
 
@@ -164,13 +165,89 @@ forbidden.forbidden = true
 ClickCastFrames = { [addonFrame] = true, [forbidden] = true, [{}] = true }
 
 function CompactUnitFrame_SetUnit(_, _) end
-function hooksecurefunc(name, hook)
-	local original = _G[name]
-	_G[name] = function(...)
+local hooks = 0
+function hooksecurefunc(target, name, hook)
+	if type(target) == "string" then
+		target, name, hook = _G, target, name
+	end
+	local original = target[name]
+	target[name] = function(...)
 		original(...)
 		hook(...)
 	end
+	hooks = hooks + 1
 end
+
+-- Action buttons: bindings by action, Blizzard's display text by key, and the hotkey font string each button holds.
+RANGE_INDICATOR = "ic"
+NUM_ACTIONBAR_BUTTONS = 2
+NUM_PET_ACTION_SLOTS = 1
+ActionButtonUtil = { ActionBarButtonNames = { "ActionButton", "MultiBarLeftButton" } }
+local keyBindings = { ACTIONBUTTON1 = "SHIFT-BUTTON4", ACTIONBUTTON2 = "PADLSHOULDER", BONUSACTIONBUTTON1 = "CTRL-3" }
+local blizzardText = { ["SHIFT-BUTTON4"] = "s-Mouse Button 4", PADLSHOULDER = "LB", ["CTRL-3"] = "c-3",
+	["ALT-MOUSEWHEELUP"] = "a-Mouse Wheel Up" }
+function GetBindingKey(action)
+	return keyBindings[action]
+end
+function IsBindingForGamePad(key)
+	return key:sub(1, 3) == "PAD"
+end
+
+local GRAY = { name = "NumberFontNormalSmallGray" }
+local function HotKey()
+	local hotkey = { fontObject = GRAY }
+	function hotkey:GetText()
+		return self.text
+	end
+	function hotkey:SetText(text)
+		self.text = text
+	end
+	function hotkey:GetFontObject()
+		return self.fontObject
+	end
+	function hotkey:SetFontObject(font)
+		self.fontObject, self.font = font, nil
+	end
+	function hotkey:SetFont(file, size, flags)
+		self.font = file .. " " .. size .. " " .. flags
+	end
+
+	return hotkey
+end
+
+---Blizzard's update: the binding's display text, or the range dot when nothing is bound.
+local function ShowKey(hotkey, key)
+	hotkey:SetText(key and blizzardText[key] or RANGE_INDICATOR)
+end
+
+local function ActionButton(name, action)
+	local button = { HotKey = HotKey() }
+	function button:GetName()
+		return name
+	end
+	function button:UpdateHotkeys()
+		self.bindingAction = action
+		ShowKey(self.HotKey, GetBindingKey(action) or GetBindingKey("CLICK " .. name .. ":LeftButton"))
+	end
+	button:UpdateHotkeys()
+	_G[name] = button
+
+	return button
+end
+
+local boundButton = ActionButton("ActionButton1", "ACTIONBUTTON1")
+local padButton = ActionButton("ActionButton2", "ACTIONBUTTON2")
+local emptyButton = ActionButton("MultiBarLeftButton1", "MULTIACTIONBAR3BUTTON1")
+ActionButton("MultiBarLeftButton2", "MULTIACTIONBAR3BUTTON2")
+local petButton = { HotKey = HotKey() }
+function petButton:GetID()
+	return 1
+end
+function petButton:SetHotkeys()
+	ShowKey(self.HotKey, GetBindingKey("BONUSACTIONBUTTON" .. self:GetID()))
+end
+petButton:SetHotkeys()
+PetActionButton1 = petButton
 
 -- Addon table ---------------------------------------------------------------------------------------------
 
@@ -179,7 +256,15 @@ AUI.L = setmetatable({}, { __index = function(_, key)
 	return key
 end })
 assert(loadfile(root .. "Core/Core.lua"))("AeonUI", AUI)
-AUI.can = { clickDown = true, focusShortcut = true }
+AUI.can = { clickDown = true, focusShortcut = true, keyLabels = true }
+AUI.Media = {
+	Font = function(_, name)
+		return name
+	end,
+	FontFlags = function(_, outline)
+		return outline
+	end,
+}
 
 for _, file in ipairs({ "Core/Callbacks.lua", "Core/Events.lua", "Profile/Schema.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
@@ -203,7 +288,10 @@ local function Set(path, value)
 	AUI.Callbacks:Fire("Profile", path)
 end
 
-for _, file in ipairs({ "Input/Options.lua", "Input/ClickDown.lua", "Input/FocusShortcut.lua", "Input/Input.lua" }) do
+AUI.Schema:Choices("fontOutline", { "NONE", "OUTLINE", "THICKOUTLINE", "SLUG", "SLUG_OUTLINE", "SLUG_THICKOUTLINE" })
+
+for _, file in ipairs({ "Input/Options.lua", "Input/ClickDown.lua", "Input/FocusShortcut.lua", "Input/KeyLabels.lua",
+	"Input/Input.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 
@@ -239,6 +327,37 @@ Equal("defaults", table.concat({ Options:Get(Options.CLICK_DOWN_PATH), tostring(
 	Options:Get(Options.FOCUS_MODIFIER_PATH), Options:Get(Options.FOCUS_BUTTON_PATH),
 	tostring(Options:Get(Options.FOCUS_WORLD_PATH)), tostring(Options:Get(Options.FOCUS_MARK_PATH)),
 	Options:Get(Options.FOCUS_MARKER_PATH) }, " "), "UNMANAGED false shift 1 true false 8")
+Equal("key label defaults", table.concat({ tostring(Options:Get(Options.KEY_LABELS_PATH)),
+	Options:Get(Options.KEY_FONT_PATH), Options:Get(Options.KEY_SIZE_PATH), Options:Get(Options.KEY_OUTLINE_PATH) }, " "),
+	"false Arial Narrow 12 SLUG")
+
+for key, label in pairs({
+	["SHIFT-BUTTON4"] = "SM4",
+	["ALT-CTRL-SHIFT-1"] = "ACS1",
+	["RSHIFT-LALT-Q"] = "AS" .. "Q",
+	["META-SPACE"] = "CmdSP",
+	BUTTON3 = "MM",
+	BUTTON12 = "M12",
+	MOUSEWHEELUP = "WU",
+	["CTRL-MOUSEWHEELDOWN"] = "CWD",
+	NUMPAD5 = "N5",
+	["ALT-NUMPADPLUS"] = "AN+",
+	NUMPADDECIMAL = "N.",
+	["SHIFT--"] = "S-",
+	["-"] = "-",
+	PAGEUP = "PU",
+	PAGEDOWN = "PD",
+	BACKSPACE = "BS",
+	INSERT = "INS",
+	DELETE = "DEL",
+	HOME = "HM",
+	END = "END",
+	TAB = "TAB",
+	F5 = "F5",
+	ESCAPE = "ESCAPE",
+}) do
+	Equal("the label for " .. key, Options.KeyLabel(key), label)
+end
 
 -- Click Down ----------------------------------------------------------------------------------------------
 
@@ -373,5 +492,45 @@ for name, frame in pairs({ player = PlayerFrame, party = PartyFrame.MemberFrame1
 end
 Equal("off: the group is no longer followed", eventFrame.events.GROUP_ROSTER_UPDATE, nil)
 Equal("the buttons are made once", #buttons, 2)
+
+-- Key labels ----------------------------------------------------------------------------------------------
+
+local baseHooks = hooks
+Equal("never turned on: no button is hooked", hooks, baseHooks)
+Equal("and Blizzard's text stays", boundButton.HotKey.text, "s-Mouse Button 4")
+
+Set(Options.KEY_LABELS_PATH, true)
+Equal("on: each button's update is hooked once", hooks - baseHooks, 5)
+Equal("a bound key is shortened", boundButton.HotKey.text, "SM4")
+Equal("in the chosen font", boundButton.HotKey.font, "Arial Narrow 12 SLUG")
+Equal("a pet button's key too", petButton.HotKey.text, "C3")
+Equal("a gamepad key keeps Blizzard's text", padButton.HotKey.text, "LB")
+Equal("an unbound button keeps the range dot", emptyButton.HotKey.text, RANGE_INDICATOR)
+
+keyBindings.ACTIONBUTTON1 = "ALT-MOUSEWHEELUP"
+boundButton:UpdateHotkeys()
+Equal("a new binding is shortened as Blizzard shows it", boundButton.HotKey.text, "AWU")
+keyBindings.MULTIACTIONBAR3BUTTON1 = "SHIFT-BUTTON4"
+emptyButton:UpdateHotkeys()
+Equal("as is a key bound to an empty button", emptyButton.HotKey.text, "SM4")
+
+Set(Options.KEY_SIZE_PATH, 16)
+Set(Options.KEY_OUTLINE_PATH, "OUTLINE")
+Equal("a font change restyles at once", boundButton.HotKey.font, "Arial Narrow 16 OUTLINE")
+Equal("and keeps the label", boundButton.HotKey.text, "AWU")
+
+Set(Options.KEY_LABELS_PATH, false)
+Equal("off: Blizzard's text is back", boundButton.HotKey.text .. " | " .. petButton.HotKey.text,
+	"a-Mouse Wheel Up | c-3")
+Equal("with its font object", tostring(boundButton.HotKey.font) .. " " .. boundButton.HotKey.fontObject.name,
+	"nil NumberFontNormalSmallGray")
+Equal("the range dot untouched", padButton.HotKey.text, "LB")
+keyBindings.ACTIONBUTTON1 = "SHIFT-BUTTON4"
+boundButton:UpdateHotkeys()
+Equal("Blizzard's updates are left alone", boundButton.HotKey.text, "s-Mouse Button 4")
+
+Set(Options.KEY_LABELS_PATH, true)
+Equal("on again: no second hook", hooks - baseHooks, 5)
+Equal("labels shortened again", boundButton.HotKey.text .. " " .. emptyButton.HotKey.text, "SM4 SM4")
 
 io.stdout:write(("check_input: %d checks passed\n"):format(checks))

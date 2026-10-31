@@ -20,8 +20,8 @@ function SettingsInterface:IsAvailable()
 	local can = AUI.can
 
 	return can.extraActionButton == true or can.helpTips == true or can.bossBanner == true or can.vaultOverlay == true
-		or can.skipCountdown == true or can.confirmBind == true or can.clickThroughToasts == true
-		or can.releaseProtection == true
+		or can.skipCountdown == true or can.confirmBind == true or can.easyDestroy == true
+		or can.clickThroughToasts == true or can.releaseProtection == true
 end
 
 ---@param section table
@@ -79,7 +79,8 @@ function SettingsInterface:DeclarePopups(page)
 	local Options = AUI.InterfaceOptions
 	local can = AUI.can
 
-	if not (can.skipCountdown or can.confirmBind or can.clickThroughToasts or can.releaseProtection) then
+	if not (can.skipCountdown or can.confirmBind or can.easyDestroy or can.clickThroughToasts
+		or can.releaseProtection) then
 		return
 	end
 
@@ -106,6 +107,11 @@ function SettingsInterface:DeclarePopups(page)
 
 	if can.confirmBind then
 		Checkbox(card, "confirmBind", L["Auto Confirm Bind on Pickup"], nil, Options.CONFIRM_BIND_PATH)
+	end
+
+	if can.easyDestroy then
+		Checkbox(card, "easyDestroy", L["Easy Item Destroy"],
+			L["No need to type \"%s\" to destroy an item."]:format(DELETE_ITEM_CONFIRM_STRING), Options.EASY_DESTROY_PATH)
 	end
 
 	if can.clickThroughToasts then

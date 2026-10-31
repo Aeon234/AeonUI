@@ -35,6 +35,7 @@ AUI.Capabilities = Capabilities
 ---@field warcraftLogsLinks boolean Warcraft Logs lists this client's characters (Retail)
 ---@field clickDown boolean action buttons can act on key down (`ActionButtonUseKeyDown`)
 ---@field focusShortcut boolean a mouse button can be bound to a secure button (`SetOverrideBindingClick`)
+---@field keyLabels boolean action buttons' key labels can be read back from their bindings (`IsBindingForGamePad`)
 ---@field extraActionButton boolean the extra action button's frame exists (`ExtraActionBarFrame`)
 ---@field helpTips boolean help tips are marked seen in a console variable's bits (`closedInfoFramesAccountWide`)
 ---@field lootSparkle boolean quest items can sparkle with the outline off (`outlineModeShowLootEffectWhenDisabled`)
@@ -43,6 +44,7 @@ AUI.Capabilities = Capabilities
 ---@field vaultOverlay boolean the Great Vault covers itself away from the vault (Retail)
 ---@field skipCountdown boolean static pop-ups count down through `StaticPopup_OnUpdate`
 ---@field confirmBind boolean a bind-on-pickup loot slot can be confirmed (`ConfirmLootSlot`)
+---@field easyDestroy boolean the destroy pop-up that asks for the confirmation word can be found when shown
 ---@field clickThroughToasts boolean event toasts are shown by `EventToastManagerFrame`
 ---@field releaseProtection boolean the death dialog updates through `StaticPopupDialogs.DEATH.OnUpdate`
 ---@field screenText boolean the error frame and the zone, subzone and territory lines exist, with their font objects
@@ -110,6 +112,8 @@ function Capabilities:Resolve()
 	can.clickDown = C_CVar.GetCVarInfo("ActionButtonUseKeyDown") ~= nil
 	can.focusShortcut = SetOverrideBindingClick ~= nil and ClearOverrideBindings ~= nil and C_AddOns ~= nil
 		and C_AddOns.IsAddOnLoaded ~= nil
+	can.keyLabels = ActionButtonUtil ~= nil and ActionButtonUtil.ActionBarButtonNames ~= nil and GetBindingKey ~= nil
+		and IsBindingForGamePad ~= nil
 	can.extraActionButton = ExtraActionBarFrame ~= nil
 	can.helpTips = C_CVar.SetCVarBitfield ~= nil and C_CVar.GetCVarInfo("closedInfoFramesAccountWide") ~= nil
 	can.lootSparkle = C_CVar.GetCVarInfo("outlineModeShowLootEffectWhenDisabled") ~= nil
@@ -120,6 +124,8 @@ function Capabilities:Resolve()
 	can.vaultOverlay = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE and C_WeeklyRewards ~= nil
 	can.skipCountdown = StaticPopup_OnUpdate ~= nil and StaticPopupDialogs ~= nil
 	can.confirmBind = ConfirmLootSlot ~= nil and StaticPopup_Hide ~= nil
+	can.easyDestroy = StaticPopup_FindVisible ~= nil and DELETE_ITEM_CONFIRM_STRING ~= nil and StaticPopupDialogs ~= nil
+		and StaticPopupDialogs.DELETE_GOOD_ITEM ~= nil
 	can.clickThroughToasts = EventToastManagerFrame ~= nil and EventToastManagerFrame.DisplayToast ~= nil
 	can.releaseProtection = StaticPopupDialogs ~= nil and StaticPopupDialogs.DEATH ~= nil
 		and StaticPopupDialogs.DEATH.OnUpdate ~= nil and StaticPopup_FindVisible ~= nil and StaticPopup_Show ~= nil
