@@ -4,6 +4,8 @@ local Schema = AUI.Schema
 
 -- Markers closer than this on the shown map, as a fraction of its width and height, share one pin.
 local GROUP_DISTANCE = 0.012
+-- A found spot this close to a known one of its category, in yards, is that spot.
+local SAME_SPOT = 40
 local MARKERS = "Interface\\AddOns\\" .. (AUI.name or "AeonUI") .. "\\Media\\Textures\\Markers\\"
 
 -- Enum.UIMapType values, held here so the arithmetic loads without the client.
@@ -33,6 +35,8 @@ local ICONS = "Interface\\Icons\\"
 ---@field capitalsOnly boolean? its markers show only on a capital's map while Vendors and Trainers in Cities Only is on
 ---@field class string? the class token the category is for; its switch is offered only to that class
 ---@field exit boolean? its markers point along the road toward the zone they lead to
+---@field racial number? the spell ID of the race's racial cast on the category's spots
+---@field buff number? the spell ID of the aura the racial gives on a spot
 
 ---@class AUIWorldMapIcon
 ---@field atlas string?
@@ -55,6 +59,7 @@ local ICONS = "Interface\\Icons\\"
 ---@field race number? the race ID the marker is shown to
 ---@field kind string? which kind of its category's service a town marker is
 ---@field class string? the class token a class trainer teaches
+---@field learned boolean? the spot was found in game by casting the racial on it
 
 ---@class AUIWorldMapGroup
 ---@field x number 0 to 1 across the shown map
@@ -172,6 +177,8 @@ local Markers = {
 			group = "leyLine",
 			scales = NODE_SCALES,
 			race = 95,
+			racial = 1259705,
+			buff = 1259691,
 			name = "Ley Line",
 		},
 		{
@@ -181,6 +188,8 @@ local Markers = {
 			group = "convergence",
 			scales = NODE_SCALES,
 			race = 96,
+			racial = 1259686,
+			buff = 1270893,
 			name = "Elemental Convergence",
 		},
 		{
@@ -447,6 +456,62 @@ function Markers:Groups(query)
 	end
 
 	return groups
+end
+
+---Whether a spot is one already known in its category: within `SAME_SPOT` yards of one of its markers on the same
+---continent.
+---@param key string the category key
+---@param map number the spot's uiMapID
+---@param x number 0 to 1 across that map
+---@param y number
+---@param world fun(map: number, x: number, y: number): number?, number?, number? a map position's continent and world
+---position in yards, or nothing where the map has none
+---@param shippedOnly boolean? compare with the shipped markers only, not the learned ones
+---@return boolean? known nil when the spot has no world position
+function Markers:Known(key, map, x, y, world, shippedOnly)
+	local continent, wx, wy = world(map, x, y)
+
+	if not continent or not wx or not wy then
+		return nil
+	end
+
+	for _, markers in pairs(self.byMap or {}) do
+		for _, marker in ipairs(markers) do
+			if marker.category == key and not (shippedOnly and marker.learned) then
+				local c, mx, my = world(marker.map, marker.x, marker.y)
+
+				if c == continent and mx and my and (mx - wx) ^ 2 + (my - wy) ^ 2 <= SAME_SPOT * SAME_SPOT then
+					return true
+				end
+			end
+		end
+	end
+
+	return false
+end
+
+---Adds a spot found in game to the index as a learned marker of its category.
+---@param key string the category key
+---@param map number
+---@param x number 0 to 1 across that map
+---@param y number
+---@return AUIWorldMapMarker marker
+function Markers:AddLearned(key, map, x, y)
+	local byMap = self.byMap --[[@as table<number, AUIWorldMapMarker[]> ]]
+	local maps = self.maps --[[@as number[] ]]
+	local marker = { category = key, map = map, x = x, y = y, race = self.byKey[key].race, learned = true }
+	local markers = byMap[map]
+
+	if not markers then
+		markers = {}
+		byMap[map] = markers
+		maps[#maps + 1] = map
+		table.sort(maps)
+	end
+
+	markers[#markers + 1] = marker
+
+	return marker
 end
 
 ---@param group AUIWorldMapGroup

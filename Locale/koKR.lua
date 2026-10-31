@@ -294,6 +294,8 @@ L["Shift-click: set a waypoint"] = "Shift-클릭: 경유지 설정"
 L["Shift-click: remove the waypoint"] = "Shift-클릭: 경유지 제거"
 L["Left-click: set a waypoint"] = "왼쪽 클릭: 경유지 설정"
 L["Left-click: remove the waypoint"] = "왼쪽 클릭: 경유지 제거"
+L["Found by you"] = "직접 발견함"
+L["%s saved on your map: %s %.1f, %.1f"] = "%s 지도에 저장됨: %s %.1f, %.1f"
 L["Dungeon Map"] = "던전 지도"
 
 -- Dungeon maps (World Map)

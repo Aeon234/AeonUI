@@ -294,6 +294,8 @@ L["Shift-click: set a waypoint"] = "Shift-clique: marcar um ponto de referência
 L["Shift-click: remove the waypoint"] = "Shift-clique: remover o ponto de referência"
 L["Left-click: set a waypoint"] = "Clique esquerdo: marcar um ponto de referência"
 L["Left-click: remove the waypoint"] = "Clique esquerdo: remover o ponto de referência"
+L["Found by you"] = "Encontrado por você"
+L["%s saved on your map: %s %.1f, %.1f"] = "%s salvo no seu mapa: %s %.1f, %.1f"
 L["Dungeon Map"] = "Mapa da masmorra"
 
 -- Dungeon maps (World Map)

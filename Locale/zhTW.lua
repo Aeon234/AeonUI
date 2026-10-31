@@ -294,6 +294,8 @@ L["Shift-click: set a waypoint"] = "Shift-點擊：設定路徑點"
 L["Shift-click: remove the waypoint"] = "Shift-點擊：移除路徑點"
 L["Left-click: set a waypoint"] = "左鍵點擊：設定路徑點"
 L["Left-click: remove the waypoint"] = "左鍵點擊：移除路徑點"
+L["Found by you"] = "由你發現"
+L["%s saved on your map: %s %.1f, %.1f"] = "%s已儲存到你的地圖：%s %.1f, %.1f"
 L["Dungeon Map"] = "地城地圖"
 
 -- Dungeon maps (World Map)

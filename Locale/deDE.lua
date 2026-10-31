@@ -294,6 +294,8 @@ L["Shift-click: set a waypoint"] = "Umschalt-Klick: Wegpunkt setzen"
 L["Shift-click: remove the waypoint"] = "Umschalt-Klick: Wegpunkt entfernen"
 L["Left-click: set a waypoint"] = "Linksklick: Wegpunkt setzen"
 L["Left-click: remove the waypoint"] = "Linksklick: Wegpunkt entfernen"
+L["Found by you"] = "Von dir gefunden"
+L["%s saved on your map: %s %.1f, %.1f"] = "%s auf deiner Karte gespeichert: %s %.1f, %.1f"
 L["Dungeon Map"] = "Dungeonkarte"
 
 -- Dungeon maps (World Map)

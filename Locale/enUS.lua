@@ -323,6 +323,8 @@ L["Shift-click: set a waypoint"] = "Shift-click: set a waypoint"
 L["Shift-click: remove the waypoint"] = "Shift-click: remove the waypoint"
 L["Left-click: set a waypoint"] = "Left-click: set a waypoint"
 L["Left-click: remove the waypoint"] = "Left-click: remove the waypoint"
+L["Found by you"] = "Found by you"
+L["%s saved on your map: %s %.1f, %.1f"] = "%s saved on your map: %s %.1f, %.1f"
 L["Dungeon Map"] = "Dungeon Map"
 
 -- Dungeon maps (World Map)

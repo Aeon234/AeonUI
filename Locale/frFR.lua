@@ -294,6 +294,8 @@ L["Shift-click: set a waypoint"] = "Maj-clic : placer un point de passage"
 L["Shift-click: remove the waypoint"] = "Maj-clic : retirer le point de passage"
 L["Left-click: set a waypoint"] = "Clic gauche : placer un point de passage"
 L["Left-click: remove the waypoint"] = "Clic gauche : retirer le point de passage"
+L["Found by you"] = "Trouvé par vous"
+L["%s saved on your map: %s %.1f, %.1f"] = "%s enregistré sur votre carte : %s %.1f, %.1f"
 L["Dungeon Map"] = "Carte du donjon"
 
 -- Dungeon maps (World Map)

@@ -5,7 +5,8 @@
 -- exit arrows' rotation, the shape of Forever's marker and town data, and the Map Options: their settings, which
 -- areas are unexplored, splitting an area into the art's tiles, the range text and Fishing colors, and their data;
 -- and the dungeon maps: tile paths and layout, fitting the picture, the opening floor, pins, and their data; and that
--- every name and label the data looks up is an English locale key.
+-- every name and label the data looks up is an English locale key; and learned Skyborne spots: the same-spot rule,
+-- adding them to the index, and the cast watch that saves them, with its buff checks, combat wait and pruning.
 -- Run from any directory with Lua 5.1: lua Tools/check_worldmap.lua
 -- Loads the real files against stubbed globals. It proves the logic, not the drawing.
 
@@ -168,6 +169,37 @@ end
 local atlas, file = Markers:Icon(battleground)
 Equal("a battleground draws its faction's file", atlas == nil and file:match("HordeBattleground$") ~= nil, true)
 Equal("a dungeon draws its atlas", (Markers:Icon({ category = Markers.byKey.dungeons, markers = {} })), "Dungeon")
+
+-- Learned spots ----------------------------------------------------------------------------------------------
+
+-- Map 10 lies on continent 1, a thousand yards across; other maps have no world position.
+local function Flat(map, x, y)
+	if map ~= 10 and map ~= 12 then
+		return nil
+	end
+
+	return 1, x * 1000, y * 1000
+end
+
+Equal("ley lines carry their racial and buff", Markers.byKey.leyLines.racial ~= nil
+	and Markers.byKey.leyLines.buff ~= nil, true)
+Equal("convergences carry their racial and buff", Markers.byKey.convergences.racial ~= nil
+	and Markers.byKey.convergences.buff ~= nil, true)
+Equal("a spot 28 yards from a ley line is that ley line", Markers:Known("leyLines", 10, 0.32, 0.32, Flat), true)
+Equal("one 50 yards away is not", Markers:Known("leyLines", 10, 0.35, 0.34, Flat), false)
+Equal("another category's spot is not counted", Markers:Known("convergences", 10, 0.3, 0.3, Flat), false)
+Equal("a spot without a world position is undecided", Markers:Known("leyLines", 11, 0.3, 0.3, Flat), nil)
+
+local learned = Markers:AddLearned("leyLines", 10, 0.6, 0.9)
+Equal("a learned spot is marked learned", learned.learned, true)
+Equal("a learned spot carries its category's race", learned.race, 95)
+Equal("its race sees the learned spot", Count({ faction = "Horde", race = 95 }), 6)
+Equal("another race does not", Count({ faction = "Horde", race = 1 }), 4)
+Equal("a learned spot is known afterward", Markers:Known("leyLines", 10, 0.61, 0.9, Flat), true)
+Equal("but not among the shipped markers", Markers:Known("leyLines", 10, 0.61, 0.9, Flat, true), false)
+local onNewMap = Markers:AddLearned("convergences", 12, 0.5, 0.5)
+Equal("a learned spot on a new map indexes that map", Markers.byMap[12][1], onNewMap)
+Equal("the maps stay in order", Markers.maps[#Markers.maps], 12)
 
 -- Destinations ----------------------------------------------------------------------------------------------
 
@@ -508,5 +540,148 @@ for key, list in pairs(AUI.WorldMapData()) do
 	end
 end
 Equal("every town marker is here", town, 1725)
+
+-- Spot learning -----------------------------------------------------------------------------------------------
+
+Markers:Index({
+	leyLines = { [10] = { { 30, 30, race = 95 } } },
+	convergences = { [10] = { { 70, 70, race = 96 } } },
+})
+
+local global = { worldMapSpots = { leyLines = { { 10, 0.31, 0.31 }, { 10, 0.8, 0.2 }, { "bad" } } } }
+local printed, redraws, timers, now, combat, auras = {}, 0, {}, 100, false, {}
+local handlers = {}
+
+AUI.Profile = { Global = function() return global end }
+AUI.Events = {
+	Register = function(_, event, owner, handler) handlers[event] = { owner, handler } end,
+	Unregister = function(_, event) handlers[event] = nil end,
+	UnregisterAll = function() handlers = {} end,
+}
+AUI.WorldMap = { Redraw = function() redraws = redraws + 1 end }
+function AUI:Print(message, ...) printed[#printed + 1] = message:format(...) end
+function AUI:Readable(value, fallback) if value == "secret" then return fallback end return value end
+function issecretvalue(value) return value == "secret" end
+function InCombatLockdown() return combat end
+function GetTime() return now end
+function CreateVector2D(x, y) return { x = x, y = y } end
+local playerAt = { map = 10, x = 0.55, y = 0.45 }
+local function Position(x, y) return { GetXY = function() return x, y end } end
+C_Map = {
+	GetWorldPosFromMapPos = function(map, position)
+		local continent, wx, wy = Flat(map, position.x, position.y)
+		return continent, continent and Position(wx, wy)
+	end,
+	GetBestMapForUnit = function() return playerAt.map end,
+	GetPlayerMapPosition = function() return Position(playerAt.x, playerAt.y) end,
+	GetMapInfo = function(map) return { name = "Zone " .. map } end,
+}
+C_Timer = { After = function(delay, work) timers[#timers + 1] = { delay, work } end }
+C_UnitAuras = { GetPlayerAuraBySpellID = function(id) return auras[id] end }
+UNKNOWN = "Unknown"
+
+assert(loadfile(root .. "WorldMap/Spots.lua"))("AeonUI", AUI)
+local Spots = AUI.WorldMapSpots
+local LEY = Markers.byKey.leyLines
+
+local function RunTimers()
+	local due = timers
+	timers = {}
+	for _, timer in ipairs(due) do
+		timer[2]()
+	end
+end
+
+local function RunAll()
+	for _ = 1, 5 do
+		RunTimers()
+	end
+end
+
+local function Cast(spellID, unit)
+	handlers.UNIT_SPELLCAST_SUCCEEDED[2](Spots, "UNIT_SPELLCAST_SUCCEEDED", unit or "player", "guid", spellID)
+end
+
+Spots:Load()
+local saved = global.worldMapSpots.leyLines
+Equal("loading drops a saved spot the shipped markers hold, and a malformed one", #saved, 1)
+Equal("the far spot stays saved", saved[1][2], 0.8)
+Equal("and is indexed as learned", Markers:Known("leyLines", 10, 0.8, 0.2, Flat, true), false)
+Equal("so it is known", Markers:Known("leyLines", 10, 0.8, 0.2, Flat), true)
+Spots:Load()
+Equal("loading happens once a session", #Markers.byMap[10], 3)
+
+local shownSkyborne = { leyLines = true, convergences = true }
+Spots:Apply(1, shownSkyborne)
+Equal("another race follows no cast", handlers.UNIT_SPELLCAST_SUCCEEDED, nil)
+Spots:Apply(95, { leyLines = false, convergences = true })
+Equal("a switched-off category follows no cast", handlers.UNIT_SPELLCAST_SUCCEEDED, nil)
+Spots:Apply(95, shownSkyborne)
+Equal("the race's racial is followed while its category is on", Spots.category, LEY)
+
+Cast(12345)
+Equal("another spell is ignored", #timers, 0)
+Cast("secret")
+Equal("a secret spell ID is ignored", #timers, 0)
+Cast(LEY.racial, "party1")
+Equal("another unit's cast is ignored", #timers, 0)
+
+Cast(LEY.racial)
+Equal("the racial schedules a first look", #timers, 1)
+Equal("the first look comes after 0.2 s", timers[1][1], 0.2)
+RunTimers()
+Equal("no buff yet: it looks again", #timers, 1)
+Equal("again after 0.5 s", timers[1][1], 0.5)
+RunAll()
+Equal("it gives up after four looks", #timers, 0)
+Equal("nothing is saved without the buff", #saved, 1)
+
+auras[LEY.buff] = { duration = 30, expirationTime = now + 30 }
+Cast(LEY.racial)
+RunAll()
+Equal("a buff shorter than a minute is not the spot's", #saved, 1)
+
+auras[LEY.buff] = { duration = 600, expirationTime = now - 10 + 600 }
+Cast(LEY.racial)
+RunAll()
+Equal("a buff begun well before the cast is not the cast's", #saved, 1)
+
+auras[LEY.buff] = { duration = 600, expirationTime = now + 600 }
+Cast(LEY.racial)
+RunAll()
+Equal("the buff saves the spot", #saved, 2)
+Equal("rounded to a thousandth", saved[2][2], 0.55)
+Equal("it is indexed", Markers:Known("leyLines", 10, 0.55, 0.45, Flat), true)
+Equal("the map redraws", redraws, 1)
+Equal("the save is announced", printed[#printed], "Ley Line saved on your map: Zone 10 55.0, 45.0")
+
+Cast(LEY.racial)
+RunAll()
+Equal("the same spot is not saved twice", #saved, 2)
+playerAt.map = 11
+Cast(LEY.racial)
+RunAll()
+Equal("a spot without a world position is not saved", #saved, 2)
+playerAt.map, playerAt.x = 10, 0.2
+
+combat = true
+Cast(LEY.racial)
+RunAll()
+Equal("in combat it waits for combat to end", handlers.PLAYER_REGEN_ENABLED ~= nil, true)
+Equal("without saving yet", #saved, 2)
+combat = false
+handlers.PLAYER_REGEN_ENABLED[2](Spots, "PLAYER_REGEN_ENABLED")
+Equal("combat's end saves it", #saved, 3)
+Equal("and stops waiting", handlers.PLAYER_REGEN_ENABLED, nil)
+
+playerAt.x = 0.9
+auras[LEY.buff] = { duration = "secret", expirationTime = "secret" }
+Cast(LEY.racial)
+RunAll()
+Equal("a secret aura waits too", handlers.PLAYER_REGEN_ENABLED ~= nil, true)
+Spots:Apply(nil, shownSkyborne)
+Equal("turning off stops following casts", handlers.UNIT_SPELLCAST_SUCCEEDED, nil)
+Equal("and the wait", handlers.PLAYER_REGEN_ENABLED, nil)
+Equal("and drops the waiting cast", Spots.waiting, nil)
 
 io.stdout:write(("check_worldmap: %d checks passed\n"):format(checks))

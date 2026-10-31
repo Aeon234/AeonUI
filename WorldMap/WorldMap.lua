@@ -450,6 +450,10 @@ function WorldMap:AddMarkerLines(marker, first)
 	for _, stop in ipairs(marker.to or {}) do
 		GameTooltip_AddHighlightLine(GameTooltip, L["To %s"]:format(self:StopName(stop)))
 	end
+
+	if marker.learned then
+		GameTooltip_AddNormalLine(GameTooltip, L["Found by you"])
+	end
 end
 
 ---Adds what clicking the pin does.
@@ -589,6 +593,7 @@ function WorldMap:ApplyMarkers()
 		end
 
 		AUI.WorldMapMinimap:Apply(false)
+		AUI.WorldMapSpots:Apply(nil, self.shown)
 
 		return
 	end
@@ -602,6 +607,8 @@ function WorldMap:ApplyMarkers()
 
 		Markers:Index(rows)
 	end
+
+	AUI.WorldMapSpots:Load()
 
 	self.size = Profile:Get(Markers.SCALE_PATH) / 100
 	self.otherFaction = Profile:Get(Markers.OTHER_FACTION_PATH) == true
@@ -623,6 +630,16 @@ function WorldMap:ApplyMarkers()
 	end
 
 	AUI.WorldMapMinimap:Apply(true)
+	AUI.WorldMapSpots:Apply(self.race, self.shown)
+end
+
+---Redraws the markers after the index changed outside a settings change.
+function WorldMap:Redraw()
+	self.revision = self.revision + 1
+
+	if self.attached and WorldMapFrame:IsShown() then
+		AUI.WorldMapProvider:RefreshAllData()
+	end
 end
 
 ---Starts the module at login on a client with marker data.

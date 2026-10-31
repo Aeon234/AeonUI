@@ -12,6 +12,7 @@
 	<Script file="Unexplored.lua" />
 	<Script file="Levels.lua" />
 	<Script file="DungeonMap.lua" />
+	<Script file="Spots.lua" />
 	<Script file="WorldMap.lua" />
 
 	<Frame name="AeonUIWorldMapUnexploredPinTemplate" mixin="AeonUIWorldMapUnexploredPinMixin" virtual="true" />
