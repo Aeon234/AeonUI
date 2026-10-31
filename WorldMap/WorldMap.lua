@@ -340,7 +340,7 @@ end
 
 ---A click on a pin: Shift toggles the waypoint on its first marker; a transport shows its first destination on the
 ---left button and its second on the right, or offers a menu for more; an instance opens its dungeon map, or else the
----journal.
+---journal; any other pin toggles the waypoint on the left button.
 ---@param pin AeonUIWorldMapPinMixin
 ---@param button string
 function WorldMap:Click(pin, button)
@@ -371,7 +371,13 @@ function WorldMap:Click(pin, button)
 		return
 	end
 
-	if button ~= "LeftButton" or not group.category.instance then
+	if button ~= "LeftButton" then
+		return
+	end
+
+	if not group.category.instance then
+		self:ToggleWaypoint(marker)
+
 		return
 	end
 
@@ -473,8 +479,13 @@ function WorldMap:AddHints(group)
 	end
 
 	if C_Map.CanSetUserWaypointOnMap(marker.map) then
-		hints[#hints + 1] = self:HasWaypoint(marker) and L["Shift-click: remove the waypoint"]
-			or L["Shift-click: set a waypoint"]
+		local set = self:HasWaypoint(marker)
+
+		if group.category.transport or group.category.instance then
+			hints[#hints + 1] = set and L["Shift-click: remove the waypoint"] or L["Shift-click: set a waypoint"]
+		else
+			hints[#hints + 1] = set and L["Left-click: remove the waypoint"] or L["Left-click: set a waypoint"]
+		end
 	end
 
 	if #hints > 0 then

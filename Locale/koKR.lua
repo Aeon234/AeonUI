@@ -292,6 +292,8 @@ L["Click: choose a destination"] = "클릭: 목적지 선택"
 L["Left-click: %s"] = "왼쪽 클릭: %s"
 L["Shift-click: set a waypoint"] = "Shift-클릭: 경유지 설정"
 L["Shift-click: remove the waypoint"] = "Shift-클릭: 경유지 제거"
+L["Left-click: set a waypoint"] = "왼쪽 클릭: 경유지 설정"
+L["Left-click: remove the waypoint"] = "왼쪽 클릭: 경유지 제거"
 L["Dungeon Map"] = "던전 지도"
 
 -- Dungeon maps (World Map)

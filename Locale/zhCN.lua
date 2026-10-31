@@ -292,6 +292,8 @@ L["Click: choose a destination"] = "点击：选择目的地"
 L["Left-click: %s"] = "左键点击：%s"
 L["Shift-click: set a waypoint"] = "Shift-点击：设置路径点"
 L["Shift-click: remove the waypoint"] = "Shift-点击：移除路径点"
+L["Left-click: set a waypoint"] = "左键点击：设置路径点"
+L["Left-click: remove the waypoint"] = "左键点击：移除路径点"
 L["Dungeon Map"] = "地下城地图"
 
 -- Dungeon maps (World Map)

@@ -321,6 +321,8 @@ L["Click: choose a destination"] = "Click: choose a destination"
 L["Left-click: %s"] = "Left-click: %s"
 L["Shift-click: set a waypoint"] = "Shift-click: set a waypoint"
 L["Shift-click: remove the waypoint"] = "Shift-click: remove the waypoint"
+L["Left-click: set a waypoint"] = "Left-click: set a waypoint"
+L["Left-click: remove the waypoint"] = "Left-click: remove the waypoint"
 L["Dungeon Map"] = "Dungeon Map"
 
 -- Dungeon maps (World Map)

@@ -292,6 +292,8 @@ L["Click: choose a destination"] = "Clic : choisir une destination"
 L["Left-click: %s"] = "Clic gauche : %s"
 L["Shift-click: set a waypoint"] = "Maj-clic : placer un point de passage"
 L["Shift-click: remove the waypoint"] = "Maj-clic : retirer le point de passage"
+L["Left-click: set a waypoint"] = "Clic gauche : placer un point de passage"
+L["Left-click: remove the waypoint"] = "Clic gauche : retirer le point de passage"
 L["Dungeon Map"] = "Carte du donjon"
 
 -- Dungeon maps (World Map)
