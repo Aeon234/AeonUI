@@ -3,6 +3,8 @@ local AUI = select(2, ...)
 local Schema = AUI.Schema
 
 local UNMANAGED = "UNMANAGED"
+-- The largest `cameraDistanceMaxZoomFactor` both clients accept.
+local CAMERA_DISTANCE_MAX = "2.6"
 
 ---The Automation settings and the frame-free arithmetic behind them: which funds pay for a repair, and the value a
 ---managed game setting holds.
@@ -42,7 +44,8 @@ AUI.AutomationOptions = Options
 ---@class AUIManagedSetting
 ---@field key string
 ---@field path string
----@field list string the choice list: `managedSwitch` (on or off), `managedLevel` (0 to 3) or `managedBlock`
+---@field list string the choice list: `managedSwitch` (on or off), `managedLevel` (0 to 3), `managedCamera`
+---(the largest camera distance) or `managedBlock`
 ---@field group "game"|"blocks" the card that lists it
 ---@field cvar string? the console variable it keeps
 ---@field guild boolean? it keeps the guild-invite auto decline
@@ -52,6 +55,7 @@ AUI.AutomationOptions = Options
 local MANAGED = {
 	{ key = "autoLoot", list = "managedSwitch", group = "game", cvar = "autoLootDefault" },
 	{ key = "weather", list = "managedLevel", group = "game", cvar = "weatherDensity" },
+	{ key = "cameraDistance", list = "managedCamera", group = "game", cvar = "cameraDistanceMaxZoomFactor" },
 	{ key = "trades", list = "managedSwitch", group = "blocks", cvar = "blockTrades" },
 	{ key = "guildInvites", list = "managedSwitch", group = "blocks", guild = true },
 	{ key = "channelInvites", list = "managedSwitch", group = "blocks", cvar = "blockChannelInvites" },
@@ -61,6 +65,7 @@ local MANAGED = {
 Schema:Choices("repairFunds", Options.FUNDS)
 Schema:Choices("managedSwitch", { UNMANAGED, "ON", "OFF" })
 Schema:Choices("managedLevel", { UNMANAGED, "0", "1", "2", "3" })
+Schema:Choices("managedCamera", { UNMANAGED, "MAX" })
 Schema:Choices("managedBlock", { UNMANAGED, "BLOCKED" })
 
 Schema:Boolean(Options.SELL_JUNK_PATH, false)
@@ -127,16 +132,33 @@ function Options.ChooseFunds(funds, cost, canGuild, guildFunds, money)
 end
 
 ---The value a managed console variable should hold.
----@param choice string a `managedSwitch` or `managedLevel` choice
+---@param choice string a `managedSwitch`, `managedLevel` or `managedCamera` choice
 ---@return string? value nil while the setting is left to the game
 function Options.Wanted(choice)
 	if choice == "ON" then
 		return "1"
 	elseif choice == "OFF" then
 		return "0"
+	elseif choice == "MAX" then
+		return CAMERA_DISTANCE_MAX
 	elseif choice == UNMANAGED or choice == nil then
 		return nil
 	end
 
 	return choice
+end
+
+---Whether a console variable already holds the wanted value. Numbers compare by value, since the client may format a
+---decimal value differently from the string it was set with.
+---@param current string? `C_CVar.GetCVar()`
+---@param wanted string
+---@return boolean
+function Options.Holds(current, wanted)
+	if current == wanted then
+		return true
+	end
+
+	local number = tonumber(current)
+
+	return number ~= nil and number == tonumber(wanted)
 end

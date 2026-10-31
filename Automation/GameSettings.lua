@@ -5,9 +5,9 @@ local Options = AUI.AutomationOptions
 local UNMANAGED = Options.UNMANAGED
 local DUEL_POPUPS = { "DUEL_REQUESTED", "DUEL_TO_THE_DEATH_REQUESTED" }
 
----Keeps the chosen game settings on every character using the profile: auto loot, weather, and blocking trades, guild
----invites, channel invites and duels. Each is applied at login, on every change, and again whenever the game or its own
----option changes it. Not Managed leaves a setting to the game.
+---Keeps the chosen game settings on every character using the profile: auto loot, weather, the camera's largest
+---distance, and blocking trades, guild invites, channel invites and duels. Each is applied at login, on every change,
+---and again whenever the game or its own option changes it. Not Managed leaves a setting to the game.
 ---@class AUIGameSettings
 ---@field active boolean following the game's changes
 ---@field hooked boolean the guild-invite setter is hooked
@@ -52,7 +52,7 @@ function GameSettings:ApplySetting(setting)
 	elseif setting.cvar then
 		local wanted = Options.Wanted(choice)
 
-		if wanted and C_CVar.GetCVar(setting.cvar) ~= wanted then
+		if wanted and not Options.Holds(C_CVar.GetCVar(setting.cvar), wanted) then
 			C_CVar.SetCVar(setting.cvar, wanted)
 		end
 	end
