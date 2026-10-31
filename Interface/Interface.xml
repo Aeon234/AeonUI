@@ -7,5 +7,6 @@
 	<Script file="HideFrames.lua" />
 	<Script file="Popups.lua" />
 	<Script file="ReleaseProtection.lua" />
+	<Script file="TradingPost.lua" />
 	<Script file="Interface.lua" />
 </Ui>

@@ -571,6 +571,9 @@ L["Click-Through Toasts"] = "可點穿的通知"
 L["Level-up and new-zone banners; clicking no longer opens their details."] = "升級和新區域橫幅；點擊不再開啟詳情。"
 L["Confirm Release Spirit"] = "確認釋放靈魂"
 L["Release Spirit stays disabled until you answer Yes."] = "回答「是」之前，釋放靈魂按鈕保持停用。"
+L["Trading Post"] = "貿易站"
+L["Disable Combat Previews"] = "停用戰鬥預覽"
+L["Each item's preview starts without its combat animation."] = "每件物品的預覽開始時不播放戰鬥動畫。"
 
 -- Screen Text page (Settings)
 L["Style Screen Text"] = "設定螢幕文字樣式"

@@ -571,6 +571,9 @@ L["Click-Through Toasts"] = "Сквозные уведомления"
 L["Level-up and new-zone banners; clicking no longer opens their details."] = "Баннеры уровня и новой зоны; щелчок больше не открывает подробности."
 L["Confirm Release Spirit"] = "Подтверждать освобождение духа"
 L["Release Spirit stays disabled until you answer Yes."] = "«Освободить дух» недоступно, пока вы не ответите «Да»."
+L["Trading Post"] = "Торговая лавка"
+L["Disable Combat Previews"] = "Отключить боевой предпросмотр"
+L["Each item's preview starts without its combat animation."] = "Предпросмотр каждого предмета начинается без боевой анимации."
 
 -- Screen Text page (Settings)
 L["Style Screen Text"] = "Оформлять текст на экране"

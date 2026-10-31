@@ -571,6 +571,9 @@ L["Click-Through Toasts"] = "클릭 통과 알림"
 L["Level-up and new-zone banners; clicking no longer opens their details."] = "레벨 상승과 새 지역 알림. 클릭해도 세부 정보가 열리지 않습니다."
 L["Confirm Release Spirit"] = "영혼 해방 확인"
 L["Release Spirit stays disabled until you answer Yes."] = "예를 누를 때까지 영혼 해방이 비활성화됩니다."
+L["Trading Post"] = "교역소"
+L["Disable Combat Previews"] = "전투 미리보기 끄기"
+L["Each item's preview starts without its combat animation."] = "각 아이템의 미리보기가 전투 애니메이션 없이 시작됩니다."
 
 -- Screen Text page (Settings)
 L["Style Screen Text"] = "화면 문자 스타일"

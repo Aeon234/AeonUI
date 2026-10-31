@@ -571,6 +571,9 @@ L["Click-Through Toasts"] = "Durchklickbare Einblendungen"
 L["Level-up and new-zone banners; clicking no longer opens their details."] = "Stufenaufstieg- und Gebietsbanner; ein Klick öffnet ihre Details nicht mehr."
 L["Confirm Release Spirit"] = "Geist freilassen bestätigen"
 L["Release Spirit stays disabled until you answer Yes."] = "„Geist freilassen“ bleibt deaktiviert, bis du mit Ja antwortest."
+L["Trading Post"] = "Handelsposten"
+L["Disable Combat Previews"] = "Kampfvorschau deaktivieren"
+L["Each item's preview starts without its combat animation."] = "Die Vorschau jedes Gegenstands startet ohne Kampfanimation."
 
 -- Screen Text page (Settings)
 L["Style Screen Text"] = "Bildschirmtext gestalten"

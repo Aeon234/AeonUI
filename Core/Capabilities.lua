@@ -44,6 +44,7 @@ AUI.Capabilities = Capabilities
 ---@field vaultOverlay boolean the Great Vault covers itself away from the vault (Retail)
 ---@field skipCountdown boolean static pop-ups count down through `StaticPopup_OnUpdate`
 ---@field confirmBind boolean a bind-on-pickup loot slot can be confirmed (`ConfirmLootSlot`)
+---@field tradingPost boolean the Trading Post's attack animation toggle can be followed (Retail)
 ---@field easyDestroy boolean the destroy pop-up that asks for the confirmation word can be found when shown
 ---@field clickThroughToasts boolean event toasts are shown by `EventToastManagerFrame`
 ---@field releaseProtection boolean the death dialog updates through `StaticPopupDialogs.DEATH.OnUpdate`
@@ -124,6 +125,8 @@ function Capabilities:Resolve()
 	can.vaultOverlay = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE and C_WeeklyRewards ~= nil
 	can.skipCountdown = StaticPopup_OnUpdate ~= nil and StaticPopupDialogs ~= nil
 	can.confirmBind = ConfirmLootSlot ~= nil and StaticPopup_Hide ~= nil
+	can.tradingPost = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE and C_PerksProgram ~= nil
+		and C_PerksProgram.IsAttackAnimToggleEnabled ~= nil
 	can.easyDestroy = StaticPopup_FindVisible ~= nil and DELETE_ITEM_CONFIRM_STRING ~= nil and StaticPopupDialogs ~= nil
 		and StaticPopupDialogs.DELETE_GOOD_ITEM ~= nil
 	can.clickThroughToasts = EventToastManagerFrame ~= nil and EventToastManagerFrame.DisplayToast ~= nil

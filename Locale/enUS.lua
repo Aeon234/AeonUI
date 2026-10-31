@@ -614,6 +614,9 @@ L["Click-Through Toasts"] = "Click-Through Toasts"
 L["Level-up and new-zone banners; clicking no longer opens their details."] = "Level-up and new-zone banners; clicking no longer opens their details."
 L["Confirm Release Spirit"] = "Confirm Release Spirit"
 L["Release Spirit stays disabled until you answer Yes."] = "Release Spirit stays disabled until you answer Yes."
+L["Trading Post"] = "Trading Post"
+L["Disable Combat Previews"] = "Disable Combat Previews"
+L["Each item's preview starts without its combat animation."] = "Each item's preview starts without its combat animation."
 
 -- Screen Text page (Settings)
 L["Style Screen Text"] = "Style Screen Text"

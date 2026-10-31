@@ -640,6 +640,14 @@ end
 Equal("Hold to Skip's keys", table.concat(skipKeys, ","), "No Key,Shift,Ctrl,Alt")
 AUI.can.skipCountdown, AUI.can.confirmBind, AUI.can.clickThroughToasts = nil, nil, nil
 AUI.can.releaseProtection, AUI.can.easyDestroy = nil, nil
+AUI.can.tradingPost = true
+window = Load(nil)
+local tradingPostCard = window.pages.interface.sections.interfaceTradingPost
+Equal("Retail: the Trading Post card alone keeps the page", tradingPostCard.title .. ": "
+	.. tradingPostCard.settings[1].label .. "=" .. tostring(tradingPostCard.settings[1].default) .. " / "
+	.. tradingPostCard.settings[1].description,
+	"Trading Post: Disable Combat Previews=false / Each item's preview starts without its combat animation.")
+AUI.can.tradingPost = nil
 AUI.can.screenText = true
 window = Load(nil)
 Equal("Screen Text follows Alerts", table.concat(window.order, " "), "general #mapsHeader minimap #tooltipHeader "

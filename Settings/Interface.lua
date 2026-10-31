@@ -21,7 +21,7 @@ function SettingsInterface:IsAvailable()
 
 	return can.extraActionButton == true or can.helpTips == true or can.bossBanner == true or can.vaultOverlay == true
 		or can.skipCountdown == true or can.confirmBind == true or can.easyDestroy == true
-		or can.clickThroughToasts == true or can.releaseProtection == true
+		or can.clickThroughToasts == true or can.releaseProtection == true or can.tradingPost == true
 end
 
 ---@param section table
@@ -126,6 +126,14 @@ function SettingsInterface:DeclarePopups(page)
 	end
 end
 
+---@param page table
+function SettingsInterface:DeclareTradingPost(page)
+	local card = page:Section("interfaceTradingPost", L["Trading Post"])
+
+	Checkbox(card, "tradingPostCombat", L["Disable Combat Previews"],
+		L["Each item's preview starts without its combat animation."], AUI.InterfaceOptions.TRADING_POST_COMBAT_PATH)
+end
+
 ---@param window table
 function SettingsInterface:Declare(window)
 	local page = window:Page("interface", {
@@ -145,4 +153,8 @@ function SettingsInterface:Declare(window)
 
 	self:DeclareHide(page)
 	self:DeclarePopups(page)
+
+	if AUI.can.tradingPost then
+		self:DeclareTradingPost(page)
+	end
 end

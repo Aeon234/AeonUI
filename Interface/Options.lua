@@ -2,8 +2,8 @@ local AUI = select(2, ...)
 
 local Schema = AUI.Schema
 
----The Interface page's profile settings: the extra action button's art, the Blizzard frames AeonUI hides, and how
----Blizzard's pop-ups and toasts behave.
+---The Interface page's profile settings: the extra action button's art, the Blizzard frames AeonUI hides, how
+---Blizzard's pop-ups and toasts behave, and the Trading Post's previews.
 ---@class AUIInterfaceOptions
 ---@field CLICK_THROUGH_PATH string the art around the extra action, zone ability and alternate power bar lets clicks pass
 ---@field HIDE_ART_PATH string the art around the extra action and zone ability buttons is hidden
@@ -16,6 +16,7 @@ local Schema = AUI.Schema
 ---@field EASY_DESTROY_PATH string the destroy pop-up's confirmation word is typed in
 ---@field TOAST_CLICK_THROUGH_PATH string event toasts let clicks through to the world
 ---@field RELEASE_PROTECTION_PATH string Release Spirit waits for a confirmation on death
+---@field TRADING_POST_COMBAT_PATH string Trading Post previews start without their combat animation (Retail)
 ---@field SKIP_KEYS string[] the Hold to Skip choices, in the order the page lists them
 local Options = {
 	CLICK_THROUGH_PATH = "interface.extraActionButton.clickThrough",
@@ -29,6 +30,7 @@ local Options = {
 	EASY_DESTROY_PATH = "interface.popups.easyDestroy",
 	TOAST_CLICK_THROUGH_PATH = "interface.popups.toastClickThrough",
 	RELEASE_PROTECTION_PATH = "interface.popups.releaseProtection",
+	TRADING_POST_COMBAT_PATH = "interface.tradingPost.noCombatAnimation",
 	SKIP_KEYS = { "NONE", "SHIFT", "CTRL", "ALT" },
 }
 AUI.InterfaceOptions = Options
@@ -46,6 +48,7 @@ Schema:Boolean(Options.CONFIRM_BIND_PATH, false)
 Schema:Boolean(Options.EASY_DESTROY_PATH, false)
 Schema:Boolean(Options.TOAST_CLICK_THROUGH_PATH, false)
 Schema:Boolean(Options.RELEASE_PROTECTION_PATH, false)
+Schema:Boolean(Options.TRADING_POST_COMBAT_PATH, false)
 
 ---@param path string one of the paths above
 ---@return any value

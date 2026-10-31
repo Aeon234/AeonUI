@@ -571,6 +571,9 @@ L["Click-Through Toasts"] = "可点穿的通知"
 L["Level-up and new-zone banners; clicking no longer opens their details."] = "升级和新区域横幅；点击不再打开详情。"
 L["Confirm Release Spirit"] = "确认释放灵魂"
 L["Release Spirit stays disabled until you answer Yes."] = "回答“是”之前，释放灵魂按钮保持禁用。"
+L["Trading Post"] = "商栈"
+L["Disable Combat Previews"] = "禁用战斗预览"
+L["Each item's preview starts without its combat animation."] = "每件物品的预览开始时不播放战斗动画。"
 
 -- Screen Text page (Settings)
 L["Style Screen Text"] = "设置屏幕文字样式"

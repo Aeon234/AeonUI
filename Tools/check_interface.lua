@@ -367,7 +367,8 @@ end
 
 for _, file in ipairs({ "Profile/Schema.lua", "Interface/Options.lua", "Interface/ExtraActionButton.lua",
 	"Interface/HelpTips.lua", "Interface/HideFrames.lua",
-	"Interface/Popups.lua", "Interface/ReleaseProtection.lua", "Interface/Interface.lua" }) do
+	"Interface/Popups.lua", "Interface/ReleaseProtection.lua", "Interface/TradingPost.lua",
+	"Interface/Interface.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 
@@ -682,5 +683,77 @@ Equal("hooked once", StaticPopupDialogs.DEATH.OnUpdate, guarded)
 Equal("the confirmation shows while dead and lasts", tostring(StaticPopupDialogs.AEONUI_RELEASE_SPIRIT.whileDead)
 	.. " " .. StaticPopupDialogs.AEONUI_RELEASE_SPIRIT.timeout .. " "
 	.. tostring(StaticPopupDialogs.AEONUI_RELEASE_SPIRIT.hideOnEscape), "true 0 false")
+
+-- Trading Post ---------------------------------------------------------------------------------------------
+
+local animToggle = true
+C_PerksProgram = {
+	IsAttackAnimToggleEnabled = function()
+		return animToggle
+	end,
+}
+local function TradingPostFrame()
+	local checkbox = { checked = true }
+	function checkbox:SetChecked(checked)
+		self.checked = checked
+	end
+	local footer = { ToggleAttackAnimation = checkbox }
+	function footer:UpdateTransmogControls(_categoryID, _newProduct, _displayData) end
+	-- Blizzard's frame starts with the attack animation on.
+	local frame = { FooterFrame = footer, setting = true, sets = 0, scripts = {} }
+	function frame:GetAttackAnimationSetting()
+		return self.setting
+	end
+	function frame:SetAttackAnimationSetting(setting)
+		self.setting = setting
+		self.sets = self.sets + 1
+	end
+	function frame:HookScript(script, hook)
+		assert(self.scripts[script] == nil, "hooked twice: " .. script)
+		self.scripts[script] = hook
+	end
+
+	return frame
+end
+local function Preview(frame)
+	return tostring(frame.setting) .. " " .. tostring(frame.FooterFrame.ToggleAttackAnimation.checked)
+end
+
+Equal("the Trading Post is off by default", AUI.Profile:Get(Options.TRADING_POST_COMBAT_PATH), false)
+Set(Options.TRADING_POST_COMBAT_PATH, true)
+Equal("without the Trading Post (Forever) nothing is followed", eventFrame.events.ADDON_LOADED, nil)
+Set(Options.TRADING_POST_COMBAT_PATH, false)
+AUI.can.tradingPost = true
+Set(Options.TRADING_POST_COMBAT_PATH, true)
+Equal("on: waits for the Trading Post to load", eventFrame.events.ADDON_LOADED, true)
+Fire("ADDON_LOADED", "Blizzard_Collections")
+Equal("another addon is ignored", eventFrame.events.ADDON_LOADED, true)
+PerksProgramFrame = TradingPostFrame()
+loaded.Blizzard_PerksProgram = true
+Fire("ADDON_LOADED", "Blizzard_PerksProgram")
+Equal("then stops waiting", eventFrame.events.ADDON_LOADED, nil)
+PerksProgramFrame.scripts.OnShow(PerksProgramFrame)
+Equal("opening it turns the combat animation off", Preview(PerksProgramFrame), "false false")
+PerksProgramFrame.setting, PerksProgramFrame.FooterFrame.ToggleAttackAnimation.checked = true, true
+PerksProgramFrame.FooterFrame:UpdateTransmogControls(1, false, {})
+Equal("the player's choice holds for the product shown", Preview(PerksProgramFrame), "true true")
+PerksProgramFrame.FooterFrame:UpdateTransmogControls(1, true, {})
+Equal("a new product starts without it", Preview(PerksProgramFrame), "false false")
+local previewSets = PerksProgramFrame.sets
+PerksProgramFrame.FooterFrame:UpdateTransmogControls(1, true, {})
+Equal("an animation already off is not set again", PerksProgramFrame.sets, previewSets)
+animToggle = false
+PerksProgramFrame.setting = true
+PerksProgramFrame.FooterFrame:UpdateTransmogControls(1, true, {})
+Equal("without Blizzard's toggle the animation is left alone", PerksProgramFrame.setting, true)
+animToggle = true
+local footerUpdate = PerksProgramFrame.FooterFrame.UpdateTransmogControls
+Set(Options.TRADING_POST_COMBAT_PATH, false)
+PerksProgramFrame.FooterFrame:UpdateTransmogControls(1, true, {})
+Equal("off: previews are Blizzard's", PerksProgramFrame.setting, true)
+Set(Options.TRADING_POST_COMBAT_PATH, true)
+Equal("on again: hooked once, without waiting", tostring(PerksProgramFrame.FooterFrame.UpdateTransmogControls
+	== footerUpdate) .. " " .. tostring(eventFrame.events.ADDON_LOADED), "true nil")
+AUI.can.tradingPost = nil
 
 io.stdout:write(("check_interface: %d checks passed\n"):format(checks))
