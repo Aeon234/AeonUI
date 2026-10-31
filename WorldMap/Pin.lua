@@ -6,11 +6,11 @@ local ICON_CROP = 0.08
 ---A marker pin on Blizzard's world map: one group of markers at one spot, drawn with its first category's icon at a
 ---constant size on screen whatever the map's zoom. Pooled by the map canvas per template: the plain template passes
 ---the right button through to the map, so a right click zooms out; the transport template keeps it for a second
----destination.
+---destination, and the learned template for forgetting the spot.
 ---@class AeonUIWorldMapPinMixin
 ---@field Icon Texture
 ---@field Pulse AnimationGroup draws the eye to the pin after a transport click
----@field handlesRightButton boolean? set by the transport template
+---@field handlesRightButton boolean? set by the transport and learned templates
 ---@field group AUIWorldMapGroup? the markers the pin shows, while acquired
 ---@field passthroughSet boolean? the right button passes through to the map
 AeonUIWorldMapPinMixin = CreateFromMixins(MapCanvasPinMixin)

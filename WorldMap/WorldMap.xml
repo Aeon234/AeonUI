@@ -41,4 +41,10 @@
 			<KeyValue key="handlesRightButton" value="true" type="boolean" />
 		</KeyValues>
 	</Button>
+
+	<Button name="AeonUIWorldMapLearnedPinTemplate" inherits="AeonUIWorldMapPinTemplate" virtual="true">
+		<KeyValues>
+			<KeyValue key="handlesRightButton" value="true" type="boolean" />
+		</KeyValues>
+	</Button>
 </Ui>

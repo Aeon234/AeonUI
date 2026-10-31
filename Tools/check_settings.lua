@@ -1353,11 +1353,13 @@ Equal("the map's cards, then the markers'", table.concat(worldMapIDs, " "),
 local switches = 0
 for _, section in ipairs(worldMap.sections) do
 	for _, setting in ipairs(section.settings) do
-		local field = AUI.Schema:Field(setting.path)
+		if setting.kind ~= "Button" then
+			local field = AUI.Schema:Field(setting.path)
 
-		switches = switches + (setting.id:match("^marker_") and 1 or 0)
-		Equal(setting.id .. " names a setting", field ~= nil, true)
-		Equal(setting.id .. " carries its default", setting.default, field.default)
+			switches = switches + (setting.id:match("^marker_") and 1 or 0)
+			Equal(setting.id .. " names a setting", field ~= nil, true)
+			Equal(setting.id .. " carries its default", setting.default, field.default)
+		end
 		Equal(setting.id .. " has a label", type(setting.label), "string")
 	end
 end
@@ -1392,6 +1394,26 @@ AUI.WorldMap.race, AUI.WorldMap.class = 95, "HUNTER"
 Equal("which sees them", leyLines.show(), true)
 Equal("a hunter sees stable masters", stables.show(), true)
 Equal("dungeons are offered to everyone", worldMap.sections.places.settings.marker_dungeons.show, nil)
+local forget = markers.settings.forgetSpots
+local forgotAll, anyLearned = false, false
+AUI.WorldMapSpots = {
+	AnyLearned = function() return anyLearned end,
+	ForgetAll = function() forgotAll = true end,
+}
+Equal("Forget Learned Spots is a button", forget.kind, "Button")
+Equal("which asks first", type(forget.confirm), "string")
+Equal("and follows the markers' switch", forget.depends, "markers")
+Equal("it is offered to a Skyborne race", forget.show(), true)
+AUI.WorldMap.race = 96
+Equal("either of them", forget.show(), true)
+AUI.WorldMap.race = 1
+Equal("not to other races", forget.show(), false)
+Equal("with nothing found it is blocked", type(forget.blocked()), "string")
+anyLearned = true
+Equal("with spots found it is not", forget.blocked(), nil)
+forget.run()
+Equal("it forgets every learned spot", forgotAll, true)
+AUI.WorldMapSpots = nil
 AUI.WorldMap = nil
 Equal("the page is listed as the World Map's", AUI.SettingsWorldMap.pageIDs.worldMap, true)
 AUI.can.worldMapMarkers = nil

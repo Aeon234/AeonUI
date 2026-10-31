@@ -240,6 +240,12 @@ L["Also marks the other faction's boats, zeppelins, trams and battleground entra
 L["Marker Size"] = "Marker Size"
 L["Markers keep this size on screen as the map zooms, smaller on continent maps."] =
 	"Markers keep this size on screen as the map zooms, smaller on continent maps."
+L["Forget Learned Spots"] = "Forget Learned Spots"
+L["Forgets the spots this account found by casting the racial. The shipped spots stay."] =
+	"Forgets the spots this account found by casting the racial. The shipped spots stay."
+L["Forget All"] = "Forget All"
+L["Forget every spot this account found?"] = "Forget every spot this account found?"
+L["No spots found yet."] = "No spots found yet."
 L["Zone Exits"] = "Zone Exits"
 L["Town"] = "Town"
 L["Innkeepers"] = "Innkeepers"
@@ -324,6 +330,9 @@ L["Shift-click: remove the waypoint"] = "Shift-click: remove the waypoint"
 L["Left-click: set a waypoint"] = "Left-click: set a waypoint"
 L["Left-click: remove the waypoint"] = "Left-click: remove the waypoint"
 L["Found by you"] = "Found by you"
+L["Stand here and cast %s."] = "Stand here and cast %s."
+L["Cast %s here for %s."] = "Cast %s here for %s."
+L["Ctrl-right-click: forget this spot"] = "Ctrl-right-click: forget this spot"
 L["%s saved on your map: %s %.1f, %.1f"] = "%s saved on your map: %s %.1f, %.1f"
 L["Dungeon Map"] = "Dungeon Map"
 

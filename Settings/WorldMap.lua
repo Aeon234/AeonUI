@@ -177,6 +177,33 @@ function SettingsWorldMap:DeclareMarkers(page)
 		format = "percent",
 		depends = "markers",
 	})
+	display:Button({
+		id = "forgetSpots",
+		label = L["Forget Learned Spots"],
+		description = L["Forgets the spots this account found by casting the racial. The shipped spots stay."],
+		verb = L["Forget All"],
+		confirm = L["Forget every spot this account found?"],
+		depends = "markers",
+		show = function()
+			local race = AUI.WorldMap.race
+
+			for _, category in ipairs(Markers.CATEGORIES) do
+				if category.racial and category.race == race then
+					return true
+				end
+			end
+
+			return false
+		end,
+		blocked = function()
+			if not AUI.WorldMapSpots:AnyLearned() then
+				return L["No spots found yet."]
+			end
+		end,
+		run = function()
+			AUI.WorldMapSpots:ForgetAll()
+		end,
+	})
 
 	for _, info in ipairs(SECTIONS) do
 		local section = page:Section(info.id, info.title, { show = Shown, columns = 2 })

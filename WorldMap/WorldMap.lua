@@ -338,9 +338,30 @@ function WorldMap:ChooseStop(pin, stops)
 	end)
 end
 
+---Forgets the learned spots among a group's markers.
+---@param group AUIWorldMapGroup
+---@return boolean forgot the group held a learned spot
+function WorldMap:ForgetLearned(group)
+	if not Markers:HasLearned(group) then
+		return false
+	end
+
+	for _, marker in ipairs(group.markers) do
+		if marker.learned then
+			AUI.WorldMapSpots:Forget(marker)
+		end
+	end
+
+	GameTooltip:Hide()
+	self:Redraw()
+
+	return true
+end
+
 ---A click on a pin: Shift toggles the waypoint on its first marker; a transport shows its first destination on the
 ---left button and its second on the right, or offers a menu for more; an instance opens its dungeon map, or else the
----journal; any other pin toggles the waypoint on the left button.
+---journal; any other pin toggles the waypoint on the left button. A pin holding a learned spot keeps the right button:
+---Ctrl forgets the spot, and otherwise it zooms out as the map would.
 ---@param pin AeonUIWorldMapPinMixin
 ---@param button string
 function WorldMap:Click(pin, button)
@@ -366,6 +387,14 @@ function WorldMap:Click(pin, button)
 			end
 		elseif stops[1] then
 			self:Travel(stops[1], pin)
+		end
+
+		return
+	end
+
+	if button == "RightButton" then
+		if not (IsControlKeyDown() and self:ForgetLearned(group)) then
+			WorldMapFrame:NavigateToParentMap()
 		end
 
 		return
@@ -451,6 +480,13 @@ function WorldMap:AddMarkerLines(marker, first)
 		GameTooltip_AddHighlightLine(GameTooltip, L["To %s"]:format(self:StopName(stop)))
 	end
 
+	local racial = category.howTo and C_Spell.GetSpellName(category.racial --[[@as number]])
+
+	if racial then
+		GameTooltip_AddNormalLine(GameTooltip, L[category.howTo]:format(racial,
+			C_Spell.GetSpellName(category.buff --[[@as number]]) or ""), true)
+	end
+
 	if marker.learned then
 		GameTooltip_AddNormalLine(GameTooltip, L["Found by you"])
 	end
@@ -490,6 +526,10 @@ function WorldMap:AddHints(group)
 		else
 			hints[#hints + 1] = set and L["Left-click: remove the waypoint"] or L["Left-click: set a waypoint"]
 		end
+	end
+
+	if Markers:HasLearned(group) then
+		hints[#hints + 1] = L["Ctrl-right-click: forget this spot"]
 	end
 
 	if #hints > 0 then

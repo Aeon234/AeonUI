@@ -200,6 +200,13 @@ Equal("but not among the shipped markers", Markers:Known("leyLines", 10, 0.61, 0
 local onNewMap = Markers:AddLearned("convergences", 12, 0.5, 0.5)
 Equal("a learned spot on a new map indexes that map", Markers.byMap[12][1], onNewMap)
 Equal("the maps stay in order", Markers.maps[#Markers.maps], 12)
+Equal("a group with a learned spot holds one", Markers:HasLearned({ markers = { {}, learned } }), true)
+Equal("one without does not", Markers:HasLearned({ markers = { {} } }), false)
+Markers:RemoveLearned(learned)
+Equal("a removed learned spot is no longer drawn", Count({ faction = "Horde", race = 95 }), 5)
+Equal("nor known", Markers:Known("leyLines", 10, 0.61, 0.9, Flat), false)
+Markers:RemoveLearned(learned)
+Equal("removing it twice changes nothing", Count({ faction = "Horde", race = 95 }), 5)
 
 -- Destinations ----------------------------------------------------------------------------------------------
 
@@ -525,6 +532,10 @@ for _, category in ipairs(Markers.CATEGORIES) do
 	Equal(category.key .. "'s label is a locale key", rawget(L, category.label) ~= nil, true)
 	Equal(category.key .. "'s name, if any, is a locale key", category.name == nil or rawget(L, category.name) ~= nil,
 		true)
+	Equal(category.key .. "'s how-to line, if any, is a locale key",
+		category.howTo == nil or rawget(L, category.howTo) ~= nil, true)
+	Equal(category.key .. " has a how-to line exactly when it has a racial", category.howTo ~= nil,
+		category.racial ~= nil)
 	for kind, info in pairs(category.kinds or {}) do
 		Equal(category.key .. " kind " .. kind .. "'s label is a locale key", rawget(L, info.label) ~= nil, true)
 	end
@@ -683,5 +694,27 @@ Spots:Apply(nil, shownSkyborne)
 Equal("turning off stops following casts", handlers.UNIT_SPELLCAST_SUCCEEDED, nil)
 Equal("and the wait", handlers.PLAYER_REGEN_ENABLED, nil)
 Equal("and drops the waiting cast", Spots.waiting, nil)
+
+local firstSaved = saved[1]
+local firstMarker
+for marker, spot in pairs(Spots.learned) do
+	if spot == firstSaved then
+		firstMarker = marker
+	end
+end
+Equal("each saved spot knows its marker", firstMarker ~= nil, true)
+Equal("spots are found", Spots:AnyLearned(), true)
+local before = #saved
+Spots:Forget(firstMarker)
+Equal("forgetting a spot takes it out of the saved spots", #saved, before - 1)
+Equal("and out of the index", Markers:Known("leyLines", 10, firstSaved[2], firstSaved[3], Flat), false)
+Equal("and out of the learned markers", Spots.learned[firstMarker], nil)
+local redrawsBefore = redraws
+Spots:ForgetAll()
+Equal("forgetting all empties the saved spots", global.worldMapSpots.leyLines, nil)
+Equal("and the learned markers", next(Spots.learned), nil)
+Equal("and the index keeps only the shipped markers", #Markers.byMap[10], 2)
+Equal("nothing is found afterward", Spots:AnyLearned(), false)
+Equal("forgetting all redraws", redraws, redrawsBefore + 1)
 
 io.stdout:write(("check_worldmap: %d checks passed\n"):format(checks))

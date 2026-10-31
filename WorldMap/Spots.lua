@@ -29,7 +29,8 @@ local SECRET = {} --[[@as AuraData]]
 ---@field loaded boolean the saved spots are in the marker index
 ---@field category AUIWorldMapCategory? the category whose racial is followed
 ---@field waiting AUIWorldMapCast? a cast whose buff waits for combat to end
-local Spots = { loaded = false }
+---@field learned table<AUIWorldMapMarker, number[]> each learned marker's saved spot
+local Spots = { loaded = false, learned = {} }
 AUI.WorldMapSpots = Spots
 
 ---@return table<string, number[][]>? store the saved spots by category key; nil while the saved data cannot be used
@@ -91,7 +92,7 @@ function Spots:Load()
 				if not valid or Markers:Known(category.key, spot[1], spot[2], spot[3], World, true) then
 					table.remove(list, index)
 				else
-					Markers:AddLearned(category.key, spot[1], spot[2], spot[3])
+					self.learned[Markers:AddLearned(category.key, spot[1], spot[2], spot[3])] = spot
 				end
 			end
 		end
@@ -239,13 +240,62 @@ function Spots:Save(cast)
 	end
 
 	local list = store[key]
+	local spot = { cast.map, cast.x, cast.y }
 
-	list[#list + 1] = { cast.map, cast.x, cast.y }
-	Markers:AddLearned(key, cast.map, cast.x, cast.y)
+	list[#list + 1] = spot
+	self.learned[Markers:AddLearned(key, cast.map, cast.x, cast.y)] = spot
 
 	local info = C_Map.GetMapInfo(cast.map)
 
 	AUI:Print(L["%s saved on your map: %s %.1f, %.1f"], L[cast.category.label], info and info.name or UNKNOWN,
 		cast.x * 100, cast.y * 100)
+	AUI.WorldMap:Redraw()
+end
+
+---@return boolean any this account has saved a spot
+function Spots:AnyLearned()
+	for _, list in pairs(self:Store() or {}) do
+		if type(list) == "table" and #list > 0 then
+			return true
+		end
+	end
+
+	return false
+end
+
+---Forgets one learned spot: takes it out of the saved spots and the index. The caller redraws.
+---@param marker AUIWorldMapMarker
+function Spots:Forget(marker)
+	local spot = self.learned[marker]
+	local store = self:Store()
+	local list = store and store[marker.category]
+
+	if type(list) == "table" then
+		for index = #list, 1, -1 do
+			if list[index] == spot then
+				table.remove(list, index)
+			end
+		end
+	end
+
+	self.learned[marker] = nil
+	Markers:RemoveLearned(marker)
+end
+
+---Forgets every spot this account saved, and redraws.
+function Spots:ForgetAll()
+	local store = self:Store()
+
+	for _, category in ipairs(Markers.CATEGORIES) do
+		if store and category.racial then
+			store[category.key] = nil
+		end
+	end
+
+	for marker in pairs(self.learned) do
+		Markers:RemoveLearned(marker)
+	end
+
+	self.learned = {}
 	AUI.WorldMap:Redraw()
 end

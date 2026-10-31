@@ -37,6 +37,8 @@ local ICONS = "Interface\\Icons\\"
 ---@field exit boolean? its markers point along the road toward the zone they lead to
 ---@field racial number? the spell ID of the race's racial cast on the category's spots
 ---@field buff number? the spell ID of the aura the racial gives on a spot
+---@field howTo string? the locale key of the tooltip line on what to cast there, formatted with the racial's and the
+---buff's names
 
 ---@class AUIWorldMapIcon
 ---@field atlas string?
@@ -179,6 +181,7 @@ local Markers = {
 			race = 95,
 			racial = 1259705,
 			buff = 1259691,
+			howTo = "Stand here and cast %s.",
 			name = "Ley Line",
 		},
 		{
@@ -190,6 +193,7 @@ local Markers = {
 			race = 96,
 			racial = 1259686,
 			buff = 1270893,
+			howTo = "Cast %s here for %s.",
 			name = "Elemental Convergence",
 		},
 		{
@@ -512,6 +516,34 @@ function Markers:AddLearned(key, map, x, y)
 	markers[#markers + 1] = marker
 
 	return marker
+end
+
+---Takes a learned marker out of the index.
+---@param marker AUIWorldMapMarker
+function Markers:RemoveLearned(marker)
+	local markers = self.byMap and self.byMap[marker.map]
+
+	if not markers then
+		return
+	end
+
+	for index = #markers, 1, -1 do
+		if markers[index] == marker then
+			table.remove(markers, index)
+		end
+	end
+end
+
+---@param group AUIWorldMapGroup
+---@return boolean learned one of the group's markers was learned in game
+function Markers:HasLearned(group)
+	for _, marker in ipairs(group.markers) do
+		if marker.learned then
+			return true
+		end
+	end
+
+	return false
 end
 
 ---@param group AUIWorldMapGroup
