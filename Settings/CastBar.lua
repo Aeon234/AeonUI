@@ -15,6 +15,8 @@ function SettingsCastBar:Declare(window)
 	window:Page("castBar", {
 		title = L["Cast Bar"],
 		under = "unitFramesHeader",
+		icon = AUI.Media.sidebar.castBar,
+		iconTint = true,
 		switch = {
 			path = Options.ENABLED_PATH,
 			default = AUI.Settings:Default(Options.ENABLED_PATH),

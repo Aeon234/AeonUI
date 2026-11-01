@@ -790,6 +790,8 @@ do
 	local castBarPage = window.pages.castBar
 	Equal("its title, under the Unit Frames header", castBarPage.info.title .. " " .. castBarPage.info.under,
 		"Cast Bar unitFramesHeader")
+	Equal("with its icon, tinted", tostring(castBarPage.info.icon == AUI.Media.sidebar.castBar) .. " "
+		.. tostring(castBarPage.info.iconTint), "true true")
 	Equal("headed by the module's switch, off", castBarPage.info.switch.path .. "=" .. tostring(
 		castBarPage.info.switch.default) .. " " .. castBarPage.info.switch.label, "castBar.enabled=false Show Cast Bar")
 	Equal("no cards yet", #castBarPage.sections, 0)

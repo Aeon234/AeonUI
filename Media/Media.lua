@@ -99,6 +99,7 @@ local Media = {
 	},
 	sidebar = {
 		general = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarGeneral.tga",
+		castBar = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarCastBar.tga",
 		minimap = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarMinimap.tga",
 		worldMap = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarWorldMap.tga",
 		tooltipGeneral = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarTooltipGeneral.tga",
