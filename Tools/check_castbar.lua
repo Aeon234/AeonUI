@@ -1,11 +1,12 @@
--- Checks CastBar/ outside the game: which duration a cast is drawn from and the way its fill runs, and when the bar
--- shows; then nothing built and Blizzard's bar left alone while off, the bar's look and place, casts, channels and
--- empowered casts drawn from duration objects (secret ones too), the not-interruptible cover, other units ignored,
--- pet battles, the edit-mode sample, a saved place, Blizzard's bar parked and kept parked (after a reparent, past
--- combat and Edit Mode) and handed back when turned off, and turning it on again.
+-- Checks CastBar/ outside the game: which duration a cast is drawn from and the way its fill runs, when the bar shows,
+-- the spell name's length and the time's formats; then nothing built and Blizzard's bar left alone while off, the
+-- default look and place, casts, channels and empowered casts drawn from duration objects (secret ones too), the
+-- not-interruptible cover, other units ignored, pet battles, the samples, every look setting, Always Show, a saved
+-- place, Blizzard's bar parked and kept parked (after a reparent, past combat and Edit Mode) and handed back when
+-- turned off, and turning it on again.
 -- Run from any directory with Lua 5.1: lua Tools/check_castbar.lua
--- Loads the real files against stubbed globals; the border and media are stubbed. Widgets are modeled by type and
--- fail on a method their type lacks.
+-- Loads the real files against stubbed globals; media is stubbed. Widgets are modeled by type and fail on a method
+-- their type lacks.
 -- Exits non-zero on the first failed check.
 
 local root = (arg and arg[0] or ""):match("^(.-)[^/\\]*$") .. "../"
@@ -85,7 +86,7 @@ end }
 Enum = {
 	StatusBarTimerDirection = { ElapsedTime = 0, RemainingTime = 1 },
 	StatusBarInterpolation = { Immediate = 0, ExponentialEaseOut = 1 },
-	DurationTextBindingProperty = { RemainingDuration = 0 },
+	DurationTextBindingProperty = { RemainingDuration = 0, ElapsedDuration = 2, TotalDuration = 4 },
 }
 
 local formatters = {}
@@ -138,11 +139,23 @@ local function Region(kind)
 	region.SetSize = function(self, width, height)
 		self.width, self.height = width, height
 	end
+	region.GetSize = function(self)
+		return self.width, self.height
+	end
+	region.SetWidth = function(self, width)
+		self.width = width
+	end
+	region.SetHeight = function(self, height)
+		self.height = height
+	end
 	region.Show = function(self)
 		self.shown = true
 	end
 	region.Hide = function(self)
 		self.shown = false
+	end
+	region.SetShown = function(self, shown)
+		self.shown = shown
 	end
 	region.IsShown = function(self)
 		return self.shown
@@ -165,6 +178,11 @@ local function Texture()
 	texture.SetGradient = function(self, orientation, first, last)
 		self.gradient = { orientation, first, last }
 	end
+	texture.SetTexCoord = function(self, ...)
+		self.coords = { ... }
+	end
+	texture.SetSnapToPixelGrid = function() end
+	texture.SetTexelSnappingBias = function() end
 
 	return texture
 end
@@ -188,6 +206,9 @@ local function FontString()
 	end
 	text.SetText = function(self, value)
 		self.text = value
+	end
+	text.SetTextColor = function(self, r, g, b)
+		self.color = { r, g, b }
 	end
 
 	return text
@@ -262,7 +283,13 @@ local function Frame(kind, name, parent)
 			self.value, self.timer = value, nil
 		end
 		frame.SetTimerDuration = function(self, duration, interpolation, direction)
-			self.timer, self.interpolation, self.direction = duration, interpolation, direction
+			self.timer, self.interpolation, self.direction, self.snapped = duration, interpolation, direction, false
+		end
+		frame.SetToTargetValue = function(self)
+			self.snapped = true
+		end
+		frame.SetReverseFill = function(self, reverse)
+			self.reverse = reverse
 		end
 	end
 
@@ -295,6 +322,17 @@ local playerFrame = Frame("Frame", "PlayerFrame", UIParent)
 PlayerCastingBarFrame = Frame("StatusBar", "PlayerCastingBarFrame", UIParent)
 PlayerCastingBarFrame.Selection = Frame("Frame", nil, PlayerCastingBarFrame)
 
+function UnitClass()
+	return "Mage", "MAGE"
+end
+C_ClassColor = { GetClassColor = function(class)
+	assert(class == "MAGE")
+
+	return { GetRGB = function()
+		return 0.25, 0.78, 0.92
+	end }
+end }
+
 local inPetBattle = false
 C_PetBattles = { IsInBattle = function()
 	return inPetBattle
@@ -307,7 +345,8 @@ function UnitCastingInfo(unit)
 	assert(unit == "player")
 
 	if cast then
-		return cast.name, cast.display, 136243, 1000, 2500, false, "Cast-1", cast.locked, 133, nil, cast.delay or 0
+		return cast.name, cast.display, cast.icon or 136243, 1000, 2500, false, "Cast-1", cast.locked, 133, nil,
+			cast.delay or 0
 	end
 end
 function UnitChannelInfo(unit)
@@ -345,6 +384,8 @@ end
 
 local eventFrame = frames[#frames]
 
+AUI.Schema:Choices("fontOutline", { "NONE", "OUTLINE", "THICKOUTLINE", "SLUG", "SLUG_OUTLINE", "SLUG_THICKOUTLINE" })
+
 local values = {}
 AUI.Profile = {
 	Get = function(_, path)
@@ -371,20 +412,13 @@ local function Fire(event, ...)
 	end
 end
 
-local borders = {}
-AUI.Border = { Create = function(_, owner)
-	local border = { owner = owner }
-	border.Apply = function(self, look)
-		self.look = look
-	end
-	borders[#borders + 1] = border
-
-	return border
-end }
 AUI.Media = {
 	FLAT = "flat",
 	Font = function(_, name)
 		return "font:" .. name
+	end,
+	FontFlags = function(_, outline)
+		return outline == "NONE" and "" or outline
 	end,
 	SetBarTexture = function(_, bar, choice)
 		bar.texture = choice
@@ -425,11 +459,27 @@ Equal("nothing cast", Options:Kind(false, false, false), nil)
 Equal("a cast fills", Options:Drains(KINDS.CAST), false)
 Equal("so does an empowered cast", Options:Drains(KINDS.EMPOWERED), false)
 Equal("a channel drains", Options:Drains(KINDS.CHANNEL), true)
-Equal("off, never shown", Options:Visible(false, true, true, false), false)
-Equal("idle, hidden", Options:Visible(true, false, false, false), false)
-Equal("casting, shown", Options:Visible(true, true, false, false), true)
-Equal("not in a pet battle", Options:Visible(true, true, false, true), false)
-Equal("the sample shows without a cast", Options:Visible(true, false, true, true), true)
+Equal("off, never shown", Options:Visible(false, true, true, false, true), false)
+Equal("idle, hidden", Options:Visible(true, false, false, false, false), false)
+Equal("casting, shown", Options:Visible(true, true, false, false, false), true)
+Equal("not in a pet battle", Options:Visible(true, true, false, true, false), false)
+Equal("the sample shows without a cast", Options:Visible(true, false, true, true, false), true)
+Equal("Always Show keeps it between casts", Options:Visible(true, false, false, false, true), true)
+Equal("but not in a pet battle", Options:Visible(true, false, false, true, true), false)
+Equal("the spark at the default height", Options:SparkHeight(16), 30)
+Equal("a taller bar's reaches past it", Options:SparkHeight(40), 54)
+Equal("0 keeps a name whole", Options:Shorten("Pyroblast", 0), "Pyroblast")
+Equal("a short name stays whole", Options:Shorten("Pyroblast", 9), "Pyroblast")
+Equal("a long one is cut", Options:Shorten("Pyroblast", 4), "Pyro\226\128\166")
+Equal("counting letters, not bytes", Options:Shorten("\195\137clair", 2), "\195\137c\226\128\166")
+local timeText, timeProps = Options:TimeSpec("ELAPSED_TOTAL")
+Equal("a format's text and properties", timeText .. " " .. table.concat(timeProps, ","),
+	"{} / {} ElapsedDuration,TotalDuration")
+Equal("an unknown format reads Remaining", (select(2, Options:TimeSpec("OTHER")))[1], "RemainingDuration")
+Equal("the sample's remaining time", Options:SampleTime("REMAINING"), "1.0")
+Equal("its elapsed time", Options:SampleTime("ELAPSED"), "1.5")
+Equal("remaining of total", Options:SampleTime("REMAINING_TOTAL"), "1.0 / 2.5")
+Equal("elapsed of total", Options:SampleTime("ELAPSED_TOTAL"), "1.5 / 2.5")
 Equal("off by default", AUI.Schema:Field(Options.ENABLED_PATH).default, false)
 Equal("no saved place at first", AUI.Profile:Get(Options.POSITION_PATH), nil)
 
@@ -453,10 +503,16 @@ Equal("its size", frame.width .. "x" .. frame.height, "386x16")
 Equal("at the default place", Point(frame), "CENTER 0 -254")
 Equal("taking no clicks", frame.mouse, false)
 Equal("hidden while nothing is cast", frame.shown, false)
-Equal("a thin black line outside, white at half opacity inside", borders[1].look.style .. " "
-	.. borders[1].look.color.r .. " " .. borders[1].look.background.a, "THIN_LINE 0 0.5")
-Equal("one pixel out", Point(frame.edge), "BOTTOMRIGHT 0.5 -0.5")
+Equal("a black border", frame.lines[1].color[1] .. " " .. frame.lines[1].color[4], "0 1")
+Equal("one pixel outside the frame", frame.lines[1].points[1][1] .. " " .. frame.lines[1].points[1][2] .. " "
+	.. frame.lines[1].points[1][3] .. " " .. frame.lines[1].height, "TOPLEFT -0.5 0.5 0.5")
+Equal("on every side", frame.lines[4].points[2][1] .. " " .. frame.lines[4].points[2][2] .. " "
+	.. frame.lines[4].points[2][3] .. " " .. frame.lines[4].width, "BOTTOMRIGHT 0.5 -0.5 0.5")
+Equal("white at half opacity behind the fill", frame.background.color[1] .. " " .. frame.background.color[4], "1 0.5")
 Equal("the flat fill", frame.bar.texture, "flat")
+Equal("no icon", frame.icon.shown, false)
+Equal("the bar fills the frame", frame.bar.allPoints, true)
+Equal("the medium strata", frame.strata, "MEDIUM")
 local gradient = frame.bar.fill.gradient
 Equal("a horizontal gradient", gradient[1] .. " " .. gradient[2].g .. " " .. gradient[3].g, "HORIZONTAL 0.71 0.682")
 Equal("the red cover hidden", frame.locked.alpha, 0)
@@ -464,8 +520,8 @@ Equal("the spark rides the fill's edge", frame.spark.points[1][2] == frame.bar.f
 	"RIGHT")
 Equal("additive", frame.spark.blend, "ADD")
 Equal("the text above the cover", frame.over.level > frame.locked.level, true)
-Equal("Expressway 14, no outline", frame.text.font .. " " .. frame.text.size .. " [" .. frame.text.flags .. "]",
-	"font:Expressway 14 []")
+Equal("Expressway 14 on the Slug renderer, no outline", frame.text.font .. " " .. frame.text.size .. " "
+	.. frame.text.flags, "font:Expressway 14 SLUG")
 Equal("with a shadow", frame.time.shadowOffset[1] .. "," .. frame.time.shadowOffset[2], "1,-1")
 Equal("the name never wraps", frame.text.wrap, false)
 Equal("and stops short of the time", frame.text.points[2][2], frame.time)
@@ -487,7 +543,9 @@ Fire("UNIT_SPELLCAST_START", "player", "Cast-1", 133)
 Equal("a cast shows", frame.shown, true)
 Equal("its fill runs on the cast's duration", frame.bar.timer, castDuration)
 Equal("filling as it runs", frame.bar.direction, Enum.StatusBarTimerDirection.ElapsedTime)
-Equal("smooth", frame.bar.interpolation, Enum.StatusBarInterpolation.Immediate)
+Equal("smooth", frame.bar.interpolation, Enum.StatusBarInterpolation.ExponentialEaseOut)
+Equal("easing from the cast's own place", frame.bar.snapped, true)
+Equal("its icon set", frame.icon.file, 136243)
 Equal("the time from the same duration", frame.binding.duration, castDuration)
 Equal("updating", frame.binding.enabled, true)
 Equal("the spell's name", frame.text.text, "Fireball")
@@ -548,7 +606,8 @@ CastBar:Sample(true)
 Equal("the sample shows without a cast", frame.shown, true)
 Equal("filled to its share", frame.bar.value, Options.SAMPLE_PROGRESS)
 Equal("with a sample name", frame.text.text, "Cast Bar")
-Equal("and a fixed time", frame.time.text .. " " .. tostring(frame.binding.enabled), "1.2 false")
+Equal("and a fixed time", frame.time.text .. " " .. tostring(frame.binding.enabled), "1.0 false")
+Equal("and a sample icon", frame.icon.file, Options.SAMPLE_ICON)
 cast, castDuration = { name = "Fireball", display = "Fireball" }, {}
 Fire("UNIT_SPELLCAST_START", "player")
 Equal("a cast does not replace the sample", frame.text.text, "Cast Bar")
@@ -561,6 +620,159 @@ Equal("then idle", frame.shown, false)
 
 Set(Options.POSITION_PATH, { point = "BOTTOM", x = 10, y = 200 })
 Equal("a saved place is used", Point(frame), "BOTTOM 10 200")
+
+-- Samples -------------------------------------------------------------------------------------------------
+
+local STATES = Options.STATES
+CastBar:DrawSample(frame, STATES.NOT_INTERRUPTIBLE, "Not Interruptible")
+Equal("Not Interruptible's sample is covered", frame.locked.alpha .. " " .. frame.failed.alpha, "1 0")
+CastBar:DrawSample(frame, STATES.INTERRUPTED, "Interrupted")
+Equal("Interrupted's fills the bar in its own color", frame.bar.value .. " " .. frame.failed.alpha .. " "
+	.. frame.locked.alpha, "1 1 0")
+Equal("without the time or spark", tostring(frame.time.shown) .. " " .. tostring(frame.spark.shown), "false false")
+CastBar:DrawSample(frame, STATES.CHANNELING, "Channeling")
+Equal("the next state clears it", frame.bar.value .. " " .. frame.failed.alpha .. " " .. tostring(frame.time.shown)
+	.. " " .. tostring(frame.spark.shown), "0.6 0 true true")
+CastBar:Update()
+
+-- Look settings -------------------------------------------------------------------------------------------
+
+Set("castBar.width", 300)
+Set("castBar.height", 40)
+Equal("its size", frame.width .. "x" .. frame.height, "300x40")
+Equal("the spark grows with it", frame.spark.height, 54)
+Set("castBar.height", 16)
+Set("castBar.width", 386)
+Set("castBar.strata", "HIGH")
+Equal("its strata", frame.strata, "HIGH")
+Set("castBar.texture", "AeonUI Thin Stripes")
+Equal("its texture", frame.bar.texture, "AeonUI Thin Stripes")
+Set("castBar.gradient", false)
+Equal("one color without the gradient", frame.bar.fill.gradient[3].g, 0.71)
+Set("castBar.gradient", true)
+Set("castBar.gradientDirection", "VERTICAL")
+Equal("the gradient's direction", frame.bar.fill.gradient[1], "VERTICAL")
+Set("castBar.color", { r = 0, g = 1, b = 0 })
+Equal("the fill color", frame.bar.fill.gradient[2].g, 1)
+Set("castBar.classColor", true)
+Equal("the class color, without the gradient", frame.bar.fill.gradient[2].r .. " " .. frame.bar.fill.gradient[3].b,
+	"0.25 0.92")
+Set("castBar.classColor", false)
+Set("castBar.background", { r = 0, g = 0, b = 0, a = 0.25 })
+Equal("the background", frame.background.color[1] .. " " .. frame.background.color[4], "0 0.25")
+Set("castBar.notInterruptible", { r = 0.5, g = 0.5, b = 0.5 })
+Equal("the not-interruptible color", frame.lockedFill.color[1], 0.5)
+Set("castBar.border", 3)
+Equal("a thicker border", frame.lines[1].height .. " " .. frame.lines[1].points[1][2], "1.5 -1.5")
+Set("castBar.border", 0)
+Equal("no border at 0", frame.lines[1].shown, false)
+Set("castBar.border", 1)
+Set("castBar.reverse", true)
+Equal("a reversed fill", tostring(frame.bar.reverse) .. " " .. frame.spark.points[1][3], "true LEFT")
+Set("castBar.reverse", false)
+Set("castBar.icon", true)
+Equal("the icon shows, square", tostring(frame.icon.shown) .. " " .. frame.icon.width .. "x" .. frame.icon.height,
+	"true 16x16")
+Equal("on the left, the bar beside it", frame.icon.points[1][1] .. " " .. frame.bar.points[1][2], "TOPLEFT 16")
+Set("castBar.iconSide", "RIGHT")
+Equal("or on the right", frame.icon.points[1][1] .. " " .. frame.bar.points[2][2], "TOPRIGHT -16")
+Set("castBar.icon", false)
+Equal("the bar back across the frame", #frame.bar.points, 0)
+Set("castBar.outline", "OUTLINE")
+Equal("the outline", frame.time.flags, "OUTLINE")
+Set("castBar.shadow", false)
+Equal("no shadow", frame.text.shadow[4], 0)
+Set("castBar.name.size", 20)
+Set("castBar.name.color", { r = 1, g = 0, b = 0 })
+Set("castBar.name.x", 5)
+Set("castBar.name.y", -2)
+Equal("the name's size, color and place", frame.text.size .. " " .. frame.text.color[2] .. " "
+	.. frame.text.points[1][4] .. " " .. frame.text.points[1][5], "20 0 5 -2")
+Set("castBar.name.enabled", false)
+Equal("no name", frame.text.shown, false)
+Set("castBar.name.enabled", true)
+Set("castBar.time.size", 10)
+Set("castBar.time.x", -3)
+Equal("the time's size and place", frame.time.size .. " " .. frame.time.points[1][4], "10 -3")
+Set("castBar.time.format", "ELAPSED_TOTAL")
+Equal("the time's format", frame.binding.format .. " " .. frame.binding.components[1].property .. " "
+	.. frame.binding.components[2].property, "{} / {} 2 4")
+Set("castBar.time.enabled", false)
+Equal("no time", frame.time.shown, false)
+Equal("the name then reaches the bar's edge", frame.text.points[2][2], frame.over)
+Set("castBar.time.enabled", true)
+Equal("and stops short of the time again", frame.text.points[2][2], frame.time)
+Set("castBar.name.maxLength", 4)
+cast, castDuration = { name = "Pyroblast", display = "Pyroblast" }, {}
+Fire("UNIT_SPELLCAST_START", "player")
+Equal("a long name cut", frame.text.text, "Pyro\226\128\166")
+cast.display = Secret("Pyroblast!")
+Fire("UNIT_SPELLCAST_DELAYED", "player")
+Equal("a secret one kept whole", frame.text.text, cast.display)
+Set("castBar.name.maxLength", 0)
+Set("castBar.smooth", false)
+Equal("no easing", frame.bar.interpolation, Enum.StatusBarInterpolation.Immediate)
+Set("castBar.spark", false)
+Equal("no spark", frame.spark.shown, false)
+Set("castBar.spark", true)
+cast, castDuration = nil, nil
+Fire("UNIT_SPELLCAST_STOP", "player")
+Equal("hidden while nothing is cast", frame.shown, false)
+Set("castBar.alwaysShow", true)
+Equal("Always Show keeps it", frame.shown, true)
+Equal("empty", frame.bar.value .. " [" .. frame.text.text .. "] [" .. frame.time.text .. "] "
+	.. tostring(frame.spark.shown) .. " " .. tostring(frame.binding.enabled), "0 [] [] false false")
+Fire("PET_BATTLE_OPENING_START")
+Equal("not in a pet battle", frame.shown, false)
+Fire("PET_BATTLE_CLOSE")
+Set("castBar.alwaysShow", false)
+
+-- The settings page's preview ------------------------------------------------------------------------------
+
+COLOR = "Color"
+INTERRUPTED = "Interrupted"
+AUI.Media.sidebar = {}
+LibStub = function()
+	return { OUTLINES = {} }
+end
+AUI.Settings = { Default = function(_, path)
+	return AUI.Schema:Field(path).default
+end }
+assert(loadfile(root .. "Settings/CastBar.lua"))("AeonUI", AUI)
+
+local declaredPreview
+local noCard = setmetatable({}, { __index = function()
+	return function() end
+end })
+AUI.SettingsCastBar:Declare({
+	Header = function() end,
+	Page = function()
+		return {
+			Preview = function(_, info)
+				declaredPreview = info
+			end,
+			Section = function()
+				return noCard
+			end,
+		}
+	end,
+})
+Equal("five states", table.concat(declaredPreview.states, ","),
+	"Casting,Channeling,Empowered,Not Interruptible,Interrupted")
+local canvas = Frame("Frame", nil, UIParent)
+declaredPreview.create(canvas)
+local parts = {}
+local previewStub = { Part = function(_, region, target)
+	parts[#parts + 1] = target
+	return region
+end }
+local width, height = declaredPreview.refresh(canvas, "Interrupted", previewStub)
+Equal("the sample's size", width .. "x" .. height, "386x16")
+Equal("its parts land on their settings", table.concat(parts, " "), "color nameEnabled")
+parts = {}
+declaredPreview.refresh(canvas, nil, previewStub)
+Equal("Casting at first, its time shown", table.concat(parts, " "), "color nameEnabled timeEnabled")
+Equal("the live bar stays as it was", frame.shown, false)
 
 -- Blizzard's bar ------------------------------------------------------------------------------------------
 

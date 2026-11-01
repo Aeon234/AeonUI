@@ -18,7 +18,6 @@ Core\Core.xml
 Profile\Profile.xml
 Media\Media.xml
 UI\UI.xml
-CastBar\CastBar.xml
 Minimap\Minimap.xml
 WorldMap\WorldMap.xml
 Tooltip\Tooltip.xml
@@ -29,6 +28,7 @@ Input\Input.xml
 Alerts\Alerts.xml
 ScreenText\ScreenText.xml
 Cursor\Cursor.xml
+CastBar\CastBar.xml
 Notifications\Notifications.xml
 Markers\Markers.xml
 DeleteCheapestItem\DeleteCheapestItem.xml

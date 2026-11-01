@@ -372,6 +372,7 @@ end
 
 DEFAULT = "Default"
 COLOR = "Color"
+INTERRUPTED = "Interrupted"
 function CreateAtlasMarkup(atlas) return "|A:" .. atlas .. "|a" end
 
 local LSM = {
@@ -794,7 +795,20 @@ do
 		.. tostring(castBarPage.info.iconTint), "true true")
 	Equal("headed by the module's switch, off", castBarPage.info.switch.path .. "=" .. tostring(
 		castBarPage.info.switch.default) .. " " .. castBarPage.info.switch.label, "castBar.enabled=false Show Cast Bar")
-	Equal("no cards yet", #castBarPage.sections, 0)
+	local castBarCards = {}
+	for _, section in ipairs(castBarPage.sections) do
+		local ids = {}
+		for _, setting in ipairs(section.settings) do
+			ids[#ids + 1] = setting.id
+			Equal(setting.id .. " names a setting", AUI.Schema:Field(setting.path) ~= nil, true)
+		end
+		castBarCards[#castBarCards + 1] = section.title .. ": " .. table.concat(ids, " ")
+	end
+	Equal("its cards", table.concat(castBarCards, " | "), "Bar: width height texture color gradient gradientColor "
+		.. "gradientDirection notInterruptible background border spark reverse smooth alwaysShow strata | "
+		.. "Icon: icon iconSide | Text: outline shadow | Spell Name: nameEnabled nameSize nameColor nameX nameY "
+		.. "nameLength | Time: timeEnabled timeFormat timeSize timeColor timeX timeY")
+	Equal("a preview of five states", #castBarPage.preview.states, 5)
 end
 AUI.can.castBar = nil
 window = Load(nil)
@@ -1230,7 +1244,7 @@ do
 	Equal("it moves the bar", castBarTarget.frame, AUI.CastBar.frame)
 	Equal("from its default place", castBarTarget.default, AUI.CastBarOptions.DEFAULT_POSITION)
 	Equal("with a sample", type(castBarTarget.sample), "function")
-	Equal("Element Options lands on its page", castBarTarget.settings.page, "castBar")
+	Equal("Element Options lands on its Bar card", castBarTarget.settings.page .. " " .. castBarTarget.settings.section, "castBar castBarBar")
 end
 placement.declaration.set("castBar", { point = "BOTTOM", x = 0, y = 180 })
 Equal("its place is saved in the profile", Profile:Get("castBar.position").y, 180)

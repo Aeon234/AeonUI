@@ -95,7 +95,7 @@ function EditTargets:Targets()
 			sample = function(shown)
 				CastBar:Sample(shown)
 			end,
-			settings = { page = "castBar" },
+			settings = { page = "castBar", section = "castBarBar" },
 		}
 	end
 
