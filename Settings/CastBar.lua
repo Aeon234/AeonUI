@@ -34,7 +34,8 @@ local CASTING, CHANNELING, EMPOWERED, NOT_INTERRUPTIBLE = L["Casting"], L["Chann
 	L["Not Interruptible"]
 
 ---The Cast Bar page, under the Unit Frames header: the module's switch, a sample bar with its states as its preview,
----and the Bar, Icon, Text, Spell Name, Time, Feedback, Latency, Pushback and Empowered Casts cards.
+---and the Bar, Icon, Text, Spell Name, Time, Cast Target, Feedback, Latency, Pushback, Channel Ticks and Empowered
+---Casts cards.
 ---@class AUISettingsCastBar
 local SettingsCastBar = {}
 AUI.SettingsCastBar = SettingsCastBar
@@ -113,6 +114,10 @@ function CastBarPreview:Refresh(state, preview)
 
 	if bar.time:IsShown() then
 		preview:Part(bar.time, "timeEnabled", { text = true })
+	end
+
+	if bar.target:IsShown() then
+		preview:Part(bar.target, "targetEnabled", { text = true })
 	end
 
 	return bar:GetSize()
@@ -286,6 +291,46 @@ function SettingsCastBar:DeclareEmpowered(page)
 	}))
 end
 
+---@param page table
+function SettingsCastBar:DeclareTarget(page)
+	local Options = AUI.CastBarOptions
+	local card = page:Section("castBarTarget", L["Cast Target"])
+
+	card:Checkbox(Field("targetEnabled", L["Show Cast Target"], "castBar.target.enabled"))
+	card:Color(Field("targetColor", COLOR, "castBar.target.color", {
+		depends = "targetEnabled",
+		classColor = Field("targetClassColor", L["Class Color"], "castBar.target.classColor"),
+	}))
+	card:Slider(Field("targetSize", L["Size"], "castBar.target.size", {
+		depends = "targetEnabled",
+		min = Options.MIN_TEXT,
+		max = Options.MAX_TEXT,
+		step = 1,
+	}))
+	card:Slider(Field("targetX", L["X Offset"], "castBar.target.x", {
+		depends = "targetEnabled",
+		min = -Options.MAX_OFFSET,
+		max = Options.MAX_OFFSET,
+		step = 1,
+	}))
+	card:Slider(Field("targetY", L["Y Offset"], "castBar.target.y", {
+		depends = "targetEnabled",
+		min = -Options.MAX_OFFSET,
+		max = Options.MAX_OFFSET,
+		step = 1,
+	}))
+end
+
+---@param page table
+function SettingsCastBar:DeclareTicks(page)
+	local card = page:Section("castBarTicks", L["Channel Ticks"])
+
+	card:Checkbox(Field("ticks", L["Show Channel Ticks"], "castBar.ticks"))
+	card:Color(Field("tickColor", L["Tick Color"], "castBar.tickColor", { depends = "ticks", hasOpacity = true }))
+	card:Checkbox(Field("lastTick", L["Last Tick"], "castBar.lastTick", { depends = "ticks" }))
+	card:Color(Field("lastTickColor", L["Last Tick Color"], "castBar.lastTickColor", { depends = "lastTick" }))
+end
+
 ---@param window table
 function SettingsCastBar:Declare(window)
 	local Options = AUI.CastBarOptions
@@ -324,8 +369,14 @@ function SettingsCastBar:Declare(window)
 	self:DeclareText(page)
 	self:DeclareName(page)
 	self:DeclareTime(page)
+
+	if AUI.can.castTarget then
+		self:DeclareTarget(page)
+	end
+
 	self:DeclareFeedback(page)
 	self:DeclareLatency(page)
 	self:DeclarePushback(page)
+	self:DeclareTicks(page)
 	self:DeclareEmpowered(page)
 end

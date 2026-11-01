@@ -28,6 +28,8 @@ local ELLIPSIS = "\226\128\166"
 ---@field STAGE_COLORS number how many stage colors there are; later stages repeat the last
 ---@field MAX_HOLD number the longest Interrupted or Failed stays, in seconds
 ---@field FADE_SECONDS number
+---@field SAMPLE_TICKS number how many ticks a sample channel has
+---@field TARGET_SHARE number how much of the bar the cast target's name may take
 ---@field MIN_WIDTH number
 ---@field MAX_WIDTH number
 ---@field MIN_HEIGHT number
@@ -59,6 +61,8 @@ local Options = {
 	STAGE_COLORS = 4,
 	MAX_HOLD = 3,
 	FADE_SECONDS = 0.2,
+	SAMPLE_TICKS = 5,
+	TARGET_SHARE = 0.35,
 	MIN_WIDTH = 100,
 	MAX_WIDTH = 800,
 	MIN_HEIGHT = 6,
@@ -134,6 +138,16 @@ Schema:Color("castBar.stage.2", { r = 0.62, g = 0.12, b = 0.16 })
 Schema:Color("castBar.stage.3", { r = 1, g = 0.45, b = 0.11 })
 Schema:Color("castBar.stage.4", { r = 1, g = 0.71, b = 0.19 })
 Schema:Boolean("castBar.stageLabel", false)
+Schema:Boolean("castBar.ticks", true)
+Schema:Color("castBar.tickColor", { r = 0, g = 0, b = 0, a = 0.7 })
+Schema:Boolean("castBar.lastTick", false)
+Schema:Color("castBar.lastTickColor", { r = 1, g = 1, b = 1 })
+Schema:Boolean("castBar.target.enabled", false)
+Schema:Boolean("castBar.target.classColor", true)
+Schema:Color("castBar.target.color", { r = 1, g = 1, b = 1 })
+Schema:Number("castBar.target.size", 14, Options.MIN_TEXT, Options.MAX_TEXT, true)
+Schema:Number("castBar.target.x", 0, -Options.MAX_OFFSET, Options.MAX_OFFSET, true)
+Schema:Number("castBar.target.y", 0, -Options.MAX_OFFSET, Options.MAX_OFFSET, true)
 
 ---The kinds of cast the bar draws, each with the duration it is drawn from and the way its fill runs: casts and
 ---empowered casts fill as they run; channels start full and drain.
@@ -273,6 +287,57 @@ function Options:StageReached(boundaries, progress)
 	end
 
 	return #boundaries, nil
+end
+
+---Where a channel's marks fall, as shares of its time. A tick at the channel's start or end needs no mark.
+---@param data AUICastBarTicks
+---@param seconds number? the channel's length, needed for an interval
+---@param isKnown fun(spellID: integer): boolean whether the player knows a spell
+---@return number[] fractions in order
+function Options:TickFractions(data, seconds, isKnown)
+	local fractions = {}
+
+	if data.interval then
+		if seconds and seconds > 0 then
+			for tick = 1, math.floor(seconds / data.interval + 0.001) do
+				local fraction = tick * data.interval / seconds
+
+				if fraction < 0.999 then
+					fractions[#fractions + 1] = fraction
+				end
+			end
+		end
+
+		return fractions
+	end
+
+	local spans
+
+	if data.missiles then
+		spans = data.missiles - 1
+
+		for spellID, extra in pairs(data.addMissiles or {}) do
+			if isKnown(spellID) then
+				spans = spans + extra
+			end
+		end
+	else
+		spans = data.talent and data.talentTicks and isKnown(data.talent) and data.talentTicks or data.ticks or 0
+	end
+
+	for tick = 1, spans - 1 do
+		fractions[tick] = tick / spans
+	end
+
+	return fractions
+end
+
+---@param fraction number how much of the channel has passed
+---@param width number the bar's
+---@param reversed boolean the fill runs out to the right
+---@return number x the tick's distance from the bar's left edge on a draining channel
+function Options:TickOffset(fraction, width, reversed)
+	return (reversed and fraction or 1 - fraction) * width
 end
 
 ---What the time reads on a sample cast, in a time format.

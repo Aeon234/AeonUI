@@ -416,7 +416,7 @@ for _, file in ipairs({ "Core/Callbacks.lua", "Core/Capabilities.lua", "Core/Bro
 	"Automation/Options.lua", "Automation/GameSettings.lua", "Menus/Options.lua", "Input/Options.lua",
 	"Input/FocusShortcut.lua", "Alerts/Options.lua", "Interface/Options.lua", "ScreenText/Options.lua",
 	"ScreenText/ScreenText.lua", "Cursor/Options.lua", "Cursor/CursorRing.lua", "CastBar/Options.lua",
-	"CastBar/BlizzardBar.lua", "CastBar/CastBar.lua", "Settings/CastBar.lua", "Notifications/Options.lua",
+	"CastBar/TickData.lua", "CastBar/BlizzardBar.lua", "CastBar/CastBar.lua", "Settings/CastBar.lua", "Notifications/Options.lua",
 	"Notifications/Notifications.lua", "Markers/Options.lua", "Markers/Bar.lua", "Markers/Cycler.lua",
 	"Markers/Markers.lua", "DeleteCheapestItem/Options.lua", "Core/AuctionPrices.lua",
 	"MerchantWindow/Options.lua", "MerchantWindow/BottomBar.lua", "MerchantWindow/MerchantWindow.lua", "Settings/MerchantWindow.lua",
@@ -782,7 +782,7 @@ Equal("without cast durations: no Casts, no Casting state", tostring(
 AUI.can.cursorRing = nil
 window = Load(nil)
 Equal("no Cursor page without the cursor ring", window.pages.cursor, nil)
-AUI.can.castBar = true
+AUI.can.castBar, AUI.can.castTarget = true, true
 window = Load(nil)
 Equal("Cast Bar under Unit Frames, after General", table.concat(window.order, " "), "general #unitFramesHeader "
 	.. "castBar #mapsHeader minimap #tooltipHeader tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader "
@@ -807,11 +807,15 @@ do
 	Equal("its cards", table.concat(castBarCards, " | "), "Bar: width height texture color gradient gradientColor "
 		.. "gradientDirection notInterruptible background border spark reverse smooth alwaysShow strata | "
 		.. "Icon: icon iconSide | Text: outline shadow | Spell Name: nameEnabled nameSize nameColor nameX nameY "
-		.. "nameLength | Time: timeEnabled timeFormat timeSize timeColor timeX timeY | Feedback: interrupted holdTime "
-		.. "fade | Latency: latency latencyColor latencyText | Pushback: pushback pushbackColor | Empowered Casts: "
-		.. "empowerColors stage1 stage2 stage3 stage4 stageLabel")
+		.. "nameLength | Time: timeEnabled timeFormat timeSize timeColor timeX timeY | Cast Target: targetEnabled "
+		.. "targetColor targetSize targetX targetY | Feedback: interrupted holdTime fade | Latency: latency latencyColor "
+		.. "latencyText | Pushback: pushback pushbackColor | Channel Ticks: ticks tickColor lastTick lastTickColor | "
+		.. "Empowered Casts: empowerColors stage1 stage2 stage3 stage4 stageLabel")
 	Equal("a preview of five states", #castBarPage.preview.states, 5)
 end
+AUI.can.castTarget = nil
+window = Load(nil)
+Equal("no Cast Target card without the client's target names", window.pages.castBar.sections.castBarTarget, nil)
 AUI.can.castBar = nil
 window = Load(nil)
 Equal("no Cast Bar page or Unit Frames header without the client's timers", tostring(window.pages.castBar) .. " "

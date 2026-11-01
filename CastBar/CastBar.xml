@@ -1,5 +1,6 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/">
 	<Script file="Options.lua" />
+	<Script file="TickData.lua" />
 	<Script file="BlizzardBar.lua" />
 	<Script file="CastBar.lua" />
 </Ui>

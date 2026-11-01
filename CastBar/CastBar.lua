@@ -41,6 +41,8 @@ local LATENCY_TEXT_SIZE = 10
 ---@field latency Texture the part of the cast within the player's latency
 ---@field latencyText FontString
 ---@field pushback FontString
+---@field target FontString the cast's target
+---@field ticks Texture[] the channel's marks, created as needed
 ---@field spark Texture
 ---@field text FontString the spell name
 ---@field time FontString
@@ -58,6 +60,7 @@ local LATENCY_TEXT_SIZE = 10
 ---@field startTime number? in milliseconds
 ---@field endTime number? in milliseconds; an empowered cast's includes its hold at full charge
 ---@field delay number? a cast's pushback, in milliseconds
+---@field spellID number? a channel's spell, when it can be read
 
 ---The player cast bar. The client's timer drives the fill from the cast's duration object and a duration text binding
 ---writes the time, so no Lua runs while a cast is drawn and no secret value is read: the spell name, the icon, the
@@ -183,6 +186,13 @@ function CastBar:Build(parent, name)
 	frame.pushback = over:CreateFontString(nil, "OVERLAY")
 	frame.pushback:SetWordWrap(false)
 
+	frame.target = over:CreateFontString(nil, "OVERLAY")
+	frame.target:SetJustifyH("RIGHT")
+	frame.target:SetWordWrap(false)
+	frame.target:Hide()
+
+	frame.ticks = {}
+
 	frame.time = over:CreateFontString(nil, "OVERLAY")
 	frame.time:SetJustifyH("RIGHT")
 	frame.time:SetWordWrap(false)
@@ -278,8 +288,27 @@ function CastBar:StyleText(region, size, color)
 	region:SetShadowOffset(1, -1)
 end
 
----Sizes, places and colors the text and sets the time's format; the spell name stops short of the time while the time
----shows.
+---The spell name stops short of whatever shows after it: the cast target, then the pushback, then the time.
+---@param frame AUICastBarFrame
+function CastBar:AnchorName(frame)
+	local Profile = AUI.Profile
+	local text, over = frame.text, frame.over
+
+	text:ClearAllPoints()
+	text:SetPoint("LEFT", over, "LEFT", Profile:Get("castBar.name.x"), Profile:Get("castBar.name.y"))
+
+	if frame.target:IsShown() then
+		text:SetPoint("RIGHT", frame.target, "LEFT", -TEXT_GAP, 0)
+	elseif Profile:Get("castBar.pushback") then
+		text:SetPoint("RIGHT", frame.pushback, "LEFT", -TEXT_GAP, 0)
+	elseif Profile:Get("castBar.time.enabled") then
+		text:SetPoint("RIGHT", frame.time, "LEFT", -TEXT_GAP, 0)
+	else
+		text:SetPoint("RIGHT", over, "RIGHT")
+	end
+end
+
+---Sizes, places and colors the text and sets the time's format.
 ---@param frame AUICastBarFrame
 function CastBar:StyleTexts(frame)
 	local Profile = AUI.Profile
@@ -308,16 +337,21 @@ function CastBar:StyleTexts(frame)
 		pushback:SetPoint("RIGHT", over, "RIGHT")
 	end
 
-	text:ClearAllPoints()
-	text:SetPoint("LEFT", over, "LEFT", Profile:Get("castBar.name.x"), Profile:Get("castBar.name.y"))
+	local target = frame.target
+	local targetX, targetY = Profile:Get("castBar.target.x"), Profile:Get("castBar.target.y")
+
+	self:StyleText(target, Profile:Get("castBar.target.size"), Profile:Get("castBar.target.color"))
+	target:ClearAllPoints()
 
 	if pushbackShown then
-		text:SetPoint("RIGHT", pushback, "LEFT", -TEXT_GAP, 0)
+		target:SetPoint("RIGHT", pushback, "LEFT", targetX - TEXT_GAP, targetY)
 	elseif timeShown then
-		text:SetPoint("RIGHT", time, "LEFT", -TEXT_GAP, 0)
+		target:SetPoint("RIGHT", time, "LEFT", targetX - TEXT_GAP, targetY)
 	else
-		text:SetPoint("RIGHT", over, "RIGHT")
+		target:SetPoint("RIGHT", over, "RIGHT", targetX, targetY)
 	end
+
+	self:AnchorName(frame)
 
 	local format, properties = Options:TimeSpec(Profile:Get("castBar.time.format"))
 	local components = {}
@@ -416,7 +450,7 @@ function CastBar:Current()
 	local cast = self.cast
 	local name, displayName, icon, startTime, endTime, _, castID, notInterruptible, _, _, delay = UnitCastingInfo("player")
 	local casting = issecretvalue(name) or name ~= nil
-	local duration, empowered
+	local duration, empowered, channelSpell
 
 	if casting then
 		duration = UnitCastingDuration("player")
@@ -424,7 +458,8 @@ function CastBar:Current()
 		local isEmpowered
 
 		castID, delay = nil, nil
-		name, displayName, icon, startTime, endTime, _, notInterruptible, _, isEmpowered = UnitChannelInfo("player")
+		name, displayName, icon, startTime, endTime, _, notInterruptible, channelSpell, isEmpowered =
+			UnitChannelInfo("player")
 		empowered = isEmpowered == true and UnitEmpoweredChannelDuration ~= nil
 
 		if issecretvalue(name) or name ~= nil then
@@ -445,6 +480,7 @@ function CastBar:Current()
 	cast.kind = Options:Kind(casting, not casting, empowered) --[[@as AUICastKind]]
 	cast.duration, cast.name, cast.notInterruptible, cast.icon = duration, displayName, notInterruptible, icon
 	cast.id, cast.startTime, cast.endTime, cast.delay = AUI:Readable(castID), startTime, endTime, delay
+	cast.spellID = AUI:Readable(channelSpell)
 
 	return cast
 end
@@ -601,7 +637,87 @@ function CastBar:DrawPushback(frame, cast)
 	frame.pushback:SetText(text)
 end
 
----Clears what only some casts show: the stage colors and label, the latency and the pushback.
+---Marks a draining channel's ticks, the last in its own color while Last Tick is on.
+---@param frame AUICastBarFrame
+---@param fractions number[]
+function CastBar:ShowTicks(frame, fractions)
+	local Profile = AUI.Profile
+	local width, pixel = frame.bar:GetWidth(), AUI:Pixel(frame)
+	local reversed = Profile:Get("castBar.reverse") == true
+	local color, lastColor = Profile:Get("castBar.tickColor"), Profile:Get("castBar.lastTickColor")
+	local markLast = Profile:Get("castBar.lastTick") == true
+
+	for index, fraction in ipairs(fractions) do
+		local tick = frame.ticks[index]
+
+		if not tick then
+			tick = frame.over:CreateTexture(nil, "BACKGROUND", nil, 1)
+			tick:SetSnapToPixelGrid(false)
+			tick:SetTexelSnappingBias(0)
+			frame.ticks[index] = tick
+		end
+
+		local chosen = markLast and index == #fractions and lastColor or color
+		local x = Options:TickOffset(fraction, width, reversed)
+
+		tick:SetColorTexture(chosen.r, chosen.g, chosen.b, chosen.a or 1)
+		tick:ClearAllPoints()
+		tick:SetPoint("TOPLEFT", frame.over, "TOPLEFT", x, 0)
+		tick:SetPoint("BOTTOMLEFT", frame.over, "BOTTOMLEFT", x, 0)
+		tick:SetWidth(pixel)
+		tick:Show()
+	end
+end
+
+---Marks the ticks of the channel, when its spell is listed and can be read.
+---@param frame AUICastBarFrame
+---@param cast AUICastBarCast
+function CastBar:DrawTicks(frame, cast)
+	local data = cast.spellID and AUI.CastBarTickData.spells[cast.spellID]
+
+	if not data then
+		return
+	end
+
+	local seconds = cast.startTime and cast.endTime and (cast.endTime - cast.startTime) / 1000
+
+	self:ShowTicks(frame, Options:TickFractions(data, seconds, C_SpellBook.IsSpellKnownOrInSpellBook))
+end
+
+---Sizes the cast target's name and colors it: the class color may be secret, and goes straight to the font string.
+---@param frame AUICastBarFrame
+---@param name string possibly secret
+---@param class string possibly secret
+function CastBar:ShowTarget(frame, name, class)
+	local Profile = AUI.Profile
+	local target = frame.target
+
+	target:SetWidth(frame.bar:GetWidth() * Options.TARGET_SHARE)
+	target:SetText(name)
+
+	if Profile:Get("castBar.target.classColor") then
+		local r, g, b = GetClassColor(class)
+
+		target:SetTextColor(r, g, b)
+	else
+		local color = Profile:Get("castBar.target.color")
+
+		target:SetTextColor(color.r, color.g, color.b)
+	end
+
+	target:Show()
+	self:AnchorName(frame)
+end
+
+---Names the cast's target when the client says to show it.
+---@param frame AUICastBarFrame
+function CastBar:DrawTarget(frame)
+	if AUI.can.castTarget and AUI.Profile:Get("castBar.target.enabled") and UnitShouldDisplaySpellTargetName("player") then
+		self:ShowTarget(frame, UnitSpellTargetName("player"), UnitSpellTargetClass("player"))
+	end
+end
+
+---Clears what only some casts show: the stage colors and label, the latency, the pushback, the ticks and the target.
 ---@param frame AUICastBarFrame
 function CastBar:ClearAids(frame)
 	self:CancelStageTimer()
@@ -609,6 +725,15 @@ function CastBar:ClearAids(frame)
 	frame.latency:Hide()
 	frame.latencyText:Hide()
 	frame.pushback:SetText("")
+
+	for _, tick in ipairs(frame.ticks) do
+		tick:Hide()
+	end
+
+	if frame.target:IsShown() then
+		frame.target:Hide()
+		self:AnchorName(frame)
+	end
 end
 
 ---Starts the fill and the time from a cast's duration object.
@@ -653,6 +778,12 @@ function CastBar:Draw(frame, cast)
 	if cast.kind == Options.KINDS.EMPOWERED then
 		self:DrawStages(frame, cast)
 	end
+
+	if cast.kind == Options.KINDS.CHANNEL and Profile:Get("castBar.ticks") then
+		self:DrawTicks(frame, cast)
+	end
+
+	self:DrawTarget(frame)
 end
 
 ---Empties the bar for Always Show between casts.
@@ -691,6 +822,12 @@ function CastBar:DrawSample(frame, state, label)
 	frame.failed:SetAlpha(interrupted and 1 or 0)
 
 	if not interrupted then
+		if Profile:Get("castBar.target.enabled") then
+			local _, class = UnitClass("player")
+
+			self:ShowTarget(frame, TARGET, class)
+		end
+
 		local latency = Options.SAMPLE_LATENCY
 
 		self:PlaceLatency(frame, Options:LatencyShare(latency, 0, Options.SAMPLE_TOTAL * 1000), channeling, latency)
@@ -698,6 +835,10 @@ function CastBar:DrawSample(frame, state, label)
 		if not empowered and Profile:Get("castBar.pushback") then
 			frame.pushback:SetText(Options:PushbackText(Options.SAMPLE_PUSHBACK, channeling and "-" or "+"))
 		end
+	end
+
+	if channeling and Profile:Get("castBar.ticks") then
+		self:ShowTicks(frame, Options:TickFractions({ ticks = Options.SAMPLE_TICKS }, nil, nop))
 	end
 
 	if empowered then

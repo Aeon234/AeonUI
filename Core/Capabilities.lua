@@ -53,6 +53,7 @@ AUI.Capabilities = Capabilities
 ---@field castSwipe boolean the player's casts and channels give duration objects
 ---@field castBar boolean status bars run timers from duration objects and duration text bindings write the time
 ---@field petBattles boolean the client has pet battles
+---@field castTarget boolean the client names a cast's target
 ---@field premadeJoined boolean a joined group's listing and its Adventure Guide instance can be read
 ---@field petNotices boolean the pet's stance and the character's spells can be read
 ---@field petHealthNotice boolean the pet's health can be drawn through a curve
@@ -148,6 +149,8 @@ function Capabilities:Resolve()
 		and C_StringUtil.CreateNumericRuleFormatter ~= nil and Enum.StatusBarTimerDirection ~= nil
 		and Enum.StatusBarInterpolation ~= nil and Enum.DurationTextBindingProperty ~= nil
 	can.petBattles = C_PetBattles ~= nil and C_PetBattles.IsInBattle ~= nil
+	can.castTarget = UnitShouldDisplaySpellTargetName ~= nil and UnitSpellTargetName ~= nil
+		and UnitSpellTargetClass ~= nil and GetClassColor ~= nil
 	can.premadeJoined = C_LFGList ~= nil and C_LFGList.GetSearchResultInfo ~= nil
 		and C_LFGList.GetActivityInfoTable ~= nil and C_EncounterJournal ~= nil
 		and C_EncounterJournal.GetInstanceForGameMap ~= nil and canaccesstable ~= nil

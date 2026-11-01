@@ -2,7 +2,8 @@
 -- the spell name's length and the time's formats; then nothing built and Blizzard's bar left alone while off, the
 -- default look and place, casts, channels and empowered casts drawn from duration objects (secret ones too), the
 -- not-interruptible cover, other units ignored, pet battles, the samples, every look setting, Always Show, a saved
--- place, Interrupted and Failed, Fade Out, latency, pushback, empowered stages and their label, Blizzard's bar parked
+-- place, Interrupted and Failed, Fade Out, latency, pushback, empowered stages and their label, the tick lists and
+-- marks, the cast target, Blizzard's bar parked
 -- and kept parked (after a reparent, past combat and Edit Mode) and handed back when turned off, and turning it on
 -- again.
 -- Run from any directory with Lua 5.1: lua Tools/check_castbar.lua
@@ -80,6 +81,31 @@ function GetNetStats()
 	return 0, 0, 40, latencyMs
 end
 FAILED = "Failed"
+TARGET = "Target"
+function nop() end
+
+local knownSpells = {}
+C_SpellBook = { IsSpellKnownOrInSpellBook = function(spellID)
+	return knownSpells[spellID] == true
+end }
+
+local targetShown, targetName, targetClass = false, "Thrall", "SHAMAN"
+function UnitShouldDisplaySpellTargetName()
+	return targetShown
+end
+function UnitSpellTargetName()
+	return targetName
+end
+function UnitSpellTargetClass()
+	return targetClass
+end
+function GetClassColor(class)
+	if class == "SHAMAN" then
+		return 0, 0.44, 0.87
+	end
+
+	return issecretvalue(class) and "secretR" or 1, 1, 1
+end
 INTERRUPTED = "Interrupted"
 
 local function RunTimers()
@@ -432,7 +458,8 @@ function UnitChannelInfo(unit)
 	assert(unit == "player")
 
 	if channel then
-		return channel.name, channel.display, 136243, 1000, channelEndTime or 4000, false, channel.locked, 15407,
+		return channel.name, channel.display, 136243, 1000, channelEndTime or 4000, false, channel.locked,
+			channel.spell or 15407,
 			channel.empowered,
 			channel.empowered and 3 or 0, nil
 	end
@@ -463,7 +490,7 @@ AUI.L = setmetatable({}, { __index = function(_, key)
 	return key
 end })
 assert(loadfile(root .. "Core/Core.lua"))("AeonUI", AUI)
-AUI.can = { castBar = true, petBattles = true }
+AUI.can = { castBar = true, petBattles = true, castTarget = true }
 
 for _, file in ipairs({ "Core/Callbacks.lua", "Core/Events.lua", "Profile/Schema.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
@@ -512,7 +539,8 @@ AUI.Media = {
 	end,
 }
 
-for _, file in ipairs({ "CastBar/Options.lua", "CastBar/BlizzardBar.lua", "CastBar/CastBar.lua" }) do
+for _, file in ipairs({ "CastBar/Options.lua", "CastBar/TickData.lua", "CastBar/BlizzardBar.lua",
+	"CastBar/CastBar.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 
@@ -573,6 +601,41 @@ Equal("unknown without its times", Options:LatencyShare(150, nil, 2500), nil)
 Equal("a cast's pushback", Options:PushbackText(400, "+"), "+0.4")
 Equal("a channel's", Options:PushbackText(400, "-"), "-0.4")
 Equal("nothing pushed", Options:PushbackText(0, "+"), "")
+local function Known(id)
+	return knownSpells[id] == true
+end
+local function Fractions(data, seconds)
+	local texts = {}
+	for index, fraction in ipairs(Options:TickFractions(data, seconds, Known)) do
+		texts[index] = ("%.2f"):format(fraction)
+	end
+
+	return table.concat(texts, " ")
+end
+Equal("ticks leave out the channel's end", Fractions({ ticks = 4 }), "0.25 0.50 0.75")
+Equal("missiles land at both ends", Fractions({ missiles = 5 }), "0.25 0.50 0.75")
+Equal("an interval needs the length", Fractions({ interval = 0.2 }), "")
+Equal("an interval's ticks", Fractions({ interval = 0.5 }, 2), "0.25 0.50 0.75")
+Equal("a talent's count only while known", Fractions({ ticks = 2, talent = 193134, talentTicks = 3 }), "0.50")
+knownSpells[193134] = true
+Equal("then its count", Fractions({ ticks = 2, talent = 193134, talentTicks = 3 }), "0.33 0.67")
+Equal("known spells add missiles", Fractions({ missiles = 3, addMissiles = { [193134] = 2 } }),
+	"0.25 0.50 0.75")
+knownSpells[193134] = nil
+Equal("a draining channel's tick", Options:TickOffset(0.25, 100, false), 75)
+Equal("a reversed one's", Options:TickOffset(0.25, 100, true), 25)
+local TickData = AUI.CastBarTickData
+Equal("Retail's Mind Flay", TickData.RETAIL[15407].ticks, 6)
+Equal("Forever's own", TickData.FOREVER[15407].ticks, 3)
+Equal("Forever's Penance rank", TickData.FOREVER[1316995].ticks, 2)
+Equal("Eye Beam by interval", TickData.RETAIL[198013].interval, 0.2)
+Equal("this client's table", TickData.spells, TickData.RETAIL)
+for _, spells in ipairs({ TickData.RETAIL, TickData.FOREVER }) do
+	for id, data in pairs(spells) do
+		Equal("spell " .. id .. " has one model", (data.ticks and 1 or 0) + (data.missiles and 1 or 0)
+			+ (data.interval and 1 or 0), 1)
+	end
+end
 local stageEnds = Options:Boundaries({ 0.25, 0.25, 0.5 })
 Equal("where stages end", stageEnds[1] .. " " .. stageEnds[2] .. " " .. stageEnds[3], "0.25 0.5 1")
 Equal("no stage yet", Options:StageReached(stageEnds, 0.1), 0)
@@ -1049,6 +1112,98 @@ Set("castBar.pushback", true)
 CastBar:DrawSample(frame, Options.STATES.CHANNELING, "Channeling")
 Equal("the other samples none", tostring(frame.zones.shown) .. " " .. frame.pushback.text, "false -0.4")
 Set("castBar.pushback", false)
+CastBar:Update()
+
+-- Channel ticks -------------------------------------------------------------------------------------------
+
+Equal("ticks on by default, Last Tick off", tostring(AUI.Schema:Field("castBar.ticks").default) .. " "
+	.. tostring(AUI.Schema:Field("castBar.lastTick").default), "true false")
+channel, channelDuration = { name = "Mind Flay", display = "Mind Flay" }, {}
+Fire("UNIT_SPELLCAST_CHANNEL_START", "player")
+Equal("six ticks, five marks", #frame.ticks, 5)
+Equal("from the draining end", tostring(frame.ticks[1].points[1][4]), tostring(386 * 5 / 6))
+Equal("one pixel, black at 70%", frame.ticks[1].width .. " " .. frame.ticks[1].color[1] .. " "
+	.. frame.ticks[1].color[4], "0.5 0 0.7")
+Equal("full height", frame.ticks[1].points[2][1], "BOTTOMLEFT")
+Set("castBar.lastTick", true)
+Fire("UNIT_SPELLCAST_CHANNEL_UPDATE", "player")
+Equal("Last Tick marks the last", frame.ticks[5].color[1] .. " " .. frame.ticks[4].color[1], "1 0")
+Set("castBar.lastTick", false)
+Set("castBar.tickColor", { r = 0, g = 1, b = 0, a = 0.5 })
+Fire("UNIT_SPELLCAST_CHANNEL_UPDATE", "player")
+Equal("the tick color", frame.ticks[1].color[2], 1)
+Set("castBar.ticks", false)
+Fire("UNIT_SPELLCAST_CHANNEL_UPDATE", "player")
+Equal("off, none", frame.ticks[1].shown, false)
+Set("castBar.ticks", true)
+channel.spell = 99999
+Fire("UNIT_SPELLCAST_CHANNEL_UPDATE", "player")
+Equal("an unlisted spell has none", frame.ticks[1].shown, false)
+channel.spell = Secret(15408)
+Fire("UNIT_SPELLCAST_CHANNEL_UPDATE", "player")
+Equal("nor a secret one", frame.ticks[1].shown, false)
+channel.spell = 198013
+Fire("UNIT_SPELLCAST_CHANNEL_UPDATE", "player")
+Equal("an interval from the channel's length", frame.ticks[14].shown, true)
+channel, channelDuration = nil, nil
+Fire("UNIT_SPELLCAST_CHANNEL_STOP", "player")
+StartCast()
+Equal("a cast has none", frame.ticks[1].shown, false)
+EndCast()
+Fire("UNIT_SPELLCAST_STOP", "player")
+channel, channelDuration = { name = "Mind Flay", display = "Mind Flay" }, {}
+Fire("UNIT_SPELLCAST_CHANNEL_START", "player")
+channel, channelDuration = nil, nil
+Fire("UNIT_SPELLCAST_CHANNEL_STOP", "player", "Cast-3", 15407, "Creature-1")
+Equal("nor the feedback", frame.ticks[1].shown, false)
+RunNamedTimer()
+CastBar:DrawSample(frame, Options.STATES.CHANNELING, "Channeling")
+Equal("the Channeling sample shows ticks", frame.ticks[4].shown, true)
+CastBar:DrawSample(frame, Options.STATES.CASTING, "Casting")
+Equal("Casting's does not", frame.ticks[1].shown, false)
+CastBar:Update()
+
+-- Cast target ---------------------------------------------------------------------------------------------
+
+Equal("off by default", AUI.Schema:Field("castBar.target.enabled").default, false)
+targetShown = true
+StartCast()
+Equal("no target while off", frame.target.shown, false)
+Set("castBar.target.enabled", true)
+Fire("UNIT_SPELLCAST_DELAYED", "player")
+Equal("the target's name", tostring(frame.target.shown) .. " " .. frame.target.text, "true Thrall")
+Equal("in its class color", frame.target.color[3], 0.87)
+Equal("before the time", frame.target.points[1][2], frame.time)
+Equal("the spell name stops at it", frame.text.points[2][2], frame.target)
+Equal("within its share of the bar", tostring(frame.target.width), tostring(386 * 0.35))
+targetShown = false
+Fire("UNIT_SPELLCAST_DELAYED", "player")
+Equal("hidden when the client says not to", frame.target.shown, false)
+Equal("the name back against the time", frame.text.points[2][2], frame.time)
+targetShown = true
+targetName, targetClass = Secret("Hidden"), Secret("PRIEST")
+Fire("UNIT_SPELLCAST_DELAYED", "player")
+Equal("a secret name and class go straight through", frame.target.text .. " " .. frame.target.color[1],
+	"Hidden secretR")
+targetName, targetClass = "Thrall", "SHAMAN"
+Set("castBar.target.classColor", false)
+Set("castBar.target.color", { r = 0, g = 1, b = 0 })
+Fire("UNIT_SPELLCAST_DELAYED", "player")
+Equal("its own color", frame.target.color[2], 1)
+Set("castBar.target.size", 10)
+Set("castBar.target.x", -8)
+Set("castBar.target.y", 3)
+Equal("its size and place", frame.target.size .. " " .. frame.target.points[1][4] .. " " .. frame.target.points[1][5],
+	"10 -12 3")
+EndCast()
+Fire("UNIT_SPELLCAST_STOP", "player")
+Equal("gone with the cast", frame.shown, false)
+CastBar:DrawSample(frame, Options.STATES.CASTING, "Casting")
+Equal("the sample names one", frame.target.text, "Target")
+CastBar:DrawSample(frame, Options.STATES.INTERRUPTED, "Interrupted")
+Equal("Interrupted's does not", frame.target.shown, false)
+targetShown = false
+Set("castBar.target.enabled", false)
 CastBar:Update()
 
 -- The settings page's preview ------------------------------------------------------------------------------
