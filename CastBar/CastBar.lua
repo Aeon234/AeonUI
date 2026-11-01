@@ -23,6 +23,7 @@ local BORDER_LINES = {
 }
 -- An icon's own border, cut from each edge.
 local ICON_CROP = 0.08
+local LATENCY_TEXT_SIZE = 10
 
 ---@class AUICastBarFrame : Frame
 ---@field lines Texture[] the border, `BORDER_LINES` in order
@@ -31,17 +32,39 @@ local ICON_CROP = 0.08
 ---@field background Texture
 ---@field locked Frame covers the fill while the cast cannot be interrupted
 ---@field lockedFill Texture
----@field failed Frame covers the fill while Interrupted shows
----@field over Frame the spark and text, above the covers
+---@field failed Frame covers the fill while Interrupted or Failed shows
+---@field failedFill Texture
+---@field zones Frame clips the empowered stage colors to the fill
+---@field strip Frame spans the bar inside `zones`; the stage colors are placed on it
+---@field stages Texture[] the stage colors, created as needed
+---@field over Frame the spark, latency and text, above the covers
+---@field latency Texture the part of the cast within the player's latency
+---@field latencyText FontString
+---@field pushback FontString
 ---@field spark Texture
 ---@field text FontString the spell name
 ---@field time FontString
 ---@field binding table a duration text binding; writes the time into `time`
+---@field fade AnimationGroup? the live bar's Fade Out
+
+---The cast being drawn, reused from one read to the next. Times are nil when they cannot be read.
+---@class AUICastBarCast
+---@field kind AUICastKind
+---@field duration LuaDurationObject
+---@field name string? possibly secret
+---@field notInterruptible boolean? possibly secret
+---@field icon number? possibly secret
+---@field id string? its cast GUID
+---@field startTime number? in milliseconds
+---@field endTime number? in milliseconds; an empowered cast's includes its hold at full charge
+---@field delay number? a cast's pushback, in milliseconds
 
 ---The player cast bar. The client's timer drives the fill from the cast's duration object and a duration text binding
 ---writes the time, so no Lua runs while a cast is drawn and no secret value is read: the spell name, the icon, the
 ---duration and the interruptible flag go straight to widgets. Each cast event reads the cast again and draws it, or
----empties or hides the bar when there is none.
+---empties or hides the bar when there is none. An interrupted or failed cast holds its feedback on a timer, and Fade
+---Out is an animation; Stage Label alone runs a timer per stage, while it is on. Times read for latency, pushback and
+---the stage label are used only when they are not secret.
 ---@class AUICastBar
 ---@field active boolean started this session
 ---@field following boolean the events are registered
@@ -49,11 +72,22 @@ local ICON_CROP = 0.08
 ---@field petBattle boolean
 ---@field frame AUICastBarFrame?
 ---@field formatter table? seconds to one decimal
+---@field cast AUICastBarCast the last cast read
+---@field drawn AUICastKind? the kind of cast on the bar
+---@field drawnID string? its cast GUID, when it can be read
+---@field channelEnd number? the first end time of the channel on the bar, for its pushback
+---@field feedback boolean Interrupted or Failed is holding
+---@field fading boolean Fade Out is running
+---@field holdTimer table? ends the feedback
+---@field stageTimer table? moves the stage label on
 local CastBar = {
 	active = false,
 	following = false,
 	sampling = false,
 	petBattle = false,
+	cast = {} --[[@as AUICastBarCast]],
+	feedback = false,
+	fading = false,
 }
 AUI.CastBar = CastBar
 
@@ -115,23 +149,39 @@ function CastBar:Build(parent, name)
 	frame.background = bar:CreateTexture(nil, "BACKGROUND")
 	frame.background:SetAllPoints()
 
+	local zones = CreateFrame("Frame", nil, bar)
+
+	zones:SetClipsChildren(true)
+	zones:Hide()
+	frame.zones = zones
+	frame.strip = CreateFrame("Frame", nil, zones)
+	frame.strip:SetAllPoints(bar)
+	frame.stages = {}
+
 	frame.locked, frame.lockedFill = CreateCover(bar)
-
-	local failed, failedFill = CreateCover(bar)
-	local interrupted = Options.INTERRUPTED_COLOR
-
-	failedFill:SetColorTexture(interrupted.r, interrupted.g, interrupted.b, 1)
-	frame.failed = failed
+	frame.failed, frame.failedFill = CreateCover(bar)
+	frame.locked:SetFrameLevel(zones:GetFrameLevel() + 2)
+	frame.failed:SetFrameLevel(zones:GetFrameLevel() + 3)
 
 	local over = CreateFrame("Frame", nil, bar)
 
 	over:SetAllPoints()
-	over:SetFrameLevel(failed:GetFrameLevel() + 1)
+	over:SetFrameLevel(zones:GetFrameLevel() + 4)
 	frame.over = over
+
+	frame.latency = over:CreateTexture(nil, "BACKGROUND")
+	frame.latency:Hide()
 
 	frame.spark = over:CreateTexture(nil, "OVERLAY")
 	frame.spark:SetTexture(Options.SPARK_TEXTURE)
 	frame.spark:SetBlendMode("ADD")
+
+	frame.latencyText = over:CreateFontString(nil, "OVERLAY")
+	frame.latencyText:SetWordWrap(false)
+	frame.latencyText:Hide()
+
+	frame.pushback = over:CreateFontString(nil, "OVERLAY")
+	frame.pushback:SetWordWrap(false)
 
 	frame.time = over:CreateFontString(nil, "OVERLAY")
 	frame.time:SetJustifyH("RIGHT")
@@ -244,10 +294,26 @@ function CastBar:StyleTexts(frame)
 	time:ClearAllPoints()
 	time:SetPoint("RIGHT", over, "RIGHT", Profile:Get("castBar.time.x"), Profile:Get("castBar.time.y"))
 
+	local pushback = frame.pushback
+	local pushbackShown = Profile:Get("castBar.pushback") == true
+
+	self:StyleText(pushback, Profile:Get("castBar.time.size"), Profile:Get("castBar.pushbackColor"))
+	self:StyleText(frame.latencyText, LATENCY_TEXT_SIZE, { r = 1, g = 1, b = 1 })
+	pushback:SetShown(pushbackShown)
+	pushback:ClearAllPoints()
+
+	if timeShown then
+		pushback:SetPoint("RIGHT", time, "LEFT", -TEXT_GAP, 0)
+	else
+		pushback:SetPoint("RIGHT", over, "RIGHT")
+	end
+
 	text:ClearAllPoints()
 	text:SetPoint("LEFT", over, "LEFT", Profile:Get("castBar.name.x"), Profile:Get("castBar.name.y"))
 
-	if timeShown then
+	if pushbackShown then
+		text:SetPoint("RIGHT", pushback, "LEFT", -TEXT_GAP, 0)
+	elseif timeShown then
 		text:SetPoint("RIGHT", time, "LEFT", -TEXT_GAP, 0)
 	else
 		text:SetPoint("RIGHT", over, "RIGHT")
@@ -279,6 +345,7 @@ function CastBar:Style(frame)
 
 	local fill = bar:GetStatusBarTexture()
 	local background, locked = Profile:Get("castBar.background"), Profile:Get("castBar.notInterruptible")
+	local interrupted, latency = Profile:Get("castBar.interrupted"), Profile:Get("castBar.latencyColor")
 
 	frame.background:SetColorTexture(background.r, background.g, background.b, background.a or 1)
 	frame.locked:ClearAllPoints()
@@ -286,6 +353,10 @@ function CastBar:Style(frame)
 	frame.lockedFill:SetColorTexture(locked.r, locked.g, locked.b, 1)
 	frame.failed:ClearAllPoints()
 	frame.failed:SetAllPoints(fill)
+	frame.failedFill:SetColorTexture(interrupted.r, interrupted.g, interrupted.b, 1)
+	frame.zones:ClearAllPoints()
+	frame.zones:SetAllPoints(fill)
+	frame.latency:SetColorTexture(latency.r, latency.g, latency.b, latency.a or 1)
 
 	frame.spark:ClearAllPoints()
 	frame.spark:SetPoint("CENTER", fill, reverse and "LEFT" or "RIGHT")
@@ -300,7 +371,17 @@ function CastBar:CreateFrame()
 	end
 
 	local frame = self:Build(UIParent, "AeonUICastBar")
+	local fade = frame:CreateAnimationGroup()
+	local alpha = fade:CreateAnimation("Alpha")
 
+	alpha:SetFromAlpha(1)
+	alpha:SetToAlpha(0)
+	alpha:SetDuration(Options.FADE_SECONDS)
+	fade:SetScript("OnFinished", function()
+		self:OnFaded()
+	end)
+
+	frame.fade = fade
 	frame:EnableMouse(false)
 	self.frame = frame
 end
@@ -329,22 +410,22 @@ function CastBar:IsOn()
 	return AUI.can.castBar == true and AUI.Profile:Get(Options.ENABLED_PATH) == true
 end
 
----The player's cast, empowered cast or channel.
----@return AUICastKind? kind nil when the player is not casting
----@return LuaDurationObject? duration
----@return string? name the spell's display name, possibly secret
----@return boolean? notInterruptible possibly secret
----@return number? icon the spell's icon, possibly secret
+---Reads the player's cast, empowered cast or channel into `self.cast`.
+---@return AUICastBarCast? cast nil when the player is not casting
 function CastBar:Current()
-	local name, displayName, icon, _, _, _, _, notInterruptible = UnitCastingInfo("player")
+	local cast = self.cast
+	local name, displayName, icon, startTime, endTime, _, castID, notInterruptible, _, _, delay = UnitCastingInfo("player")
 	local casting = issecretvalue(name) or name ~= nil
 	local duration, empowered
 
 	if casting then
 		duration = UnitCastingDuration("player")
 	else
-		name, displayName, icon, _, _, _, notInterruptible, _, empowered = UnitChannelInfo("player")
-		empowered = empowered == true and UnitEmpoweredChannelDuration ~= nil
+		local isEmpowered
+
+		castID, delay = nil, nil
+		name, displayName, icon, startTime, endTime, _, notInterruptible, _, isEmpowered = UnitChannelInfo("player")
+		empowered = isEmpowered == true and UnitEmpoweredChannelDuration ~= nil
 
 		if issecretvalue(name) or name ~= nil then
 			duration = empowered and UnitEmpoweredChannelDuration("player", true) or UnitChannelDuration("player")
@@ -355,7 +436,17 @@ function CastBar:Current()
 		return nil
 	end
 
-	return Options:Kind(casting, not casting, empowered), duration, displayName, notInterruptible, icon
+	startTime, endTime = AUI:Readable(startTime), AUI:Readable(endTime)
+
+	if empowered and endTime and GetUnitEmpowerHoldAtMaxTime then
+		endTime = endTime + (AUI:Readable(GetUnitEmpowerHoldAtMaxTime("player")) or 0)
+	end
+
+	cast.kind = Options:Kind(casting, not casting, empowered) --[[@as AUICastKind]]
+	cast.duration, cast.name, cast.notInterruptible, cast.icon = duration, displayName, notInterruptible, icon
+	cast.id, cast.startTime, cast.endTime, cast.delay = AUI:Readable(castID), startTime, endTime, delay
+
+	return cast
 end
 
 ---@param name string? possibly secret, which keeps it whole
@@ -368,40 +459,206 @@ function CastBar:SpellName(name)
 	return Options:Shorten(name, AUI.Profile:Get("castBar.name.maxLength"))
 end
 
+---Shades the end of the bar a cast of that kind finishes at, with the latency's text above it while that is on.
+---@param frame AUICastBarFrame
+---@param share number? how much of the bar; nil hides it
+---@param drains boolean the fill runs out toward the bar's start
+---@param latency number in milliseconds
+function CastBar:PlaceLatency(frame, share, drains, latency)
+	local Profile = AUI.Profile
+	local shown = share ~= nil and share > 0 and Profile:Get("castBar.latency") == true
+	local zone, label = frame.latency, frame.latencyText
+
+	zone:SetShown(shown)
+	label:SetShown(shown and Profile:Get("castBar.latencyText") == true)
+
+	if not shown then
+		return
+	end
+
+	local atRight = drains == (Profile:Get("castBar.reverse") == true)
+	local side = atRight and "RIGHT" or "LEFT"
+
+	zone:ClearAllPoints()
+	zone:SetPoint("TOP" .. side)
+	zone:SetPoint("BOTTOM" .. side)
+	zone:SetWidth(frame.bar:GetWidth() * share --[[@as number]])
+	label:ClearAllPoints()
+	label:SetPoint("BOTTOM" .. side, frame.over, "TOP" .. side, 0, 1)
+	label:SetFormattedText("%d ms", latency)
+end
+
+---Places each stage's color across the bar; only the filled part shows them, the last color repeating.
+---@param frame AUICastBarFrame
+---@param boundaries number[]
+function CastBar:PlaceStages(frame, boundaries)
+	local width = frame.bar:GetWidth()
+	local side = AUI.Profile:Get("castBar.reverse") and "RIGHT" or "LEFT"
+	local direction = side == "RIGHT" and -1 or 1
+	local start = 0
+
+	for index = 1, math.max(#boundaries, #frame.stages) do
+		local stage, finish = frame.stages[index], boundaries[index]
+
+		if finish and not stage then
+			stage = frame.strip:CreateTexture(nil, "ARTWORK")
+			frame.stages[index] = stage
+		end
+
+		if stage then
+			stage:SetShown(finish ~= nil and finish > start)
+		end
+
+		if finish and finish > start then
+			local color = AUI.Profile:Get("castBar.stage." .. math.min(index, Options.STAGE_COLORS))
+
+			stage:SetColorTexture(color.r, color.g, color.b, 1)
+			stage:ClearAllPoints()
+			stage:SetPoint("TOP" .. side, frame.strip, "TOP" .. side, direction * width * start, 0)
+			stage:SetPoint("BOTTOM" .. side, frame.strip, "BOTTOM" .. side, direction * width * start, 0)
+			stage:SetWidth(width * (finish - start))
+			start = finish
+		end
+	end
+
+	frame.zones:Show()
+end
+
+---@param reached integer the stages fully charged
+---@param total integer the stages, the hold at full charge being the last
+---@return string text
+local function StageText(reached, total)
+	return reached >= total - 1 and L["Hold"] or L["Stage %d"]:format(reached)
+end
+
+function CastBar:CancelStageTimer()
+	if self.stageTimer then
+		self.stageTimer:Cancel()
+		self.stageTimer = nil
+	end
+end
+
+---Writes the stage reached in the time's place, and comes back when the next one is reached.
+---@param frame AUICastBarFrame
+---@param boundaries number[]
+---@param startTime number in milliseconds
+---@param endTime number
+function CastBar:UpdateStageLabel(frame, boundaries, startTime, endTime)
+	local total = endTime - startTime
+	local reached, nextBoundary = Options:StageReached(boundaries, (GetTime() * 1000 - startTime) / total)
+
+	frame.time:SetText(StageText(reached, #boundaries))
+	self:CancelStageTimer()
+
+	if nextBoundary then
+		local delay = math.max((startTime + total * nextBoundary) / 1000 - GetTime(), 0)
+
+		self.stageTimer = C_Timer.NewTimer(delay, function()
+			self.stageTimer = nil
+			self:UpdateStageLabel(frame, boundaries, startTime, endTime)
+		end)
+	end
+end
+
+---Colors an empowered cast's stages and labels the one reached, from the client's stage shares, when they can be read.
+---@param frame AUICastBarFrame
+---@param cast AUICastBarCast
+function CastBar:DrawStages(frame, cast)
+	local Profile = AUI.Profile
+	local shares = UnitEmpoweredStagePercentages and UnitEmpoweredStagePercentages("player", true)
+
+	if issecretvalue(shares) or type(shares) ~= "table" or #shares == 0 or issecretvalue(shares[1]) then
+		return
+	end
+
+	local boundaries = Options:Boundaries(shares)
+
+	if Profile:Get("castBar.empowerColors") then
+		self:PlaceStages(frame, boundaries)
+	end
+
+	if Profile:Get("castBar.stageLabel") and cast.startTime and cast.endTime and cast.endTime > cast.startTime then
+		frame.binding:SetEnabled(false)
+		frame.time:Show()
+		self:UpdateStageLabel(frame, boundaries, cast.startTime, cast.endTime)
+	end
+end
+
+---The channel's pushback is how much sooner it now ends than when it was first drawn.
+---@param frame AUICastBarFrame
+---@param cast AUICastBarCast
+function CastBar:DrawPushback(frame, cast)
+	local kinds = Options.KINDS
+	local text = ""
+
+	if cast.kind == kinds.CAST then
+		text = Options:PushbackText(cast.delay, "+")
+	elseif cast.kind == kinds.CHANNEL and cast.endTime then
+		self.channelEnd = self.channelEnd or cast.endTime
+		text = Options:PushbackText(self.channelEnd - cast.endTime, "-")
+	end
+
+	frame.pushback:SetText(text)
+end
+
+---Clears what only some casts show: the stage colors and label, the latency and the pushback.
+---@param frame AUICastBarFrame
+function CastBar:ClearAids(frame)
+	self:CancelStageTimer()
+	frame.zones:Hide()
+	frame.latency:Hide()
+	frame.latencyText:Hide()
+	frame.pushback:SetText("")
+end
+
 ---Starts the fill and the time from a cast's duration object.
 ---@param frame AUICastBarFrame
----@param kind AUICastKind
----@param duration LuaDurationObject
----@param name string?
----@param notInterruptible boolean?
----@param icon number?
-function CastBar:Draw(frame, kind, duration, name, notInterruptible, icon)
+---@param cast AUICastBarCast
+function CastBar:Draw(frame, cast)
 	local Profile = AUI.Profile
 	local bar = frame.bar
-	local direction = Options:Drains(kind) and Enum.StatusBarTimerDirection.RemainingTime
+	local drains = Options:Drains(cast.kind)
+	local direction = drains and Enum.StatusBarTimerDirection.RemainingTime
 		or Enum.StatusBarTimerDirection.ElapsedTime
 	local interpolation = Profile:Get("castBar.smooth") and Enum.StatusBarInterpolation.ExponentialEaseOut
 		or Enum.StatusBarInterpolation.Immediate
 
-	bar:SetTimerDuration(duration, interpolation, direction)
+	self:ClearAids(frame)
+	bar:SetTimerDuration(cast.duration, interpolation, direction)
 	-- The easing follows the cast from its own place, not from where the last cast left the bar.
 	bar:SetToTargetValue()
-	frame.binding:SetDuration(duration)
+	frame.binding:SetDuration(cast.duration)
 	frame.binding:SetEnabled(true)
-	frame.text:SetText(self:SpellName(name))
-	frame.icon:SetTexture(icon)
+	frame.time:SetShown(Profile:Get("castBar.time.enabled") == true)
+	frame.text:SetText(self:SpellName(cast.name))
+	frame.icon:SetTexture(cast.icon)
 	frame.spark:SetShown(Profile:Get("castBar.spark") == true)
 
-	if not issecretvalue(notInterruptible) and notInterruptible == nil then
+	if not issecretvalue(cast.notInterruptible) and cast.notInterruptible == nil then
 		frame.locked:SetAlpha(0)
 	else
-		frame.locked:SetAlphaFromBoolean(notInterruptible --[[@as boolean]], 1, 0)
+		frame.locked:SetAlphaFromBoolean(cast.notInterruptible --[[@as boolean]], 1, 0)
+	end
+
+	if Profile:Get("castBar.latency") then
+		local _, _, _, latency = GetNetStats()
+
+		self:PlaceLatency(frame, Options:LatencyShare(latency, cast.startTime, cast.endTime), drains, latency)
+	end
+
+	if Profile:Get("castBar.pushback") then
+		self:DrawPushback(frame, cast)
+	end
+
+	if cast.kind == Options.KINDS.EMPOWERED then
+		self:DrawStages(frame, cast)
 	end
 end
 
 ---Empties the bar for Always Show between casts.
 ---@param frame AUICastBarFrame
 function CastBar:DrawEmpty(frame)
+	self:ClearAids(frame)
 	frame.binding:SetEnabled(false)
 	frame.bar:SetValue(0)
 	frame.text:SetText("")
@@ -419,19 +676,125 @@ function CastBar:DrawSample(frame, state, label)
 	local Profile = AUI.Profile
 	local STATES = Options.STATES
 	local interrupted = state == STATES.INTERRUPTED
+	local channeling = state == STATES.CHANNELING
+	local empowered = state == STATES.EMPOWERED
+	local timeText = Options:SampleTime(Profile:Get("castBar.time.format"))
+	local timeShown = Profile:Get("castBar.time.enabled") == true and not interrupted
 
+	self:ClearAids(frame)
 	frame.binding:SetEnabled(false)
 	frame.bar:SetValue(interrupted and 1 or Options.SAMPLE_PROGRESS)
 	frame.text:SetText(self:SpellName(label))
-	frame.time:SetText(Options:SampleTime(Profile:Get("castBar.time.format")))
-	frame.time:SetShown(Profile:Get("castBar.time.enabled") == true and not interrupted)
 	frame.icon:SetTexture(Options.SAMPLE_ICON)
 	frame.spark:SetShown(Profile:Get("castBar.spark") == true and not interrupted)
 	frame.locked:SetAlpha(state == STATES.NOT_INTERRUPTIBLE and 1 or 0)
 	frame.failed:SetAlpha(interrupted and 1 or 0)
+
+	if not interrupted then
+		local latency = Options.SAMPLE_LATENCY
+
+		self:PlaceLatency(frame, Options:LatencyShare(latency, 0, Options.SAMPLE_TOTAL * 1000), channeling, latency)
+
+		if not empowered and Profile:Get("castBar.pushback") then
+			frame.pushback:SetText(Options:PushbackText(Options.SAMPLE_PUSHBACK, channeling and "-" or "+"))
+		end
+	end
+
+	if empowered then
+		local boundaries = Options:Boundaries(Options.SAMPLE_STAGES)
+
+		if Profile:Get("castBar.empowerColors") then
+			self:PlaceStages(frame, boundaries)
+		end
+
+		if Profile:Get("castBar.stageLabel") then
+			timeText = StageText(Options:StageReached(boundaries, Options.SAMPLE_PROGRESS), #boundaries)
+			timeShown = true
+		end
+	end
+
+	frame.time:SetText(timeText)
+	frame.time:SetShown(timeShown)
 end
 
----Draws the player's cast, or the sample, or the empty bar, or hides it.
+---Ends Interrupted, Failed or Fade Out at once and clears what they showed.
+function CastBar:CancelEnding()
+	local frame = self.frame
+
+	if self.holdTimer then
+		self.holdTimer:Cancel()
+		self.holdTimer = nil
+	end
+
+	self.feedback, self.fading = false, false
+
+	if frame then
+		local fade = frame.fade --[[@as AnimationGroup]]
+
+		fade:Stop()
+		frame:SetAlpha(1)
+		frame.failed:SetAlpha(0)
+	end
+end
+
+---Fades the bar out as it stands.
+function CastBar:StartFade()
+	local frame = self.frame --[[@as AUICastBarFrame]]
+
+	self.fading = true
+	self.drawn, self.drawnID = nil, nil
+	frame.binding:SetEnabled(false)
+	frame.spark:Hide()
+	local fade = frame.fade --[[@as AnimationGroup]]
+
+	fade:Play()
+end
+
+function CastBar:OnFaded()
+	self:CancelEnding()
+	self:Update()
+end
+
+---Holds Interrupted or Failed on the full bar, in its color with the timer hidden, then fades or goes.
+---@param text string
+function CastBar:ShowFeedback(text)
+	local frame = self.frame --[[@as AUICastBarFrame]]
+	local hold = AUI.Profile:Get("castBar.holdTime")
+
+	self:ClearAids(frame)
+	self.drawn, self.drawnID, self.channelEnd = nil, nil, nil
+	frame.binding:SetEnabled(false)
+	frame.bar:SetValue(1)
+	frame.text:SetText(text)
+	frame.time:Hide()
+	frame.spark:Hide()
+	frame.locked:SetAlpha(0)
+	frame.failed:SetAlpha(1)
+	self.feedback = true
+
+	if hold > 0 then
+		self.holdTimer = C_Timer.NewTimer(hold, function()
+			self.holdTimer = nil
+			self:EndFeedback()
+		end)
+	else
+		self:EndFeedback()
+	end
+end
+
+function CastBar:EndFeedback()
+	self.feedback = false
+
+	if AUI.Profile:Get("castBar.fade") and not AUI.Profile:Get("castBar.alwaysShow") then
+		self:StartFade()
+	else
+		self:CancelEnding()
+		self:Update()
+	end
+end
+
+---Draws the player's cast, or the sample, or the empty bar, or hides it; Interrupted, Failed and Fade Out stay until
+---they end or a new cast replaces them. A finished cast fades while Fade Out is on.
 function CastBar:Update()
 	local frame = self.frame
 
@@ -439,15 +802,26 @@ function CastBar:Update()
 		return
 	end
 
+	local Profile = AUI.Profile
 	local on = self:IsOn()
-	local kind, duration, name, notInterruptible, icon
+	local alwaysShow = Profile:Get("castBar.alwaysShow") == true
+	local cast
 
 	if on and not self.sampling then
-		kind, duration, name, notInterruptible, icon = self:Current()
+		cast = self:Current()
 	end
 
-	if not Options:Visible(on, kind ~= nil, self.sampling, self.petBattle,
-		AUI.Profile:Get("castBar.alwaysShow") == true) then
+	if cast or not on or self.sampling then
+		self:CancelEnding()
+	end
+
+	local ending = self.feedback or self.fading
+	local startFade = cast == nil and self.drawn ~= nil and not alwaysShow and Profile:Get("castBar.fade") == true
+
+	if not Options:Visible(on, cast ~= nil or ending or startFade, self.sampling, self.petBattle, alwaysShow) then
+		self:CancelEnding()
+		self:CancelStageTimer()
+		self.drawn, self.drawnID, self.channelEnd = nil, nil, nil
 		frame.binding:SetEnabled(false)
 		frame:Hide()
 
@@ -456,21 +830,76 @@ function CastBar:Update()
 
 	if self.sampling then
 		self:DrawSample(frame, Options.STATES.CASTING, L["Cast Bar"])
-	elseif kind then
-		self:Draw(frame, kind, duration --[[@as LuaDurationObject]], name, notInterruptible, icon)
+	elseif cast then
+		self:Draw(frame, cast)
+		self.drawn, self.drawnID = cast.kind, cast.id
+	elseif ending then
+		return
+	elseif startFade then
+		self.channelEnd = nil
+		self:CancelStageTimer()
+		self:StartFade()
+
+		return
 	else
-		self:DrawEmpty(frame)
+		self.drawn, self.drawnID, self.channelEnd = nil, nil, nil
+
+		if alwaysShow then
+			self:DrawEmpty(frame)
+		else
+			self:CancelStageTimer()
+			frame.binding:SetEnabled(false)
+			frame:Hide()
+
+			return
+		end
 	end
 
 	frame:Show()
 end
 
----@param _ string
----@param unit string
-function CastBar:OnCastEvent(_, unit)
-	if unit == "player" then
-		self:Update()
+---@param castGUID string the event's, possibly secret
+---@return boolean drawn the bar is drawing that cast; a cast GUID that cannot be compared counts
+function CastBar:IsDrawnCast(castGUID)
+	if self.drawn ~= Options.KINDS.CAST then
+		return false
 	end
+
+	return self.drawnID == nil or issecretvalue(castGUID) or castGUID == self.drawnID
+end
+
+---Interrupted and Failed come before the cast's stop: a stopped channel says so itself, by who interrupted it, and an
+---empowered cast by whether it completed. Failed for a spell other than the drawn cast changes nothing.
+---@param event string
+---@param unit string
+---@param castGUID string?
+---@param _ number? the spell ID
+---@param detail any `interruptedBy` on a channel's stop, `complete` on an empowered cast's
+function CastBar:OnCastEvent(event, unit, castGUID, _, detail)
+	if unit ~= "player" then
+		return
+	end
+
+	if event == "UNIT_SPELLCAST_FAILED" or event == "UNIT_SPELLCAST_INTERRUPTED" then
+		if self:IsDrawnCast(castGUID --[[@as string]]) then
+			self:ShowFeedback(event == "UNIT_SPELLCAST_FAILED" and FAILED or INTERRUPTED)
+		end
+
+		return
+	end
+
+	if self.drawn and ((event == "UNIT_SPELLCAST_CHANNEL_STOP" and AUI:Readable(detail) ~= nil)
+		or (event == "UNIT_SPELLCAST_EMPOWER_STOP" and AUI:Readable(detail) == false)) then
+		self:ShowFeedback(INTERRUPTED)
+
+		return
+	end
+
+	if event == "UNIT_SPELLCAST_CHANNEL_START" or event == "UNIT_SPELLCAST_EMPOWER_START" then
+		self.channelEnd = nil
+	end
+
+	self:Update()
 end
 
 ---@param event string

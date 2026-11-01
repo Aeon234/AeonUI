@@ -2,8 +2,9 @@
 -- the spell name's length and the time's formats; then nothing built and Blizzard's bar left alone while off, the
 -- default look and place, casts, channels and empowered casts drawn from duration objects (secret ones too), the
 -- not-interruptible cover, other units ignored, pet battles, the samples, every look setting, Always Show, a saved
--- place, Blizzard's bar parked and kept parked (after a reparent, past combat and Edit Mode) and handed back when
--- turned off, and turning it on again.
+-- place, Interrupted and Failed, Fade Out, latency, pushback, empowered stages and their label, Blizzard's bar parked
+-- and kept parked (after a reparent, past combat and Edit Mode) and handed back when turned off, and turning it on
+-- again.
 -- Run from any directory with Lua 5.1: lua Tools/check_castbar.lua
 -- Loads the real files against stubbed globals; media is stubbed. Widgets are modeled by type and fail on a method
 -- their type lacks.
@@ -38,9 +39,48 @@ function xpcall(fn, handler, ...)
 end
 
 local timers = {}
-C_Timer = { After = function(_, callback)
-	timers[#timers + 1] = callback
-end }
+local namedTimers = {}
+C_Timer = {
+	After = function(_, callback)
+		timers[#timers + 1] = callback
+	end,
+	NewTimer = function(seconds, callback)
+		local timer = { seconds = seconds, callback = callback }
+		timer.Cancel = function(self)
+			self.cancelled = true
+		end
+		namedTimers[#namedTimers + 1] = timer
+
+		return timer
+	end,
+}
+
+local function RunNamedTimer()
+	local timer = table.remove(namedTimers)
+
+	while timer and timer.cancelled do
+		timer = table.remove(namedTimers)
+	end
+
+	if timer then
+		namedTimers = {}
+		timer.callback()
+	end
+
+	return timer
+end
+
+local now = 100
+function GetTime()
+	return now
+end
+
+local latencyMs = 150
+function GetNetStats()
+	return 0, 0, 40, latencyMs
+end
+FAILED = "Failed"
+INTERRUPTED = "Interrupted"
 
 local function RunTimers()
 	local pending = timers
@@ -142,6 +182,9 @@ local function Region(kind)
 	region.GetSize = function(self)
 		return self.width, self.height
 	end
+	region.GetWidth = function(self)
+		return self.width or (self.parent and self.parent:GetWidth()) or 0
+	end
 	region.SetWidth = function(self, width)
 		self.width = width
 	end
@@ -210,6 +253,9 @@ local function FontString()
 	text.SetTextColor = function(self, r, g, b)
 		self.color = { r, g, b }
 	end
+	text.SetFormattedText = function(self, format, ...)
+		self.text = format:format(...)
+	end
 
 	return text
 end
@@ -254,6 +300,39 @@ local function Frame(kind, name, parent)
 	end
 	frame.SetScript = function(self, script, handler)
 		self.scripts[script] = handler
+	end
+	frame.SetClipsChildren = function(self, clips)
+		self.clips = clips
+	end
+	frame.CreateAnimationGroup = function()
+		local group = { playing = false, scripts = {} }
+		group.CreateAnimation = function(_, kind)
+			assert(kind == "Alpha")
+			local animation = {}
+			animation.SetFromAlpha = function(self, alpha)
+				self.from = alpha
+			end
+			animation.SetToAlpha = function(self, alpha)
+				self.to = alpha
+			end
+			animation.SetDuration = function(self, seconds)
+				self.seconds = seconds
+			end
+			group.animation = animation
+
+			return animation
+		end
+		group.SetScript = function(self, script, handler)
+			self.scripts[script] = handler
+		end
+		group.Play = function(self)
+			self.playing = true
+		end
+		group.Stop = function(self)
+			self.playing = false
+		end
+
+		return group
 	end
 	frame.CreateTexture = function()
 		return Texture()
@@ -338,7 +417,7 @@ C_PetBattles = { IsInBattle = function()
 	return inPetBattle
 end }
 
-local cast, channel
+local cast, channel, channelEndTime
 local castDuration, channelDuration, empoweredDuration
 local holdArgument
 function UnitCastingInfo(unit)
@@ -353,7 +432,8 @@ function UnitChannelInfo(unit)
 	assert(unit == "player")
 
 	if channel then
-		return channel.name, channel.display, 136243, 1000, 4000, false, channel.locked, 15407, channel.empowered,
+		return channel.name, channel.display, 136243, 1000, channelEndTime or 4000, false, channel.locked, 15407,
+			channel.empowered,
 			channel.empowered and 3 or 0, nil
 	end
 end
@@ -362,6 +442,13 @@ function UnitCastingDuration()
 end
 function UnitChannelDuration()
 	return channelDuration
+end
+local stageShares = { 0.2, 0.2, 0.2, 0.4 }
+function UnitEmpoweredStagePercentages()
+	return stageShares
+end
+function GetUnitEmpowerHoldAtMaxTime()
+	return 500
 end
 function UnitEmpoweredChannelDuration(_, includeHold)
 	holdArgument = includeHold
@@ -480,6 +567,17 @@ Equal("the sample's remaining time", Options:SampleTime("REMAINING"), "1.0")
 Equal("its elapsed time", Options:SampleTime("ELAPSED"), "1.5")
 Equal("remaining of total", Options:SampleTime("REMAINING_TOTAL"), "1.0 / 2.5")
 Equal("elapsed of total", Options:SampleTime("ELAPSED_TOTAL"), "1.5 / 2.5")
+Equal("latency's share of a cast", Options:LatencyShare(150, 1000, 2500), 0.1)
+Equal("never past the bar", Options:LatencyShare(5000, 1000, 2500), 1)
+Equal("unknown without its times", Options:LatencyShare(150, nil, 2500), nil)
+Equal("a cast's pushback", Options:PushbackText(400, "+"), "+0.4")
+Equal("a channel's", Options:PushbackText(400, "-"), "-0.4")
+Equal("nothing pushed", Options:PushbackText(0, "+"), "")
+local stageEnds = Options:Boundaries({ 0.25, 0.25, 0.5 })
+Equal("where stages end", stageEnds[1] .. " " .. stageEnds[2] .. " " .. stageEnds[3], "0.25 0.5 1")
+Equal("no stage yet", Options:StageReached(stageEnds, 0.1), 0)
+Equal("the next one's end", select(2, Options:StageReached(stageEnds, 0.3)), 0.5)
+Equal("every stage reached", Options:StageReached(stageEnds, 1), 3)
 Equal("off by default", AUI.Schema:Field(Options.ENABLED_PATH).default, false)
 Equal("no saved place at first", AUI.Profile:Get(Options.POSITION_PATH), nil)
 
@@ -727,10 +825,235 @@ Equal("not in a pet battle", frame.shown, false)
 Fire("PET_BATTLE_CLOSE")
 Set("castBar.alwaysShow", false)
 
+-- Interrupted and Failed --------------------------------------------------------------------------------------
+
+local function StartCast()
+	cast, castDuration = { name = "Fireball", display = "Fireball" }, {}
+	Fire("UNIT_SPELLCAST_START", "player", "Cast-1", 133)
+end
+
+local function EndCast()
+	cast, castDuration, channel, channelDuration, empoweredDuration = nil, nil, nil, nil, nil
+end
+
+StartCast()
+Fire("UNIT_SPELLCAST_FAILED", "player", "Cast-2", 116)
+Equal("another spell's failure changes nothing", frame.text.text .. " " .. frame.failed.alpha, "Fireball 0")
+EndCast()
+Fire("UNIT_SPELLCAST_INTERRUPTED", "player", "Cast-1", 133)
+Equal("Interrupted fills the bar in its color", frame.text.text .. " " .. frame.failed.alpha .. " " .. frame.bar.value,
+	"Interrupted 1 1")
+Equal("without the time, spark or latency", tostring(frame.time.shown) .. " " .. tostring(frame.spark.shown) .. " "
+	.. tostring(frame.latency.shown), "false false false")
+Equal("held for its time", namedTimers[#namedTimers].seconds, 0.6)
+Fire("UNIT_SPELLCAST_STOP", "player", "Cast-1", 133)
+Equal("the stop after it does not end it", tostring(frame.shown) .. " " .. frame.text.text, "true Interrupted")
+RunNamedTimer()
+Equal("then the bar goes", tostring(frame.shown) .. " " .. frame.failed.alpha, "false 0")
+
+StartCast()
+EndCast()
+Fire("UNIT_SPELLCAST_FAILED", "player", "Cast-1", 133)
+Equal("Failed the same way", frame.text.text, "Failed")
+StartCast()
+Equal("a new cast replaces it", frame.text.text .. " " .. frame.failed.alpha .. " " .. tostring(frame.time.shown),
+	"Fireball 0 true")
+Equal("and its timer", namedTimers[#namedTimers].cancelled, true)
+EndCast()
+Fire("UNIT_SPELLCAST_STOP", "player", "Cast-1", 133)
+Equal("a plain stop is no feedback", frame.shown, false)
+Fire("UNIT_SPELLCAST_INTERRUPTED", "player", "Cast-1", 133)
+Equal("nor a late event with nothing drawn", frame.shown, false)
+
+channel, channelDuration = { name = "Mind Flay", display = "Mind Flay" }, {}
+Fire("UNIT_SPELLCAST_CHANNEL_START", "player")
+channel, channelDuration = nil, nil
+Fire("UNIT_SPELLCAST_CHANNEL_STOP", "player", "Cast-3", 15407, "Creature-1")
+Equal("an interrupted channel says so", frame.text.text, "Interrupted")
+RunNamedTimer()
+channel, channelDuration = { name = "Mind Flay", display = "Mind Flay" }, {}
+Fire("UNIT_SPELLCAST_CHANNEL_START", "player")
+channel, channelDuration = nil, nil
+Fire("UNIT_SPELLCAST_CHANNEL_STOP", "player", "Cast-3", 15407, nil)
+Equal("a finished one just goes", frame.shown, false)
+
+channel, empoweredDuration = { name = "Fire Breath", display = "Fire Breath", empowered = true }, {}
+Fire("UNIT_SPELLCAST_EMPOWER_START", "player")
+channel, empoweredDuration = nil, nil
+Fire("UNIT_SPELLCAST_EMPOWER_STOP", "player", "Cast-4", 357208, false, nil)
+Equal("an uncompleted empowered cast too", frame.text.text, "Interrupted")
+RunNamedTimer()
+channel, empoweredDuration = { name = "Fire Breath", display = "Fire Breath", empowered = true }, {}
+Fire("UNIT_SPELLCAST_EMPOWER_START", "player")
+channel, empoweredDuration = nil, nil
+Fire("UNIT_SPELLCAST_EMPOWER_STOP", "player", "Cast-4", 357208, true, nil)
+Equal("a completed one goes", frame.shown, false)
+
+Set("castBar.interrupted", { r = 0.5, g = 0, b = 0 })
+Equal("its color", frame.failedFill.color[1], 0.5)
+Set("castBar.holdTime", 0)
+StartCast()
+EndCast()
+Fire("UNIT_SPELLCAST_INTERRUPTED", "player", "Cast-1", 133)
+Equal("no hold at 0", frame.shown, false)
+Set("castBar.holdTime", 0.6)
+
+-- Fade Out ------------------------------------------------------------------------------------------------
+
+Equal("fades over 0.2 seconds, off by default", frame.fade.animation.seconds .. " "
+	.. tostring(AUI.Schema:Field("castBar.fade").default), "0.2 false")
+Set("castBar.fade", true)
+StartCast()
+EndCast()
+Fire("UNIT_SPELLCAST_STOP", "player", "Cast-1", 133)
+Equal("a finished cast fades as it stands", tostring(frame.shown) .. " " .. tostring(frame.fade.playing) .. " "
+	.. frame.text.text .. " " .. tostring(frame.binding.enabled), "true true Fireball false")
+Fire("UNIT_SPELLCAST_STOP", "player", "Cast-1", 133)
+Equal("the fade runs on", frame.fade.playing, true)
+frame.fade.scripts.OnFinished(frame.fade)
+Equal("then the bar goes", tostring(frame.shown) .. " " .. tostring(frame.fade.playing), "false false")
+StartCast()
+EndCast()
+Fire("UNIT_SPELLCAST_INTERRUPTED", "player", "Cast-1", 133)
+Equal("Interrupted holds first", frame.fade.playing, false)
+RunNamedTimer()
+Equal("then fades, still red", tostring(frame.fade.playing) .. " " .. frame.failed.alpha, "true 1")
+StartCast()
+Equal("a new cast stops the fade", tostring(frame.fade.playing) .. " " .. frame.alpha .. " " .. frame.failed.alpha,
+	"false 1 0")
+EndCast()
+Fire("UNIT_SPELLCAST_STOP", "player", "Cast-1", 133)
+CastBar:Sample(true)
+Equal("the sample stops it too", tostring(frame.fade.playing) .. " " .. tostring(frame.shown), "false true")
+CastBar:Sample(false)
+Set("castBar.alwaysShow", true)
+StartCast()
+EndCast()
+Fire("UNIT_SPELLCAST_STOP", "player", "Cast-1", 133)
+Equal("Always Show empties instead", tostring(frame.fade.playing) .. " " .. frame.bar.value, "false 0")
+Set("castBar.alwaysShow", false)
+Set("castBar.fade", false)
+
+-- Latency -------------------------------------------------------------------------------------------------
+
+StartCast()
+Equal("latency shades the cast's end", tostring(frame.latency.shown) .. " " .. frame.latency.points[1][1] .. " "
+	.. frame.latency.width, "true TOPRIGHT 38.6")
+Equal("no text by default", frame.latencyText.shown, false)
+Set("castBar.latencyText", true)
+Fire("UNIT_SPELLCAST_DELAYED", "player")
+Equal("its text, above it", tostring(frame.latencyText.shown) .. " " .. frame.latencyText.text .. " "
+	.. frame.latencyText.points[1][3], "true 150 ms TOPRIGHT")
+Set("castBar.reverse", true)
+Fire("UNIT_SPELLCAST_DELAYED", "player")
+Equal("a reversed bar's at the left", frame.latency.points[1][1], "TOPLEFT")
+Set("castBar.reverse", false)
+Set("castBar.latencyColor", { r = 0, g = 1, b = 0, a = 0.2 })
+Equal("its color", frame.latency.color[2] .. " " .. frame.latency.color[4], "1 0.2")
+Set("castBar.latency", false)
+Fire("UNIT_SPELLCAST_DELAYED", "player")
+Equal("off, nothing shades", tostring(frame.latency.shown) .. " " .. tostring(frame.latencyText.shown), "false false")
+Set("castBar.latency", true)
+Set("castBar.latencyText", false)
+EndCast()
+Fire("UNIT_SPELLCAST_STOP", "player", "Cast-1", 133)
+
+channel, channelDuration = { name = "Mind Flay", display = "Mind Flay" }, {}
+Fire("UNIT_SPELLCAST_CHANNEL_START", "player")
+Equal("a channel finishes at the bar's start", frame.latency.points[1][1] .. " " .. frame.latency.width,
+	"TOPLEFT 19.3")
+channel, channelDuration = nil, nil
+Fire("UNIT_SPELLCAST_CHANNEL_STOP", "player")
+
+-- Pushback ------------------------------------------------------------------------------------------------
+
+Set("castBar.pushback", true)
+StartCast()
+Equal("nothing while nothing is pushed", frame.pushback.text, "")
+cast.delay = 400
+Fire("UNIT_SPELLCAST_DELAYED", "player")
+Equal("a delayed cast reads later", frame.pushback.text, "+0.4")
+Equal("the name stops short of it", frame.text.points[2][2], frame.pushback)
+Equal("and it short of the time", frame.pushback.points[1][2], frame.time)
+Set("castBar.pushbackColor", { r = 0, g = 0, b = 1 })
+Equal("its color", frame.pushback.color[3], 1)
+EndCast()
+Fire("UNIT_SPELLCAST_STOP", "player", "Cast-1", 133)
+Equal("cleared once hidden", frame.shown, false)
+
+channel, channelDuration = { name = "Mind Flay", display = "Mind Flay" }, {}
+Fire("UNIT_SPELLCAST_CHANNEL_START", "player")
+Equal("a channel starts clean", frame.pushback.text, "")
+channelEndTime = 3600
+Fire("UNIT_SPELLCAST_CHANNEL_UPDATE", "player")
+Equal("a shortened channel reads sooner", frame.pushback.text, "-0.4")
+channelEndTime = nil
+channel, channelDuration = nil, nil
+Fire("UNIT_SPELLCAST_CHANNEL_STOP", "player")
+channel, channelDuration = { name = "Mind Flay", display = "Mind Flay" }, {}
+Fire("UNIT_SPELLCAST_CHANNEL_START", "player")
+Equal("the next channel measures from its own end", frame.pushback.text, "")
+channel, channelDuration = nil, nil
+Fire("UNIT_SPELLCAST_CHANNEL_STOP", "player")
+Set("castBar.pushback", false)
+Equal("the name back against the time", frame.text.points[2][2], frame.time)
+
+-- Empowered casts -----------------------------------------------------------------------------------------
+
+now = 1
+channel, empoweredDuration = { name = "Fire Breath", display = "Fire Breath", empowered = true }, {}
+Fire("UNIT_SPELLCAST_EMPOWER_START", "player")
+Equal("the stage colors show", frame.zones.shown, true)
+Equal("clipped to the fill", tostring(frame.zones.clips) .. " " .. tostring(frame.zones.allPoints == frame.bar.fill),
+	"true true")
+Equal("one per stage", #frame.stages, 4)
+Equal("each in its color", frame.stages[2].color[1], 0.62)
+Equal("at its place", frame.stages[2].points[1][1] .. " " .. frame.stages[2].points[1][4], "TOPLEFT 77.2")
+Equal("its share of the bar", tostring(frame.stages[4].width), "154.4")
+Equal("the time unlabeled", frame.binding.enabled, true)
+Set("castBar.stage.2", { r = 0, g = 0, b = 1 })
+Fire("UNIT_SPELLCAST_EMPOWER_UPDATE", "player")
+Equal("a stage's color follows its setting", frame.stages[2].color[3], 1)
+Set("castBar.empowerColors", false)
+Fire("UNIT_SPELLCAST_EMPOWER_UPDATE", "player")
+Equal("off, no stage colors", frame.zones.shown, false)
+Set("castBar.empowerColors", true)
+
+Set("castBar.stageLabel", true)
+Fire("UNIT_SPELLCAST_EMPOWER_UPDATE", "player")
+Equal("the label replaces the time", frame.time.text .. " " .. tostring(frame.binding.enabled), "Stage 0 false")
+Equal("until the next stage", tostring(namedTimers[#namedTimers].seconds), "0.7")
+now = 1.8
+RunNamedTimer()
+Equal("then the stage reached", frame.time.text, "Stage 1")
+now = 3.2
+RunNamedTimer()
+Equal("and Hold at full charge", frame.time.text, "Hold")
+now = 100
+Set("castBar.stageLabel", false)
+channel, empoweredDuration = nil, nil
+Fire("UNIT_SPELLCAST_EMPOWER_STOP", "player", "Cast-4", 357208, true, nil)
+Equal("the stage colors go with the cast", frame.shown, false)
+StartCast()
+Equal("the next cast shows none", tostring(frame.zones.shown) .. " " .. tostring(frame.binding.enabled), "false true")
+EndCast()
+Fire("UNIT_SPELLCAST_STOP", "player", "Cast-1", 133)
+
+CastBar:DrawSample(frame, Options.STATES.EMPOWERED, "Empowered")
+Equal("Empowered's sample shows its stages", frame.zones.shown, true)
+Set("castBar.stageLabel", true)
+CastBar:DrawSample(frame, Options.STATES.EMPOWERED, "Empowered")
+Equal("and its label", frame.time.text, "Stage 2")
+Set("castBar.stageLabel", false)
+Set("castBar.pushback", true)
+CastBar:DrawSample(frame, Options.STATES.CHANNELING, "Channeling")
+Equal("the other samples none", tostring(frame.zones.shown) .. " " .. frame.pushback.text, "false -0.4")
+Set("castBar.pushback", false)
+CastBar:Update()
+
 -- The settings page's preview ------------------------------------------------------------------------------
 
 COLOR = "Color"
-INTERRUPTED = "Interrupted"
 AUI.Media.sidebar = {}
 LibStub = function()
 	return { OUTLINES = {} }
@@ -771,7 +1094,7 @@ Equal("the sample's size", width .. "x" .. height, "386x16")
 Equal("its parts land on their settings", table.concat(parts, " "), "color nameEnabled")
 parts = {}
 declaredPreview.refresh(canvas, nil, previewStub)
-Equal("Casting at first, its time shown", table.concat(parts, " "), "color nameEnabled timeEnabled")
+Equal("Casting at first, its time shown", table.concat(parts, " "), "color latency nameEnabled timeEnabled")
 Equal("the live bar stays as it was", frame.shown, false)
 
 -- Blizzard's bar ------------------------------------------------------------------------------------------

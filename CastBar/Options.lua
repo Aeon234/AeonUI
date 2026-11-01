@@ -15,7 +15,6 @@ local ELLIPSIS = "\226\128\166"
 ---@field SIDES string[] the Icon Side choices
 ---@field TIME_FORMATS string[] the Time Format choices
 ---@field BORDER_COLOR AUIColor
----@field INTERRUPTED_COLOR AUIColor the fill of the Interrupted sample
 ---@field SPARK_TEXTURE string
 ---@field SPARK_WIDTH number
 ---@field FONT string a LibSharedMedia font name
@@ -23,6 +22,12 @@ local ELLIPSIS = "\226\128\166"
 ---@field SAMPLE_PROGRESS number how far a sample is filled, 0 to 1
 ---@field SAMPLE_TOTAL number a sample cast's length, in seconds
 ---@field SAMPLE_ICON number a sample cast's icon, a file ID
+---@field SAMPLE_LATENCY number a sample cast's latency, in milliseconds
+---@field SAMPLE_PUSHBACK number a sample cast's pushback, in milliseconds
+---@field SAMPLE_STAGES number[] each stage's share of a sample empowered cast
+---@field STAGE_COLORS number how many stage colors there are; later stages repeat the last
+---@field MAX_HOLD number the longest Interrupted or Failed stays, in seconds
+---@field FADE_SECONDS number
 ---@field MIN_WIDTH number
 ---@field MAX_WIDTH number
 ---@field MIN_HEIGHT number
@@ -41,7 +46,6 @@ local Options = {
 	SIDES = { "LEFT", "RIGHT" },
 	TIME_FORMATS = { "REMAINING", "ELAPSED", "REMAINING_TOTAL", "ELAPSED_TOTAL" },
 	BORDER_COLOR = { r = 0, g = 0, b = 0, a = 1 },
-	INTERRUPTED_COLOR = { r = 0.8, g = 0.1, b = 0.1 },
 	SPARK_TEXTURE = "Interface\\CastingBar\\UI-CastingBar-Spark",
 	SPARK_WIDTH = 10,
 	FONT = "Expressway",
@@ -49,6 +53,12 @@ local Options = {
 	SAMPLE_PROGRESS = 0.6,
 	SAMPLE_TOTAL = 2.5,
 	SAMPLE_ICON = 134400,
+	SAMPLE_LATENCY = 100,
+	SAMPLE_PUSHBACK = 400,
+	SAMPLE_STAGES = { 0.25, 0.25, 0.25, 0.25 },
+	STAGE_COLORS = 4,
+	MAX_HOLD = 3,
+	FADE_SECONDS = 0.2,
 	MIN_WIDTH = 100,
 	MAX_WIDTH = 800,
 	MIN_HEIGHT = 6,
@@ -110,6 +120,20 @@ Schema:Color("castBar.time.color", { r = 1, g = 1, b = 1 })
 Schema:Number("castBar.time.x", 0, -Options.MAX_OFFSET, Options.MAX_OFFSET, true)
 Schema:Number("castBar.time.y", 0, -Options.MAX_OFFSET, Options.MAX_OFFSET, true)
 Schema:Choice("castBar.time.format", "castBarTimeFormat", "REMAINING")
+Schema:Color("castBar.interrupted", { r = 0.8, g = 0.1, b = 0.1 })
+Schema:Number("castBar.holdTime", 0.6, 0, Options.MAX_HOLD)
+Schema:Boolean("castBar.fade", false)
+Schema:Boolean("castBar.latency", true)
+Schema:Color("castBar.latencyColor", { r = 1, g = 0.25, b = 0.25, a = 0.4 })
+Schema:Boolean("castBar.latencyText", false)
+Schema:Boolean("castBar.pushback", false)
+Schema:Color("castBar.pushbackColor", { r = 1, g = 0.2, b = 0.2 })
+Schema:Boolean("castBar.empowerColors", true)
+Schema:Color("castBar.stage.1", { r = 0.51, g = 0.53, b = 0.52 })
+Schema:Color("castBar.stage.2", { r = 0.62, g = 0.12, b = 0.16 })
+Schema:Color("castBar.stage.3", { r = 1, g = 0.45, b = 0.11 })
+Schema:Color("castBar.stage.4", { r = 1, g = 0.71, b = 0.19 })
+Schema:Boolean("castBar.stageLabel", false)
 
 ---The kinds of cast the bar draws, each with the duration it is drawn from and the way its fill runs: casts and
 ---empowered casts fill as they run; channels start full and drain.
@@ -198,6 +222,57 @@ function Options:TimeSpec(format)
 	local spec = TIME_SPECS[format] or TIME_SPECS.REMAINING
 
 	return spec[1], { unpack(spec, 2) }
+end
+
+---How much of the bar the player's latency covers.
+---@param latency number in milliseconds
+---@param startTime number? the cast's start, in milliseconds; nil when it cannot be read
+---@param endTime number? its end
+---@return number? share 0 to 1; nil when the cast's length is unknown
+function Options:LatencyShare(latency, startTime, endTime)
+	if not startTime or not endTime or endTime <= startTime then
+		return nil
+	end
+
+	return math.min(math.max(latency, 0) / (endTime - startTime), 1)
+end
+
+---@param delay number? how far the cast was pushed, in milliseconds
+---@param sign string `+` for a cast, which ends later, or `-` for a channel, which ends sooner
+---@return string text empty while nothing was pushed
+function Options:PushbackText(delay, sign)
+	if not delay or delay <= 0 then
+		return ""
+	end
+
+	return ("%s%.1f"):format(sign, delay / 1000)
+end
+
+---@param shares number[] each stage's share of the bar, in order
+---@return number[] boundaries where each stage ends, as shares of the bar
+function Options:Boundaries(shares)
+	local boundaries, total = {}, 0
+
+	for index, share in ipairs(shares) do
+		total = total + share
+		boundaries[index] = math.min(total, 1)
+	end
+
+	return boundaries
+end
+
+---@param boundaries number[]
+---@param progress number how much of the cast has passed, 0 to 1
+---@return integer reached the stages fully charged
+---@return number? nextBoundary where the next stage ends
+function Options:StageReached(boundaries, progress)
+	for index, boundary in ipairs(boundaries) do
+		if progress < boundary then
+			return index - 1, boundary
+		end
+	end
+
+	return #boundaries, nil
 end
 
 ---What the time reads on a sample cast, in a time format.

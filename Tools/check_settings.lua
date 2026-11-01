@@ -807,7 +807,9 @@ do
 	Equal("its cards", table.concat(castBarCards, " | "), "Bar: width height texture color gradient gradientColor "
 		.. "gradientDirection notInterruptible background border spark reverse smooth alwaysShow strata | "
 		.. "Icon: icon iconSide | Text: outline shadow | Spell Name: nameEnabled nameSize nameColor nameX nameY "
-		.. "nameLength | Time: timeEnabled timeFormat timeSize timeColor timeX timeY")
+		.. "nameLength | Time: timeEnabled timeFormat timeSize timeColor timeX timeY | Feedback: interrupted holdTime "
+		.. "fade | Latency: latency latencyColor latencyText | Pushback: pushback pushbackColor | Empowered Casts: "
+		.. "empowerColors stage1 stage2 stage3 stage4 stageLabel")
 	Equal("a preview of five states", #castBarPage.preview.states, 5)
 end
 AUI.can.castBar = nil

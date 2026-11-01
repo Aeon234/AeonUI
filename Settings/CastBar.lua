@@ -34,7 +34,7 @@ local CASTING, CHANNELING, EMPOWERED, NOT_INTERRUPTIBLE = L["Casting"], L["Chann
 	L["Not Interruptible"]
 
 ---The Cast Bar page, under the Unit Frames header: the module's switch, a sample bar with its states as its preview,
----and the Bar, Icon, Text, Spell Name and Time cards.
+---and the Bar, Icon, Text, Spell Name, Time, Feedback, Latency, Pushback and Empowered Casts cards.
 ---@class AUISettingsCastBar
 local SettingsCastBar = {}
 AUI.SettingsCastBar = SettingsCastBar
@@ -98,6 +98,10 @@ function CastBarPreview:Refresh(state, preview)
 	AUI.CastBar:DrawSample(bar, keys[state], state)
 
 	preview:Part(bar.bar, "color")
+
+	if bar.latency:IsShown() then
+		preview:Part(bar.latency, "latency")
+	end
 
 	if bar.icon:IsShown() then
 		preview:Part(bar.icon, "icon")
@@ -229,6 +233,59 @@ function SettingsCastBar:DeclareTime(page)
 	DeclareTextPlace(card, "time", "timeEnabled")
 end
 
+---@param page table
+function SettingsCastBar:DeclareFeedback(page)
+	local Options = AUI.CastBarOptions
+	local card = page:Section("castBarFeedback", L["Feedback"])
+
+	card:Color(Field("interrupted", INTERRUPTED, "castBar.interrupted"))
+	card:Slider(Field("holdTime", L["Hold Time"], "castBar.holdTime", {
+		min = 0,
+		max = Options.MAX_HOLD,
+		step = 0.1,
+		format = "decimal",
+	}))
+	card:Checkbox(Field("fade", L["Fade Out"], "castBar.fade"))
+end
+
+---@param page table
+function SettingsCastBar:DeclareLatency(page)
+	local card = page:Section("castBarLatency", L["Latency"])
+
+	card:Checkbox(Field("latency", L["Show Latency"], "castBar.latency"))
+	card:Color(Field("latencyColor", L["Latency Color"], "castBar.latencyColor", {
+		depends = "latency",
+		hasOpacity = true,
+	}))
+	card:Checkbox(Field("latencyText", L["Show Latency Text"], "castBar.latencyText", { depends = "latency" }))
+end
+
+---@param page table
+function SettingsCastBar:DeclarePushback(page)
+	local card = page:Section("castBarPushback", L["Pushback"])
+
+	card:Checkbox(Field("pushback", L["Show Pushback"], "castBar.pushback"))
+	card:Color(Field("pushbackColor", L["Pushback Color"], "castBar.pushbackColor", { depends = "pushback" }))
+end
+
+---@param page table
+function SettingsCastBar:DeclareEmpowered(page)
+	local Options = AUI.CastBarOptions
+	local card = page:Section("castBarEmpowered", L["Empowered Casts"])
+
+	card:Checkbox(Field("empowerColors", L["Colored Stages"], "castBar.empowerColors"))
+
+	for index = 1, Options.STAGE_COLORS do
+		card:Color(Field("stage" .. index, L["Stage %d Color"]:format(index), "castBar.stage." .. index, {
+			depends = "empowerColors",
+		}))
+	end
+
+	card:Checkbox(Field("stageLabel", L["Show Stage Label"], "castBar.stageLabel", {
+		description = L["Shows the stage reached, and Hold at full charge, in place of the time."],
+	}))
+end
+
 ---@param window table
 function SettingsCastBar:Declare(window)
 	local Options = AUI.CastBarOptions
@@ -267,4 +324,8 @@ function SettingsCastBar:Declare(window)
 	self:DeclareText(page)
 	self:DeclareName(page)
 	self:DeclareTime(page)
+	self:DeclareFeedback(page)
+	self:DeclareLatency(page)
+	self:DeclarePushback(page)
+	self:DeclareEmpowered(page)
 end
