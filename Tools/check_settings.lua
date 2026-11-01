@@ -1,34 +1,94 @@
--- Checks the settings window outside the game: page lists per profile mode, every page's settings reading and saving
--- through the profile owner, number overrides, the text slot editor and its copy actions, the Profiles adapter,
--- damaged profiles, the Recovery page and page resets.
+-- Checks Settings/*.lua and Core/Broker.lua outside the game: which pages the window declares in each profile mode,
+-- the declaration's store and write hooks, the Profiles adapter's translation between names and profile IDs, the
+-- Damaged Profiles section, the Recovery page's export and reset, and the minimap button's saved state.
 -- Run from any directory with Lua 5.1: lua Tools/check_settings.lua
--- AeonSettings is a stand-in that records what AeonUI hands it; drawing, the library's own controls and dialogs
--- are not exercised here.
+-- Loads the real files against a stand-in for LibAeonSettings that records declarations and refuses fields the
+-- library does not accept. It proves the declarations and adapters, not the library's drawing.
 
 local root = (arg and arg[0] or ""):match("^(.-)[^/\\]*$") .. "../"
 
 -- Environment ---------------------------------------------------------------------------------------------
 
-UNKNOWN, NONE, NAME, LEVEL, HEALTH, CUSTOM = "Unknown", "None", "Name", "Level", "Health", "Custom"
-CLASS, MANA, RAGE = "Class", "Mana", "Rage"
-INTERRUPTED = "Interrupted"
-PET = "Pet"
-PLAYER, TARGET, COLOR, DELETE, RESET, DEAD, PLAYER_OFFLINE = "Player", "Target", "Color", "Delete", "Reset", "Dead",
-	"Offline"
+UNKNOWN = "Unknown"
+GUILD = "Guild"
+ACTIONBARS_LABEL = "Action Bars"
+HIDE = "Hide"
+RAID_TARGET_8 = "Skull"
+APPLY = "Apply"
+RELOADUI = "Reload UI"
+TRACKING = "Tracking"
+function UnitClass()
+	return "Hunter", "HUNTER"
+end
+function UnitRace()
+	return "Orc", "Orc"
+end
+UI_SCALE = "UI Scale"
+CHOOSE = "Choose"
+OFF = "Off"
+VIDEO_OPTIONS_LOW = "Low"
+VIDEO_OPTIONS_MEDIUM = "Good"
+VIDEO_OPTIONS_HIGH = "High"
+MAXIMUM = "Maximum"
+MAX_FOLLOW_DIST = "Max Camera Distance"
+OPTION_TOOLTIP_MAX_FOLLOW_DIST = "Adjust the maximum distance the camera will follow behind you."
+MERCHANT = "Merchant"
+BAG_FILTER_QUEST_ITEMS = "Quest Items"
+AUCTION_HOUSE_FILTER_CURRENTEXPANSION_ONLY = "Current Expansion Only"
+AUTO_LOOT_DEFAULT_TEXT = "Auto Loot"
+BLOCK_TRADES = "Block Trades"
+BLOCK_GUILD_INVITES = "Block Guild Invites"
+BLOCK_CHAT_CHANNEL_INVITE = "Block Chat Channel Invites"
+local cvars = {
+	autoLootDefault = "0",
+	weatherDensity = "3",
+	cameraDistanceMaxZoomFactor = "1.9",
+	blockTrades = "0",
+	blockChannelInvites = "0",
+}
+C_CVar = {
+	GetCVarInfo = function(name)
+		return cvars[name]
+	end,
+}
+GENERAL = "General"
+DELETE = "Delete"
+RESET = "Reset"
+CANCEL = "Cancel"
+CLOSE = "Close"
+NONE = "None"
+BACKGROUND = "Background"
+MINIMAP_LABEL = "Minimap"
+WORLDMAP_BUTTON = "World Map"
+DUNGEONS = "Dungeons"
+RAIDS = "Raids"
+BATTLEGROUNDS = "Battlegrounds"
+MAIL_LABEL = "Mail"
+TRACKING = "Tracking"
+ZONE = "Zone"
+FONT_SIZE = "Font Size"
+OTHER = "Other"
+PLAYER_DIFFICULTY1 = "Normal"
+PLAYER_DIFFICULTY2 = "Heroic"
+PLAYER_DIFFICULTY3 = "Raid Finder"
+PLAYER_DIFFICULTY6 = "Mythic"
+TIMEMANAGER_TITLE = "Clock"
+TIMEMANAGER_24HOURMODE = "24 Hour Mode"
+TIMEMANAGER_LOCALTIME = "Use Local Time"
+HUD_EDIT_MODE_SETTING_ACTION_BAR_NUM_ROWS = "# of Rows"
+HUD_EDIT_MODE_SETTING_ACTION_BAR_NUM_COLUMNS = "# of Columns"
 SlashCmdList = {}
 StaticPopupDialogs = {}
-SAVE, CONTINUE, OFF, SETTINGS, HUD_EDIT_MODE_MENU = "Save", "Continue", "Off", "Settings", "Edit Mode"
+local cliqueLoaded = false
 C_AddOns = {
 	GetAddOnMetadata = function() end,
+	IsAddOnLoaded = function(name) return name == "Clique" and cliqueLoaded end,
 }
-UIParent = {
-	GetWidth = function()
-		return 1920
-	end,
-	GetHeight = function()
-		return 1080
-	end,
-}
+UIParent = { GetScale = function() return 0.8 end }
+GameMenuFrame = { SetScale = function(self, scale) self.scale = scale end }
+function GetPhysicalScreenSize()
+	return 2560, 1440
+end
 
 function CallErrorHandler(message)
 	error(message, 0)
@@ -43,8 +103,8 @@ function xpcall(fn, handler, ...)
 	end, handler)
 end
 
-function issecretvalue()
-	return false
+function CreateFrame()
+	return { RegisterEvent = function() end, UnregisterEvent = function() end, SetScript = function() end }
 end
 
 function strcmputf8i(a, b)
@@ -59,142 +119,332 @@ function strlenutf8(text)
 	return count
 end
 
-Enum = { CompressionMethod = { Deflate = 0 } }
-local stored = {}
-C_EncodingUtil = {
-	SerializeCBOR = function(value)
-		stored[#stored + 1] = value
+local popups = {}
+function StaticPopup_Show(which, text, _, data)
+	popups[#popups + 1] = { which = which, text = text, data = data }
+end
 
-		return "cbor:" .. #stored
-	end,
-	DeserializeCBOR = function(text)
-		local function Copy(value)
-			if type(value) ~= "table" then
-				return value
-			end
-			local copy = {}
-			for key, child in pairs(value) do
-				copy[key] = Copy(child)
-			end
+function StaticPopup_StandardEditBoxOnEscapePressed() end
 
-			return copy
+local confirmations = {}
+function StaticPopup_StandardConfirmationTextHandler(editBox, expected)
+	confirmations[#confirmations + 1] = { editBox = editBox, expected = expected }
+end
+
+local reloads = 0
+function ReloadUI()
+	reloads = reloads + 1
+end
+
+-- LibAeonSettings stand-in ----------------------------------------------------------------------------------
+
+-- Fields the library accepts, from its Source/Model.lua, Sidebar.lua, Window.lua and Profiles.lua; control fields
+-- from each control's RegisterControl call.
+local SETTING_FIELDS = {
+	id = true, label = true, description = true, path = true, default = true, get = true, set = true, depends = true,
+	blocked = true, show = true, wide = true, inherits = true, keywords = true, tooltip = true, redraws = true,
+	resettable = true, details = true,
+}
+local CONTROL_FIELDS = {
+	Checkbox = {},
+	Button = { verb = true, confirm = true, run = true },
+	Slider = { min = true, max = true, step = true, format = true },
+	Dropdown = { options = true, picker = true, placeholder = true, titleCase = true, confirm = true, verb = true,
+		width = true, action = true, multiple = true },
+	Color = { hasOpacity = true, classColor = true },
+	Toggle = {},
+	Details = { summary = true },
+	TextInput = { allowEmpty = true, maxLetters = true, validate = true },
+	OrderedList = { title = true, items = true, enabled = true },
+	Custom = { width = true, height = true, create = true, refresh = true },
+}
+local PAGE_FIELDS = { title = true, description = true, under = true, icon = true, iconTint = true, slot = true,
+	switch = true, show = true }
+local DECLARATION_FIELDS = {
+	title = true, version = true, store = true, write = true, account = true, width = true, height = true,
+	footer = true, frameName = true, reloadNeeded = true,
+}
+local ADAPTER_REQUIRED = { "List", "Active", "Switch", "New", "Copy", "Rename", "Delete", "Reset", "Export", "Decode",
+	"Import" }
+
+local function Allowed(where, info, allowed, extra)
+	for field in pairs(info or {}) do
+		if not allowed[field] and not (extra and extra[field]) then
+			error(("%s: unknown field %s"):format(where, tostring(field)), 2)
+		end
+	end
+end
+
+local function NewSection(id, title)
+	local section = { id = id, title = title, settings = {}, notes = {} }
+
+	for kind in pairs(CONTROL_FIELDS) do
+		section[kind] = function(self, info)
+			Allowed(kind .. " " .. tostring(info.id), info, SETTING_FIELDS, CONTROL_FIELDS[kind])
+			info.kind = kind
+			self.settings[#self.settings + 1] = info
+			self.settings[info.id] = info
+
+			return info
+		end
+	end
+
+	function section:Note(text, small)
+		self.notes[#self.notes + 1] = { text = text, small = small }
+	end
+
+	return section
+end
+
+local function NewPage(id, info)
+	Allowed("page " .. id, info, PAGE_FIELDS)
+
+	local page = { id = id, info = info, sections = {} }
+
+	function page:Preview(previewInfo)
+		Allowed("preview " .. id, previewInfo, { height = true, states = true, create = true, refresh = true,
+			caption = true, pick = true, stop = true })
+		self.preview = previewInfo
+
+		return previewInfo
+	end
+
+	function page:Section(sectionID, title, sectionInfo)
+		Allowed("section " .. sectionID, sectionInfo, { show = true, reveal = true, columns = true })
+
+		local section = NewSection(sectionID, title)
+
+		section.info = sectionInfo or {}
+		self.sections[#self.sections + 1] = section
+		self.sections[sectionID] = section
+
+		return section
+	end
+
+	return page
+end
+
+-- Blizzard's post-hook, on a table's method.
+function hooksecurefunc(object, method, hook)
+	local original = object[method]
+
+	object[method] = function(...)
+		local results = { original(...) }
+
+		hook(...)
+
+		return unpack(results)
+	end
+end
+
+local lib = {
+	OUTLINES = { { value = "NONE" }, { value = "OUTLINE" }, { value = "THICKOUTLINE" }, { value = "SLUG" },
+		{ value = "SLUG_OUTLINE" }, { value = "SLUG_THICKOUTLINE" } },
+}
+
+-- CallbackHandler's embedded registration: one handler per owner and event, called with the event's name first.
+local callbacks = {}
+function lib.RegisterCallback(owner, event, handler)
+	callbacks[event] = callbacks[event] or {}
+	callbacks[event][owner] = handler
+end
+
+function lib:Fire(event, ...)
+	for _, handler in pairs(callbacks[event] or {}) do
+		handler(event, ...)
+	end
+end
+
+function lib:Settings(name, declaration)
+	Allowed("declaration", declaration, DECLARATION_FIELDS)
+
+	local window = { name = name, declaration = declaration, order = {}, pages = {}, refreshed = 0 }
+
+	function window:Page(id, info)
+		local page = NewPage(id, info)
+
+		self.pages[id] = page
+		self.order[#self.order + 1] = id
+
+		return page
+	end
+
+	function window:Divider()
+		self.order[#self.order + 1] = "-"
+	end
+
+	function window:Header(id)
+		self.order[#self.order + 1] = "#" .. id
+	end
+
+	function window:ProfilesPage(id, info)
+		for _, method in ipairs(ADAPTER_REQUIRED) do
+			assert(type(info.adapter[method]) == "function", "adapter needs " .. method)
 		end
 
-		return Copy(stored[tonumber(text:match("^cbor:(%d+)$"))])
-	end,
-	CompressString = function(text)
-		return text
-	end,
-	DecompressString = function(text)
-		return text
-	end,
-	EncodeBase64 = function(text)
-		return (text:gsub(".", function(char)
-			return ("%02x"):format(char:byte())
-		end))
-	end,
-	DecodeBase64 = function(text)
-		return (text:gsub("%x%x", function(pair)
-			return string.char(tonumber(pair, 16))
-		end))
+		local page = self:Page(id, { title = info.title, description = info.description, icon = info.icon,
+			iconTint = info.iconTint })
+
+		page.adapter = info.adapter
+
+		if info.sections then
+			info.sections(page)
+		end
+
+		return page
+	end
+
+	function window:Refresh()
+		self.refreshed = self.refreshed + 1
+	end
+
+	function window:IsShown()
+		return self.shown == true
+	end
+
+	-- A page shown while the window is open is reported, as the library does.
+	function window:SelectPage(id)
+		self.page = id
+
+		if self.shown then
+			lib:Fire("OnPageShown", name, id)
+		end
+	end
+
+	-- Opening shows the last page; the frame is built on the first opening, and Escape hides it without Close.
+	function window:Open()
+		if not self.frame then
+			local frame = {}
+
+			function frame:Hide()
+				window.shown = false
+				lib:Fire("OnClose", name)
+			end
+
+			self.frame = frame
+		end
+
+		self.shown = true
+		lib:Fire("OnOpen", name)
+		self:SelectPage(self.page)
+	end
+
+	self.window = window
+
+	return window
+end
+
+local placements = {}
+function lib:Placement(name, declaration)
+	local registration = { name = name, declaration = declaration, applied = 0 }
+
+	function registration:Apply()
+		self.applied = self.applied + 1
+	end
+
+	placements[name] = registration
+
+	return registration
+end
+
+-- LibDataBroker and LibDBIcon stand-ins.
+local launchers = {}
+local LDB = {
+	NewDataObject = function(_, name, object)
+		launchers[name] = object
+
+		return object
 	end,
 }
-
-function GetBuildInfo()
-	return "1.60.1", "70124"
+local icon = { registered = {}, hidden = {}, compartment = {} }
+function icon:Register(name, _, db)
+	self.registered[name] = db
+end
+function icon:Hide(name)
+	self.hidden[name] = true
+end
+function icon:Show(name)
+	self.hidden[name] = false
+end
+function icon:AddButtonToCompartment(name)
+	self.compartment[name] = true
 end
 
-local warnings = {}
-local luaPrint = print
-function print(text)
-	warnings[#warnings + 1] = text
-end
+DEFAULT = "Default"
+COLOR = "Color"
+INTERRUPTED = "Interrupted"
+function CreateAtlasMarkup(atlas) return "|A:" .. atlas .. "|a" end
 
--- AeonSettings stand-in -----------------------------------------------------------------------------------
-
-local kinds = {}
-local dialog = {}
-local window = { shown = false, refreshed = 0 }
-function window:SetCategories(categories)
-	self.categories = categories
-end
-function window:Open(page)
-	self.opened = page or "<last>"
-	self.shown = true
-end
-function window:Close()
-	self.shown = false
-end
-function window:IsShown()
-	return self.shown
-end
-function window:RefreshPage()
-	self.refreshed = self.refreshed + 1
-end
-function window:SetPreviewChosen(key)
-	self.chosen = key
-end
-
-local AS = {
-	RegisterElementKind = function(_, kind, definition)
-		kinds[kind] = definition
-	end,
-	CreateProfilesPage = function(_, options)
-		return { id = options.id, title = options.title, adapter = options.adapter }
-	end,
-	ProfileDialogFrame = function()
-		return {
-			Open = function(_, kind, options)
-				dialog.kind, dialog.options = kind, options
-			end,
-		}
-	end,
-	CreateWindow = function(_, options)
-		window.options = options
-
-		return window
-	end,
+local LSM = {
+	MediaType = { BORDER = "border", FONT = "font", SOUND = "sound", STATUSBAR = "statusbar" },
+	Register = function() end,
+	Fetch = function() end,
 }
 
-local AUI = { AeonSettings = AS }
+local LIBRARIES = { ["LibAeonSettings-1.0"] = lib, ["LibDataBroker-1.1"] = LDB, ["LibDBIcon-1.0"] = icon,
+	["LibSharedMedia-3.0"] = LSM }
+function LibStub(name)
+	return assert(LIBRARIES[name], name)
+end
+
+function Mixin(object, ...)
+	for index = 1, select("#", ...) do
+		for key, value in pairs((select(index, ...))) do
+			object[key] = value
+		end
+	end
+
+	return object
+end
+
+ALWAYS, COLOR, OPACITY = "Always", "Color", "Opacity"
+COMBAT, PET, CHARACTER = "Combat", "Pet", "Character"
+READY_CHECK, PLAYER_COUNTDOWN_BUTTON, KEY_BINDINGS, NONE = "Ready Check", "Countdown", "Key Bindings", "None"
+MACROS, HEALTH = "Macros", "Health"
+RAID_TARGET_1, RAID_TARGET_8 = "Star", "Skull"
+
+local AUI = {}
 assert(loadfile(root .. "Core/Core.lua"))("AeonUI", AUI)
 AUI.L = setmetatable({}, { __index = function(_, key)
 	return key
 end })
-AUI.can = { surnames = false }
-AUI.oUF = {
-	colors = {
-		class = {},
-		reaction = {},
-		power = { MANA = { r = 0, g = 0, b = 1 }, RAGE = { r = 1, g = 0, b = 0 } },
-		health = { r = 0.2, g = 0.8, b = 0.1 },
-	},
-}
-for level = 1, 8 do
-	AUI.oUF.colors.reaction[level] = level <= 3 and { r = 0.8, g = 0.3, b = 0.2 } or level == 4 and { r = 0.9, g = 0.7, b = 0 }
-		or { r = 0, g = 0.6, b = 0.1 }
-end
-AUI.Media = {
-	FLAT = "flat",
-	STRIPED = "AeonUI Thin Stripes",
-	SHIELD = "Blizzard Shield",
-	files = { ["AeonUI Thin Stripes"] = "stripes", ["Blizzard Shield"] = "shield" },
-}
-for _, file in ipairs({
-	"Core/Callbacks.lua", "Profile/Schema.lua", "Profile/Store.lua", "Profile/Codec.lua", "Profile/Profile.lua",
-	"Frames/Tags.lua", "Frames/Text.lua", "Frames/Overlays.lua", "Frames/HealthColor.lua", "Frames/PowerColor.lua", "Frames/Portrait.lua", "Frames/CastBar.lua", "Frames/AuraCategories.lua", "Frames/Auras.lua", "Frames/ClassPower.lua", "Frames/Indicators.lua", "Frames/Fading.lua", "Frames/UnitFrame.lua", "Frames/Frames.lua",
-	"Settings/Note.lua", "Settings/Pages.lua", "Settings/Shared.lua", "Settings/TextSlots.lua", "Settings/Overlays.lua", "Settings/CastBar.lua", "Settings/Auras.lua", "Settings/ClassPower.lua", "Settings/Indicators.lua",
-	"Settings/Previews.lua",
-	"Settings/Profiles.lua", "Settings/Recovery.lua", "Settings/Settings.lua",
-	"Editor/Layout.lua", "Editor/External.lua", "Editor/Mover.lua", "Editor/Panel.lua", "Editor/Editor.lua",
-}) do
+for _, file in ipairs({ "Core/Callbacks.lua", "Core/Capabilities.lua", "Core/Broker.lua", "Profile/Schema.lua",
+	"Profile/Store.lua", "Profile/Profile.lua", "Media/Media.lua", "UI/Border.lua", "Minimap/Layout.lua",
+	"Minimap/Elements.lua", "Minimap/Rows.lua", "Minimap/Fade.lua", "Minimap/Text.lua", "Minimap/Difficulty.lua",
+	"Minimap/Buttons.lua", "Minimap/Map.lua", "WorldMap/Markers.lua", "WorldMap/Options.lua", "Tooltip/Options.lua",
+	"Tooltip/Tooltip.lua", "Interface/UIScale.lua", "Interface/GameMenuScale.lua",
+	"Automation/Options.lua", "Automation/GameSettings.lua", "Menus/Options.lua", "Input/Options.lua",
+	"Input/FocusShortcut.lua", "Alerts/Options.lua", "Interface/Options.lua", "ScreenText/Options.lua",
+	"ScreenText/ScreenText.lua", "Cursor/Options.lua", "Cursor/CursorRing.lua", "CastBar/Options.lua",
+	"CastBar/TickData.lua", "CastBar/BlizzardBar.lua", "CastBar/CastBar.lua", "Settings/CastBar.lua", "Notifications/Options.lua",
+	"Notifications/Notifications.lua", "Markers/Options.lua", "Markers/Bar.lua", "Markers/Cycler.lua",
+	"Markers/Markers.lua", "DeleteCheapestItem/Options.lua", "Core/AuctionPrices.lua",
+	"MerchantWindow/Options.lua", "MerchantWindow/BottomBar.lua", "MerchantWindow/MerchantWindow.lua", "Settings/MerchantWindow.lua",
+	"HiddenSettings/Options.lua", "HiddenSettings/CVarHolder.lua", "HiddenSettings/HiddenSettings.lua",
+	"Settings/HiddenSettings.lua", "Macros/Options.lua", "Macros/Macros.lua", "Settings/Macros.lua",
+	"Settings/Window.lua", "Settings/MinimapEditor.lua", "Settings/General.lua", "Settings/Minimap.lua",
+	"Settings/WorldMap.lua", "Settings/Tooltip.lua", "Settings/Automation.lua", "Settings/DeleteCheapestItem.lua", "Settings/PlayerMenu.lua",
+	"Settings/Input.lua", "Settings/Alerts.lua", "Settings/Interface.lua", "Settings/ScreenText.lua",
+	"Settings/Cursor.lua", "Settings/Notifications.lua", "Settings/RaidMarkers.lua",
+	"Settings/Profiles.lua", "Settings/Recovery.lua", "Settings/EditTargets.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 
-local Profile, Settings, Store, Schema = AUI.Profile, AUI.Settings, AUI.Store, AUI.Schema
+local Settings, Profile, Store, Broker = AUI.Settings, AUI.Profile, AUI.Store, AUI.Broker
+
+AUI.Schema:Number("fixture.width", 270, 40, 800, true)
 
 function Profile:Save(data)
 	AeonUIDB = data
+end
+
+local function Load(data)
+	AeonUIDB = data
+	Profile.root, Profile.quarantined = nil, {}
+	Profile:Initialize(data, "Player-1")
+	Settings.window = nil
+
+	return Settings:Window()
 end
 
 -- Harness -------------------------------------------------------------------------------------------------
@@ -209,958 +459,1519 @@ local function Equal(name, actual, expected)
 	end
 end
 
-local function Load(data)
-	AeonUIDB = data
-	Profile.root, Profile.quarantined = nil, {}
-	Profile:Initialize(data, "Player-1")
-end
+-- Normal mode ------------------------------------------------------------------------------------------------
 
----@return table<string, table> pages by id
-local function Pages()
-	local pages = {}
-	for _, category in ipairs(Settings:Categories()) do
-		for _, page in ipairs(category.pages) do
-			pages[page.id] = page
-		end
+local window = Load(nil)
+local declaration = window.declaration
+Equal("registered under the addon's name", window.name, "AeonUI")
+Equal("named root frame", declaration.frameName, "AeonUISettings")
+local minimapWaits, scaleWaits = AUI.Minimap.ReloadNeeded, AUI.UIScale.ReloadNeeded
+local function Footer(minimap, scale)
+	AUI.Minimap.ReloadNeeded = function()
+		return minimap
+	end
+	AUI.UIScale.ReloadNeeded = function()
+		return scale
 	end
 
-	return pages
+	return tostring(declaration.reloadNeeded())
 end
+Equal("the footer's reload notice follows the Minimap and UI Scale", table.concat({ Footer(false, false),
+	Footer(true, false), Footer(false, true) }, " "), "false true true")
+AUI.Minimap.ReloadNeeded, AUI.UIScale.ReloadNeeded = minimapWaits, scaleWaits
+Equal("sidebar order", table.concat(window.order, " "), "general #mapsHeader minimap #tooltipHeader tooltipGeneral " ..
+	"tooltipUnits tooltipItems #qualityOfLifeHeader automation alerts notifications - profiles")
+Equal("General and Profiles carry their icons, tinted", tostring(window.pages.general.info.icon == AUI.Media.sidebar.general)
+	.. " " .. tostring(window.pages.general.info.iconTint) .. " "
+	.. tostring(window.pages.profiles.info.icon == AUI.Media.sidebar.profiles) .. " "
+	.. tostring(window.pages.profiles.info.iconTint), "true true true true")
+AUI.can.playerMenus, AUI.can.guildInvite, AUI.can.raiderIOLinks, AUI.can.warcraftLogsLinks = true, true, true, true
+window = Load(nil)
+Equal("Player Menu follows Automation", table.concat(window.order, " "), "general #mapsHeader minimap " ..
+	"#tooltipHeader tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader automation playerMenu alerts notifications - profiles")
+local playerMenuPage = window.pages.playerMenu
+local playerMenuIDs = {}
+for _, section in ipairs(playerMenuPage.sections) do
+	for _, setting in ipairs(section.settings) do
+		playerMenuIDs[#playerMenuIDs + 1] = section.title .. ":" .. setting.id .. "=" .. tostring(setting.default)
+	end
+end
+Equal("cards named as the menu shows them, every entry on", table.concat(playerMenuIDs, " "),
+	"Guild:guildInvite=true External Links:raiderIOLink=true External Links:warcraftLogsLink=true")
+Equal("the links as a choice card", playerMenuPage.sections.playerMenuLinks.info.columns, 2)
+Equal("under the Quality of Life header", playerMenuPage.info.under, "qualityOfLifeHeader")
+AUI.can.raiderIOLinks, AUI.can.warcraftLogsLinks = nil, nil
+window = Load(nil)
+Equal("Forever: the Guild card alone", window.pages.playerMenu.sections[1].id .. " "
+	.. tostring(window.pages.playerMenu.sections.playerMenuLinks), "playerMenuGuild nil")
+AUI.can.playerMenus, AUI.can.guildInvite = nil, nil
+window = Load(nil)
+Equal("no Player Menu page without player menus", window.pages.playerMenu, nil)
+AUI.can.clickDown, AUI.can.focusShortcut = true, true
+window = Load(nil)
+Equal("Input follows Player Menu's place", table.concat(window.order, " "), "general #mapsHeader minimap " ..
+	"#tooltipHeader tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader automation input alerts notifications - profiles")
+local inputPage = window.pages.input
+local inputIDs = {}
+for _, section in ipairs(inputPage.sections) do
+	for _, setting in ipairs(section.settings) do
+		inputIDs[#inputIDs + 1] = section.id .. ":" .. setting.id .. "=" .. tostring(setting.default)
+	end
+end
+Equal("a card for each, every setting at its default", table.concat(inputIDs, " "),
+	"inputClickDown:clickDown=UNMANAGED inputFocusShortcut:focusShortcut=false inputFocusShortcut:focusModifier=shift "
+	.. "inputFocusShortcut:focusButton=1 inputFocusShortcut:focusWorld=true inputFocusShortcut:focusMark=false "
+	.. "inputFocusShortcut:focusMarker=8")
+Equal("under the Quality of Life header", inputPage.info.under, "qualityOfLifeHeader")
+local clickDown = inputPage.sections.inputClickDown.settings.clickDown
+local clickDownTexts = {}
+for _, option in ipairs(clickDown.options) do
+	clickDownTexts[#clickDownTexts + 1] = option.value .. "=" .. option.text
+end
+Equal("Click Down's choices", table.concat(clickDownTexts, " "),
+	"UNMANAGED=Not Managed ON=Always On COMBAT=In Combat Only OFF=Always Off")
+Equal("named for what it does, with no second line", clickDown.label .. " " .. tostring(clickDown.description),
+	"Cast on Key Down nil")
+Equal("cards titled", inputPage.sections.inputClickDown.title .. " | " .. inputPage.sections.inputFocusShortcut.title,
+	"Action Bars | Focus Keybind")
+local focusCard = inputPage.sections.inputFocusShortcut.settings
+Equal("Focus Keybind is headed by its switch", focusCard.focusShortcut.kind .. " " .. focusCard.focusShortcut.label,
+	"Toggle Focus on Click")
+Equal("with no line while Clique is away", focusCard.focusShortcut.description, nil)
+Equal("its settings follow it", focusCard.focusModifier.depends .. " " .. focusCard.focusButton.depends .. " "
+	.. focusCard.focusWorld.depends .. " " .. focusCard.focusMark.depends, "focusShortcut focusShortcut focusShortcut "
+	.. "focusShortcut")
+Equal("the marker follows Mark Focus", focusCard.focusMarker.depends, "focusMark")
+Equal("markers by Blizzard's names", focusCard.focusMarker.options[8].text, "Skull")
+Equal("modifiers", #focusCard.focusModifier.options .. " " .. focusCard.focusModifier.options[4].text, "6 Ctrl + Shift")
+cliqueLoaded = true
+window = Load(nil)
+Equal("with Clique, the switch says where to bind Focus",
+	window.pages.input.sections.inputFocusShortcut.settings.focusShortcut.description,
+	"Clique handles unit frames; bind Focus there.")
+cliqueLoaded = false
+AUI.can.clickDown = nil
+window = Load(nil)
+Equal("without the console variable, Focus Shortcut alone", window.pages.input.sections[1].id .. " "
+	.. tostring(window.pages.input.sections.inputClickDown), "inputFocusShortcut nil")
+AUI.can.focusShortcut = nil
+window = Load(nil)
+Equal("no Input page without either", window.pages.input, nil)
+AUI.can.keyLabels = true
+window = Load(nil)
+local keyLabelIDs = {}
+for _, setting in ipairs(window.pages.input.sections.inputClickDown.settings) do
+	keyLabelIDs[#keyLabelIDs + 1] = setting.id .. "=" .. tostring(setting.default) .. ":" .. tostring(setting.depends)
+end
+Equal("key labels alone make the Action Bars card", table.concat(keyLabelIDs, " "), "keyLabels=false:nil "
+	.. "keyLabelsFont=Arial Narrow:keyLabels keyLabelsSize=12:keyLabels keyLabelsOutline=SLUG:keyLabels")
+local keyLabels = window.pages.input.sections.inputClickDown.settings.keyLabels
+Equal("the switch shows an example", keyLabels.kind .. " " .. keyLabels.label .. ": " .. keyLabels.description,
+	"Checkbox Short Key Labels: Shows Shift + Mouse Button 4 as SM4.")
+AUI.can.keyLabels = nil
+local alertsPage = window.pages.alerts
+local alertIDs = {}
+for _, setting in ipairs(alertsPage.sections.alertsSound.settings) do
+	alertIDs[#alertIDs + 1] = setting.id .. "=" .. tostring(setting.default)
+end
+Equal("Sound Alerts: one checkbox per group, each off", table.concat(alertIDs, " "),
+	"queuePops=false readyChecks=false whispers=false partyInvites=false bossEmotes=false")
+Equal("titled, as a choice card", alertsPage.sections.alertsSound.title .. " " .. alertsPage.sections.alertsSound.info.columns,
+	"Sound Alerts 2")
+Equal("under the Quality of Life header, before Notifications", alertsPage.info.under .. " " .. window.order[#window.order - 3],
+	"qualityOfLifeHeader alerts")
+Equal("its one footer, why it exists", alertsPage.sections.alertsSound.notes[1].text,
+	"Also plays on the Master channel, so you hear them with sound effects off.")
+Equal("no Group Finder card without the listing's APIs", alertsPage.sections.alertsGroupFinder, nil)
+AUI.can.premadeJoined = true
+window = Load(nil)
+local groupFinder = window.pages.alerts.sections.alertsGroupFinder
+Equal("the Group Finder card after Sound Alerts", window.pages.alerts.sections[2].title .. ": "
+	.. groupFinder.settings[1].id .. "=" .. tostring(groupFinder.settings[1].default) .. " "
+	.. groupFinder.settings[1].label .. tostring(groupFinder.settings[1].description),
+	"Group Finder: premadeJoined=false Joined Group in Chatnil")
+AUI.can.premadeJoined = nil
+AUI.can.extraActionButton, AUI.can.helpTips, AUI.can.bossBanner, AUI.can.vaultOverlay = true, true, true, true
+window = Load(nil)
+Equal("Interface follows Alerts", table.concat(window.order, " "), "general #mapsHeader minimap #tooltipHeader "
+	.. "tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader automation alerts notifications interface - profiles")
+local interfacePage = window.pages.interface
+local interfaceIDs = {}
+for _, section in ipairs(interfacePage.sections) do
+	for _, setting in ipairs(section.settings) do
+		interfaceIDs[#interfaceIDs + 1] = section.title .. ":" .. setting.id .. "=" .. tostring(setting.default)
+			.. (setting.description and "+" or "")
+	end
+end
+Equal("two titled cards, everything off, lines only where justified", table.concat(interfaceIDs, " "),
+	"Extra Action Button:clickThroughArt=false Extra Action Button:hideArt=false Hide:hideHelpTips=false+ "
+	.. "Hide:hideBossBanner=false Hide:hideVaultOverlay=false+")
+Equal("the extra action button as a choice card", interfacePage.sections.interfaceExtraActionButton.info.columns, 2)
+Equal("under the Quality of Life header", interfacePage.info.under, "qualityOfLifeHeader")
+AUI.can.vaultOverlay, AUI.can.extraActionButton = nil, nil
+window = Load(nil)
+Equal("Forever: no vault, and no extra action card without its frame", window.pages.interface.sections[1].id .. " "
+	.. #window.pages.interface.sections.interfaceHide.settings, "interfaceHide 2")
+AUI.can.helpTips, AUI.can.bossBanner = nil, nil
+window = Load(nil)
+Equal("no Interface page without any of them", window.pages.interface, nil)
+AUI.can.releaseProtection = true
+window = Load(nil)
+Equal("Confirm Release Spirit alone keeps the page", window.pages.interface.sections[1].title .. ": "
+	.. window.pages.interface.sections[1].settings[1].id, "Pop-ups: releaseProtection")
+AUI.can.skipCountdown, AUI.can.confirmBind, AUI.can.clickThroughToasts = true, true, true
+AUI.can.easyDestroy = true
+DELETE_ITEM_CONFIRM_STRING = "DELETE"
+window = Load(nil)
+local popupIDs = {}
+for _, setting in ipairs(window.pages.interface.sections.interfacePopups.settings) do
+	popupIDs[#popupIDs + 1] = setting.id .. "=" .. tostring(setting.default) .. (setting.description and "+" or "")
+		.. (setting.depends and ("<" .. setting.depends) or "")
+end
+Equal("the Pop-ups card alone, everything off", window.pages.interface.sections[1].title .. ": "
+	.. table.concat(popupIDs, " "), "Pop-ups: skipCountdown=false+ skipKey=NONE<skipCountdown confirmBind=false "
+	.. "easyDestroy=false+ toastClickThrough=false+ releaseProtection=false+")
+Equal("Easy Item Destroy names the word", window.pages.interface.sections.interfacePopups.settings.easyDestroy
+	.description, "No need to type \"DELETE\" to destroy an item.")
+Equal("Confirm Release Spirit's label and line", window.pages.interface.sections.interfacePopups.settings
+	.releaseProtection.label .. " / " .. window.pages.interface.sections.interfacePopups.settings.releaseProtection
+	.description, "Confirm Release Spirit / Release Spirit stays disabled until you answer Yes.")
+local skipKeys = {}
+for _, option in ipairs(window.pages.interface.sections.interfacePopups.settings.skipKey.options) do
+	skipKeys[#skipKeys + 1] = option.text
+end
+Equal("Hold to Skip's keys", table.concat(skipKeys, ","), "No Key,Shift,Ctrl,Alt")
+AUI.can.skipCountdown, AUI.can.confirmBind, AUI.can.clickThroughToasts = nil, nil, nil
+AUI.can.releaseProtection, AUI.can.easyDestroy = nil, nil
+AUI.can.tradingPost = true
+window = Load(nil)
+local tradingPostCard = window.pages.interface.sections.interfaceTradingPost
+Equal("Retail: the Trading Post card alone keeps the page", tradingPostCard.title .. ": "
+	.. tradingPostCard.settings[1].label .. "=" .. tostring(tradingPostCard.settings[1].default) .. " / "
+	.. tradingPostCard.settings[1].description,
+	"Trading Post: Disable Combat Previews=false / Each item's preview starts without its combat animation.")
+AUI.can.tradingPost = nil
+AUI.can.screenText = true
+window = Load(nil)
+Equal("Screen Text follows Alerts", table.concat(window.order, " "), "general #mapsHeader minimap #tooltipHeader "
+	.. "tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader automation alerts notifications screenText - profiles")
+local screenTextPage = window.pages.screenText
+Equal("under the Quality of Life header", screenTextPage.info.under, "qualityOfLifeHeader")
+Equal("headed by the module's switch, off", screenTextPage.info.switch.path .. "=" .. tostring(
+	screenTextPage.info.switch.default) .. " " .. screenTextPage.info.switch.label,
+	"screenText.enabled=false Style Screen Text")
+Equal("a sample of every line as its preview", type(screenTextPage.preview.refresh), "function")
+local screenTextCard = screenTextPage.sections.screenTextLines
+local screenTextIDs = {}
+for _, setting in ipairs(screenTextCard.settings) do
+	if setting.kind == "Details" then
+		screenTextIDs[#screenTextIDs + 1] = setting.id .. ":" .. setting.label
+	end
+	Equal(setting.id .. " has no second line", setting.description, nil)
+	if setting.path then
+		local field = AUI.Schema:Field(setting.path)
+		Equal(setting.id .. " names a setting", field ~= nil, true)
+		Equal(setting.id .. " follows All Text, or is All Text", setting.inherits and setting.inherits.path or "shared",
+			field.shared or "shared")
+	end
+end
+Equal("one titled card: All Text, then each line", screenTextCard.title .. ": " .. table.concat(screenTextIDs, " "),
+	"Text: allText:All Text messagesText:Errors and Objectives zoneText:Zone subZoneText:Subzone pvpText:PvP Status")
+Equal("All Text can be reset", screenTextCard.settings.allText_size.resettable, true)
+Equal("a line's size follows All Text", screenTextCard.settings.zoneText_size.inherits.from, "All Text")
+Equal("sizes are percentages", screenTextCard.settings.allText_size.format .. " "
+	.. screenTextCard.settings.allText_size.min .. "-" .. screenTextCard.settings.allText_size.max, "percent 50-200")
+Equal("Slug by default", screenTextCard.settings.allText_outline.default, "SLUG")
+-- The sample, drawn against font strings that measure 10 units per character and their size in height.
+local function Color(r, g, b)
+	return { GetRGB = function()
+		return r, g, b
+	end }
+end
+RED_FONT_COLOR, YELLOW_FONT_COLOR = Color(1, 0.1, 0.1), Color(1, 1, 0)
+SANCTUARY_TERRITORY, ERR_OUT_OF_RANGE, ERR_QUEST_UNKNOWN_COMPLETE = "(Sanctuary)", "Out of range.", "Objective Complete."
+GetZoneText = function()
+	return "Silvermoon City"
+end
+GetSubZoneText = function()
+	return ""
+end
+ErrorFont, ZoneTextFont, SubZoneTextFont, PVPInfoTextFont = {}, {}, {}, {}
+for font, size in pairs({ [ErrorFont] = 16, [ZoneTextFont] = 32, [SubZoneTextFont] = 26, [PVPInfoTextFont] = 20 }) do
+	font.GetFont = function()
+		return "Fonts\\FRIZQT__.TTF", size, ""
+	end
+end
+local sampleCanvas = {}
+function sampleCanvas:CreateFontString()
+	local text = { parent = self }
+	function text:SetText(value)
+		assert(self.size, "Font not set")
+		self.text = value
+	end
+	function text:SetTextColor() end
+	function text:SetFont(_, size)
+		self.size = size
+	end
+	function text:ClearAllPoints() end
+	function text:SetPoint() end
+	function text:GetParent()
+		return self.parent
+	end
+	function text:GetUnboundedStringWidth()
+		return #self.text * 10
+	end
+	function text:GetStringHeight()
+		return self.size
+	end
 
----@return table[] settings every setting the page built, in order, with section actions and menus
-local function SettingsOf(elements)
-	local list = {}
-	for _, element in ipairs(elements) do
-		if element.kind == "setting" then
-			for _, setting in ipairs(element.settings or { element.setting }) do
-				list[#list + 1] = setting
+	return text
+end
+local sampleParts = {}
+local samplePreview = { Part = function(_, region, target, options)
+	sampleParts[#sampleParts + 1] = region.text .. ">" .. target .. (options.text and "" or "!")
+end }
+screenTextPage.preview.create(sampleCanvas)
+local sampleWidth, sampleHeight = screenTextPage.preview.refresh(sampleCanvas, nil, samplePreview)
+Equal("the sample's lines find their rows", table.concat(sampleParts, " | "), "Silvermoon City>zoneText | "
+	.. "Subzone>subZoneText | (Sanctuary)>pvpText | Out of range.>messagesText | Objective Complete.>messagesText")
+Equal("the sample's size, the zone lines beside the messages", sampleWidth .. "x" .. sampleHeight, "380x78")
+AUI.can.screenText = nil
+window = Load(nil)
+Equal("no Screen Text page without its frames", window.pages.screenText, nil)
+AUI.can.cursorRing, AUI.can.castSwipe = true, true
+window = Load(nil)
+Equal("Cursor follows Alerts", table.concat(window.order, " "), "general #mapsHeader minimap #tooltipHeader "
+	.. "tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader automation alerts notifications cursor - profiles")
+local cursorPage = window.pages.cursor
+Equal("under the Quality of Life header, with its icon", cursorPage.info.under .. " "
+	.. tostring(cursorPage.info.icon == AUI.Media.sidebar.cursor), "qualityOfLifeHeader true")
+Equal("headed by the module's switch, off", cursorPage.info.switch.path .. "=" .. tostring(
+	cursorPage.info.switch.default) .. " " .. cursorPage.info.switch.label, "cursor.enabled=false Show Cursor Ring")
+local cursorCards = {}
+for _, section in ipairs(cursorPage.sections) do
+	local ids = {}
+	for _, setting in ipairs(section.settings) do
+		ids[#ids + 1] = setting.id
+		Equal(setting.id .. " has no second line", setting.description, nil)
+		Equal(setting.id .. " names a setting", AUI.Schema:Field(setting.path) ~= nil, true)
+	end
+	cursorCards[#cursorCards + 1] = section.title .. ": " .. table.concat(ids, " ")
+end
+Equal("three titled cards", table.concat(cursorCards, " | "), "Ring: size thickness color opacity dot | "
+	.. "Swipes: gcd casts | Visibility: show hideTurning")
+Equal("Class Color beside the swatch", cursorPage.sections.cursorRing.settings.color.classColor.label .. " "
+	.. cursorPage.sections.cursorRing.settings.color.classColor.path, "Class Color cursor.classColor")
+local function OptionTexts(setting)
+	local texts = {}
+	for index, option in ipairs(setting.options) do
+		texts[index] = option.text
+	end
+
+	return table.concat(texts, ",")
+end
+Equal("the thicknesses", OptionTexts(cursorPage.sections.cursorRing.settings.thickness), "Thin,Normal,Thick")
+Equal("when it shows", OptionTexts(cursorPage.sections.cursorVisibility.settings.show), "Always,In Combat,In Instances")
+Equal("opacity as a percentage", cursorPage.sections.cursorRing.settings.opacity.format .. " "
+	.. cursorPage.sections.cursorRing.settings.opacity.min, "percent 10")
+Equal("three preview states", table.concat(cursorPage.preview.states(), ","), "Idle,Global Cooldown,Casting")
+AUI.can.castSwipe = nil
+window = Load(nil)
+Equal("without cast durations: no Casts, no Casting state", tostring(
+	window.pages.cursor.sections.cursorSwipes.settings.casts) .. " " .. #window.pages.cursor.preview.states(), "nil 2")
+AUI.can.cursorRing = nil
+window = Load(nil)
+Equal("no Cursor page without the cursor ring", window.pages.cursor, nil)
+AUI.can.castBar, AUI.can.castTarget, AUI.can.empoweredCasts = true, true, true
+window = Load(nil)
+Equal("Cast Bar under Unit Frames, after General", table.concat(window.order, " "), "general #unitFramesHeader "
+	.. "castBar #mapsHeader minimap #tooltipHeader tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader "
+	.. "automation alerts notifications - profiles")
+do
+	local castBarPage = window.pages.castBar
+	Equal("its title, under the Unit Frames header", castBarPage.info.title .. " " .. castBarPage.info.under,
+		"Cast Bar unitFramesHeader")
+	Equal("with its icon, tinted", tostring(castBarPage.info.icon == AUI.Media.sidebar.castBar) .. " "
+		.. tostring(castBarPage.info.iconTint), "true true")
+	Equal("headed by the module's switch, off", castBarPage.info.switch.path .. "=" .. tostring(
+		castBarPage.info.switch.default) .. " " .. castBarPage.info.switch.label, "castBar.enabled=false Show Cast Bar")
+	local castBarCards = {}
+	for _, section in ipairs(castBarPage.sections) do
+		local ids = {}
+		for _, setting in ipairs(section.settings) do
+			ids[#ids + 1] = setting.id
+			Equal(setting.id .. " names a setting", AUI.Schema:Field(setting.path) ~= nil, true)
+		end
+		castBarCards[#castBarCards + 1] = section.title .. ": " .. table.concat(ids, " ")
+	end
+	Equal("its cards", table.concat(castBarCards, " | "), "Bar: width height texture color gradient gradientColor "
+		.. "gradientDirection notInterruptible background border spark reverse smooth alwaysShow strata | "
+		.. "Icon: icon iconSide | Text: font outline shadow | Spell Name: nameEnabled nameSize nameColor nameX nameY "
+		.. "nameLength | Time: timeEnabled timeFormat timeSize timeColor timeX timeY | Cast Target: targetEnabled "
+		.. "targetColor targetSize targetX targetY | Feedback: interrupted holdTime fade | Latency: latency latencyColor "
+		.. "latencyText | Pushback: pushback pushbackColor | Channel Ticks: ticks tickColor lastTick lastTickColor | "
+		.. "Empowered Casts: empowerColors stage1 stage2 stage3 stage4 stageLabel")
+	Equal("a preview of five states", #castBarPage.preview.states, 5)
+end
+AUI.can.castTarget, AUI.can.empoweredCasts = nil, nil
+window = Load(nil)
+Equal("no Cast Target card without the client's target names", window.pages.castBar.sections.castBarTarget, nil)
+Equal("no Empowered Casts card or state where the client has none", tostring(
+	window.pages.castBar.sections.castBarEmpowered) .. " " .. table.concat(window.pages.castBar.preview.states, ","),
+	"nil Casting,Channeling,Not Interruptible,Interrupted")
+AUI.can.castBar = nil
+window = Load(nil)
+Equal("no Cast Bar page or Unit Frames header without the client's timers", tostring(window.pages.castBar) .. " "
+	.. tostring(window.order[2]), "nil #mapsHeader")
+local function NoticeCards(page)
+	local cards = {}
+	for _, section in ipairs(page.sections) do
+		local ids = {}
+		for _, setting in ipairs(section.settings) do
+			if not setting.details then
+				ids[#ids + 1] = setting.id .. (setting.description and "+" or "")
 			end
-		elseif element.kind == "section" then
-			list[#list + 1] = element.action
-			list[#list + 1] = element.menu
 		end
+		cards[#cards + 1] = section.title .. ": " .. table.concat(ids, " ")
 	end
 
-	return list
+	return table.concat(cards, " | ")
 end
-
-local function Find(elements, id)
-	for _, setting in ipairs(SettingsOf(elements)) do
-		if setting.id == id then
-			return setting
+window = Load(nil)
+local notificationsPage = window.pages.notifications
+Equal("Notifications follows Alerts, with its icon and no switch", notificationsPage.info.under .. " "
+	.. tostring(notificationsPage.info.icon == AUI.Media.sidebar.notifications) .. " "
+	.. tostring(notificationsPage.info.switch), "qualityOfLifeHeader true nil")
+Equal("without the clients' extras: Text and Combat", NoticeCards(notificationsPage),
+	"Text: font size outline | Combat: enter enterText leave leaveText duration")
+for _, flag in ipairs({ "potionNotice", "petNotices", "petHealthNotice", "talentNotice", "durabilityNotice",
+	"lowHealthNotice", "trackingNotice" }) do
+	AUI.can[flag] = true
+end
+window = Load(nil)
+notificationsPage = window.pages.notifications
+Equal("every card, a line only for a constraint", NoticeCards(notificationsPage),
+	"Text: font size outline | Combat: enter enterText leave leaveText lowHealth lowHealthText potion potionText "
+	.. "duration | Pet: petMissing+ petMissingText petPassive+ petPassiveText petHealth+ petHealthText | "
+	.. "Character: talents+ talentsText durability+ durabilityText tracking+ trackingText")
+local combatCard, characterCard = notificationsPage.sections.notificationsCombat, notificationsPage.sections.notificationsCharacter
+Equal("Low Health's mark, 35% by default", combatCard.settings.lowHealthText_below.min .. "-"
+	.. combatCard.settings.lowHealthText_below.max .. " " .. combatCard.settings.lowHealthText_below.default, "5-90 35")
+local remind = characterCard.settings.trackingText_remind
+local remindKeys = {}
+for index, option in ipairs(remind.options) do
+	remindKeys[index] = option.value
+end
+Equal("Tracking: outside instances, Remind About listing the character's trackings, each on", characterCard.settings
+	.tracking.description .. " " .. tostring(remind.multiple) .. " " .. remind.path .. " " .. remind.details .. " "
+	.. table.concat(remindKeys, ",") .. " " .. tostring(remind.default.beasts), "Outside instances. true "
+	.. "notifications.tracking.remind trackingText beasts,humanoids,undead,hidden,elementals,demons,giants,dragonkin,"
+	.. "herbs,minerals true")
+local petCard = notificationsPage.sections.notificationsPet
+Equal("the pet lines", petCard.settings.petMissing.description, "In combat or in instances.")
+Equal("a notice's Text row follows its checkbox and holds its text and color", petCard.settings.petHealthText.depends
+	.. " " .. petCard.settings.petHealth_text.details .. " " .. petCard.settings.petHealth_color.details .. " "
+	.. tostring(petCard.settings.petHealth_text.allowEmpty), "petHealth petHealthText petHealthText true")
+Equal("Pet Low Health's mark, in its Text row", petCard.settings.petHealthText_below.label .. " "
+	.. petCard.settings.petHealthText_below.min .. "-" .. petCard.settings.petHealthText_below.max .. " "
+	.. petCard.settings.petHealthText_below.format, "Show Below 5-90 percent")
+Equal("the Text row reads the notice's text", petCard.settings.petHealthText.summary(), "Pet Low Health")
+Equal("Low Durability's mark", notificationsPage.sections.notificationsCharacter.settings.durabilityText_below.min, 10)
+for _, flag in ipairs({ "potionNotice", "petNotices", "petHealthNotice", "talentNotice", "durabilityNotice",
+	"lowHealthNotice", "trackingNotice" }) do
+	AUI.can[flag] = nil
+end
+local function MarkerCards(page)
+	local cards = {}
+	for _, section in ipairs(page.sections) do
+		local ids = {}
+		for _, setting in ipairs(section.settings) do
+			ids[#ids + 1] = setting.id .. (setting.description and "+" or "")
 		end
+		cards[#cards + 1] = section.title .. ": " .. table.concat(ids, " ")
 	end
+
+	return table.concat(cards, " | ")
 end
+AUI.can.raidMarkers, AUI.can.worldMarkers = true, true
+window = Load(nil)
+local markersPage = window.pages.raidMarkers
+Equal("Raid Markers follows Notifications", table.concat(window.order, " "), "general #mapsHeader minimap "
+	.. "#tooltipHeader tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader automation alerts notifications "
+	.. "raidMarkers - profiles")
+Equal("with its icon, a preview and no switch", markersPage.info.under .. " "
+	.. tostring(markersPage.info.icon == AUI.Media.sidebar.raidMarkers) .. " " .. tostring(markersPage.preview ~= nil)
+	.. " " .. tostring(markersPage.info.switch), "qualityOfLifeHeader true true nil")
+Equal("every card titled, a line only where the keys are bound", MarkerCards(markersPage),
+	"Bar: markersEnabled markersVisibility markersMouseover markersTooltips markersFeedback | "
+	.. "Buttons: markersReadyCheck markersCountdown markersSeconds | "
+	.. "Layout: markersOrientation markersSize markersSpacing | "
+	.. "Border: markersBorderStyle markersBorderColor markersBorderThickness | "
+	.. "World Marker Cycle: markersKeys+ markersCycleOrder")
+local barCard = markersPage.sections.markersBar
+Equal("the bar's switch, off; its settings follow it", barCard.settings.markersEnabled.kind .. " "
+	.. tostring(barCard.settings.markersEnabled.default) .. " " .. barCard.settings.markersFeedback.depends .. " "
+	.. markersPage.sections.markersButtons.settings.markersSeconds.depends, "Toggle false markersEnabled markersCountdown")
+local function BarCards()
+	local shown = {}
 
-local function Options(setting)
-	return type(setting.options) == "function" and setting.options() or setting.options
-end
-
--- Note element ------------------------------------------------------------------------------------------------
-
-Equal("note kind registered", kinds.note.template, "AeonUINoteTemplate")
-Equal("note search", kinds.note.Search({ text = "words" }), "words")
-
--- Categories ----------------------------------------------------------------------------------------------
-
-Load(nil)
-local pages = Pages()
-Equal("Globals page", pages.globals.title, "Globals")
-Equal("Player page", pages.player.title, "Player")
-Equal("Player Power page", pages.playerPower.title, "Player Power")
-Equal("Profiles page", pages.profiles.title, "Profiles")
-Equal("no Recovery page in normal mode", pages.recovery, nil)
-Equal("no preview on Globals", pages.globals.preview, nil)
-Equal("preview on Player", type(pages.player.preview.Draw), "function")
-Equal("target and focus share their sample state", pages.target.preview.stateKey, pages.focus.preview.stateKey)
-Equal("player keeps its own sample state", pages.player.preview.stateKey ~= pages.target.preview.stateKey, true)
-Equal("preview states", table.concat(pages.target.preview.states, ","), "Full,Damaged,Dead,Offline,Absorbs,Overflow,Casting,Channeling,Not Interruptible,Interrupted,Interrupt Ready,Important")
-Equal("player preview adds empowered casts", pages.player.preview.states[#pages.player.preview.states], "Empowered")
-Equal("target of target has no overlay states", table.concat(pages.targettarget.preview.states, ","),
-	"Full,Damaged,Dead,Offline")
-Equal("target of target keeps its own sample state", pages.targettarget.preview.stateKey ~= pages.target.preview.stateKey,
-	true)
-local order = {}
-for _, page in ipairs(Settings:Categories()[1].pages) do
-	order[#order + 1] = page.id
-end
-Equal("unit frame page order", table.concat(order, ","), "globals,player,pet,target,targettarget,focus,boss,playerPower,classPower")
-Equal("Target of Target page", pages.targettarget.title, "Target of Target")
-Equal("Focus page", pages.focus.title, "Focus")
-Equal("preview on Focus", type(pages.focus.preview.Draw), "function")
-
--- Every setting on every page reads and saves ----------------------------------------------------------------
-
-for _, id in ipairs({ "globals", "player", "pet", "target", "targettarget", "focus", "boss", "playerPower", "classPower" }) do
-	local elements = pages[id].Build()
-	local seen = {}
-
-	for _, setting in ipairs(SettingsOf(elements)) do
-		Equal(id .. "." .. setting.id .. " is unique", seen[setting.id], nil)
-		seen[setting.id] = true
-
-		if setting.control ~= "action" and not setting.id:match("CopyFrom$") then
-			local value = setting.get()
-			local result = setting.set(value)
-			Equal(id .. "." .. setting.id .. " saves its own value", result ~= false, true)
-		end
+	for _, id in ipairs({ "markersButtons", "markersLayout", "markersBorder", "markersCycle" }) do
+		local show = markersPage.sections[id].info.show
+		shown[#shown + 1] = tostring(show == nil or show() == true)
 	end
+
+	return table.concat(shown, " ")
 end
-
-local player = pages.player.Build()
-Equal("page switch", Find(player, "enabled").pageSwitch, true)
-Equal("switch label", Find(player, "enabled").label, "Show Player Frame")
-Equal("x range follows the screen", Find(player, "x").max, 960)
-Equal("y range follows the screen", Find(player, "y").min, -540)
-Equal("width range follows the schema", Find(player, "width").max, 600)
-Find(player, "width").set(300)
-Equal("width saved", Profile:Get("frames.player.width"), 300)
-Equal("an out-of-range value is refused", Find(player, "width").set(9000), false)
-
--- Settings that follow the shared ones: Shared until the frame holds its own value; Use Shared clears it.
-Profile:Reset("frames.player")
-player = pages.player.Build()
-local precision = Find(player, "precision")
-Equal("number setting shows the Globals value", precision.get(), "default")
-Equal("number setting inherits", type(precision.inherit), "table")
-Equal("Shared at first", precision.inherit.custom(), false)
-precision.set("decimal")
-Equal("own value saved", Profile:Get("frames.player.numbers.precision"), "decimal")
-Equal("Custom after a change", precision.inherit.custom(), true)
-precision.inherit.clear()
-Equal("Use Shared clears the own value", Profile:IsCustom("frames.player.numbers.precision"), false)
-Find(pages.globals.Build(), "percentDecimals").set(1)
-Equal("a Shared setting shows the Globals value", Find(player, "percentDecimals").get(), 1)
-Equal("a frame-only setting does not inherit", Find(player, "width").inherit, nil)
-Equal("a Globals setting does not inherit", Find(pages.globals.Build(), "percentDecimals").inherit, nil)
-Equal("bar texture inherits", type(Find(player, "bartexture").inherit), "table")
-Equal("player has no power texture", Find(player, "barpowerTexture"), nil)
-Equal("target has a power texture", type(Find(pages.target.Build(), "barpowerTexture").inherit), "table")
-Equal("cast bar look inherits", type(Find(player, "castColor").inherit), "table")
-Equal("cast bar position does not", Find(player, "castX").inherit, nil)
-Find(pages.globals.Build(), "castColor").set({ r = 0, g = 1, b = 0 })
-Equal("a frame follows a shared change", Find(player, "castColor").get().g, 1)
-
--- Text slots.
-Equal("slot width is a percentage", Find(player, "slotWidth").format, "percent")
-Equal("slot width steps by 5", Find(player, "slotWidth").step, 5)
-Equal("slot width range", Find(player, "slotWidth").min .. "-" .. Find(player, "slotWidth").max, "20-200")
-Equal("first slot chosen", AUI.SettingsText:Chosen("player"), 1)
-Equal("combined content shows a separator", Find(player, "separator") ~= nil, true)
-Equal("custom color shows a color", Find(player, "slotcolor") ~= nil, true)
-Find(player, "slot").set(2)
-player = pages.player.Build()
-Equal("slot choice is kept", Find(player, "slot").get(), 2)
-Equal("empty slot has no separator", Find(player, "separator"), nil)
-Equal("slot labels show content", Options(Find(player, "slot"))[1].text, "Text 1: Health + %")
-Find(player, "colorMode").set("class")
-player = pages.player.Build()
-Equal("class color hides the color swatch", Find(player, "slotcolor"), nil)
-
-local useStyle = Find(player, "useTextStyle")
-Equal("no own style, nothing to use", type(useStyle.blocked()), "string")
-Find(player, "slotsize").set(20)
-Equal("slot size saved as its own", Profile:Get("frames.player.text.slots.2.size"), 20)
-Equal("frame size unchanged", Profile:Get("frames.player.text.size"), 12)
-player = pages.player.Build()
-Equal("own style marked", Find(player, "slotsize").description, "Custom for this slot.")
-Equal("own style can be dropped", useStyle.blocked(), nil)
-useStyle.set()
-Equal("Use Text Style clears the slot's size", Profile:Get("frames.player.text.slots.2.size"), nil)
-Find(player, "size").set(14)
-Equal("slot follows the frame size again", Find(pages.player.Build(), "slotsize").get(), 14)
-
--- Copy Text From and Apply to All Frames.
--- Target of Target and Focus.
-local focus = pages.focus.Build()
-Equal("focus switch", Find(focus, "enabled").label, "Show Focus Frame")
-Equal("focus status line", Find(focus, "statusLine").get(), true)
-Equal("focus power bar off", Find(focus, "power").get(), false)
-Equal("power bar height depends on the power bar", Find(focus, "powerHeight").depends, "power")
-Find(focus, "power").set(true)
-Equal("power bar saved", Profile:Get("frames.focus.power.enabled"), true)
-local tot = pages.targettarget.Build()
-Equal("target of target has three slots", #Options(Find(tot, "slot")), 3)
-Equal("target of target starts with the name", Options(Find(tot, "slot"))[1].text, "Text 1: Name")
-Equal("player status line starts off", Find(player, "statusLine").get(), false)
-Equal("player has no attached power bar", Find(pages.player.Build(), "power"), nil)
-Equal("target has an attached power bar", Find(pages.target.Build(), "power") ~= nil, true)
-Equal("power page has no attached power bar", Find(pages.playerPower.Build(), "power"), nil)
-
--- Absorbs and Heals.
-Equal("no overlays on target of target", Find(tot, "absorb"), nil)
-Equal("no overlays on the power page", Find(pages.playerPower.Build(), "absorb"), nil)
-for _, id in ipairs({ "player", "target", "focus" }) do
-	local built = pages[id].Build()
-	for _, kind in ipairs({ "absorb", "healAbsorb", "healPrediction" }) do
-		Equal(id .. " " .. kind .. " shown", Find(built, kind).get(), true)
-		Equal(id .. " " .. kind .. " position depends on it", Find(built, kind .. "Position").depends, kind)
-		Equal(id .. " " .. kind .. " texture picker", Find(built, kind .. "Texture").picker, "texture")
-		Equal(id .. " " .. kind .. " flat first", Options(Find(built, kind .. "Texture"))[1].value, "flat")
-	end
+Equal("the bar off: its cards hidden, the cycle kept", BarCards(), "false false false true")
+Profile:Set("markers.enabled", true)
+Equal("the bar on: its cards shown", BarCards(), "true true true true")
+Profile:Set("markers.enabled", false)
+Equal("the bar's hidden cards are found through Show Bar",
+	tostring(barCard.settings.markersEnabled.keywords:find("Button Size", 1, true) ~= nil), "true")
+local feedback = barCard.settings.markersFeedback
+Equal("Button Feedback: several choices, each at its own path, Highlight Border opted into", tostring(feedback.multiple)
+	.. " " .. feedback.path .. " " .. #feedback.options .. " " .. tostring(feedback.default.highlight) .. " "
+	.. tostring(feedback.default.grow) .. " " .. tostring(feedback.default.press), "true markers.feedback 3 false true true")
+local markerStyles = {}
+for index, option in ipairs(markersPage.sections.markersBorder.settings.markersBorderStyle.options) do
+	markerStyles[index] = option.value
 end
-local overlays = pages.player.Build()
-Equal("texture order", Options(Find(overlays, "absorbTexture"))[2].value .. "," .. Options(Find(overlays, "absorbTexture"))[3].value,
-	"AeonUI Thin Stripes,Blizzard Shield")
-Equal("striped texture preview", Options(Find(overlays, "absorbTexture"))[2].texture, "stripes")
-Equal("position choices", #Options(Find(overlays, "absorbPosition")), 7)
-Equal("attach first", Options(Find(overlays, "absorbPosition"))[1].value, "attach")
-Equal("height blocked while matching", Find(overlays, "absorbHeight").blocked() ~= nil, true)
-Find(overlays, "absorbMatch").set(false)
-Equal("height free after matching is off", Find(overlays, "absorbHeight").blocked(), nil)
-Find(overlays, "absorbHeight").set(8)
-Equal("height saved", Profile:Get("frames.player.overlays.absorb.height"), 8)
-Equal("overshield allowed while attached", Find(overlays, "overshield").blocked(), nil)
-Equal("glow allowed while attached", Find(overlays, "glow").blocked(), nil)
-Find(overlays, "absorbPosition").set("TOPLEFT")
-Equal("overshield blocked while detached", Find(overlays, "overshield").blocked() ~= nil, true)
-Equal("glow blocked while detached", Find(overlays, "glow").blocked() ~= nil, true)
-Equal("overshield choices", #Options(Find(overlays, "overshield")), 3)
-Find(overlays, "absorbTexture").set("AeonUI Thin Stripes")
-Equal("texture saved", Profile:Get("frames.player.overlays.absorb.texture"), "AeonUI Thin Stripes")
-Find(overlays, "backing").set(35)
-Equal("backing saved", Profile:Get("frames.player.overlays.healAbsorb.backing"), 35)
-Equal("overheal stops at 50", Find(overlays, "overheal").max, 50)
-Equal("overheal refused past 50", Find(overlays, "overheal").set(60), false)
-
-local globals = pages.globals.Build()
-Equal("absorb color has opacity", Find(globals, "absorbColor").hasOpacity, true)
-Find(globals, "absorbColor").set({ r = 1, g = 0.5, b = 0, a = 0.25 })
-Equal("color opacity saved", Profile:Get("overlays.colors.absorb").a, 0.25)
-Equal("color saved", Profile:Get("overlays.colors.absorb").g, 0.5)
-pages.globals.Reset()
-Equal("globals reset restores colors", Profile:Get("overlays.colors.absorb").a, 0.8)
-pages.player.Reset()
-Equal("player reset restores overlays", Profile:Get("frames.player.overlays.absorb.position"), "attach")
-
--- Copy From and Use Shared on section headers.
-local power = pages.playerPower.Build()
-Equal("text copy menu lists the other frames", #Options(Find(power, "textCopyFrom")), 6)
-Find(power, "textCopyFrom").set("target")
-Equal("copied slot content", Profile:Get("frames.playerPower.text.slots.1.content"), "healthAndPercent")
-Equal("copied second slot", Profile:Get("frames.playerPower.text.slots.2.content"), "levelName")
-Equal("copied status", Profile:Get("frames.playerPower.text.status"), 1)
-Equal("a copy is reported", warnings[#warnings - 1]:find("Copied Text from Target.", 1, true) ~= nil, true)
-Equal("slots the frame lacks are named", warnings[#warnings]:find("Text 3", 1, true) ~= nil, true)
-Profile:Set("frames.target.text.status", 4)
-Find(pages.playerPower.Build(), "textCopyFrom").set("target")
-Equal("a status the frame cannot hold is not copied", Profile:Get("frames.playerPower.text.status"), 1)
-Equal("the status is named", warnings[#warnings]:find("Status Text In", 1, true) ~= nil, true)
-
-Profile:Reset({ "frames.player.castbar", "frames.target.castbar" })
-Profile:Set("frames.target.castbar.border", 3)
-Profile:Set("frames.player.castbar.color", { r = 0, g = 0, b = 1 })
-Profile:Set("frames.target.castbar.x", 40)
-Find(pages.player.Build(), "castBarCopyFrom").set("target")
-Equal("copy: a Custom value", Profile:Get("frames.player.castbar.border"), 3)
-Equal("copy: a Shared state", Profile:IsCustom("frames.player.castbar.color"), false)
-Equal("copy: position stays", Profile:Get("frames.player.castbar.x"), 0)
-Equal("copy: what the player lacks is named", warnings[#warnings]:find("Interrupt Ready", 1, true) ~= nil, true)
-Equal("copy menu lists only frames with the section", #Options(Find(pages.player.Build(), "castBarCopyFrom")), 3)
-local useShared = Find(pages.player.Build(), "castBarUseShared")
-Equal("Use Shared active while Custom", useShared.blocked(), nil)
-Equal("Use Shared runs", useShared.set(), true)
-Equal("Use Shared clears the section", Profile:IsCustom("frames.player.castbar.border"), false)
-Equal("Use Shared keeps settings outside the shared look", Profile:Get("frames.target.castbar.x"), 40)
-Equal("Use Shared is blocked once Shared", useShared.blocked() ~= nil, true)
-Equal("indicators copy but hold nothing shared", Find(pages.player.Build(), "indicatorsUseShared"), nil)
-Equal("indicators copy", type(Find(pages.player.Build(), "indicatorsCopyFrom")), "table")
-Equal("overlays only return to Shared", Find(pages.player.Build(), "absorbsAndHealsCopyFrom"), nil)
-Profile:Reset({ "frames.player", "frames.target.castbar", "frames.playerPower" })
-
--- Bosses.
-local bosses = pages.boss.Build()
-Equal("Bosses page", pages.boss.title, "Bosses")
-Equal("boss switch", Find(bosses, "enabled").label, "Show Boss Frames")
-Equal("growth starts down", Find(bosses, "growth").get(), "down")
-Equal("growth choices", #Options(Find(bosses, "growth")), 4)
-Equal("spacing starts at 14", Find(bosses, "spacing").get(), 14)
-Equal("spacing range", Find(bosses, "spacing").max, 100)
-Equal("no growth on single frames", Find(pages.focus.Build(), "growth"), nil)
-Equal("boss power bar off", Find(bosses, "power").get(), false)
-Equal("boss overlays", Find(bosses, "absorb").get(), true)
-Equal("no Status Line on bosses", Find(bosses, "statusLine"), nil)
-Equal("boss slots", #Options(Find(bosses, "slot")), 4)
-Equal("boss status in the percentage slot", Profile:Get("frames.boss.text.status"), 2)
-Equal("boss preview states", table.concat(pages.boss.preview.states, ","),
-	"Full,Damaged,Dead,Offline,Absorbs,Overflow,Casting,Channeling,Not Interruptible,Interrupted,Interrupt Ready,Important,Slot Lost")
-Equal("boss preview keeps its own state", pages.boss.preview.stateKey ~= pages.target.preview.stateKey, true)
-
-local UnitFrame = AUI.UnitFrame
-local function Offset(slot)
-	local x, y = UnitFrame:SlotOffset(Profile.config, "boss", slot)
-
-	return x .. "," .. y
-end
-Equal("first slot at the group position", Offset(1), "0,0")
-Equal("a single frame has no offset", Offset(nil), "0,0")
-Equal("down by height, cast bar and spacing", Offset(2), "0,-66")
-Equal("down, third slot", Offset(3), "0,-132")
-Profile:Set("frames.boss.castbar.enabled", false)
-Equal("no cast bar space while it is off", Offset(2), "0,-46")
-Profile:Set("frames.boss.castbar.enabled", true)
-Find(bosses, "power").set(true)
-Equal("the power bar adds to each step", Offset(2), "0,-72")
-Find(bosses, "growth").set("up")
-Equal("up", Offset(2), "0,72")
-Find(bosses, "growth").set("right")
-Find(bosses, "spacing").set(10)
-Equal("right by width and spacing", Offset(3), "420,0")
-Find(bosses, "growth").set("left")
-Equal("left", Offset(2), "-210,0")
-pages.boss.Reset()
-Equal("boss reset", Profile:Get("frames.boss.growth"), "down")
-
--- Cast bar extras.
-local playerCast, targetCast = pages.player.Build(), pages.target.Build()
-Equal("ticks on the player", Find(playerCast, "castTicks").get(), true)
-Equal("tick color has opacity", Find(playerCast, "castTickColor").hasOpacity, true)
-Equal("last tick depends on ticks", Find(playerCast, "castLastTick").depends, "castTicks")
-Equal("no interrupt colors on the player", Find(playerCast, "castReady"), nil)
-Equal("player cast target off", Find(playerCast, "castTarget").get(), false)
-Equal("no ticks on target", Find(targetCast, "castTicks"), nil)
-Equal("interrupt ready on target", Find(targetCast, "castReady").get(), true)
-Equal("cooldown mark", Find(targetCast, "castKickMark").get(), true)
-Equal("window color depends on the window", Find(targetCast, "castWindowColor").depends, "castKickWindow")
-Equal("target cast target on", Find(targetCast, "castTarget").get(), true)
-Equal("glow off", Find(targetCast, "castGlow").get(), false)
-Equal("glow styles", #Options(Find(targetCast, "castGlowStyle")), 2)
-Find(targetCast, "castGlowStyle").set("blizzard")
-Equal("glow style saved", Profile:Get("frames.target.castbar.glowStyle"), "blizzard")
-Equal("glow speed range", Find(targetCast, "castGlowSpeed").max, 10)
-Equal("bosses get interrupt colors", Find(pages.boss.Build(), "castReady") ~= nil, true)
-Equal("boss cast target off", Find(pages.boss.Build(), "castTarget").get(), false)
-
--- Auras.
-local targetAuras = pages.target.Build()
-Equal("buffs section", Find(targetAuras, "buffEnabled").get(), true)
-Equal("debuffs section", Find(targetAuras, "debuffEnabled").get(), true)
-Equal("buff filters", #Options(Find(targetAuras, "buffFilter")), 13)
-Equal("debuff filters", #Options(Find(targetAuras, "debuffFilter")), 17)
-Equal("filter labels", Options(Find(targetAuras, "debuffFilter"))[6].text, "Crowd Control")
-Equal("hide checkbox", Find(targetAuras, "debuffHidecrowdControl").label, "Hide Crowd Control")
-Equal("buff hide categories", Find(targetAuras, "buffHidecrowdControl"), nil)
-Find(targetAuras, "debuffHideboss").set(true)
-Equal("hide saved", Profile:Get("frames.target.debuffs.hide.boss"), true)
-local include = Find(targetAuras, "debuffInclude")
-Equal("spell list control", include.control, "text")
-Equal("spell list may be empty", include.get(), "")
-Equal("spell list validated", include.validate("123, 456") , nil)
-Equal("spell list refuses words", include.validate("Moonfire") ~= nil, true)
-include.set("8921, 93402")
-Equal("spell list saved", Profile:Get("frames.target.debuffs.include"), "8921, 93402")
-include.set("")
-Equal("spell list emptied", Profile:Get("frames.target.debuffs.include"), "")
-Equal("caster choices", #Options(Find(targetAuras, "debuffListCaster")), 2)
-Equal("never show list", Find(targetAuras, "debuffExclude").control, "text")
-Equal("sorts", #Options(Find(targetAuras, "debuffSort")), 6)
-Equal("anchors", #Options(Find(targetAuras, "debuffAnchor")), 6)
-Equal("limit range", Find(targetAuras, "debuffLimit").max, 40)
-Equal("per row explained", Find(targetAuras, "debuffPerRow").description ~= nil, true)
-Equal("duration size depends on duration", Find(targetAuras, "debuffDurationSize").depends, "debuffDuration")
-Equal("rows depend on the switch", Find(targetAuras, "debuffSort").depends, "debuffEnabled")
-Equal("debuff border label", Find(targetAuras, "debuffBorder").label, "Dispel Type Border")
-Equal("buff border label", Find(targetAuras, "buffBorder").label, "Stealable Glow")
-Find(targetAuras, "debuffLimit").set(12)
-Equal("limit saved", Profile:Get("frames.target.debuffs.limit"), 12)
-Equal("no auras on target of target", Find(pages.targettarget.Build(), "buffEnabled"), nil)
-Equal("no auras on the power bar", Find(pages.playerPower.Build(), "debuffEnabled"), nil)
-Equal("boss debuffs on the left", Find(pages.boss.Build(), "debuffAnchor").get(), "left")
-Equal("player buff clicks cancel", Find(pages.player.Build(), "buffClicks").description:find("cancels") ~= nil, true)
-Equal("other clicks pass through", Find(targetAuras, "buffClicks").description:find("cancels"), nil)
-
--- Class Resource.
-local resource = pages.classPower.Build()
-Equal("Class Resource page", pages.classPower.title, "Class Resource")
-Equal("page switch", Find(resource, "enabled").pageSwitch, true)
-Equal("attached by default", Find(resource, "attach").get(), "power")
-Equal("position follows the power bar", Find(resource, "x").blocked() ~= nil, true)
-Find(resource, "attach").set("screen")
-Equal("position free on the screen", Find(resource, "x").blocked(), nil)
-Equal("extra mana height depends on it", Find(resource, "extraManaHeight").depends, "extraMana")
-Equal("rune countdowns off", Find(resource, "runeTimers").get(), false)
-Equal("class resource preview states", table.concat(pages.classPower.preview.states, ","), "Full,Partial,Empty,Charged")
-pages.classPower.Reset()
-Equal("class resource reset", Profile:Get("frames.classPower.attach"), "power")
-
--- Outline choices, with the Slug variants.
-local outlines = Options(Find(pages.player.Build(), "outline"))
-Equal("six outline choices", #outlines, 6)
-Equal("Slug Outline label", outlines[5].text, "Slug Outline")
-Equal("frame text starts with Slug Outline", Profile:Get("frames.player.text.outline"), "SLUG_OUTLINE")
-Equal("cast bar text starts with Slug", Profile:Get("frames.player.castbar.outline"), "SLUG")
-
--- Pet frame and Blizzard's frames.
-local pet = pages.pet.Build()
-Equal("Pet page", pages.pet.title, "Pet")
-Equal("pet switch", Find(pet, "enabled").label, "Show Pet Frame")
-Equal("pet text slots", #Options(Find(pet, "slot")), 3)
-Equal("pet name text", Options(Find(pet, "slot"))[1].text, "Text 1: Name")
-Equal("pet status line", Find(pet, "statusLine").get(), true)
-Equal("pet power bar off", Find(pet, "power").get(), false)
-Equal("pet preview shares the unit states", pages.pet.preview.stateKey, pages.targettarget.preview.stateKey)
-Equal("no auras on the pet", Find(pet, "buffEnabled"), nil)
-Equal("pet size", Profile:Get("frames.pet.width") .. "x" .. Profile:Get("frames.pet.height"), "120x24")
-for _, id in ipairs({ "player", "pet", "target", "focus", "boss" }) do
-	local built = pages[id].Build()
-	Equal(id .. " hides Blizzard's frame", Find(built, "hideBlizzard").get(), true)
-	Equal(id .. " hide asks for a reload", Find(built, "hideBlizzard").reload, true)
-	Equal(id .. " switch asks for a reload", Find(built, "enabled").reload, true)
-end
-Equal("no Blizzard switch on target of target", Find(pages.targettarget.Build(), "hideBlizzard"), nil)
-Equal("no reload on the power bar switch", Find(pages.playerPower.Build(), "enabled").reload, nil)
-
-local Frames = AUI.Frames
-Equal("player replaces Blizzard's", Frames:HidesBlizzard(Profile.config, "player"), true)
-Equal("boss replaces Blizzard's", Frames:HidesBlizzard(Profile.config, "boss"), true)
-Equal("power bar leaves Blizzard's alone", Frames:HidesBlizzard(Profile.config, "playerPower"), false)
-Equal("class resource leaves Blizzard's alone", Frames:HidesBlizzard(Profile.config, "classPower"), false)
-Equal("no key, no hiding", Frames:HidesBlizzard(Profile.config, nil), false)
-Profile:Set("frames.target.hideBlizzard", false)
-Equal("switch off keeps Blizzard's", Frames:HidesBlizzard(Profile.config, "target"), false)
-Profile:Set("frames.target.hideBlizzard", true)
-Profile:Set("frames.focus.enabled", false)
-Equal("hidden AeonUI frame keeps Blizzard's", Frames:HidesBlizzard(Profile.config, "focus"), false)
-Profile:Set("frames.focus.enabled", true)
-Equal("extra mana on by default", Profile:Get("frames.classPower.extraMana"), true)
-
--- Indicators and fading.
-local playerPage = pages.player.Build()
-Equal("raid marker row", Find(playerPage, "raid").get(), true)
-Equal("raid size depends on it", Find(playerPage, "raidSize").depends, "raid")
-Equal("indicator anchors", #Options(Find(playerPage, "raidAnchor")), 9)
-Equal("resting row", Find(playerPage, "resting").get(), true)
-Equal("combat off", Find(playerPage, "combat").get(), false)
-Equal("threat row", Find(playerPage, "threat").get(), true)
-Equal("totems row", Find(playerPage, "totems").get(), true)
-Equal("player idle fade", Find(playerPage, "idleFade").get(), true)
-Equal("no range fade on the player", Find(playerPage, "rangeFade"), nil)
-local targetPage = pages.target.Build()
-Equal("classification row", Find(targetPage, "classification").get(), false)
-Equal("highlight row", Find(targetPage, "highlight").get(), true)
-Equal("target range fade", Find(targetPage, "rangeFade").get(), true)
-Equal("range fade amount", Find(targetPage, "rangeAlpha").get(), 50)
-Equal("no totems on target", Find(targetPage, "totems"), nil)
-Equal("focus has both fades", Find(pages.focus.Build(), "idleFade") ~= nil and Find(pages.focus.Build(), "rangeFade") ~= nil, true)
-Equal("bosses have no fade", Find(pages.boss.Build(), "idleFade"), nil)
-Equal("power bar idle fade", Find(pages.playerPower.Build(), "idleFade").get(), true)
-Equal("class resource idle fade", Find(pages.classPower.Build(), "idleFade").get(), true)
-
--- Tooltips and click-casting.
-for _, id in ipairs({ "player", "pet", "target", "targettarget", "focus", "boss" }) do
-	local built = pages[id].Build()
-	Equal(id .. " tooltip on", Find(built, "tooltip").get(), true)
-	Equal(id .. " tooltip in combat", Find(built, "tooltipCombat").get(), false)
-end
-Equal("no tooltip on the power bar", Find(pages.playerPower.Build(), "tooltip"), nil)
-ClickCastFrames = nil
-local clickFrames = { {}, {} }
-AUI.Frames:RegisterClickCasting(clickFrames)
-Equal("click-cast table created", ClickCastFrames[clickFrames[2]], true)
-local existing = { kept = true }
-ClickCastFrames = existing
-AUI.Frames:RegisterClickCasting({ clickFrames[1] })
-Equal("another addon's table kept", ClickCastFrames, existing)
-Equal("added to it", existing[clickFrames[1]], true)
-
--- Page resets.
-pages.player.Reset()
-Equal("player reset", Profile:Get("frames.player.width"), 270)
-Equal("player reset restores slots", Profile:Get("frames.player.text.slots.3.content"), "none")
-Equal("player reset leaves the target", Profile:Get("frames.target.text.status"), 4)
-pages.globals.Reset()
-Equal("globals reset", Profile:Get("numbers.percentDecimals"), 0)
-
--- Profiles adapter ------------------------------------------------------------------------------------------
-
-Load(nil)
-local adapter = Pages().profiles.adapter
-Equal("built-in profile", adapter.builtin, "Default")
-Equal("active profile", adapter.Active(), "Default")
-adapter.New("Raid")
-Equal("new profile active", adapter.Active(), "Raid")
-adapter.Copy("Raid Copy")
-Equal("copy active", adapter.Active(), "Raid Copy")
-adapter.Rename("Raid Two")
-Equal("renamed", adapter.Active(), "Raid Two")
-adapter.Switch("Default")
-Equal("switched", adapter.Active(), "Default")
-Equal("list", table.concat(adapter.List(), ","), "Default,Raid,Raid Two")
-adapter.Switch("Raid")
-adapter.Delete("Raid", "Default")
-Equal("deleted and replaced", adapter.Active(), "Default")
-Profile.root.profilesByID[Store.DEFAULT_ID].config.future = 1
-local text = adapter.Export()
-local info, reason = adapter.Decode(text)
-Equal("decode", reason, nil)
-Equal("decode summary", info.summary, "AeonUI profile \"Default\". It holds 1 settings this version doesn't use; they are kept.")
-adapter.Import(info, "Imported")
-Equal("imported", adapter.Active(), "Imported")
-local _, refused = adapter.Decode("LB!1!abc")
-Equal("foreign string refused", refused, "This is not an AeonUI profile string, or it was cut short.")
-adapter.New("raid two")
-Equal("a refused name warns", warnings[#warnings]:find("already exists", 1, true) ~= nil, true)
-Equal("no damaged section", #adapter.Sections(), 0)
-
--- Damaged profiles.
-local damaged = Store:NewRoot("Player-1")
-damaged.profilesByID.p00000002 = { name = "Broken", schemaVersion = 9, config = {} }
-damaged.charactersByID["Player-1"].activeProfileID = "p00000002"
-damaged.nextID = 3
-Load(damaged)
-Equal("fallback mode", Profile.mode, "fallback")
-local sections = adapter.Sections()
-Equal("damaged section", sections[1].title, "Damaged Profiles")
-Equal("fallback note", sections[2].text:find("active profile", 1, true) ~= nil, true)
-local delete = sections[3].setting
-Equal("delete action names the profile", delete.label, "Broken")
-Equal("delete allowed with a replacement", delete.blocked(), nil)
-Equal("the active damaged profile is listed", table.concat(adapter.List(), ","), "Broken,Default")
-delete.set()
-Equal("damaged profile deleted", Profile.root.profilesByID.p00000002, nil)
-Equal("back to normal", Profile.mode, "normal")
-
-local lonely = Store:NewRoot("Player-1")
-lonely.profilesByID[Store.DEFAULT_ID].schemaVersion = 9
-Load(lonely)
-Equal("no replacement blocks the delete", type(adapter.Sections()[3].setting.blocked()), "string")
-
--- Recovery ------------------------------------------------------------------------------------------------
-
-Load({})
-Equal("recovery mode", Profile.mode, "recovery")
-local categories = Settings:Categories()
-Equal("recovery shows one category", #categories, 1)
-Equal("recovery page", categories[1].pages[1].id, "recovery")
-local recovery = categories[1].pages[1].Build()
-Equal("recovery explains", recovery[2].kind, "note")
-Equal("recovery shows the problem", recovery[3].small, true)
-local exportAction, resetAction = recovery[4].setting, recovery[5].setting
-exportAction.set()
-Equal("export opens the export dialog", dialog.kind, "export")
-Equal("an empty table encodes completely", dialog.options.title, "Diagnostic Export")
-Equal("reset asks first", type(resetAction.confirm), "string")
-resetAction.set()
-Equal("reset opens the typed confirmation", dialog.kind, "name")
-Equal("the wrong word is refused", dialog.options.validate("reset"), "")
-Equal("the word is accepted", dialog.options.validate("RESET"), nil)
-
-Settings:Create()
-Equal("window title", window.options.title, AUI.title)
-Equal("window starts on Recovery", window.categories[1].id, "recovery")
-dialog.options.accept()
-Equal("reset store", Profile.mode, "normal")
-Equal("window switches to the normal pages", window.categories[1].id, "unitFrames")
-
--- Opening.
-Settings:Open("power")
-Equal("alias opens the page", window.opened, "playerPower")
-Settings:Open("tot")
-Equal("tot opens Target of Target", window.opened, "targettarget")
-Settings:Open("boss")
-Equal("boss opens Bosses", window.opened, "boss")
-Settings:Open("pet")
-Equal("pet opens Pet", window.opened, "pet")
-Settings:Open("resource")
-Equal("resource opens Class Resource", window.opened, "classPower")
-Settings:Open()
-Equal("no word opens the last page", window.opened, "<last>")
+Equal("the bar's border styles leave out Metal", table.concat(markerStyles, " "), "FOREVER_MINIMAL FOREVER SLATE THIN_LINE NONE")
+local cycleCard = markersPage.sections.markersCycle
+local cycleOrder = cycleCard.settings.markersCycleOrder
+Equal("the cycle works without the bar", tostring(cycleOrder.depends) .. " "
+	.. tostring(cycleCard.settings.markersKeys.depends), "nil nil")
+Equal("its order: eight markers with their icons, each on", #cycleOrder.items() .. " " .. cycleOrder.items()[1].text
+	.. " " .. table.concat(cycleOrder.default, ",", 1, 2) .. " " .. tostring(cycleOrder.enabled.default.SKULL) .. " "
+	.. cycleOrder.enabled.path,
+	"8 |TInterface\\TargetingFrame\\UI-RaidTargetingIcon_1:16|t Star STAR,CIRCLE true markers.cycle.show")
+AUI.can.worldMarkers = nil
+window = Load(nil)
+Equal("without world markers: no cycle card", tostring(window.pages.raidMarkers.sections.markersCycle), "nil")
+AUI.can.raidMarkers, AUI.can.worldMarkers = nil, true
+window = Load(nil)
+Equal("without the bar: the cycle card alone, no preview", MarkerCards(window.pages.raidMarkers) .. " "
+	.. tostring(window.pages.raidMarkers.preview), "World Marker Cycle: markersKeys+ markersCycleOrder nil")
+AUI.can.worldMarkers = nil
+window = Load(nil)
+Equal("no Raid Markers page without either", window.pages.raidMarkers, nil)
+Equal("Settings:Window reuses the window", Settings:Window(), window)
+Equal("the store is the active config", declaration.store(), Profile.config)
+Equal("account settings are the store's", declaration.account(), AeonUIDB.global)
+Equal("write saves through the owner", (declaration.write("fixture.width", 300)), true)
+Equal("the value is saved", Profile:Get("fixture.width"), 300)
+local ok, reason = declaration.write("fixture.width", 1)
+Equal("write passes a refusal back", ok, false)
+Equal("with its reason", type(reason), "string")
+Equal("a setting's default", Settings:Default("fixture.width"), 270)
+Equal("no default for an unknown path", Settings:Default("fixture.nothing"), nil)
 local before = window.refreshed
-Profile:Set("frames.player.width", 280)
-Equal("a single setting does not rebuild the page", window.refreshed, before)
-Profile:Reset()
-Equal("a whole-profile change rebuilds the page", window.refreshed, before + 1)
+Profile:Create("Hidden")
+Equal("a profile change leaves a closed window alone", window.refreshed, before)
+window.shown = true
+Profile:Create("Refresh")
+Equal("a profile change redraws an open window", window.refreshed > before, true)
+window.shown = false
 
--- Layout editor geometry ------------------------------------------------------------------------------------------
+-- Minimap page --------------------------------------------------------------------------------------------------
 
-local Layout = AUI.EditorLayout
-Profile:Reset()
-local config = Profile.config
-local player = Layout:Find("unit.player") --[[@as table]]
-Equal("element found", player.key, "player")
-Equal("unknown element", Layout:Find("unit.nothing"), nil)
-Equal("player label", Layout:Label(player), "Player")
-Equal("cast label", Layout:Label(Layout:Find("cast.player") --[[@as table]]), "Player Cast Bar")
-Equal("position path", Layout:Path(player, "x"), "frames.player.x")
-Equal("cast path", Layout:Path(Layout:Find("cast.player") --[[@as table]], "y"), "frames.player.castbar.y")
-local left, bottom, width, height = Layout:Rect(config, player, 1920, 1080)
-Equal("player rect left", left, 960 - 330 - 135)
-Equal("player rect bottom", bottom, 540 - 200 - 18)
-Equal("player rect size", width .. "x" .. height, "270x36")
-Profile:Set("frames.target.power.enabled", true)
-local _, _, _, targetHeight = Layout:Rect(Profile.config, Layout:Find("unit.target") --[[@as table]], 1920, 1080)
-Equal("an attached power bar adds to the height", targetHeight, 36 + 6)
-Profile:Set("frames.target.power.enabled", false)
-local boss = Layout:Find("boss.group") --[[@as table]]
-local bossWidth, bossHeight, shiftX, shiftY = Layout:Size(Profile.config, boss)
-local castExtent = AUI.CastBar:Extent(Profile.config, "boss")
-Equal("boss group spans every slot", bossHeight, 32 * 5 + (castExtent + 14) * 4)
-Equal("boss group width", bossWidth, 200)
-Equal("boss group centered below the first slot", shiftY, -(bossHeight - 32) / 2)
-Equal("boss group no sideways shift", shiftX, 0)
-Equal("class resource placed on the power bar is not a mover",
-	Layout:Shown(Profile.config, Layout:Find("resource.player") --[[@as table]]), false)
-Profile:Set("frames.classPower.attach", "screen")
-Equal("class resource on the screen is a mover",
-	Layout:Shown(Profile.config, Layout:Find("resource.player") --[[@as table]]), true)
-Profile:Set("frames.player.castbar.enabled", false)
-Equal("a cast bar that is off is not a mover", Layout:Shown(Profile.config, Layout:Find("cast.player") --[[@as table]]),
+local minimapPage = window.pages.minimap
+local minimapSections = minimapPage.sections
+local Media = AUI.Media
+Equal("the Minimap sits under the Maps header", minimapPage.info.under, "mapsHeader")
+Equal("with its icon", minimapPage.info.icon, Media.sidebar.minimap)
+Equal("tinted as its title", minimapPage.info.iconTint, true)
+Equal("it carries the module's switch", minimapPage.info.switch.path, "minimap.enabled")
+Equal("which defaults off", minimapPage.info.switch.default, false)
+Equal("the layout editor is its preview", type(minimapPage.preview.refresh), "function")
+local minimapIDs = {}
+for index, section in ipairs(minimapSections) do
+	minimapIDs[index] = section.id
+end
+Equal("the map's cards, then each element's", table.concat(minimapIDs, " "),
+	"map fade zoom border rows zone difficulty clock mail tracking coordinates calendar compartment")
+Equal("the elements' cards are headed once", minimapSections.zone.title ~= nil and minimapSections.difficulty.title,
+	nil)
+local outlineChoices = {}
+for index, option in ipairs(minimapSections.difficulty.settings.difficultyText_outline.options) do
+	outlineChoices[index] = option.value
+end
+Equal("every outline the library offers is a valid choice", table.concat(outlineChoices, " "),
+	table.concat(AUI.Schema.choices.fontOutline, " "))
+Equal("icon size follows day and night", minimapSections.clock.settings.iconSize.depends, "dayNight")
+Equal("the rows' text opens from its row", minimapSections.rows.settings.rowsText_size.details, "rowsText")
+Equal("which reads the rows' text", minimapSections.rows.settings.rowsText_size.path, "minimap.text.size")
+Equal("and sums it up", minimapSections.rows.settings.rowsText.summary(),
+	("%s, %d"):format(Profile:Get("minimap.text.font"), Profile:Get("minimap.text.size")))
+Equal("the zone offers no text color", minimapSections.zone.settings.zoneText_color, nil)
+Equal("the clock does", minimapSections.clock.settings.clockText_color.inherits.path, "minimap.text.color")
+Equal("an element's text follows its switch", minimapSections.clock.settings.clockText.depends, "clock")
+local tiers = 0
+for _, setting in ipairs(minimapSections.difficulty.settings) do
+	tiers = tiers + (setting.details == "difficultyColors" and 1 or 0)
+end
+Equal("a color for each difficulty tier", tiers, 5)
+Equal("the mail's card has no footer", #minimapSections.mail.notes, 0)
+
+for _, section in ipairs(minimapSections) do
+	local key = section.id
+	local element = AUI.MinimapElements.byKey[key]
+
+	if element then
+		local switch = section.settings[1]
+
+		Equal(key .. " is headed by its switch", switch.kind, "Toggle")
+		Equal(key .. " switch is the element's", switch.path, AUI.MinimapElements:EnabledPath(key))
+		Equal(key .. " switch defaults on", switch.default, true)
+
+		for index = 2, #section.settings do
+			local setting = section.settings[index]
+
+			Equal(setting.id .. " follows something in its card", setting.depends ~= nil or setting.details ~= nil, true)
+		end
+	end
+
+	for _, setting in ipairs(section.settings) do
+		if setting.path then
+			Equal(setting.id .. " names a setting", AUI.Schema:Field(setting.path) ~= nil, true)
+			local field = AUI.Schema:Field(setting.path)
+			local source = field.shared and AUI.Schema:Field(field.shared) or field
+
+			Equal(setting.id .. " carries its default", setting.default == nil, source.default == nil)
+			Equal(setting.id .. " follows what its field follows", setting.inherits and setting.inherits.path,
+				field.shared)
+		end
+	end
+end
+
+local fade = minimapSections.fade.settings
+Equal("mouseover opacity follows its fade", fade.fadeMouseoverOpacity.depends, "fadeMouseover")
+Equal("combat opacity follows its fade", fade.fadeCombatOpacity.depends, "fadeCombat")
+Equal("row height is on the page", minimapSections.rows.settings.rowHeight.path, "minimap.rows.height")
+Equal("precision is a plain count of decimal places", minimapSections.coordinates.settings.precision.format, nil)
+
+local borderSection = minimapSections.border
+Equal("every border style is offered", #borderSection.settings.borderStyle.options, #AUI.Border.STYLES)
+local borderSettings = borderSection.settings
+Equal("border color is free with Metal", borderSettings.borderColor.blocked(), nil)
+Equal("thickness is free with Metal", borderSettings.borderThickness.blocked(), nil)
+Profile:Set("minimap.border.style", "NONE")
+Equal("border color needs a style", type(borderSettings.borderColor.blocked()), "string")
+Equal("thickness needs an art style", type(borderSettings.borderThickness.blocked()), "string")
+Profile:Set("minimap.border.style", "FOREVER")
+Equal("Forever keeps its own colors", type(borderSettings.borderColor.blocked()), "string")
+Equal("Forever takes a thickness", borderSettings.borderThickness.blocked(), nil)
+Profile:Set("minimap.border.style", "FOREVER_MINIMAL")
+Equal("Forever Minimal takes a color", borderSettings.borderColor.blocked(), nil)
+Profile:Set("minimap.border.style", "METAL")
+local resetSlider = minimapSections.zoom.settings.zoomReset
+Equal("a zero reset reads Never", resetSlider.format(0), "Never")
+Equal("a reset reads in seconds", resetSlider.format(15), "15 s")
+
+-- Tooltip pages -------------------------------------------------------------------------------------------------
+
+local TooltipOptions = AUI.TooltipOptions
+local TOOLTIP_SWITCH = "tooltipGeneral/enabled"
+
+for id in pairs(AUI.SettingsTooltip.pageIDs) do
+	local page = window.pages[id]
+
+	Equal(id .. " sits under the Tooltip header", page.info.under, "tooltipHeader")
+	Equal(id .. " has its icon", page.info.icon, Media.sidebar[id])
+	Equal(id .. " carries the switch only on General", page.info.switch ~= nil, id == "tooltipGeneral")
+
+	for _, section in ipairs(page.sections) do
+		for _, setting in ipairs(section.settings) do
+			if setting.path then
+				Equal(setting.id .. " names a setting", AUI.Schema:Field(setting.path) ~= nil, true)
+				Equal(setting.id .. " carries its default", setting.default, AUI.Schema:Field(setting.path).default)
+			else
+				Equal(setting.id .. " reads and writes its own value", type(setting.get) == "function"
+					and type(setting.set) == "function", true)
+			end
+
+			if id ~= "tooltipGeneral" then
+				local parent = setting
+
+				while parent and parent.depends and parent.depends ~= TOOLTIP_SWITCH do
+					local depends = parent.depends
+
+					parent = nil
+
+					for _, other in ipairs(page.sections) do
+						parent = parent or other.settings[depends]
+					end
+				end
+
+				Equal(setting.id .. " follows the module's switch", parent and parent.depends, TOOLTIP_SWITCH)
+			end
+		end
+	end
+end
+
+local general = window.pages.tooltipGeneral
+Equal("the switch is the module's", general.info.switch.path, TooltipOptions.ENABLED_PATH)
+Equal("which defaults on", general.info.switch.default, true)
+Equal("and is named for the tooltip", general.info.switch.label, "Tooltip")
+local function TooltipPagesShown()
+	local units, items = window.pages.tooltipUnits.info.show, window.pages.tooltipItems.info.show
+
+	return tostring(units()) .. " " .. tostring(items())
+end
+Equal("Units and Items show while the module is on", TooltipPagesShown(), "true true")
+Profile:Set(TooltipOptions.ENABLED_PATH, false)
+Equal("and leave the sidebar while it is off", TooltipPagesShown(), "false false")
+Profile:Set(TooltipOptions.ENABLED_PATH, true)
+Equal("their cards are found through the switch", tostring(general.info.switch.keywords:find("Extra Lines", 1, true) ~= nil)
+	.. " " .. tostring(general.info.switch.keywords:find("ID Lines", 1, true) ~= nil), "true true")
+local tooltipBar = general.sections.tooltipHealthBar.settings
+Equal("every bar style is offered", #tooltipBar.barStyle.options, #TooltipOptions.BAR_STYLES)
+Equal("one height for both styles", tooltipBar.barHeight.path, TooltipOptions.BAR_HEIGHT_PATH)
+Equal("no second height", tooltipBar.stripHeight, nil)
+local tooltipFont = general.sections.tooltipFont.settings
+Equal("the font follows Custom Font", tooltipFont.fontFace.depends, "customFont")
+Equal("the scale stands on its own", tooltipFont.fontScale.depends, nil)
+Equal("the bar's style follows Show Health Bar", tooltipBar.barStyle.depends, "showHealthBar")
+Equal("so does its height", tooltipBar.barHeight.depends, "showHealthBar")
+local unitRoles = window.pages.tooltipUnits.sections.tooltipUnitRoles
+Equal("the Role Icons card follows Specialization", unitRoles.settings.roleIcons.depends, "showSpecialization")
+Equal("a style for each, the client's first", unitRoles.settings.roleIcons.options[1].value .. " "
+	.. #unitRoles.settings.roleIcons.options, "DEFAULT 6")
+Equal("each style shows its three icons", select(2, unitRoles.settings.roleIcons.options[6].text:gsub("|T", "")), 3)
+local specializations = AUI.can.specializations
+AUI.can.specializations = nil
+Equal("no Role Icons card without specializations", unitRoles.info.show(), false)
+AUI.can.specializations = true
+Equal("the Role Icons card with them", unitRoles.info.show(), true)
+AUI.can.specializations = specializations
+local unitAdded = window.pages.tooltipUnits.sections.tooltipUnitAdded.settings
+local mythicPlus, auraCasterNames = AUI.can.mythicPlus, AUI.can.auraCasterNames
+AUI.can.mythicPlus, AUI.can.auraCasterNames = nil, nil
+Equal("the rating is offered only where players have one", unitAdded.showRating.show(), false)
+Equal("the caster names only where the client has them", unitAdded.auraCasters.show(), false)
+AUI.can.mythicPlus, AUI.can.auraCasterNames = true, true
+Equal("the rating on Retail", unitAdded.showRating.show(), true)
+Equal("the caster names where the client has them", unitAdded.auraCasters.show(), true)
+AUI.can.mythicPlus, AUI.can.auraCasterNames = mythicPlus, auraCasterNames
+Equal("the Target line is offered everywhere", unitAdded.showTarget.show, nil)
+Equal("titles are hidden by default", window.pages.tooltipUnits.sections.tooltipUnitLines.settings.showTitles.default,
 	false)
-Profile:Set("frames.focus.enabled", false)
-Equal("a frame that is off is not a mover", Layout:Shown(Profile.config, Layout:Find("unit.focus") --[[@as table]]), false)
-local moved = Layout:Moved(Profile.config, player, 10.5, -4)
-Equal("moved x", moved["frames.player.x"], -330 + 10.5)
-Equal("moved y", moved["frames.player.y"], -204)
-local lines = Layout:Lines({ { 100, 200, 50, 20 } }, 1920, 1080)
-Equal("lines: screen center first", lines.x[1], 960)
-Equal("lines: edges and centers", #lines.x .. "," .. #lines.y, "4,4")
-local snappedLeft, snappedBottom, guideX, guideY = Layout:Snap(146, 300, 40, 10, lines, 8)
-Equal("snap: left edge meets the right edge", snappedLeft, 150)
-Equal("snap: guide", guideX, 150)
-Equal("snap: nothing near vertically", snappedBottom .. "," .. tostring(guideY), "300,nil")
-snappedLeft = Layout:Snap(940, 0, 40, 10, lines, 8)
-Equal("snap: center to the screen center", snappedLeft, 940)
-snappedLeft = Layout:Snap(500, 0, 40, 10, lines, 8)
-Equal("snap: too far does not move", snappedLeft, 500)
-Equal("clamp", Layout:Clamp(-5, 0, 10) .. "," .. Layout:Clamp(15, 0, 10), "0,10")
-Profile:Reset()
+local visibility = general.sections.tooltipVisibility.settings
+local place = general.sections.tooltipPlace.settings
+Equal("every show mode is offered", #visibility.showMode.options, #TooltipOptions.SHOW_MODES)
+Equal("tooltips show always by default", visibility.showMode.default, "ALWAYS")
+Equal("the show key needs a mode that hides", visibility.peekKey.blocked() ~= nil, true)
+Equal("Action Bar Tooltips Here is the game's, not the profile's", place.enhancedTooltips.path, nil)
+Equal("and is no longer a visibility setting", visibility.enhancedTooltips, nil)
+Equal("the cursor anchor starts off", place.anchorCursor.default, false)
+Equal("its place follows it", place.cursorPoint.depends, "anchorCursor")
+Equal("so do its offsets", place.cursorX.depends .. " " .. place.cursorY.depends, "anchorCursor anchorCursor")
+Equal("every place around the cursor is offered", #place.cursorPoint.options, #TooltipOptions.CURSOR_POINTS)
+Equal("growth is free while the tooltip has a place", place.growth.blocked(), nil)
+local items = window.pages.tooltipItems
+local detailIDs = items.sections.tooltipDetailIDs.settings
+Equal("the Items page has the Details preview", items.preview ~= nil, true)
+Equal("the Units page has the samples' preview", window.pages.tooltipUnits.preview ~= nil, true)
+Equal("every modifier is offered", #detailIDs.idModifier.options, #TooltipOptions.MODIFIERS)
+Equal("the modifier has a card of its own", #items.sections.tooltipDetailIDs.settings, 1)
+local idLines = items.sections.tooltipDetailIDLines.settings
+Equal("one checkbox per ID line", #idLines, #TooltipOptions.ID_KEYS)
+Equal("ID lines default on", idLines.showSpellID.default, true)
+Equal("an ID line's scope is in its tooltip", idLines.showItemID.tooltip, "Items and toys.")
+Equal("with no modifier", detailIDs.idModifier.default, "NONE")
+local expansions = AUI.can.expansions
+AUI.can.expansions = nil
+Equal("the expansion is offered only where items have one",
+	items.sections.tooltipDetailLines.settings.showExpansion.show(), false)
+AUI.can.expansions = expansions
+local auctionPrice = items.sections.tooltipDetailLines.settings.showAuctionPrice
+Equal("Auction Prices after Max Stack, on by default", auctionPrice.label .. " " .. auctionPrice.path .. " "
+	.. tostring(auctionPrice.default) .. " " .. items.sections.tooltipDetailLines.settings[4].id,
+	"Auction Prices tooltip.details.auctionPrice true showAuctionPrice")
+Equal("without an auction addon, its tooltip names them", auctionPrice.tooltip,
+	"Auctionator, TSM or Oribos Exchange provides auction prices.")
 
--- Editor session --------------------------------------------------------------------------------------------------
+-- Choice cards ---------------------------------------------------------------------------------------------------
 
-local Editor = AUI.Editor
-Equal("editor starts inactive", Editor.active, false)
-Editor:OnSettingsShown()
-Equal("settings outside a session leave the editor alone", Editor.hidden, false)
-Equal("snap preference defaults on", Profile:EditorPreference("snap", true), true)
-Equal("a preference saves", Profile:SetEditorPreference("grid", "DIMMED"), true)
-Equal("a preference reads back", Profile:EditorPreference("grid", "BRIGHT"), "DIMMED")
-Equal("a preference stays out of the profile", Profile.config.grid, nil)
+-- The library draws a section asking for two columns one to a line unless every row is a checkbox with no second
+-- line; the pages must keep to that.
+local function ChoiceCards(page)
+	local cards = {}
 
--- Attachments and size links -------------------------------------------------------------------------------------
+	for _, section in ipairs(page.sections) do
+		if section.info and section.info.columns == 2 then
+			cards[#cards + 1] = section.id
+			Equal(section.id .. " has two or more choices", #section.settings >= 2, true)
 
-Profile:Reset()
-local pet = Layout:Find("unit.pet") --[[@as table]]
-local focus = Layout:Find("unit.focus") --[[@as table]]
-Equal("attach keeps the position", Editor:Attach("unit.pet", "unit.player", "BOTTOM"), true)
-Equal("attached", Profile:Get("frames.pet.layout.attach.target"), "unit.player")
-Equal("position kept x", Profile:Get("frames.pet.x"), -405)
-Equal("position kept y", Profile:Get("frames.pet.y"), -234)
-Equal("offset x from the bottom center", Profile:Get("frames.pet.layout.attach.x"), -75)
-Equal("offset y below the edge", Profile:Get("frames.pet.layout.attach.y"), -4)
-local fired
-AUI.Callbacks:Register("Profile", {}, function(_, path)
-	fired = path or "*"
-end)
-Profile:Set("frames.player.x", -320)
-Equal("the attached frame follows", Profile:Get("frames.pet.x"), -395)
-Equal("a change that moves others announces the whole profile", fired, "*")
-Profile:Set("frames.player.height", 46)
-Equal("a taller target moves the frame below it", Profile:Get("frames.pet.y"), -239)
-Profile:Set("frames.player.reverse", true)
-Equal("an unrelated change announces itself", fired, "frames.player.reverse")
-local moves = Layout:Moved(Profile.config, pet, 5, 0)
-Equal("dragging an attached frame changes its offset", moves["frames.pet.layout.attach.x"], -70)
-Profile:SetPaths(moves)
-Equal("the offset moves it", Profile:Get("frames.pet.x"), -390)
-Equal("its X reads the offset", Layout:FieldPath(Profile.config, pet, "x"), "frames.pet.layout.attach.x")
-Equal("loop: the target is not offered", (function()
-	for _, element in ipairs(Layout:Eligible(Profile.config, player)) do
-		if element.id == "unit.pet" then
-			return true
+			for _, setting in ipairs(section.settings) do
+				Equal(setting.id .. " is a checkbox", setting.kind, "Checkbox")
+				Equal(setting.id .. " has no second line", setting.description, nil)
+			end
 		end
 	end
 
-	return false
-end)(), false)
-Equal("loop: refused", (Profile:Set("frames.player.layout.attach.target", "unit.pet")), false)
-Equal("loop: nothing changed", Profile:Get("frames.player.layout.attach.target"), "none")
-Equal("loop: refused across link kinds", (Profile:Set("frames.player.layout.width", "unit.pet")), false)
-local looped = AUI:CopyTable(Profile.config)
-Schema:Write(looped, "frames.player.layout.height", "unit.pet")
-Equal("loop: a config with one is invalid", (Schema:ValidateConfig(looped)), false)
-local playerX = Find(pages.player.Build(), "x")
-local petPage = pages.pet.Build()
-Equal("player X stays free", playerX.blocked(), nil)
-Equal("attached X is disabled with a reason", Find(petPage, "x").blocked(), "Attached to Player. Move it in Edit Mode.")
-Equal("detach", Editor:Attach("unit.pet"), true)
-Equal("detached", Profile:Get("frames.pet.layout.attach.target"), "none")
-Equal("detaching keeps the position", Profile:Get("frames.pet.x"), -390)
-Profile:Set("frames.player.x", -300)
-Equal("a detached frame stays", Profile:Get("frames.pet.x"), -390)
-
-Equal("link width", Editor:Link("unit.pet", "width", "unit.focus"), true)
-Equal("linked width matches", Profile:Get("frames.pet.width"), 200)
-Profile:Set("frames.focus.width", 220)
-Equal("linked width follows", Profile:Get("frames.pet.width"), 220)
-Equal("linked width slider is disabled", Find(pages.pet.Build(), "width").blocked(), "Matches Focus.")
-Editor:Link("unit.pet", "height", "power.player")
-Equal("a linked size stays in range", Profile:Get("frames.pet.height"), 16)
-Editor:Link("unit.pet", "width")
-Profile:Set("frames.focus.width", 240)
-Equal("an unlinked width stays", Profile:Get("frames.pet.width"), 220)
-Equal("match once", Editor:MatchNow("unit.pet", "width", "unit.focus"), true)
-Equal("matched once", Profile:Get("frames.pet.width"), 240)
-Equal("match once leaves no link", Profile:Get("frames.pet.layout.width"), "none")
-Profile:Set("frames.focus.width", 250)
-Equal("a one-time match does not follow", Profile:Get("frames.pet.width"), 240)
-
-local bossGroup = Layout:Find("boss.group") --[[@as table]]
-Editor:Attach("unit.focus", "boss.group", "LEFT")
-local groupLeft, groupBottom, groupWidth, groupHeight = Layout:Rect(Profile.config, bossGroup, 0, 0)
-local focusLeft, focusBottom, focusWidth, focusHeight = Layout:Rect(Profile.config, focus, 0, 0)
-Equal("attached to a group keeps the position", focusLeft .. "," .. focusBottom, (-330 - 125) .. "," .. (-140 - 12))
-Editor:SetField("unit.focus", "x", 0)
-Editor:SetField("unit.focus", "y", 0)
-focusLeft, focusBottom, focusWidth, focusHeight = Layout:Rect(Profile.config, focus, 0, 0)
-Equal("zero offsets touch the group's left edge", focusLeft + focusWidth, groupLeft)
-Equal("zero offsets center on the group", focusBottom + focusHeight / 2, groupBottom + groupHeight / 2)
-Equal("copying the cast bar leaves out its attachment", (function()
-	for _, path in ipairs(AUI.SettingsShared:Paths("player", AUI.SettingsShared.SCOPES.castBar)) do
-		if path:find("castbar.layout.", 1, true) then
-			return true
-		end
-	end
-
-	return false
-end)(), false)
-pages.pet.Reset()
-Equal("page defaults unlink", Profile:Get("frames.pet.layout.width"), "none")
-Profile:Reset()
-
-for _, element in ipairs(Layout.ELEMENTS) do
-	Equal("element paths agree: " .. element.id, Schema.LAYOUT_ELEMENTS[element.id],
-		"frames." .. element.key .. "." .. element.base)
+	return table.concat(cards, " ")
 end
 
--- External targets ------------------------------------------------------------------------------------------------
+Equal("the Units page's choice cards", ChoiceCards(window.pages.tooltipUnits), "tooltipUnitLines tooltipUnitAdded")
+Equal("the Items page's", ChoiceCards(window.pages.tooltipItems), "tooltipDetailLines tooltipDetailIDLines")
+Equal("a unit line says what it adds in its tooltip",
+	type(window.pages.tooltipUnits.sections.tooltipUnitLines.settings.colorLevels.tooltip), "string")
+Equal("the layout editor's stage is as tall as the diagram", window.pages.minimap.preview.height,
+	AUI.MinimapEditor:Height())
+Equal("which is its margins, four rows and the map", AUI.MinimapEditor:Height(), 180)
 
-local function Offered(element, id)
-	for _, other in ipairs(Layout:Eligible(Profile.config, element)) do
-		if other.id == id then
-			return true
-		end
-	end
+-- Edit mode ----------------------------------------------------------------------------------------------------
 
-	return false
+AUI.EditTargets.registration = nil
+AUI.EditTargets:Register()
+local placement = placements.AeonUI
+Equal("edit mode is registered", placement ~= nil, true)
+Equal("no target while the module is off this session", #placement.declaration.targets(), 0)
+AUI.Minimap.active, AUI.Minimap.holder = true, {}
+local target = placement.declaration.targets()[1]
+Equal("the minimap is a target", target and target.key, "minimap")
+Equal("it moves the module's frame", target.frame, AUI.Minimap.holder)
+Equal("it starts at the default place", target.default, AUI.Minimap.DEFAULT_POSITION)
+Equal("Element Options lands on its page", target.settings.page, "minimap")
+Equal("on the Map card, which offers Edit Position", target.settings.section, "map")
+Equal("no stored position at first", placement.declaration.get("minimap"), nil)
+placement.declaration.set("minimap", { point = "TOPLEFT", x = 12, y = -30 })
+Equal("a moved position is saved in the profile", Profile:Get("minimap.position").point, "TOPLEFT")
+Equal("and read back", placement.declaration.get("minimap").x, 12)
+placement.declaration.set("minimap", { point = "NOWHERE", x = 0, y = 0 })
+Equal("a malformed position is refused", Profile:Get("minimap.position").point, "TOPLEFT")
+Equal("an unknown key reads nothing", placement.declaration.get("other"), nil)
+AUI.Minimap.active, AUI.Minimap.holder = false, nil
+AUI.CastBar.frame = {}
+Equal("no Cast Bar target while it is off", #placement.declaration.targets(), 0)
+Profile:Set("castBar.enabled", true)
+AUI.can.castBar = true
+do
+	local castBarTarget = placement.declaration.targets()[1]
+	Equal("the cast bar is a target while it is on", castBarTarget and castBarTarget.key, "castBar")
+	Equal("it moves the bar", castBarTarget.frame, AUI.CastBar.frame)
+	Equal("from its default place", castBarTarget.default, AUI.CastBarOptions.DEFAULT_POSITION)
+	Equal("with a sample", type(castBarTarget.sample), "function")
+	Equal("Element Options lands on its Bar card", castBarTarget.settings.page .. " " .. castBarTarget.settings.section, "castBar castBarBar")
+end
+placement.declaration.set("castBar", { point = "BOTTOM", x = 0, y = 180 })
+Equal("its place is saved in the profile", Profile:Get("castBar.position").y, 180)
+Profile:Set("castBar.enabled", false)
+AUI.can.castBar, AUI.CastBar.frame = nil, nil
+
+-- Profiles adapter --------------------------------------------------------------------------------------------
+
+Load(nil)
+local adapter = Settings:Window().pages.profiles.adapter
+Equal("list names the default profile", adapter.List()[1], "Default")
+Equal("active is the default", adapter.Active(), "Default")
+Equal("new", (adapter.New("Raid")), true)
+Equal("new activates", adapter.Active(), "Raid")
+Equal("a refused name passes the reason", select(2, adapter.New("raid")) ~= nil, true)
+Equal("copy", (adapter.Copy("Raid Copy")), true)
+Equal("copy activates", adapter.Active(), "Raid Copy")
+Equal("rename", (adapter.Rename("Raid Two")), true)
+Equal("rename is kept", Profile:Name(Profile.activeID), "Raid Two")
+Equal("switch by name", (adapter.Switch("Raid")), true)
+Equal("switch selects the ID", Profile.activeID, Profile:Find("Raid"))
+Equal("switch to a missing name is refused", (adapter.Switch("Nobody")), false)
+Equal("delete by names", (adapter.Delete("Raid", "Default")), true)
+Equal("delete removes it", Profile:Find("Raid"), nil)
+Equal("delete moves the character", adapter.Active(), "Default")
+Equal("list after delete", #adapter.List(), 2)
+Profile:Set("fixture.width", 500)
+Equal("reset", (adapter.Reset()), true)
+Equal("reset restores defaults", Profile:Get("fixture.width"), 270)
+Equal("no damaged section without damage", Settings:Window().pages.profiles.sections.damaged, nil)
+
+-- Damaged profiles ----------------------------------------------------------------------------------------------
+
+local damagedData = Store:NewRoot("Player-1")
+damagedData.profilesByID.p00000002 = { name = "Broken", schemaVersion = AUI.Schema.VERSION,
+	config = { fixture = { width = "x" } } }
+damagedData.nextID = 3
+local page = Load(damagedData).pages.profiles
+local damaged = page.sections.damaged
+Equal("a damaged section", damaged ~= nil, true)
+Equal("it shows", damaged.info.show(), true)
+local row = damaged.settings["delete.p00000002"]
+Equal("a row per damaged profile", row ~= nil, true)
+Equal("the row names it", row.label, "Broken")
+Equal("the row says why", type(row.description), "string")
+Equal("deleting has a replacement", row.blocked(), nil)
+Equal("damaged profiles stay out of the list", #page.adapter.List(), 1)
+Equal("delete runs", (row.run()), true)
+Equal("the profile is gone", Profile:Name("p00000002"), nil)
+Equal("its row hides", row.show(), false)
+Equal("the section hides", damaged.info.show(), false)
+
+-- Recovery ---------------------------------------------------------------------------------------------------
+
+window = Load({})
+Equal("recovery mode", Profile.mode, "recovery")
+Equal("recovery is the only page", table.concat(window.order, " "), "recovery")
+Equal("no account settings in recovery", window.declaration.account(), nil)
+local section = window.pages.recovery.sections.recovery
+Equal("the problem is noted", section.notes[1].small ~= nil and section.notes[1].small ~= "", true)
+
+function Profile:RawExport()
+	return "raw", false
 end
 
-Profile:Reset()
-local bars = Layout:Find("levelbound.bars") --[[@as table]]
-Equal("external found", bars.external, true)
-Equal("external label", Layout:Label(bars), "Levelbound Bars")
-Equal("an external target not yet found is not offered", Offered(pet, "levelbound.bars"), false)
-Layout.external["levelbound.bars"] = { x = 0, y = -300, width = 400, height = 20 }
-Equal("a found external target is offered", Offered(pet, "levelbound.bars"), true)
-Editor:Attach("unit.pet", "levelbound.bars", "TOP")
-Equal("attaching to it keeps the position", Profile:Get("frames.pet.x"), -405)
-Layout.external["levelbound.bars"] = { x = 10, y = -300, width = 400, height = 20 }
-Profile:Recalculate()
-Equal("the attached frame follows the external frame", Profile:Get("frames.pet.x"), -395)
-Editor:Link("power.player", "width", "levelbound.bars")
-Equal("a size linked to the external frame matches it", Profile:Get("frames.playerPower.width"), 400)
-Layout.external["levelbound.bars"] = false
-Profile:Recalculate()
-Equal("a missing external frame marks the element waiting", Profile:Get("frames.pet.layout.attach.waiting"), true)
-Equal("a waiting element keeps its position", Profile:Get("frames.pet.x"), -395)
-Equal("a linked size keeps its last value", Profile:Get("frames.playerPower.width"), 400)
-Equal("waiting X reason", Find(pages.pet.Build(), "x").blocked(), "Waiting to reconnect to Levelbound Bars.")
-Layout.external["levelbound.bars"] = { x = 50, y = -300, width = 380, height = 20 }
-Profile:Recalculate()
-Equal("a returned frame does not move a waiting element", Profile:Get("frames.pet.x"), -395)
-Equal("a linked size follows again", Profile:Get("frames.playerPower.width"), 380)
-Equal("reconnect", Editor:Reconnect("unit.pet"), true)
-Equal("reconnected", Profile:Get("frames.pet.layout.attach.waiting"), false)
-Equal("reconnecting applies the stored offsets", Profile:Get("frames.pet.x"), -355)
-Layout.external["levelbound.bars"] = nil
-Profile:Recalculate()
-Equal("a frame not yet looked for does not mark waiting", Profile:Get("frames.pet.layout.attach.waiting"), false)
-Layout.external["levelbound.bars"] = false
-Profile:Recalculate()
-Editor:Attach("unit.pet")
-Equal("detaching ends the wait", Profile:Get("frames.pet.layout.attach.waiting"), false)
-Equal("detached", Profile:Get("frames.pet.layout.attach.target"), "none")
+section.settings.export.run()
+Equal("export opens its dialog", popups[#popups].which, "AEONUI_DIAGNOSTIC_EXPORT")
+Equal("an incomplete export says so", popups[#popups].text, "Diagnostic Export (Incomplete)")
+Equal("the dialog holds the text", popups[#popups].data.text, "raw")
+local reset = section.settings.reset
+Equal("reset asks first", type(reset.confirm), "string")
+reset.run()
+Equal("then asks for the word", popups[#popups].which, "AEONUI_RESET_SAVED_SETTINGS")
+local resetPopup = StaticPopupDialogs.AEONUI_RESET_SAVED_SETTINGS
+resetPopup.EditBoxOnTextChanged("box")
+Equal("the word is RESET", confirmations[#confirmations].expected, "RESET")
+local clicked, matches = {}, false
+local resetDialog = { GetButton1 = function()
+	return { IsEnabled = function()
+		return matches
+	end }
+end }
+local resetBox = { GetParent = function()
+	return resetDialog
+end }
+function StaticPopup_OnClick(dialog, index)
+	clicked[#clicked + 1] = { dialog = dialog, index = index }
+end
+resetPopup.EditBoxOnEnterPressed(resetBox)
+Equal("Enter does nothing before the word matches", #clicked, 0)
+matches = true
+resetPopup.EditBoxOnEnterPressed(resetBox)
+Equal("then Enter presses Reset", #clicked == 1 and clicked[1].dialog == resetDialog and clicked[1].index == 1, true)
+StaticPopup_OnClick = nil
+resetPopup.OnAccept()
+Equal("reset leaves recovery", Profile.mode, "normal")
+Equal("reset saves a new store", AeonUIDB, Profile.root)
+Equal("reset reloads", reloads, 1)
+Equal("the export dialog is registered", StaticPopupDialogs.AEONUI_DIAGNOSTIC_EXPORT.hasEditBox, true)
+Equal("Escape on the reset dialog is harmless", resetPopup.button2, CANCEL)
 
--- Measuring the external frame.
-local External = AUI.EditorExternal
-AUI.Events = AUI.Events or { Merge = function() end, Register = function() end }
-local loaded = false
-C_AddOns.IsAddOnLoaded = function()
-	return loaded
-end
-function GetTime()
-	return 100
-end
-function hooksecurefunc() end
-UIParent.GetEffectiveScale = function()
-	return 1
-end
-LevelboundBarGroup = {
-	GetRect = function()
-		return 760, 100, 400, 20
-	end,
-	GetEffectiveScale = function()
-		return 0.5
-	end,
-	HookScript = function() end,
+-- The layout editor ----------------------------------------------------------------------------------------------
+
+local Editor = AUI.MinimapEditor
+window = Load(nil)
+Equal("elements are named by their cards", AUI.SettingsMinimap:ElementTitle("difficulty"), "Instance Difficulty")
+Equal("the calendar offers an icon size", window.pages.minimap.sections.calendar.settings.calendarIconSize.path,
+	"minimap.calendar.iconSize")
+Equal("the calendar's icon starts larger", AUI.Settings:Default("minimap.calendar.iconSize"), 100)
+Equal("the compartment has no icon to size", window.pages.minimap.sections.compartment.settings.compartmentIconSize,
+	nil)
+local slots = {
+	{ row = "TOP1", index = 1, x = 10, y = 11 }, { row = "TOP1", index = 2, x = 60, y = 11 },
+	{ row = "TOP2", index = 1, x = 10, y = 39 }, { row = "TOP2", index = 2, x = 90, y = 39 },
 }
-External.started = 0
-External:Update()
-Equal("not loaded: missing", Layout.external["levelbound.bars"], false)
-loaded = true
-External:Update()
-local rect = Layout.external["levelbound.bars"] --[[@as table]]
-Equal("loaded: measured in UIParent units", rect.width .. "x" .. rect.height, "200x10")
-Equal("measured center", rect.x .. "," .. rect.y, (380 + 100 - 960) .. "," .. (50 + 5 - 540))
-LevelboundBarGroup.GetRect = function() end
-External.started = 99
-External:Update()
-Equal("no position just after login: not yet known", Layout.external["levelbound.bars"], nil)
-External.started = 0
-External:Update()
-Equal("no position later: missing", Layout.external["levelbound.bars"], false)
-Layout.external["levelbound.bars"] = nil
-LevelboundBarGroup = nil
+local slot = Editor:NearestSlot(slots, 70, 30)
+Equal("a drop goes to the nearest row", slot.row, "TOP2")
+Equal("at the nearest place in it", slot.index, 2)
+local function Shown(key)
+	return key ~= "craftingOrders"
+end
+local top2 = { "mail", "craftingOrders", "tracking", "coordinates" }
+Equal("a place among shown elements skips those the client cannot show",
+	Editor:ListIndex(top2, "coordinates", 2, Shown), 3)
+Equal("the dragged element is left out", Editor:ListIndex(top2, "mail", 1, Shown), 2)
+Equal("past the last shown element is the end", Editor:ListIndex(top2, "mail", 9, Shown), 4)
+local geometry = { left = 70, top = { TOP1 = 14, TOP2 = 42, BOTTOM1 = 116, BOTTOM2 = 144 } }
+local rows = { TOP1 = { "zone", "clock" }, TOP2 = { "mail" }, BOTTOM1 = {}, BOTTOM2 = {} }
+local widths = { zone = 40, clock = 30, mail = 20 }
+local places = Editor:Positions(rows, widths, geometry)
+Equal("pieces sit left to right", places.zone.x .. " " .. places.clock.x, "74 118")
+Equal("inside their row", places.zone.y, 16)
+places = Editor:Positions(rows, widths, geometry, { key = "clock", target = { row = "TOP2", index = 1 } })
+Equal("a carried piece's target row opens a gap for it", places.mail.x, 108)
+Equal("where it will land", places.clock.x .. " " .. places.clock.y, "74 44")
+Equal("its own row closes up", places.zone.x, 74)
+places = Editor:Positions(rows, widths, geometry, { key = "zone", target = { row = "TOP1", index = 2 } })
+Equal("within its row it changes places", places.clock.x .. " " .. places.zone.x, "74 108")
+places = Editor:Positions(rows, widths, geometry, { key = "zone" })
+Equal("without a target everything keeps its place", places.zone.x .. " " .. places.clock.x, "74 118")
+local dragSlots = Editor:Slots(rows, widths, geometry, "clock")
+Equal("slots leave the carried piece out", #dragSlots, 2 + 2 + 1 + 1)
+Equal("before the first piece", dragSlots[1].x .. " " .. dragSlots[1].index, "72 1")
+Equal("and after the last", dragSlots[2].x .. " " .. dragSlots[2].index, "116 2")
+Equal("at the row's middle", dragSlots[1].y, 25)
 
--- Sample states.
-local Previews = AUI.SettingsPreviews
-local function HasState(key, label)
-	for _, state in ipairs(Previews:States(key)) do
-		if state.label == label then
-			return true
+-- The minimap's preview ------------------------------------------------------------------------------------------
+
+local Elements = AUI.MinimapElements
+window = Settings:Window()
+window.page = "minimap"
+window:Open()
+Equal("opening on the Minimap page shows the minimap's samples", Elements.previewers.settings, true)
+window:SelectPage("general")
+Equal("another page takes them away", Elements.previewers.settings, nil)
+window:SelectPage("minimap")
+Equal("the Minimap page brings them back", Elements.previewers.settings, true)
+window.frame:Hide()
+Equal("hiding the window takes them away", Elements.previewers.settings, nil)
+window:Open()
+Equal("opening it again on the Minimap page brings them back", Elements.previewers.settings, true)
+window.frame:Hide()
+
+-- Crafting orders, on a client with them --------------------------------------------------------------------------
+
+AUI.can.craftingOrders = true
+window = Load(nil)
+local craftingCard = window.pages.minimap.sections.craftingOrders
+Equal("crafting orders get a card after mail", window.pages.minimap.sections[10], craftingCard)
+Equal("which turns the element on or off", craftingCard.settings[1].path, "minimap.elements.craftingOrders.enabled")
+AUI.can.craftingOrders = nil
+
+-- World Map, on a client with marker data -------------------------------------------------------------------------
+
+Equal("no World Map page without marker data", window.pages.worldMap, nil)
+AUI.can.worldMapMarkers = true
+window = Load(nil)
+Equal("the World Map follows the Minimap under Maps", table.concat(window.order, " "):match("#mapsHeader (.-) #"),
+	"minimap worldMap")
+local worldMap = window.pages.worldMap
+Equal("the World Map sits under the Maps header", worldMap.info.under, "mapsHeader")
+Equal("with its icon", worldMap.info.icon, Media.sidebar.worldMap)
+Equal("with no page switch", worldMap.info.switch, nil)
+local worldMapIDs = {}
+for index, section in ipairs(worldMap.sections) do
+	worldMapIDs[index] = section.id
+end
+Equal("the map's cards, then the markers'", table.concat(worldMapIDs, " "),
+	"unexplored levels dungeonMaps markers places travel town minimap")
+local switches = 0
+for _, section in ipairs(worldMap.sections) do
+	for _, setting in ipairs(section.settings) do
+		if setting.kind ~= "Button" then
+			local field = AUI.Schema:Field(setting.path)
+
+			switches = switches + (setting.id:match("^marker_") and 1 or 0)
+			Equal(setting.id .. " names a setting", field ~= nil, true)
+			Equal(setting.id .. " carries its default", setting.default, field.default)
 		end
+		Equal(setting.id .. " has a label", type(setting.label), "string")
 	end
-
-	return false
 end
-Equal("target of target has no cast state", HasState("targettarget", "Casting"), false)
-Equal("target has cast states", HasState("target", "Casting"), true)
-Equal("bosses can lose a slot", HasState("boss", "Slot Lost"), true)
-Equal("the player cast bar has the empowered state", HasState("cast", "Empowered"), true)
-Equal("cast bar state key", Editor:StateKey(Layout:Find("cast.player") --[[@as table]]), "cast")
-Editor.states = {}
-Equal("default state is full", Editor:SampleState(player).label, "Full")
-Editor.states["unit.player"] = "Damaged"
-Equal("a chosen state", Editor:SampleState(player).label, "Damaged")
-Editor.states["unit.player"] = "Nothing"
-Equal("an unknown state falls back to the default", Editor:SampleState(player).label, "Full")
-Editor.states = {}
-Profile:Reset()
+Equal("a switch for every category", switches, #AUI.WorldMapMarkers.CATEGORIES)
+Equal("the categories and pins are choice cards", ChoiceCards(worldMap), "places travel town minimap")
+local darkness = worldMap.sections.unexplored.settings.darkness
+Equal("darkness is a percentage", darkness.format, "percent")
+Equal("which needs the unexplored areas on", darkness.depends, "unexplored")
+Equal("fishing levels start off", worldMap.sections.levels.settings.fishingLevels.default, false)
+local markers = worldMap.sections.markers
+Equal("the markers' card is headed by their switch", markers.settings[1].kind, "Toggle")
+Equal("which is the markers'", markers.settings[1].path, "worldMap.markers.enabled")
+Equal("which defaults on", markers.settings[1].default, true)
+Equal("and redraws the page", markers.settings[1].redraws, true)
+Equal("the cities-only switch sits with the markers", markers.settings.capitalsOnly.path,
+	"worldMap.markers.capitalsOnly")
+Equal("and follows their switch", markers.settings.capitalsOnly.depends, "markers")
+Equal("marker size is a percentage", markers.settings.markerSize.format, "percent")
+Equal("the other faction stays hidden by default", markers.settings.otherFaction.default, false)
+Equal("a minimap switch for each group", #worldMap.sections.minimap.settings, #AUI.WorldMapMarkers.MINIMAP)
+Equal("the categories show while the markers are on", worldMap.sections.town.info.show(), true)
+Profile:Set("worldMap.markers.enabled", false)
+Equal("and leave while they are off", worldMap.sections.places.info.show(), false)
+Equal("with the minimap pins", worldMap.sections.minimap.info.show(), false)
+Profile:Set("worldMap.markers.enabled", true)
+local leyLines = worldMap.sections.places.settings.marker_leyLines
+local stables = worldMap.sections.town.settings.marker_stableMasters
+AUI.WorldMap = { race = 1, class = "MAGE" }
+Equal("ley lines are offered only to their race", leyLines.show(), false)
+Equal("stable masters only to hunters", stables.show(), false)
+AUI.WorldMap.race, AUI.WorldMap.class = 95, "HUNTER"
+Equal("which sees them", leyLines.show(), true)
+Equal("a hunter sees stable masters", stables.show(), true)
+Equal("dungeons are offered to everyone", worldMap.sections.places.settings.marker_dungeons.show, nil)
+local forget = markers.settings.forgetSpots
+local forgotAll, anyLearned = false, false
+AUI.WorldMapSpots = {
+	AnyLearned = function() return anyLearned end,
+	ForgetAll = function() forgotAll = true end,
+}
+Equal("Forget Learned Spots is a button", forget.kind, "Button")
+Equal("which asks first", type(forget.confirm), "string")
+Equal("and follows the markers' switch", forget.depends, "markers")
+Equal("it is offered to a Skyborne race", forget.show(), true)
+AUI.WorldMap.race = 96
+Equal("either of them", forget.show(), true)
+AUI.WorldMap.race = 1
+Equal("not to other races", forget.show(), false)
+Equal("with nothing found it is blocked", type(forget.blocked()), "string")
+anyLearned = true
+Equal("with spots found it is not", forget.blocked(), nil)
+forget.run()
+Equal("it forgets every learned spot", forgotAll, true)
+AUI.WorldMapSpots = nil
+AUI.WorldMap = nil
+Equal("the page is listed as the World Map's", AUI.SettingsWorldMap.pageIDs.worldMap, true)
+AUI.can.worldMapMarkers = nil
 
--- Portraits ------------------------------------------------------------------------------------------------------
+-- Tooltip upgrades, on a client with upgrade tracks ---------------------------------------------------------------
 
-local Portrait = AUI.Portrait
-Profile:Reset()
-Equal("portrait off by default", Portrait:Resolve(Profile.config, "player").enabled, false)
-Equal("player portrait on the left", Portrait:Resolve(Profile.config, "player").side, "LEFT")
-Equal("target portrait on the right", Portrait:Resolve(Profile.config, "target").side, "RIGHT")
-Equal("no portrait on target of target", Portrait:Resolve(Profile.config, "targettarget"), nil)
-Equal("no portrait on the pet", Portrait:Resolve(Profile.config, "pet"), nil)
-Equal("an off portrait takes no room", select(1, Portrait:Inset(Profile.config, "player")), 0)
-Profile:Set("frames.player.portrait.enabled", true)
-local insetLeft, insetRight = Portrait:Inset(Profile.config, "player")
-Equal("attached portrait takes the frame height on the left", insetLeft .. "," .. insetRight, "36,0")
-Profile:Set("frames.target.portrait.enabled", true)
-Profile:Set("frames.target.power.enabled", true)
-insetLeft, insetRight = Portrait:Inset(Profile.config, "target")
-Equal("attached portrait spans the power bar too, on the right", insetLeft .. "," .. insetRight, "0,42")
-Equal("attached size is the full height", Portrait:Size(Profile.config, "target", Portrait:Resolve(Profile.config, "target")),
-	42)
-Profile:Set("frames.player.portrait.style", "detached")
-Equal("a detached portrait takes no room", select(1, Portrait:Inset(Profile.config, "player")), 0)
-Equal("a detached portrait has its own size", Portrait:Size(Profile.config, "player", Portrait:Resolve(Profile.config,
-	"player")), 36)
-Profile:Set("frames.player.portrait.style", "attached")
-local _, narrowed = AUI.Text:Layout(Profile.config, "player", Schema.textSlots.player)
-Profile:Set("frames.player.portrait.enabled", false)
-local _, full = AUI.Text:Layout(Profile.config, "player", Schema.textSlots.player)
-Equal("an attached portrait narrows the text", full[1] - narrowed[1] > 0, true)
-local portraitPage = pages.player.Build()
-Equal("portrait size waits for detached", Find(portraitPage, "portraitSize").blocked(), "Only for a detached portrait.")
-Equal("portrait copies with the appearance", (function()
-	for _, path in ipairs(AUI.SettingsShared:Paths("player", AUI.SettingsShared.SCOPES.appearance)) do
-		if path == "frames.player.portrait.mode" then
-			return true
-		end
-	end
+Equal("no upgrade card without upgrade tracks", window.pages.tooltipItems.sections.tooltipUpgradeLine, nil)
+AUI.can.upgrades = true
+window = Load(nil)
+local upgradeSection = window.pages.tooltipItems.sections.tooltipUpgradeLine
+Equal("the upgrade card ends the Items page", window.pages.tooltipItems.sections[#window.pages.tooltipItems.sections],
+	upgradeSection)
+local upgradeLine = upgradeSection.settings
+Equal("the range color follows the range", upgradeLine.upgradeRangeColor.depends, "upgradeRange")
+Equal("the range follows the module's switch", upgradeLine.upgradeRange.depends, TOOLTIP_SWITCH)
+Equal("the range color defaults to white", upgradeLine.upgradeRangeColor.default.g, 1)
+Equal("the rank and range are on by default", upgradeLine.upgradeRank.default and upgradeLine.upgradeRange.default,
+	true)
+Equal("the next crest is off", upgradeLine.upgradeCrest.default, false)
+AUI.can.upgrades = nil
 
-	return false
-end)(), true)
-UnitIsPlayer = function()
-	return true
+-- Minimap button -------------------------------------------------------------------------------------------------
+
+window = Load(nil)
+AUI.can.compartment = true
+Broker:Create()
+Equal("a launcher", launchers.AeonUI ~= nil, true)
+Equal("LibDBIcon keeps the saved table", icon.registered.AeonUI, AeonUIDB.global.minimapButton)
+Equal("shown by default", Broker:Hidden(), false)
+Equal("added to the compartment", icon.compartment.AeonUI, true)
+local settingsOpen, realIsOpen, realOpen, realClose = false, Settings.IsOpen, Settings.Open, Settings.Close
+Settings.IsOpen = function()
+	return settingsOpen
 end
-local classToken
-UnitClass = function()
-	return "Mage", classToken
+Settings.Open = function()
+	settingsOpen = true
 end
-classToken = "MAGE"
-Equal("class icon for a readable player class", Portrait:ClassAtlas("target"), "classicon-MAGE")
-classToken = nil
-Equal("no class icon without a class", Portrait:ClassAtlas("target"), nil)
-Profile:Reset()
-
--- Power colors ----------------------------------------------------------------------------------------------------
-
-local PowerColor = AUI.PowerColor
-Profile:Reset()
-local powerSettings = PowerColor:Resolve(Profile.config, "target") --[[@as table]]
-Equal("power mode defaults to power type", powerSettings.mode, "type")
-Equal("no power colors on the player frame, which has no power bar", PowerColor:Resolve(Profile.config, "player"), nil)
-Equal("the player power bar has power colors", PowerColor:Resolve(Profile.config, "playerPower") ~= nil, true)
-Equal("a frame follows the shared power mode", Schema:Field("frames.boss.powerColors.mode").shared, "powerColors.mode")
-local mana = AUI.oUF.colors.power.MANA
-local classBlue = { r = 0.25, g = 0.78, b = 0.92 }
-Equal("power type keeps oUF's color", PowerColor:Fill(powerSettings, mana, classBlue), mana)
-powerSettings.mode = "class"
-Equal("class mode takes the class color", PowerColor:Fill(powerSettings, mana, classBlue), classBlue)
-Equal("class mode without a class keeps the power color", PowerColor:Fill(powerSettings, mana, nil), mana)
-powerSettings.mode = "custom"
-Equal("custom mode", PowerColor:Fill(powerSettings, mana, classBlue), powerSettings.color)
-Equal("background follows the bar background", PowerColor:Background(powerSettings, mana).r, 0.067)
-powerSettings.background = "power"
-powerSettings.barBackground = { r = 0, g = 0, b = 0, a = 0.3 }
-local powerBackdrop = PowerColor:Background(powerSettings, mana)
-Equal("power-colored background", powerBackdrop.b .. "," .. powerBackdrop.a, "1,0.3")
-local palette = { MANA = { r = 0, g = 0, b = 1 }, RAGE = { r = 1, g = 0, b = 0 } }
-Profile:Set("powerColors.palette.MANA", { r = 0.5, g = 0.5, b = 1 })
-PowerColor:ApplyPalette(palette, Profile.config)
-Equal("a set palette color replaces the entry", palette.MANA.r, 0.5)
-Equal("an unset entry keeps its own color", palette.RAGE.r, 1)
-Profile:Set("powerColors.palette.MANA", nil)
-PowerColor:ApplyPalette(palette, Profile.config)
-Equal("clearing restores the original color", palette.MANA.r, 0)
-Equal("Globals lists the power types the client has", Find(pages.globals.Build(), "powerMANA").label, "Mana")
-Equal("and leaves out those it lacks", Find(pages.globals.Build(), "powerFURY"), nil)
-Equal("frame page power section", type(Find(pages.target.Build(), "powerColorsCopyFrom")), "table")
-Equal("no power section without a power bar", Find(pages.player.Build(), "powerMode"), nil)
-Equal("the player power page has one", type(Find(pages.playerPower.Build(), "powerMode")), "table")
-
--- The live recolor.
-local painted = {}
-local powerBar = {
-	__owner = {
-		powerColors = PowerColor:Resolve(Profile.config, "target"),
-		powerBackground = {
-			SetVertexColor = function(_, r)
-				painted.background = r
-			end,
-		},
-	},
-	GetStatusBarTexture = function()
-		return { SetAlpha = function(_, alpha)
-			painted.alpha = alpha
-		end, SetGradient = function() end }
-	end,
-	SetStatusBarColor = function(_, r, g, b)
-		painted.fill = { r, g, b }
+Settings.Close = function()
+	settingsOpen = false
+end
+launchers.AeonUI.OnClick(nil, "LeftButton")
+Equal("a click opens the settings", settingsOpen, true)
+launchers.AeonUI.OnClick(nil, "LeftButton")
+Equal("a click while they are open closes them", settingsOpen, false)
+Settings.IsOpen, Settings.Open, Settings.Close = realIsOpen, realOpen, realClose
+local checkbox = window.pages.general.sections.access.settings.minimapButton
+Equal("the checkbox reads shown", checkbox.get(), true)
+checkbox.set(false)
+Equal("hiding is saved", AeonUIDB.global.minimapButton.hide, true)
+Equal("hiding hides the button", icon.hidden.AeonUI, true)
+Equal("the checkbox reads hidden", checkbox.get(), false)
+Profile:Create("Keeps Button")
+Equal("a profile change keeps the button's table", AeonUIDB.global.minimapButton, icon.registered.AeonUI)
+checkbox.set(true)
+Equal("showing shows the button", icon.hidden.AeonUI, false)
+local keyBindings = window.pages.general.sections.access.settings.keyBindings
+local openedBindings = 0
+AUI.Bindings = {
+	Open = function()
+		openedBindings = openedBindings + 1
 	end,
 }
-PowerColor.PostUpdateColor(powerBar, "target", AUI.oUF.colors.power.RAGE)
-Equal("live: oUF's color painted", painted.fill[1], 1)
-Equal("live: full opacity", painted.alpha, 1)
-Equal("live: background tinted", painted.background, 0.067)
-PowerColor.PostUpdateColor(powerBar, "target", nil, 0.2, 0.3, 0.4)
-Equal("live: an alternate color painted", painted.fill[1], 0.2)
-Profile:Reset()
+keyBindings.run()
+Equal("Access: Key Bindings, one line, opening AeonUI's section", keyBindings.label .. " " .. keyBindings.verb .. " "
+	.. tostring(keyBindings.description) .. " " .. openedBindings, "Key Bindings Open nil 1")
 
-print = luaPrint
+-- Scale section ----------------------------------------------------------------------------------------------
+
+window = Load(nil)
+local scale = window.pages.general.sections.scale
+local order = {}
+for _, setting in ipairs(scale.settings) do
+	order[#order + 1] = setting.id
+end
+Equal("the Scale section's order", table.concat(order, " "), "uiScale uiScaleValue uiScalePixelPerfect " ..
+	"uiScaleResolution gameMenuScale")
+Equal("the section follows Access", window.pages.general.sections[2], scale)
+Equal("UI Scale is on by default", scale.settings.uiScale.get(), true)
+Equal("the slider reads the current scale with nothing saved", scale.settings.uiScaleValue.get(), 80)
+for _, id in ipairs({ "uiScaleValue", "uiScalePixelPerfect", "uiScaleResolution" }) do
+	Equal(id .. " follows UI Scale", scale.settings[id].depends, "uiScale")
+	Equal(id .. " is not blocked", scale.settings[id].blocked(), nil)
+end
+scale.settings.uiScalePixelPerfect.run()
+Equal("Pixel Perfect saves this screen's scale account-wide", math.floor(AeonUIDB.global.uiScale.scale * 100 + 0.5),
+	5333)
+local resolution = scale.settings.uiScaleResolution
+Equal("the other resolutions are an action dropdown", resolution.action, true)
+Equal("offering each preset", #resolution.options .. " " .. resolution.options[3].value, "3 4K")
+Equal("with no choice of its own", resolution.get, nil)
+resolution.set("4K")
+Equal("4K saves its scale", math.floor(AeonUIDB.global.uiScale.scale * 100 + 0.5), 3556)
+scale.settings.uiScaleValue.set(75)
+Equal("the slider saves", AeonUIDB.global.uiScale.scale, 75)
+Profile:Create("Keeps Scale")
+Equal("a profile change keeps the scale", scale.settings.uiScaleValue.get(), 75)
+local menu = scale.settings.gameMenuScale
+Equal("the game menu reads 100% by default", menu.get(), 100)
+Equal("its default", menu.default, 100)
+menu.set(80)
+Equal("the game menu's scale is saved account-wide", AeonUIDB.global.gameMenuScale, 80)
+Equal("and applied", GameMenuFrame.scale, 0.8)
+
+-- Details preview --------------------------------------------------------------------------------------------
+
+-- The preview's tooltips, as GameTooltipTemplate makes them: a data update only flags a refresh.
+local previewTooltips = {}
+local createFrame = CreateFrame
+function CreateFrame(kind, name)
+	assert(kind == "GameTooltip", "unexpected frame type " .. tostring(kind))
+	local tooltip = { name = name, shown = true, refreshed = 0, scripts = {} }
+	function tooltip:HookScript(script, handler)
+		self.scripts[script] = handler
+	end
+	function tooltip:IsShown()
+		return self.shown
+	end
+	function tooltip:RefreshData()
+		self.shouldRefreshData = false
+		self.refreshed = self.refreshed + 1
+	end
+	function tooltip:Event(event)
+		if event == "TOOLTIP_DATA_UPDATE" then
+			self.shouldRefreshData = true
+		end
+		self.scripts.OnEvent(self, event)
+	end
+	previewTooltips[#previewTooltips + 1] = tooltip
+
+	return tooltip
+end
+AUI.TooltipDetails = AUI.TooltipDetails or {}
+window.pages.tooltipItems.preview.create({})
+CreateFrame = createFrame
+local itemPreview = previewTooltips[1]
+Equal("three preview tooltips", #previewTooltips, 3)
+itemPreview:Event("TOOLTIP_DATA_UPDATE")
+Equal("an item that finishes loading rebuilds its tooltip", itemPreview.refreshed, 1)
+Equal("and clears the flag", itemPreview.shouldRefreshData, false)
+itemPreview:Event("MODIFIER_STATE_CHANGED")
+Equal("other events rebuild nothing", itemPreview.refreshed, 1)
+itemPreview.shown = false
+itemPreview:Event("TOOLTIP_DATA_UPDATE")
+Equal("a hidden preview waits", itemPreview.refreshed, 1)
+
+-- Automation page ------------------------------------------------------------------------------------------
+
+local function SettingIDs(section)
+	local ids = {}
+	for _, setting in ipairs(section.settings) do
+		ids[#ids + 1] = setting.id
+	end
+
+	return table.concat(ids, " ")
+end
+
+AUI.can.mail, AUI.can.expansionFilter, AUI.can.autoDeclineGuildInvites = true, true, true
+window = Load(nil)
+local automation = window.pages.automation
+Equal("under the Quality of Life header", automation.info.under, "qualityOfLifeHeader")
+Equal("with its icon", automation.info.icon, AUI.Media.sidebar.automation)
+local sectionIDs = {}
+for index, section in ipairs(automation.sections) do
+	sectionIDs[index] = section.id
+end
+Equal("the cards in order", table.concat(sectionIDs, " "), "automationMerchant automationMail automationAuctionHouse " ..
+	"automationGameSettings automationBlocks")
+local merchantCard = automation.sections.automationMerchant
+Equal("the merchant card", SettingIDs(merchantCard), "sellJunk reportSales autoRepair repairFunds")
+Equal("Report Sales follows Sell Junk", merchantCard.settings.reportSales.depends, "sellJunk")
+Equal("Funds follows Auto Repair", merchantCard.settings.repairFunds.depends, "autoRepair")
+Equal("selling is off by default", merchantCard.settings.sellJunk.default, false)
+Equal("repairing is off by default", merchantCard.settings.autoRepair.default, false)
+Equal("reports are on by default", merchantCard.settings.reportSales.default, true)
+Equal("guild funds first by default", merchantCard.settings.repairFunds.default, "GUILD_FIRST")
+Equal("three funds", #merchantCard.settings.repairFunds.options, 3)
+Equal("the filter's windows follow it", automation.sections.automationAuctionHouse.settings.expansionAuctionHouse.depends,
+	"expansionFilter")
+Equal("the game settings card", SettingIDs(automation.sections.automationGameSettings),
+	"managedautoLoot managedweather managedcameraDistance")
+Equal("the blocks card", SettingIDs(automation.sections.automationBlocks),
+	"managedtrades managedguildInvites managedchannelInvites managedduels")
+local weather = automation.sections.automationGameSettings.settings.managedweather
+Equal("weather offers Not Managed and four levels", #weather.options, 5)
+Equal("managed settings start unmanaged", weather.default, "UNMANAGED")
+Equal("the weather levels use Blizzard's names", weather.options[2].text .. " " .. weather.options[5].text, "Off High")
+local camera = automation.sections.automationGameSettings.settings.managedcameraDistance
+Equal("camera distance offers Not Managed and Maximum", camera.options[1].value .. " " .. camera.options[2].text,
+	"UNMANAGED Maximum")
+Equal("and uses Blizzard's label and description", camera.label .. ": " .. camera.description,
+	"Max Camera Distance: Adjust the maximum distance the camera will follow behind you.")
+Equal("a setting Blizzard also offers has no second line",
+	automation.sections.automationBlocks.settings.managedtrades.description, nil)
+Equal("the merchant card ends with the Shift note", merchantCard.notes[1].text,
+	"Hold Shift as a merchant opens to skip both.")
+Equal("a value is written to the profile", (declaration.write("automation.sellJunk", true)), true)
+Equal("and read back", Profile:Get("automation.sellJunk"), true)
+
+AUI.can.mail, AUI.can.expansionFilter, AUI.can.autoDeclineGuildInvites = nil, nil, nil
+cvars.weatherDensity, cvars.cameraDistanceMaxZoomFactor = nil, nil
+window = Load(nil)
+automation = window.pages.automation
+Equal("Forever: no Auction House card", automation.sections.automationAuctionHouse, nil)
+Equal("no Mail card without the send form", automation.sections.automationMail, nil)
+Equal("a setting the client lacks is left out", SettingIDs(automation.sections.automationGameSettings), "managedautoLoot")
+Equal("as is the guild-invite block", SettingIDs(automation.sections.automationBlocks),
+	"managedtrades managedchannelInvites managedduels")
+cvars.weatherDensity, cvars.cameraDistanceMaxZoomFactor = "3", "1.9"
+
+-- Delete Cheapest Item page ---------------------------------------------------------------------------------
+
+ITEM_QUALITY0_DESC, ITEM_QUALITY1_DESC, ITEM_QUALITY2_DESC = "Poor", "Common", "Uncommon"
+ITEM_QUALITY3_DESC, ITEM_QUALITY4_DESC = "Rare", "Epic"
+AUI.can.mail, AUI.can.expansionFilter, AUI.can.autoDeclineGuildInvites = nil, nil, nil
+AUI.can.deleteCheapestItem = true
+window = Load(nil)
+Equal("Delete Cheapest Item follows Automation", table.concat(window.order, " "), "general #mapsHeader minimap "
+	.. "#tooltipHeader tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader automation deleteCheapestItem "
+	.. "alerts notifications - profiles")
+local dci = window.pages.deleteCheapestItem
+Equal("titled, under Quality of Life, with its icon", dci.info.title .. " " .. dci.info.under .. " "
+	.. tostring(dci.info.icon == AUI.Media.sidebar.deleteCheapestItem), "Delete Cheapest Item qualityOfLifeHeader true")
+Equal("headed by its switch, off", dci.info.switch.path .. "=" .. tostring(dci.info.switch.default) .. " "
+	.. dci.info.switch.label, "deleteCheapestItem.enabled=false Suggest Items to Delete")
+local dciCards = {}
+for _, section in ipairs(dci.sections) do
+	dciCards[#dciCards + 1] = section.title .. ": " .. SettingIDs(section)
+end
+Equal("four titled cards", table.concat(dciCards, " | "), "Open Automatically: dciBagsFull dciFreeSlots dciMerchant "
+	.. "dciQuest | List: dciMaxQuality dciPrice dciHideBound dciHideNoValue | Access: dciOpenWindow dciKeys | "
+	.. "Ignored Items: dciIgnoredItems")
+local dciSecondLines = {}
+for _, section in ipairs(dci.sections) do
+	for _, setting in ipairs(section.settings) do
+		if setting.path then
+			Equal(setting.id .. " names a setting", AUI.Schema:Field(setting.path) ~= nil, true)
+		end
+
+		if setting.description then
+			dciSecondLines[#dciSecondLines + 1] = setting.id
+		end
+	end
+end
+Equal("second lines only on Price and Key Bindings", table.concat(dciSecondLines, " "), "dciPrice dciKeys")
+local freeSlots = dci.sections.dciOpen.settings.dciFreeSlots
+Equal("the threshold from Off to 20", freeSlots.format(0) .. " " .. freeSlots.format(5) .. " " .. freeSlots.max, "Off 5 20")
+local function Texts(setting)
+	local texts = {}
+	for index, option in ipairs(setting.options) do
+		texts[index] = option.text
+	end
+
+	return table.concat(texts, ",")
+end
+Equal("qualities by the client's names", Texts(dci.sections.dciList.settings.dciMaxQuality),
+	"Poor,Common,Uncommon,Rare,Epic")
+Equal("the prices", Texts(dci.sections.dciList.settings.dciPrice), "Vendor,Auction,Higher")
+Equal("without an auction addon, Price says where auction prices come from",
+	dci.sections.dciList.settings.dciPrice.description, "Auctionator, TSM or Oribos Exchange provides auction prices.")
+local ignored = dci.sections.dciIgnored.settings.dciIgnoredItems
+Equal("the ignore list across its card", tostring(ignored.wide) .. " " .. ignored.kind, "true Custom")
+_G.TSM_API = { GetCustomPriceValue = function() end, ToItemString = function() end }
+window = Load(nil)
+Equal("with one, no second line", window.pages.deleteCheapestItem.sections.dciList.settings.dciPrice.description, nil)
+_G.TSM_API = nil
+AUI.can.deleteCheapestItem = nil
+window = Load(nil)
+Equal("no page without the feature's functions", window.pages.deleteCheapestItem, nil)
+
+-- Merchant Window page --------------------------------------------------------------------------------------
+
+AUI.can.merchantWindow = true
+window = Load(nil)
+Equal("Merchant Window follows Automation", table.concat(window.order, " "), "general #mapsHeader minimap "
+	.. "#tooltipHeader tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader automation merchantWindow "
+	.. "alerts notifications - profiles")
+local merchantPage = window.pages.merchantWindow
+Equal("titled, under Quality of Life, with its icon and no page switch", merchantPage.info.title .. " "
+	.. merchantPage.info.under .. " " .. tostring(merchantPage.info.icon == AUI.Media.sidebar.merchantWindow) .. " "
+	.. tostring(merchantPage.info.switch), "Merchant Window qualityOfLifeHeader true nil")
+local merchantCards = {}
+for _, section in ipairs(merchantPage.sections) do
+	merchantCards[#merchantCards + 1] = section.title .. ": " .. SettingIDs(section)
+end
+Equal("one titled card headed by its switch", table.concat(merchantCards, " | "), "Item Grid: merchantWindowEnabled "
+	.. "merchantWindowRows merchantWindowColumns merchantWindowOrder")
+local grid = merchantPage.sections.merchantWindowGrid.settings
+Equal("the switch, off", grid.merchantWindowEnabled.kind .. " " .. grid.merchantWindowEnabled.label .. " "
+	.. tostring(grid.merchantWindowEnabled.default), "Toggle Extend Merchant Window false")
+Equal("the rest shown while it is on", grid.merchantWindowRows.depends .. " " .. grid.merchantWindowColumns.depends
+	.. " " .. grid.merchantWindowOrder.depends, "merchantWindowEnabled merchantWindowEnabled merchantWindowEnabled")
+Equal("Blizzard's grid labels", grid.merchantWindowRows.label .. ", " .. grid.merchantWindowColumns.label,
+	"# of Rows, # of Columns")
+Equal("rows and columns, 5 by 5 by default", grid.merchantWindowRows.min .. "-" .. grid.merchantWindowRows.max .. " "
+	.. grid.merchantWindowRows.default .. " " .. grid.merchantWindowColumns.min .. "-"
+	.. grid.merchantWindowColumns.max .. " " .. grid.merchantWindowColumns.default, "1-10 5 2-8 5")
+Equal("the fill orders", Texts(grid.merchantWindowOrder) .. " " .. grid.merchantWindowOrder.default,
+	"Rows First,Columns First ROWS")
+local merchantLines = {}
+for _, setting in ipairs(merchantPage.sections.merchantWindowGrid.settings) do
+	Equal(setting.id .. " names a setting", AUI.Schema:Field(setting.path) ~= nil, true)
+	if setting.description then
+		merchantLines[#merchantLines + 1] = setting.id
+	end
+end
+Equal("no second lines", #merchantLines, 0)
+Equal("nothing blocks the switch", grid.merchantWindowEnabled.blocked(), nil)
+local isLoaded = C_AddOns.IsAddOnLoaded
+C_AddOns.IsAddOnLoaded = function(name) return name == "Krowi_ExtendedVendorUI" end
+Equal("Krowi's Extended Vendor UI blocks it, by name", grid.merchantWindowEnabled.blocked(),
+	"Krowi_ExtendedVendorUI resizes the merchant window.")
+C_AddOns.IsAddOnLoaded = isLoaded
+FILTER = "Filter"
+AUI.can.merchantFilter = true
+window = Load(nil)
+merchantPage = window.pages.merchantWindow
+merchantCards = {}
+for _, section in ipairs(merchantPage.sections) do
+	merchantCards[#merchantCards + 1] = section.title .. ": " .. SettingIDs(section)
+end
+Equal("with the filter functions, a Filter card", table.concat(merchantCards, " | "), "Item Grid: "
+	.. "merchantWindowEnabled merchantWindowRows merchantWindowColumns merchantWindowOrder | Filter: merchantWindowShowAll")
+local showAll = merchantPage.sections.merchantWindowFilter.settings.merchantWindowShowAll
+Equal("Show All Items, on by default, no second line, apart from the grid's switch", showAll.label .. " "
+	.. tostring(showAll.default) .. " " .. tostring(showAll.description) .. " " .. tostring(showAll.depends),
+	"Show All Items true nil nil")
+AUI.can.merchantFilter = nil
+AUI.can.merchantWindow = nil
+window = Load(nil)
+Equal("no page without the merchant window's functions", window.pages.merchantWindow, nil)
+
+-- Hidden Settings page ------------------------------------------------------------------------------------
+
+AUI.can.merchantWindow, AUI.can.lootSparkle = true, true
+window = Load(nil)
+Equal("hidden settings after merchant window", table.concat(window.order, " "), "general #mapsHeader minimap "
+	.. "#tooltipHeader tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader automation merchantWindow "
+	.. "hiddenSettings alerts notifications - profiles")
+local hiddenPage = window.pages.hiddenSettings
+Equal("titled, under Quality of Life, with its icon, tinted", hiddenPage.info.title .. " " .. hiddenPage.info.under
+	.. " " .. tostring(hiddenPage.info.icon == AUI.Media.sidebar.hiddenSettings) .. " "
+	.. tostring(hiddenPage.info.iconTint), "Hidden Settings qualityOfLifeHeader true true")
+local hiddenCards = {}
+for _, section in ipairs(hiddenPage.sections) do
+	hiddenCards[#hiddenCards + 1] = section.title .. ": " .. SettingIDs(section)
+end
+Equal("loot sparkles card", table.concat(hiddenCards, " | "), "Loot Sparkles: hiddenSettingsQuestItems")
+local questItems = hiddenPage.sections.hiddenSettingsLootSparkles.settings.hiddenSettingsQuestItems
+Equal("Quest Items, off, with the restart line", questItems.kind .. " " .. questItems.label .. " "
+	.. tostring(questItems.default) .. " " .. tostring(questItems.description),
+	"Checkbox Quest Items false The sparkle stays until the game restarts. /reload is not enough.")
+local hiddenSettings, questItemsOn = AUI.HiddenSettings, false
+local isQuestItems, setQuestItems = hiddenSettings.IsQuestItems, hiddenSettings.SetQuestItems
+hiddenSettings.IsQuestItems = function() return questItemsOn end
+hiddenSettings.SetQuestItems = function(_, on) questItemsOn = on end
+questItems.set(true)
+Equal("quest items row follows the module", tostring(questItemsOn) .. " " .. tostring(questItems.get()), "true true")
+hiddenSettings.IsQuestItems, hiddenSettings.SetQuestItems = isQuestItems, setQuestItems
+AUI.can.approachSparkles = true
+window = Load(nil)
+hiddenPage = window.pages.hiddenSettings
+hiddenCards = {}
+for _, section in ipairs(hiddenPage.sections) do
+	hiddenCards[#hiddenCards + 1] = section.title .. ": " .. SettingIDs(section)
+end
+Equal("approach rows on Forever", table.concat(hiddenCards, " | "), "Loot Sparkles: hiddenSettingsQuestItems "
+	.. "hiddenSettingsOre hiddenSettingsHerbs hiddenSettingsQuestObjects hiddenSettingsCorpses hiddenSettingsChests "
+	.. "hiddenSettingsBobber")
+local lootSparkles = hiddenPage.sections.hiddenSettingsLootSparkles
+local rowLabels = {}
+for _, id in ipairs({ "hiddenSettingsOre", "hiddenSettingsHerbs", "hiddenSettingsQuestObjects",
+	"hiddenSettingsCorpses", "hiddenSettingsChests", "hiddenSettingsBobber" }) do
+	local row = lootSparkles.settings[id]
+	rowLabels[#rowLabels + 1] = row.kind .. " " .. row.label .. " " .. tostring(row.default) .. " "
+		.. tostring(row.description)
+end
+Equal("their labels, off, no second lines", table.concat(rowLabels, ", "), "Checkbox Ore false nil, Checkbox Herbs "
+	.. "false nil, Checkbox Quest Objects false nil, Checkbox Corpses with Loot false nil, Checkbox Chests false nil, "
+	.. "Checkbox Fishing Bobber false nil")
+Equal("the soft targeting note", lootSparkles.notes and lootSparkles.notes[1] and lootSparkles.notes[1].text,
+	"Approached objects use the game's soft targeting: while one of them is on, the Interact Key reaches all around "
+	.. "you.")
+local sparkles, setSparkle = {}, hiddenSettings.SetSparkle
+local isSparkle = hiddenSettings.IsSparkle
+hiddenSettings.IsSparkle = function(_, kind) return sparkles[kind] == true end
+hiddenSettings.SetSparkle = function(_, kind, on) sparkles[kind] = on end
+lootSparkles.settings.hiddenSettingsHerbs.set(true)
+Equal("each row follows its type", tostring(sparkles.herbs) .. " "
+	.. tostring(lootSparkles.settings.hiddenSettingsHerbs.get()) .. " "
+	.. tostring(lootSparkles.settings.hiddenSettingsOre.get()), "true true false")
+hiddenSettings.IsSparkle, hiddenSettings.SetSparkle = isSparkle, setSparkle
+AUI.can.lootSparkle = nil
+window = Load(nil)
+hiddenCards = {}
+for _, section in ipairs(window.pages.hiddenSettings.sections) do
+	hiddenCards[#hiddenCards + 1] = section.title .. ": " .. SettingIDs(section)
+end
+Equal("Quest Items absent without the CVar, page kept for the rows", table.concat(hiddenCards, " | "),
+	"Loot Sparkles: hiddenSettingsOre hiddenSettingsHerbs hiddenSettingsQuestObjects hiddenSettingsCorpses "
+	.. "hiddenSettingsChests hiddenSettingsBobber")
+AUI.can.approachSparkles = nil
+window = Load(nil)
+Equal("page left out without the CVar", window.pages.hiddenSettings, nil)
+AUI.can.merchantWindow = nil
+
+-- Macros page ---------------------------------------------------------------------------------------------
+
+-- In a function of its own: the main chunk is at Lua 5.1's limit of 200 locals.
+local function CheckMacrosPage()
+	AUI.can.macros = true
+	window = Load(nil)
+	Equal("macros after automation", table.concat(window.order, " "), "general #mapsHeader minimap "
+		.. "#tooltipHeader tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader automation macros alerts "
+		.. "notifications - profiles")
+	local macrosPage = window.pages.macros
+	Equal("titled Macros, under Quality of Life, with its icon, tinted", macrosPage.info.title .. " "
+		.. macrosPage.info.under .. " " .. tostring(macrosPage.info.icon == AUI.Media.sidebar.macros) .. " "
+		.. tostring(macrosPage.info.iconTint), "Macros qualityOfLifeHeader true true")
+	local macroCards = {}
+	for _, section in ipairs(macrosPage.sections) do
+		macroCards[#macroCards + 1] = section.title .. ": " .. SettingIDs(section)
+	end
+	Equal("a Food and a Drink card, no mana potions on Retail", table.concat(macroCards, " | "), "Food: "
+		.. "macrosFoodEnabled macrosFoodOnly macrosFoodPickUp | Drink: macrosDrinkEnabled macrosDrinkPickUp | Health: "
+		.. "macrosHealthEnabled macrosHealthPickUp")
+	local foodCard = macrosPage.sections.macrosFood.settings
+	Equal("headed by its switch, off, naming the macro", foodCard.macrosFoodEnabled.kind .. " "
+		.. foodCard.macrosFoodEnabled.label .. " " .. tostring(foodCard.macrosFoodEnabled.default) .. " "
+		.. foodCard.macrosFoodEnabled.description, "Toggle Food Macro false Your best food and drink, kept current as "
+		.. "AeonUI Food.")
+	Equal("Food Only and Pick Up wait for the switch", foodCard.macrosFoodOnly.depends .. " "
+		.. foodCard.macrosFoodPickUp.depends .. " " .. foodCard.macrosFoodPickUp.verb, "macrosFoodEnabled "
+		.. "macrosFoodEnabled Pick Up")
+	local macros, stored = AUI.Macros, {}
+	local isOn, set, pickup = macros.IsOn, macros.Set, macros.Pickup
+	local picked
+	macros.IsOn = function(_, key) return stored[key] == true end
+	macros.Set = function(_, key, on) stored[key] = on end
+	macros.Pickup = function(_, key) picked = key end
+	foodCard.macrosFoodOnly.set(true)
+	macrosPage.sections.macrosDrink.settings.macrosDrinkPickUp.run()
+	Equal("rows follow the module", tostring(stored.foodOnly) .. " " .. tostring(foodCard.macrosFoodOnly.get()) .. " "
+		.. tostring(foodCard.macrosFoodEnabled.get()) .. " " .. tostring(picked), "true true false drink")
+	macros.IsOn, macros.Set, macros.Pickup = isOn, set, pickup
+	AUI.can.manaPotions = true
+	window = Load(nil)
+	macroCards = {}
+	for _, section in ipairs(window.pages.macros.sections) do
+		macroCards[#macroCards + 1] = section.title .. ": " .. SettingIDs(section)
+	end
+	Equal("mana potions on each card on Forever", table.concat(macroCards, " | "), "Food: macrosFoodEnabled "
+		.. "macrosFoodOnly macrosFoodMana macrosFoodPickUp | Drink: macrosDrinkEnabled macrosDrinkMana macrosDrinkPickUp "
+		.. "| Health: macrosHealthEnabled macrosHealthPickUp")
+	AUI.can.bandages = true
+	window = Load(nil)
+	local bandageCard = window.pages.macros.sections.macrosBandage
+	Equal("a Bandage card where bandages need First Aid", bandageCard.title .. ": " .. SettingIDs(bandageCard) .. " "
+		.. bandageCard.settings.macrosBandageEnabled.description, "Bandage: macrosBandageEnabled macrosBandagePickUp "
+		.. "Your best bandage, on yourself, kept current as AeonUI Bandage.")
+	AUI.can.bandages = nil
+	AUI.can.macros, AUI.can.manaPotions = nil, nil
+	window = Load(nil)
+	Equal("no page without the macro functions", window.pages.macros, nil)
+end
+
+CheckMacrosPage()
+
 io.stdout:write(("check_settings: %d checks passed\n"):format(checks))

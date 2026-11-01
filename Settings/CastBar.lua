@@ -1,20 +1,11 @@
 local AUI = select(2, ...)
 
 local L = AUI.L
-local Schema = AUI.Schema
-local Pages = AUI.SettingsPages
+local lib = LibStub("LibAeonSettings-1.0")
 
-local Row, Choice, Slider, Check, Color = Pages.Row, Pages.Choice, Pages.Slider, Pages.Check, Pages.Color
+local PREVIEW_HEIGHT = 84
 
--- Offsets an attached bar takes from its frame, beyond the fixed gap.
-local ATTACHED_OFFSET = 200
-
-local SIDES = {
-	below = L["Below"],
-	above = L["Above"],
-}
-
-local STRATA = {
+local STRATA_LABELS = {
 	BACKGROUND = L["Background"],
 	LOW = L["Low"],
 	MEDIUM = L["Medium"],
@@ -22,293 +13,380 @@ local STRATA = {
 	DIALOG = L["Dialog"],
 }
 
-local ORIENTATIONS = {
+local ORIENTATION_LABELS = {
 	HORIZONTAL = L["Horizontal"],
 	VERTICAL = L["Vertical"],
 }
 
-local ICON_SIDES = {
+local SIDE_LABELS = {
 	LEFT = L["Left"],
 	RIGHT = L["Right"],
 }
 
-local GLOW_STYLES = {
-	pixel = L["Pixel Lines"],
-	blizzard = L["Blizzard"],
+local TIME_FORMAT_LABELS = {
+	REMAINING = L["Remaining"],
+	ELAPSED = L["Elapsed"],
+	REMAINING_TOTAL = L["Remaining / Total"],
+	ELAPSED_TOTAL = L["Elapsed / Total"],
 }
 
-local TIME_FORMATS = {
-	remaining = L["Remaining"],
-	elapsed = L["Elapsed"],
-	remainingTotal = L["Remaining / Total"],
-	elapsedTotal = L["Elapsed / Total"],
-}
+local CASTING, CHANNELING, EMPOWERED, NOT_INTERRUPTIBLE = L["Casting"], L["Channeling"], L["Empowered"],
+	L["Not Interruptible"]
 
----The Cast Bar section of the player, target, focus and boss pages.
+---The Cast Bar page, under the Unit Frames header: the module's switch, a sample bar with its states as its preview,
+---and the Bar, Icon, Text, Spell Name, Time, Cast Target, Feedback, Latency, Pushback, Channel Ticks and, where the
+---client has them, Empowered Casts cards.
 ---@class AUISettingsCastBar
-local CastBar = {
-	ORIENTATIONS = ORIENTATIONS,
-}
-AUI.SettingsCastBar = CastBar
+local SettingsCastBar = {}
+AUI.SettingsCastBar = SettingsCastBar
 
----@param key string a frame with a cast bar
----@return table[] elements the frame page's Cast Bar section, or nothing for a frame without one
-function CastBar:Sections(key)
-	local base = "frames." .. key .. ".castbar."
+---@param values string[]
+---@param labels table<string, string>
+---@return table[] options
+local function ChoiceOptions(values, labels)
+	local options = {}
 
-	if not Schema:Field(base .. "enabled") then
-		return {}
+	for index, value in ipairs(values) do
+		options[index] = { value = value, text = labels[value] }
 	end
 
-	local attached = Schema:Field(base .. "side") ~= nil
-	local offsetX, offsetY = ATTACHED_OFFSET, ATTACHED_OFFSET
+	return options
+end
 
-	if not attached then
-		offsetX, offsetY = math.floor(UIParent:GetWidth() / 2), math.floor(UIParent:GetHeight() / 2)
-	end
+---@param id string
+---@param label string
+---@param path string
+---@param extra table? more of the setting's fields
+---@return table setting
+local function Field(id, label, path, extra)
+	local setting = extra or {}
 
-	---@param fields table?
-	---@return table fields the same fields, depending on Show Cast Bar unless they name another switch
-	local function On(fields)
-		fields = fields or {}
-		fields.depends = fields.depends or "castEnabled"
+	setting.id, setting.label, setting.path, setting.default = id, label, path, AUI.Settings:Default(path)
 
-		return fields
-	end
+	return setting
+end
 
-	local widthMin, widthMax = Pages.Range(base .. "width")
-	local heightMin, heightMax = Pages.Range(base .. "height")
-	local sizeMin, sizeMax = Pages.Range(base .. "name.size")
-	local lengthMin, lengthMax = Pages.Range(base .. "name.maxLength")
-	local borderMin, borderMax = Pages.Range(base .. "border")
-	local holdMin, holdMax = Pages.Range(base .. "holdTime")
+---A still bar in each state, styled as the live bar is.
+---@class AUICastBarPreview
+---@field bar AUICastBarFrame?
+local CastBarPreview = {}
 
-	local Shared = AUI.SettingsShared
-	local elements = {
-		Shared:Section("castBar", L["Cast Bar"], key, Shared.SCOPES.castBar, true),
-		Row(
-			Check("castEnabled", L["Show Cast Bar"], base .. "enabled", {
-				description = attached and nil or L["Replaces Blizzard's player cast bar while shown."],
-			}),
-			Choice("castStrata", L["Frame Strata"], base .. "strata", Pages.Options("strata", STRATA), On())
-		),
+---@param canvas Frame
+function CastBarPreview:Create(canvas)
+	local bar = AUI.CastBar:Build(canvas)
+
+	bar:SetPoint("CENTER")
+	bar:Show()
+	self.bar = bar
+end
+
+---@param state string a state's label
+---@param preview table
+---@return number width
+---@return number height
+function CastBarPreview:Refresh(state, preview)
+	local bar = self.bar --[[@as AUICastBarFrame]]
+	local STATES = AUI.CastBarOptions.STATES
+	local keys = {
+		[CASTING] = STATES.CASTING,
+		[CHANNELING] = STATES.CHANNELING,
+		[EMPOWERED] = STATES.EMPOWERED,
+		[NOT_INTERRUPTIBLE] = STATES.NOT_INTERRUPTIBLE,
+		[INTERRUPTED] = STATES.INTERRUPTED,
 	}
 
-	local function Add(left, right)
-		elements[#elements + 1] = Row(left, right)
+	AUI.CastBar:Style(bar)
+	AUI.CastBar:DrawSample(bar, keys[state], state)
+
+	preview:Part(bar.bar, "color")
+
+	if bar.latency:IsShown() then
+		preview:Part(bar.latency, "latency")
 	end
 
-	local width = Slider("castWidth", L["Width"], base .. "width", widthMin, widthMax,
-		On({ blocked = Pages.Placed(base, "width") }))
-
-	if attached then
-		width.blocked = function()
-			if AUI.Profile:Get(base .. "matchWidth") then
-				return L["Matches the frame's width."]
-			end
-		end
-
-		Add(
-			Choice("castSide", L["Position"], base .. "side", Pages.Options("castSide", SIDES), On()),
-			Check("castMatchWidth", L["Match Frame Width"], base .. "matchWidth", On())
-		)
+	if bar.icon:IsShown() then
+		preview:Part(bar.icon, "icon")
 	end
 
-	Add(width, Slider("castHeight", L["Height"], base .. "height", heightMin, heightMax,
-		On({ blocked = Pages.Placed(base, "height") })))
-	Add(
-		Slider("castX", L["X Offset"], base .. "x", -offsetX, offsetX, On({ blocked = Pages.Placed(base, "position") })),
-		Slider("castY", L["Y Offset"], base .. "y", -offsetY, offsetY, On({ blocked = Pages.Placed(base, "position") }))
-	)
-	Add(
-		Check("castAlwaysShow", L["Always Show"], base .. "alwaysShow", On({
-			description = L["Keep the empty bar visible between casts."],
-		})),
-		Check("castSmooth", L["Smooth Animation"], base .. "smooth", On())
-	)
-	Add(
-		Pages.Setting("dropdown", "castTexture", L["Bar Texture"], base .. "texture", On({
-			picker = "texture",
-			options = Pages.TEXTURES,
-		})),
-		Check("castReverse", L["Reverse Fill"], base .. "reverse", On())
-	)
-	Add(
-		Color("castColor", L["Fill Color"], base .. "color", On()),
-		Check("castClassColor", L["Class-Colored Fill"], base .. "classColor", On({
-			description = L["Color the fill by the casting unit's class, when it has one."],
-		}))
-	)
-	Add(
-		Check("castGradient", L["Gradient"], base .. "gradient", On()),
-		Choice("castGradientDirection", L["Gradient Direction"], base .. "gradientDirection",
-			Pages.Options("orientation", ORIENTATIONS), On({ depends = "castGradient" }))
-	)
-	Add(
-		Color("castGradientColor", L["Gradient End Color"], base .. "gradientColor", On({ depends = "castGradient" })),
-		Color("castBackground", L["Background"], base .. "background", On({ hasOpacity = true }))
-	)
-	Add(
-		Slider("castBorder", L["Border Size"], base .. "border", borderMin, borderMax, On()),
-		Check("castSpark", L["Show Spark"], base .. "spark", On())
-	)
-	Add(
-		Check("castIcon", L["Show Icon"], base .. "icon", On()),
-		Choice("castIconSide", L["Icon Side"], base .. "iconSide", Pages.Options("iconSide", ICON_SIDES),
-			On({ depends = "castIcon" }))
-	)
-	Add(
-		Check("castName", L["Show Spell Name"], base .. "name.enabled", On()),
-		Slider("castNameSize", L["Spell Name Size"], base .. "name.size", sizeMin, sizeMax, On({ depends = "castName" }))
-	)
-	Add(
-		Color("castNameColor", L["Spell Name Color"], base .. "name.color", On({ depends = "castName" })),
-		Slider("castNameLength", L["Max Length"], base .. "name.maxLength", lengthMin, lengthMax, On({
-			depends = "castName",
-			description = L["The most letters of a spell name shown. 0 shortens a name only where it meets the time."],
-		}))
-	)
-	Add(
-		Slider("castNameX", L["Spell Name X"], base .. "name.x", -ATTACHED_OFFSET, ATTACHED_OFFSET,
-			On({ depends = "castName" })),
-		Slider("castNameY", L["Spell Name Y"], base .. "name.y", -ATTACHED_OFFSET, ATTACHED_OFFSET,
-			On({ depends = "castName" }))
-	)
-	Add(
-		Check("castTime", L["Show Time"], base .. "time.enabled", On()),
-		Choice("castTimeFormat", L["Time Format"], base .. "time.format", Pages.Options("timeFormat", TIME_FORMATS),
-			On({ depends = "castTime" }))
-	)
-	Add(
-		Slider("castTimeSize", L["Time Size"], base .. "time.size", sizeMin, sizeMax, On({ depends = "castTime" })),
-		Color("castTimeColor", L["Time Color"], base .. "time.color", On({ depends = "castTime" }))
-	)
-	Add(
-		Slider("castTimeX", L["Time X"], base .. "time.x", -ATTACHED_OFFSET, ATTACHED_OFFSET,
-			On({ depends = "castTime" })),
-		Slider("castTimeY", L["Time Y"], base .. "time.y", -ATTACHED_OFFSET, ATTACHED_OFFSET,
-			On({ depends = "castTime" }))
-	)
-	Add(
-		Choice("castOutline", L["Outline"], base .. "outline", Pages.Options("outline", Pages.OUTLINES), On()),
-		Check("castShadow", L["Text Shadow"], base .. "shadow", On())
-	)
-	Add(
-		Color("castNotInterruptible", L["Not Interruptible"], base .. "notInterruptible", On({
-			description = L["The fill color while the cast cannot be interrupted."],
-		})),
-		Color("castInterrupted", L["Interrupted"], base .. "interrupted", On({
-			description = L["The fill color while Interrupted or Failed shows."],
-		}))
-	)
-	Add(Slider("castHoldTime", L["Hold Time"], base .. "holdTime", holdMin, holdMax, On({
+	if bar.text:IsShown() then
+		preview:Part(bar.text, "nameEnabled", { text = true })
+	end
+
+	if bar.time:IsShown() then
+		preview:Part(bar.time, "timeEnabled", { text = true })
+	end
+
+	if bar.target:IsShown() then
+		preview:Part(bar.target, "targetEnabled", { text = true })
+	end
+
+	return bar:GetSize()
+end
+
+---@param page table
+function SettingsCastBar:DeclareBar(page)
+	local Options = AUI.CastBarOptions
+	local card = page:Section("castBarBar", L["Bar"])
+
+	card:Slider(Field("width", L["Width"], "castBar.width", {
+		min = Options.MIN_WIDTH,
+		max = Options.MAX_WIDTH,
+		step = 1,
+	}))
+	card:Slider(Field("height", L["Height"], "castBar.height", {
+		min = Options.MIN_HEIGHT,
+		max = Options.MAX_HEIGHT,
+		step = 1,
+	}))
+	card:Dropdown(Field("texture", L["Texture"], "castBar.texture", { picker = "texture" }))
+	card:Color(Field("color", L["Fill Color"], "castBar.color", {
+		classColor = Field("classColor", L["Class Color"], "castBar.classColor"),
+	}))
+	card:Checkbox(Field("gradient", L["Gradient"], "castBar.gradient"))
+	card:Color(Field("gradientColor", L["Gradient End Color"], "castBar.gradientColor", { depends = "gradient" }))
+	card:Dropdown(Field("gradientDirection", L["Gradient Direction"], "castBar.gradientDirection", {
+		depends = "gradient",
+		options = ChoiceOptions(Options.ORIENTATIONS, ORIENTATION_LABELS),
+	}))
+	card:Color(Field("notInterruptible", L["Not Interruptible"], "castBar.notInterruptible"))
+	card:Color(Field("background", L["Background"], "castBar.background", { hasOpacity = true }))
+	card:Slider(Field("border", L["Border Size"], "castBar.border", { min = 0, max = Options.MAX_BORDER, step = 1 }))
+	card:Checkbox(Field("spark", L["Show Spark"], "castBar.spark"))
+	card:Checkbox(Field("reverse", L["Reverse Fill"], "castBar.reverse"))
+	card:Checkbox(Field("smooth", L["Smooth Animation"], "castBar.smooth"))
+	card:Checkbox(Field("alwaysShow", L["Always Show"], "castBar.alwaysShow"))
+	card:Dropdown(Field("strata", L["Frame Strata"], "castBar.strata", {
+		options = ChoiceOptions(Options.STRATAS, STRATA_LABELS),
+	}))
+end
+
+---@param page table
+function SettingsCastBar:DeclareIcon(page)
+	local Options = AUI.CastBarOptions
+	local card = page:Section("castBarIcon", L["Icon"])
+
+	card:Checkbox(Field("icon", L["Show Icon"], "castBar.icon"))
+	card:Dropdown(Field("iconSide", L["Icon Side"], "castBar.iconSide", {
+		depends = "icon",
+		options = ChoiceOptions(Options.SIDES, SIDE_LABELS),
+	}))
+end
+
+---@param page table
+function SettingsCastBar:DeclareText(page)
+	local card = page:Section("castBarText", L["Text"])
+
+	card:Dropdown(Field("font", L["Font"], "castBar.font", { picker = "font" }))
+	card:Dropdown(Field("outline", L["Outline"], "castBar.outline", { options = lib.OUTLINES }))
+	card:Checkbox(Field("shadow", L["Text Shadow"], "castBar.shadow"))
+end
+
+---The settings a text shares: its size, color and offsets.
+---@param card table
+---@param key string `name` or `time`
+---@param switch string the id of the card's switch
+local function DeclareTextPlace(card, key, switch)
+	local Options = AUI.CastBarOptions
+	local base = "castBar." .. key .. "."
+
+	card:Slider(Field(key .. "Size", L["Size"], base .. "size", {
+		depends = switch,
+		min = Options.MIN_TEXT,
+		max = Options.MAX_TEXT,
+		step = 1,
+	}))
+	card:Color(Field(key .. "Color", COLOR, base .. "color", { depends = switch }))
+	card:Slider(Field(key .. "X", L["X Offset"], base .. "x", {
+		depends = switch,
+		min = -Options.MAX_OFFSET,
+		max = Options.MAX_OFFSET,
+		step = 1,
+	}))
+	card:Slider(Field(key .. "Y", L["Y Offset"], base .. "y", {
+		depends = switch,
+		min = -Options.MAX_OFFSET,
+		max = Options.MAX_OFFSET,
+		step = 1,
+	}))
+end
+
+---@param page table
+function SettingsCastBar:DeclareName(page)
+	local Options = AUI.CastBarOptions
+	local card = page:Section("castBarName", L["Spell Name"])
+
+	card:Checkbox(Field("nameEnabled", L["Show Spell Name"], "castBar.name.enabled"))
+	DeclareTextPlace(card, "name", "nameEnabled")
+	card:Slider(Field("nameLength", L["Max Length"], "castBar.name.maxLength", {
+		depends = "nameEnabled",
+		description = L["0 shortens a name only where it meets the time."],
+		min = 0,
+		max = Options.MAX_LENGTH,
+		step = 1,
+	}))
+end
+
+---@param page table
+function SettingsCastBar:DeclareTime(page)
+	local Options = AUI.CastBarOptions
+	local card = page:Section("castBarTime", L["Time"])
+
+	card:Checkbox(Field("timeEnabled", L["Show Time"], "castBar.time.enabled"))
+	card:Dropdown(Field("timeFormat", L["Time Format"], "castBar.time.format", {
+		depends = "timeEnabled",
+		options = ChoiceOptions(Options.TIME_FORMATS, TIME_FORMAT_LABELS),
+	}))
+	DeclareTextPlace(card, "time", "timeEnabled")
+end
+
+---@param page table
+function SettingsCastBar:DeclareFeedback(page)
+	local Options = AUI.CastBarOptions
+	local card = page:Section("castBarFeedback", L["Feedback"])
+
+	card:Color(Field("interrupted", INTERRUPTED, "castBar.interrupted"))
+	card:Slider(Field("holdTime", L["Hold Time"], "castBar.holdTime", {
+		min = 0,
+		max = Options.MAX_HOLD,
 		step = 0.1,
 		format = "decimal",
-		description = L["How long Interrupted or Failed stays on the bar, in seconds."],
-	})))
+	}))
+	card:Checkbox(Field("fade", L["Fade Out"], "castBar.fade"))
+end
 
-	Add(
-		Check("castTarget", L["Show Cast Target"], base .. "target.enabled", On({
-			description = L["The name of the cast's target, in its class color, when the game shows it."],
-		})),
-		Slider("castTargetSize", L["Cast Target Size"], base .. "target.size", sizeMin, sizeMax,
-			On({ depends = "castTarget" }))
-	)
-	Add(
-		Slider("castTargetX", L["Cast Target X"], base .. "target.x", -ATTACHED_OFFSET, ATTACHED_OFFSET,
-			On({ depends = "castTarget" })),
-		Slider("castTargetY", L["Cast Target Y"], base .. "target.y", -ATTACHED_OFFSET, ATTACHED_OFFSET,
-			On({ depends = "castTarget" }))
-	)
+---@param page table
+function SettingsCastBar:DeclareLatency(page)
+	local card = page:Section("castBarLatency", L["Latency"])
 
-	if Schema:Field(base .. "interruptReady") then
-		local linesMin, linesMax = Pages.Range(base .. "glowLines")
-		local thickMin, thickMax = Pages.Range(base .. "glowThickness")
-		local speedMin, speedMax = Pages.Range(base .. "glowSpeed")
+	card:Checkbox(Field("latency", L["Show Latency"], "castBar.latency"))
+	card:Color(Field("latencyColor", L["Latency Color"], "castBar.latencyColor", {
+		depends = "latency",
+		hasOpacity = true,
+	}))
+	card:Checkbox(Field("latencyText", L["Show Latency Text"], "castBar.latencyText", { depends = "latency" }))
+end
 
-		Add(
-			Check("castReady", L["Interrupt Ready"], base .. "interruptReady", On({
-				description = L["Colors the bar while your interrupt is ready and the cast can be interrupted."],
-			})),
-			Color("castReadyColor", L["Interrupt Ready Color"], base .. "readyColor", On({ depends = "castReady" }))
-		)
-		Add(
-			Check("castOnCooldown", L["Interrupt On Cooldown"], base .. "interruptCooldown", On({
-				description = L["Colors the bar while your interrupt is on cooldown."],
-			})),
-			Color("castOnCooldownColor", L["Interrupt On Cooldown Color"], base .. "cooldownColor",
-				On({ depends = "castOnCooldown" }))
-		)
-		Add(
-			Check("castKickMark", L["Cooldown Mark"], base .. "kickMark", On({
-				description = L["Marks where your interrupt comes off cooldown during the cast."],
-			})),
-			Check("castKickWindow", L["Interrupt Window"], base .. "kickWindow", On({
-				description = L["Shades the part of the cast after your interrupt is ready."],
-			}))
-		)
-		Add(Color("castWindowColor", L["Interrupt Window Color"], base .. "windowColor", On({
-			depends = "castKickWindow",
-			hasOpacity = true,
-		})))
-		Add(
-			Check("castGlow", L["Important Spell Glow"], base .. "glow", On({
-				description = L["A glow around the bar while the spell is one the game marks important."],
-			})),
-			Choice("castGlowStyle", L["Glow Style"], base .. "glowStyle", Pages.Options("glowStyle", GLOW_STYLES),
-				On({ depends = "castGlow" }))
-		)
-		Add(
-			Color("castGlowColor", L["Glow Color"], base .. "glowColor", On({ depends = "castGlow" })),
-			Slider("castGlowLines", L["Glow Lines"], base .. "glowLines", linesMin, linesMax, On({ depends = "castGlow" }))
-		)
-		Add(
-			Slider("castGlowThickness", L["Glow Thickness"], base .. "glowThickness", thickMin, thickMax,
-				On({ depends = "castGlow" })),
-			Slider("castGlowSpeed", L["Glow Speed"], base .. "glowSpeed", speedMin, speedMax, On({ depends = "castGlow" }))
-		)
+---@param page table
+function SettingsCastBar:DeclarePushback(page)
+	local card = page:Section("castBarPushback", L["Pushback"])
+
+	card:Checkbox(Field("pushback", L["Show Pushback"], "castBar.pushback"))
+	card:Color(Field("pushbackColor", L["Pushback Color"], "castBar.pushbackColor", { depends = "pushback" }))
+end
+
+---@param page table
+function SettingsCastBar:DeclareEmpowered(page)
+	local Options = AUI.CastBarOptions
+	local card = page:Section("castBarEmpowered", L["Empowered Casts"])
+
+	card:Checkbox(Field("empowerColors", L["Colored Stages"], "castBar.empowerColors"))
+
+	for index = 1, Options.STAGE_COLORS do
+		card:Color(Field("stage" .. index, L["Stage %d Color"]:format(index), "castBar.stage." .. index, {
+			depends = "empowerColors",
+		}))
 	end
 
-	if Schema:Field(base .. "latency") then
-		Add(
-			Check("castLatency", L["Show Latency"], base .. "latency", On({
-				description = L["Shades the end of the cast that falls within your latency."],
-			})),
-			Color("castLatencyColor", L["Latency Color"], base .. "latencyColor", On({
-				depends = "castLatency",
-				hasOpacity = true,
-			}))
-		)
-		Add(Check("castLatencyText", L["Show Latency Text"], base .. "latencyText", On({ depends = "castLatency" })))
-		Add(
-			Check("castEmpowerColors", L["Colored Empowered Stages"], base .. "empowerColors", On({
-				description = L["Colors each stage of an empowered cast as it charges."],
-			})),
-			Check("castStageLabel", L["Show Stage Label"], base .. "stageLabel", On({
-				description = L["Shows the stage reached, and Hold at full charge, in place of the time."],
-			}))
-		)
+	card:Checkbox(Field("stageLabel", L["Show Stage Label"], "castBar.stageLabel", {
+		description = L["Shows the stage reached, and Hold at full charge, in place of the time."],
+	}))
+end
 
-		Add(
-			Check("castTicks", L["Channel Ticks"], base .. "ticks", On({
-				description = L["Marks where each tick of a channeled spell lands."],
-			})),
-			Color("castTickColor", L["Tick Color"], base .. "tickColor", On({ depends = "castTicks", hasOpacity = true }))
-		)
-		Add(Check("castLastTick", L["Last Tick"], base .. "lastTick", On({
-			depends = "castTicks",
-			description = L["Marks the final tick in white."],
-		})))
+---@param page table
+function SettingsCastBar:DeclareTarget(page)
+	local Options = AUI.CastBarOptions
+	local card = page:Section("castBarTarget", L["Cast Target"])
 
-		for index = 1, 4, 2 do
-			Add(
-				Color("castStage" .. index, L["Stage %d Color"]:format(index), base .. "stage." .. index,
-					On({ depends = "castEmpowerColors" })),
-				Color("castStage" .. index + 1, L["Stage %d Color"]:format(index + 1), base .. "stage." .. index + 1,
-					On({ depends = "castEmpowerColors" }))
-			)
-		end
+	card:Checkbox(Field("targetEnabled", L["Show Cast Target"], "castBar.target.enabled"))
+	card:Color(Field("targetColor", COLOR, "castBar.target.color", {
+		depends = "targetEnabled",
+		classColor = Field("targetClassColor", L["Class Color"], "castBar.target.classColor"),
+	}))
+	card:Slider(Field("targetSize", L["Size"], "castBar.target.size", {
+		depends = "targetEnabled",
+		min = Options.MIN_TEXT,
+		max = Options.MAX_TEXT,
+		step = 1,
+	}))
+	card:Slider(Field("targetX", L["X Offset"], "castBar.target.x", {
+		depends = "targetEnabled",
+		min = -Options.MAX_OFFSET,
+		max = Options.MAX_OFFSET,
+		step = 1,
+	}))
+	card:Slider(Field("targetY", L["Y Offset"], "castBar.target.y", {
+		depends = "targetEnabled",
+		min = -Options.MAX_OFFSET,
+		max = Options.MAX_OFFSET,
+		step = 1,
+	}))
+end
+
+---@param page table
+function SettingsCastBar:DeclareTicks(page)
+	local card = page:Section("castBarTicks", L["Channel Ticks"])
+
+	card:Checkbox(Field("ticks", L["Show Channel Ticks"], "castBar.ticks"))
+	card:Color(Field("tickColor", L["Tick Color"], "castBar.tickColor", { depends = "ticks", hasOpacity = true }))
+	card:Checkbox(Field("lastTick", L["Last Tick"], "castBar.lastTick", { depends = "ticks" }))
+	card:Color(Field("lastTickColor", L["Last Tick Color"], "castBar.lastTickColor", { depends = "lastTick" }))
+end
+
+---@param window table
+function SettingsCastBar:Declare(window)
+	local Options = AUI.CastBarOptions
+
+	window:Header("unitFramesHeader", L["Unit Frames"])
+
+	local page = window:Page("castBar", {
+		title = L["Cast Bar"],
+		under = "unitFramesHeader",
+		icon = AUI.Media.sidebar.castBar,
+		iconTint = true,
+		switch = {
+			path = Options.ENABLED_PATH,
+			default = AUI.Settings:Default(Options.ENABLED_PATH),
+			label = L["Show Cast Bar"],
+		},
+	})
+
+	if not page then
+		return
 	end
 
-	return elements
+	local states = { CASTING, CHANNELING, NOT_INTERRUPTIBLE, INTERRUPTED }
+
+	if AUI.can.empoweredCasts then
+		table.insert(states, 3, EMPOWERED)
+	end
+
+	page:Preview({
+		height = PREVIEW_HEIGHT,
+		states = states,
+		create = function(canvas)
+			CastBarPreview:Create(canvas)
+		end,
+		refresh = function(_, state, preview)
+			return CastBarPreview:Refresh(state or CASTING, preview)
+		end,
+	})
+
+	self:DeclareBar(page)
+	self:DeclareIcon(page)
+	self:DeclareText(page)
+	self:DeclareName(page)
+	self:DeclareTime(page)
+
+	if AUI.can.castTarget then
+		self:DeclareTarget(page)
+	end
+
+	self:DeclareFeedback(page)
+	self:DeclareLatency(page)
+	self:DeclarePushback(page)
+	self:DeclareTicks(page)
+
+	if AUI.can.empoweredCasts then
+		self:DeclareEmpowered(page)
+	end
 end

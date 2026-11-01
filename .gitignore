@@ -21,13 +21,11 @@ desktop.ini
 
 # ---------------------------------------------------------------------------
 # Libraries
-# Fetched at release by .pkgmeta (oUF at its pinned tag); embeds.xml is ours and the .toc's only way in.
-# AeonSettings is the exception: its sync script vendors it, renamed for AeonUI, and the copy is committed.
+# Fetched at release by .pkgmeta; embeds.xml is ours and the .toc's only way in.
 # Excluding the contents rather than the folder is what lets the negation apply.
 # ---------------------------------------------------------------------------
 /Libs/*
 !/Libs/embeds.xml
-!/Libs/AeonSettings/
 
 # ---------------------------------------------------------------------------
 # AI assistant files — never published to GitHub

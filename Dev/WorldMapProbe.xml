@@ -1,0 +1,11 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+	<Script file="WorldMapProbe.lua"/>
+
+	<Button name="AeonUIWorldMapProbePinTemplate" mixin="AeonUIWorldMapProbePinMixin" enableMouse="true" virtual="true">
+		<Layers>
+			<Layer level="ARTWORK">
+				<Texture parentKey="Icon"/>
+			</Layer>
+		</Layers>
+	</Button>
+</Ui>

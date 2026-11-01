@@ -4,8 +4,12 @@ local AUI = select(2, ...)
 local Codec = AUI.Codec
 
 ---@class AUIDev
----@field bossTest boolean? the boss frames show the player
 ---@field channelLog boolean? each channel the player starts is printed
+---@field MinimapProbe AUIMinimapProbe? the M0 minimap probe, from Dev/MinimapProbe.lua
+---@field WorldMapProbe AUIWorldMapProbe? the W0 world map probe, from Dev/WorldMapProbe.lua
+---@field DeleteCheapestItemProbe AUIDeleteCheapestItemProbe? the S0 Delete Cheapest Item probe, from
+---Dev/DeleteCheapestItemProbe.lua
+---@field SparklesProbe AUISparklesProbe? the S2 Loot Sparkles probe, from Dev/SparklesProbe.lua
 local Dev = {}
 AUI.Dev = Dev
 
@@ -134,33 +138,127 @@ function Dev:Codec()
 	AUI:Print("codec: %d passed, %d failed", passed, failed)
 end
 
----Shows the boss frames on the player, for placing them without an encounter, or returns them to their boss units.
----Changing a secure frame's unit is refused in combat.
-function Dev:Bosses()
-	local frames = AUI.Frames.objects.boss
+-- The atlases `/aui dev atlas` reports when it is given no names: Blizzard's metal window frame.
+local METAL_ATLASES = {
+	"UI-Frame-Metal-CornerTopLeft", "UI-Frame-Metal-CornerTopRight", "UI-Frame-Metal-CornerTopRightDouble",
+	"UI-Frame-Metal-CornerBottomLeft", "UI-Frame-Metal-CornerBottomRight", "_UI-Frame-Metal-EdgeTop",
+	"_UI-Frame-Metal-EdgeBottom", "!UI-Frame-Metal-EdgeLeft", "!UI-Frame-Metal-EdgeRight",
+}
 
-	if not frames then
-		AUI:Warn("the boss frames have not been created.")
+---Prints each atlas's size in UI units, its file and its texture coordinates, read from the running client.
+---@param line string atlas names separated by spaces; the metal frame's when empty. Names are lowercased by the slash
+---command, which atlas lookups ignore.
+function Dev:Atlases(line)
+	local names = {}
+
+	for name in line:gmatch("%S+") do
+		names[#names + 1] = name
+	end
+
+	if #names == 0 then
+		names = METAL_ATLASES
+	end
+
+	local version, build = GetBuildInfo()
+
+	AUI:Print("atlases on %s.%s:", tostring(version), tostring(build))
+
+	for _, name in ipairs(names) do
+		local info = C_Texture.GetAtlasInfo(name)
+
+		if info then
+			AUI:Print("%s: %d x %d, file %s, x %.4f-%.4f, y %.4f-%.4f, tiles %s/%s", name, info.width, info.height,
+				tostring(info.filename or info.file), info.leftTexCoord, info.rightTexCoord, info.topTexCoord,
+				info.bottomTexCoord, tostring(info.tilesHorizontally), tostring(info.tilesVertically))
+		else
+			AUI:Print("%s: no such atlas", name)
+		end
+	end
+end
+
+---@param frame table
+---@return string text a frame's center, size and scale in screen pixels' units
+local function Rect(frame)
+	local x, y = frame:GetCenter()
+	local scale = frame:GetEffectiveScale()
+
+	return ("center %.1f, %.1f  size %.1f x %.1f  scale %.3f"):format((x or 0) * scale, (y or 0) * scale,
+		frame:GetWidth() * scale, frame:GetHeight() * scale, scale)
+end
+
+---Prints where the Minimap module's frame and Blizzard's map are on screen, and the map's clamping.
+function Dev:MapReport()
+	local module = AUI.Minimap
+
+	if not module.active then
+		AUI:Print("map: the Minimap module is not active this session.")
 
 		return
 	end
 
-	if InCombatLockdown() then
-		AUI:Warn("boss test mode can only change out of combat.")
+	local left, right, top, bottom = Minimap:GetClampRectInsets()
+
+	AUI:Print("map: screen %.0f x %.0f", GetPhysicalScreenSize())
+	AUI:Print("holder: %s", Rect(module.holder --[[@as Frame]]))
+	AUI:Print("Minimap: %s", Rect(Minimap))
+	AUI:Print("clamped %s, clamp insets %.1f %.1f %.1f %.1f, mask %s", tostring(Minimap:IsClampedToScreen()), left,
+		right, top, bottom, tostring(module.mask):match("[^\\]+$") or "?")
+end
+
+---Places a minimap row element.
+---@param line string `<element> <top1|top2|bottom1|bottom2|hidden> [order]`, lowercased
+function Dev:PlaceElement(line)
+	local key, row, order = line:match("^(%S+)%s+(%S+)%s*(%d*)$")
+	local element = key and AUI.MinimapElements.byKey[key]
+
+	if not element then
+		local keys = {}
+
+		for _, known in ipairs(AUI.MinimapElements.list) do
+			keys[#keys + 1] = known.key
+		end
+
+		AUI:Print("usage: /aui dev row <%s> <top1|top2|bottom1|bottom2|hidden> [order]", table.concat(keys, "|"))
 
 		return
 	end
 
-	self.bossTest = not self.bossTest
+	local elements = AUI.MinimapElements
 
-	for slot, frame in ipairs(frames) do
-		frame:SetAttribute("unit", self.bossTest and "player" or ("boss" .. slot))
+	if not tContains(elements.LISTS, row:upper()) then
+		AUI:Print("row: %s is not a row", row)
+
+		return
 	end
 
-	AUI:Print("boss test mode %s.", self.bossTest and "on: the boss frames show the player" or "off")
+	local layout = elements:Move(elements:Layout(), key, row:upper(), tonumber(order))
+	local ok, problem = AUI.Profile:Set(elements.LAYOUT_PATH, layout)
+
+	AUI:Print("row: %s %s", key, ok and "placed" or tostring(problem))
+end
+
+---Prints the player's position as a world map marker row, ready to paste into WorldMap/Data.lua under its map.
+---@param note string anything typed after the command, printed beside the row
+function Dev:Mark(note)
+	local mapID = C_Map.GetBestMapForUnit("player")
+	local position = mapID and C_Map.GetPlayerMapPosition(mapID, "player")
+
+	if not position then
+		AUI:Print("mark: no map position here (inside an instance, or no map)")
+
+		return
+	end
+
+	local x, y = position:GetXY()
+	local info = C_Map.GetMapInfo(mapID)
+
+	AUI:Print("mark: [%d] = { -- %s", mapID, info and info.name or "?")
+	AUI:Print("  { %.1f, %.1f },%s", x * 100, y * 100, note ~= "" and (" -- " .. note) or "")
 end
 
 ---Prints a channel the player started: its spell ID, name and length, and whether the tick list has it.
+---@param _ string
+---@param unit string
 function Dev:OnChannel(_, unit)
 	if unit ~= "player" then
 		return
@@ -174,17 +272,14 @@ function Dev:OnChannel(_, unit)
 		return
 	end
 
-	if not name then
-		return
+	if name then
+		AUI:Print("channel: %s, spell %d, %.2f s, %s", name, spellID, (finish - start) / 1000,
+			AUI.CastBarTickData.spells[spellID] and "listed" or "not listed")
 	end
-
-	local listed = AUI.CastData.channels[spellID] and "listed" or "not listed"
-
-	AUI:Print("channel: %s, spell %d, %.2f s, %s", name, spellID, (finish - start) / 1000, listed)
 end
 
 ---Turns the channel log on or off.
-function Dev:Channels()
+function Dev:ChannelLog()
 	self.channelLog = not self.channelLog
 
 	if self.channelLog then
@@ -196,54 +291,78 @@ function Dev:Channels()
 	AUI:Print("channel log %s.", self.channelLog and "on: start a channel" or "off")
 end
 
----Lists the buff category spell IDs the running client does not know.
-function Dev:Spells()
-	local unknown = 0
+---@param line string the words after `/aui dev`, lowercased
+function Dev:Command(line)
+	local command, rest = line:match("^(%S*)%s*(.-)$")
 
-	for key, category in pairs(AUI.AuraCategories:Catalogue()) do
-		local missing = {}
-
-		for id in pairs(category.spells) do
-			if not C_Spell.GetSpellInfo(id) then
-				missing[#missing + 1] = tostring(id)
-			end
-		end
-
-		if #missing > 0 then
-			table.sort(missing)
-			unknown = unknown + #missing
-			AUI:Print("%s: %s", key, table.concat(missing, ", "))
-		end
-	end
-
-	AUI:Print("buff categories: %d unknown spell IDs (%s list)", unknown, AUI.can.retailSpells and "Retail" or "Forever")
-end
-
----@param command string
-function Dev:Command(command)
 	if command == "codec" then
 		self:Codec()
 
 		return
 	end
 
-	if command == "boss" then
-		self:Bosses()
+	if command == "map" then
+		self:MapReport()
+
+		return
+	end
+
+	if command == "atlas" then
+		self:Atlases(rest)
+
+		return
+	end
+
+	if command == "preview" then
+		local elements = AUI.MinimapElements
+
+		elements:SetPreview(not elements.previewers.dev, "dev")
+		AUI:Print("preview: %s", elements.previewers.dev and "on" or "off")
+
+		return
+	end
+
+	if command == "row" then
+		self:PlaceElement(rest)
 
 		return
 	end
 
 	if command == "channel" then
-		self:Channels()
+		self:ChannelLog()
 
 		return
 	end
 
-	if command == "spells" then
-		self:Spells()
+	if command == "minimap" and self.MinimapProbe then
+		self.MinimapProbe:Command(rest)
 
 		return
 	end
 
-	AUI:Print("dev commands: codec, boss, channel, spells")
+	if command == "mark" then
+		self:Mark(rest)
+
+		return
+	end
+
+	if command == "worldmap" and self.WorldMapProbe then
+		self.WorldMapProbe:Command(rest)
+
+		return
+	end
+
+	if command == "dci" and self.DeleteCheapestItemProbe then
+		self.DeleteCheapestItemProbe:Command(rest)
+
+		return
+	end
+
+	if command == "sparkles" and self.SparklesProbe and AUI.can.approachSparkles then
+		self.SparklesProbe:Command()
+
+		return
+	end
+
+	AUI:Print("dev commands: codec, map, atlas [names], row, preview, channel, minimap, worldmap, dci, sparkles, mark [note]")
 end

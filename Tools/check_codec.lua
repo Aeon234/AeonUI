@@ -134,6 +134,9 @@ end
 
 local Codec, Profile, Store = AUI.Codec, AUI.Profile, AUI.Store
 
+-- A fixture field standing in for the settings features declare.
+AUI.Schema:Number("fixture.width", 270, 40, 800, true)
+
 function Profile:Save(data)
 	AeonUIDB = data
 end
@@ -222,7 +225,7 @@ fault.compress = nil
 -- Profile export and import ---------------------------------------------------------------------------------
 
 Profile:Initialize(nil, "Player-1")
-Profile:Set("frames.player.width", 444)
+Profile:Set("fixture.width", 444)
 Profile.root.profilesByID[Store.DEFAULT_ID].config.future = { kept = true }
 
 local exported = Profile:Export(Store.DEFAULT_ID)
@@ -232,7 +235,7 @@ Equal("a missing profile does not export", (Profile:Export("p00000099")), nil)
 local import, reason = Profile:Decode(exported)
 Equal("decode", reason, nil)
 Equal("decode keeps the name", import.name, "Default")
-Equal("decode keeps settings", import.config.frames.player.width, 444)
+Equal("decode keeps settings", import.config.fixture.width, 444)
 Equal("decode counts dormant settings", import.dormant, 1)
 Equal("decode changes nothing", Store:CountProfiles(AeonUIDB), 1)
 
@@ -242,7 +245,7 @@ ok, id = Profile:Import(import, "Imported")
 Equal("import", ok, true)
 Equal("import gets a new ID", id, "p00000002")
 Equal("import activates", Profile.activeID, id)
-Equal("import keeps settings", Profile:Get("frames.player.width"), 444)
+Equal("import keeps settings", Profile:Get("fixture.width"), 444)
 Equal("import keeps dormant settings", AeonUIDB.profilesByID[id].config.future.kept, true)
 ok = Profile:Import(import, "IMPORTED")
 Equal("import name collision", ok, false)
@@ -270,7 +273,7 @@ Refused("a bad setting", {
 	addon = "AeonUI",
 	version = VERSION,
 	name = "N",
-	profile = { frames = { player = { width = 1 } } },
+	profile = { fixture = { width = 1 } },
 }, UNUSABLE)
 Refused("schema 0", { addon = "AeonUI", version = 0, name = "N", profile = {} }, UNUSABLE)
 local _, why = Profile:Decode("AUI!9!" .. body)

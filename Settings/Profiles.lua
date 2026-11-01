@@ -1,36 +1,29 @@
 local AUI = select(2, ...)
 
 local L = AUI.L
-local AS = AUI.AeonSettings --[[@as table]]
-local Store = AUI.Store
-local Pages = AUI.SettingsPages
 
----The Profiles page: the settings library's profiles page over AeonUI's profile owner. The page names profiles;
----the owner keeps them by ID, and this adapter translates.
+local Store = AUI.Store
+
+---The Profiles page: the settings library's profiles page over AeonUI's profile owner, with a Damaged Profiles section
+---while any profile cannot be used. The page names profiles; the owner keeps them by ID, and the adapter translates.
 ---@class AUISettingsProfiles
----@field page table?
 local Profiles = {}
 AUI.SettingsProfiles = Profiles
 
----@param ok boolean
----@param problem string?
-local function Report(ok, problem)
-	if not ok and problem then
-		AUI:Warn(problem)
-	end
-end
+local Profile = AUI.Profile
 
 ---@param name string
----@return string? id
+---@return string id the profile with that name, or an empty string the owner refuses
 local function Find(name)
-	return AUI.Profile:Find(name)
+	return Profile:Find(name) or ""
 end
 
+---@param except string? a profile ID to leave out
 ---@return string? id a usable profile to take a deleted one's place: Default when usable, else the first by name
 function Profiles:Replacement(except)
 	local fallback
 
-	for _, entry in ipairs(AUI.Profile:List()) do
+	for _, entry in ipairs(Profile:List()) do
 		if entry.id ~= except and not entry.quarantined then
 			if entry.id == Store.DEFAULT_ID then
 				return entry.id
@@ -43,66 +36,11 @@ function Profiles:Replacement(except)
 	return fallback
 end
 
----Profiles that cannot be used, each with a Delete action, shown when there are any.
----@return table[] elements
-function Profiles:DamagedSection()
-	local damaged = {}
-
-	for _, entry in ipairs(AUI.Profile:List()) do
-		if entry.quarantined then
-			damaged[#damaged + 1] = entry
-		end
-	end
-
-	if #damaged == 0 then
-		return {}
-	end
-
-	local elements = {
-		Pages.Section("damaged", L["Damaged Profiles"]),
-		{
-			kind = "note",
-			id = "damagedNote",
-			text = AUI.Profile.mode == "fallback"
-					and L["The active profile can't be used, so default settings are shown. Choose another profile or delete it."]
-				or L["These profiles can't be used. They are kept unchanged until you delete them."],
-		},
-	}
-
-	for _, entry in ipairs(damaged) do
-		local id = entry.id
-
-		elements[#elements + 1] = Pages.Row({
-			id = "delete." .. id,
-			control = "action",
-			label = entry.name,
-			description = entry.quarantined,
-			verb = DELETE,
-			confirm = L["Delete the damaged profile \"%s\"? Characters using it switch to another profile."]:format(entry.name),
-			blocked = function()
-				if not self:Replacement(id) then
-					return L["Create another profile first."]
-				end
-			end,
-			set = function()
-				local ok, problem = AUI.Profile:Delete(id, self:Replacement(id) or "")
-
-				Report(ok, problem)
-
-				return ok
-			end,
-		})
-	end
-
-	return elements
-end
-
 local adapter = {
-	builtin = Store.DEFAULT_NAME,
 	List = function()
 		local names = {}
 
-		for _, entry in ipairs(AUI.Profile:List()) do
+		for _, entry in ipairs(Profile:List()) do
 			if not entry.quarantined or entry.active then
 				names[#names + 1] = entry.name
 			end
@@ -111,31 +49,31 @@ local adapter = {
 		return names
 	end,
 	Active = function()
-		return AUI.Profile:Name(AUI.Profile.activeID or "") or Store.DEFAULT_NAME
+		return Profile:Name(Profile.activeID or "") or Store.DEFAULT_NAME
 	end,
 	Switch = function(name)
-		Report(AUI.Profile:Select(Find(name) or ""))
+		return Profile:Select(Find(name))
 	end,
 	New = function(name)
-		Report(AUI.Profile:Create(name))
+		return Profile:Create(name)
 	end,
 	Copy = function(name)
-		Report(AUI.Profile:Duplicate(AUI.Profile.activeID or "", name))
+		return Profile:Duplicate(Profile.activeID or "", name)
 	end,
 	Rename = function(name)
-		Report(AUI.Profile:Rename(AUI.Profile.activeID or "", name))
+		return Profile:Rename(Profile.activeID or "", name)
 	end,
 	Delete = function(name, replacement)
-		Report(AUI.Profile:Delete(Find(name) or "", Find(replacement) or ""))
+		return Profile:Delete(Find(name), Find(replacement))
 	end,
 	Reset = function()
-		Report(AUI.Profile:Reset())
+		return Profile:Reset()
 	end,
 	Export = function()
-		return AUI.Profile:Export(AUI.Profile.activeID or "") or ""
+		return Profile:Export(Profile.activeID or "") or ""
 	end,
 	Decode = function(text)
-		local import, reason = AUI.Profile:Decode(text)
+		local import, reason = Profile:Decode(text)
 
 		if not import then
 			return nil, reason
@@ -150,18 +88,77 @@ local adapter = {
 		return { name = import.name, summary = summary, import = import }
 	end,
 	Import = function(info, name)
-		Report(AUI.Profile:Import(info.import, name))
-	end,
-	Sections = function()
-		return Profiles:DamagedSection()
+		return Profile:Import(info.import, name)
 	end,
 }
 
----@return table page
-function Profiles:Page()
-	if not self.page then
-		self.page = AS:CreateProfilesPage({ id = "profiles", title = L["Profiles"], adapter = adapter })
+---Profiles that cannot be used when the window is built, each with a Delete action. Quarantine is decided at login,
+---so the list only shrinks; a deleted profile's row hides.
+---@param page table
+local function DeclareDamaged(page)
+	local damaged = {}
+
+	for _, entry in ipairs(Profile:List()) do
+		if entry.quarantined then
+			damaged[#damaged + 1] = entry
+		end
 	end
 
-	return self.page
+	if #damaged == 0 then
+		return
+	end
+
+	local section = page:Section("damaged", L["Damaged Profiles"], {
+		show = function()
+			for _, entry in ipairs(damaged) do
+				if Profile:Name(entry.id) then
+					return true
+				end
+			end
+
+			return false
+		end,
+	})
+
+	if not section then
+		return
+	end
+
+	section:Note(Profile.mode == "fallback"
+		and L["The active profile can't be used, so default settings are shown. Choose another profile or delete it."]
+		or L["These profiles can't be used. They are kept unchanged until you delete them."])
+
+	for _, entry in ipairs(damaged) do
+		local id = entry.id
+
+		section:Button({
+			id = "delete." .. id,
+			label = entry.name,
+			description = entry.quarantined,
+			verb = DELETE,
+			confirm = L["Delete the damaged profile \"%s\"? Characters using it switch to another profile."]:format(entry.name),
+			show = function()
+				return Profile:Name(id) ~= nil
+			end,
+			blocked = function()
+				if not Profiles:Replacement(id) then
+					return L["Create another profile first."]
+				end
+			end,
+			run = function()
+				return Profile:Delete(id, Profiles:Replacement(id) or "")
+			end,
+		})
+	end
+end
+
+---@param window table
+function Profiles:Declare(window)
+	window:ProfilesPage("profiles", {
+		title = L["Profiles"],
+		icon = AUI.Media.sidebar.profiles,
+		iconTint = true,
+		adapter = adapter,
+		sections = DeclareDamaged,
+	})
 end

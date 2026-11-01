@@ -1,7 +1,11 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/">
 	<Script file="Core.lua" />
+	<Script file="Bindings.lua" />
 	<Script file="Callbacks.lua" />
 	<Script file="Events.lua" />
 	<Script file="Capabilities.lua" />
+	<Script file="AuctionPrices.lua" />
+	<Script file="Broker.lua" />
+	<Script file="GameMenu.lua" />
 	<Script file="Bootstrap.lua" />
 </Ui>

@@ -1,0 +1,13 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+	<Script file="Options.lua" />
+	<Script file="Format.lua" />
+	<Script file="Appearance.lua" />
+	<Script file="Units.lua" />
+	<Script file="Details.lua" />
+	<Script file="UpgradeSeasons.lua" />
+	<Script file="Upgrades.lua" />
+	<Script file="Inspect.lua" />
+	<Script file="Anchor.lua" />
+	<Script file="Visibility.lua" />
+	<Script file="Tooltip.lua" />
+</Ui>

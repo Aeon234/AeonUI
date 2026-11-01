@@ -1,0 +1,50 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+	<Script file="Markers.lua" />
+	<Script file="Data.lua" />
+	<Script file="TownData.lua" />
+	<Script file="Options.lua" />
+	<Script file="OptionsData.lua" />
+	<Script file="Dungeons.lua" />
+	<Script file="DungeonData.lua" />
+	<Script file="Pin.lua" />
+	<Script file="Provider.lua" />
+	<Script file="MinimapPins.lua" />
+	<Script file="Unexplored.lua" />
+	<Script file="Levels.lua" />
+	<Script file="DungeonMap.lua" />
+	<Script file="Spots.lua" />
+	<Script file="WorldMap.lua" />
+
+	<Frame name="AeonUIWorldMapUnexploredPinTemplate" mixin="AeonUIWorldMapUnexploredPinMixin" virtual="true" />
+
+	<Button name="AeonUIWorldMapPinTemplate" mixin="AeonUIWorldMapPinMixin" enableMouse="true" virtual="true">
+		<Size x="20" y="20" />
+		<Layers>
+			<Layer level="ARTWORK">
+				<Texture parentKey="Icon" />
+			</Layer>
+		</Layers>
+		<Animations>
+			<AnimationGroup parentKey="Pulse">
+				<Scale childKey="Icon" scaleX="1.6" scaleY="1.6" duration="0.3" order="1" smoothing="OUT" />
+				<Scale childKey="Icon" scaleX="0.625" scaleY="0.625" duration="0.3" order="2" smoothing="IN" />
+				<Scale childKey="Icon" scaleX="1.6" scaleY="1.6" duration="0.3" order="3" smoothing="OUT" />
+				<Scale childKey="Icon" scaleX="0.625" scaleY="0.625" duration="0.3" order="4" smoothing="IN" />
+				<Scale childKey="Icon" scaleX="1.6" scaleY="1.6" duration="0.3" order="5" smoothing="OUT" />
+				<Scale childKey="Icon" scaleX="0.625" scaleY="0.625" duration="0.3" order="6" smoothing="IN" />
+			</AnimationGroup>
+		</Animations>
+	</Button>
+
+	<Button name="AeonUIWorldMapTransportPinTemplate" inherits="AeonUIWorldMapPinTemplate" virtual="true">
+		<KeyValues>
+			<KeyValue key="handlesRightButton" value="true" type="boolean" />
+		</KeyValues>
+	</Button>
+
+	<Button name="AeonUIWorldMapLearnedPinTemplate" inherits="AeonUIWorldMapPinTemplate" virtual="true">
+		<KeyValues>
+			<KeyValue key="handlesRightButton" value="true" type="boolean" />
+		</KeyValues>
+	</Button>
+</Ui>

@@ -1,5 +1,6 @@
--- Checks Core/Core.lua, Callbacks.lua and Events.lua outside the game: metadata, chat output, the slash command,
--- callback dispatch and isolation, event registration and coalescing.
+-- Checks Core/Core.lua, Bindings.lua, Callbacks.lua, Events.lua and GameMenu.lua outside the game: metadata, chat
+-- output, the slash command, callback dispatch and isolation, event registration and coalescing, the game menu
+-- section's place, and the key bindings (their names and order, and Bindings.xml's own Lua run against stubs).
 -- Run from any directory with Lua 5.1: lua Tools/check_core.lua
 -- Loads the real Core files against stubbed globals. Exits non-zero on the first failed check.
 
@@ -76,8 +77,11 @@ AUI.L = setmetatable({}, { __index = function(_, key)
 	return key
 end })
 assert(loadfile(root .. "Core/Core.lua"))("AeonUI", AUI)
+RELOADUI = "Reload UI"
+assert(loadfile(root .. "Core/Bindings.lua"))("AeonUI", AUI)
 assert(loadfile(root .. "Core/Callbacks.lua"))("AeonUI", AUI)
 assert(loadfile(root .. "Core/Events.lua"))("AeonUI", AUI)
+assert(loadfile(root .. "Core/GameMenu.lua"))("AeonUI", AUI)
 
 -- Harness -------------------------------------------------------------------------------------------------
 
@@ -98,9 +102,9 @@ Equal("title", AUI.title, "AeonUI")
 Equal("unsubstituted version reads as dev", AUI.version, "dev")
 
 AUI:Print("%d frames", 2)
-Equal("print formats", printed[#printed], "|cff9e754aAeonUI|r: 2 frames")
+Equal("print formats", printed[#printed], "|cff00a3e3Aeon|r|cfff2e6c8UI|r: 2 frames")
 AUI:Print("100%")
-Equal("print without arguments leaves % alone", printed[#printed], "|cff9e754aAeonUI|r: 100%")
+Equal("print without arguments leaves % alone", printed[#printed], "|cff00a3e3Aeon|r|cfff2e6c8UI|r: 100%")
 
 local opened = {}
 AUI.Settings = {
@@ -203,6 +207,91 @@ Equal("merge waits the given delay", timers[1].delay, 0.5)
 Events:Cancel("save")
 RunTimers()
 Equal("cancelled work does not run", runs[#runs], "b")
+
+-- Game menu ----------------------------------------------------------------------------------------------
+
+local Slot = AUI.GameMenu.Slot
+local slot, gap
+
+-- Retail: Options, Shop | Add-Ons, Edit Mode, Support, Macros | Log Out, Exit Game | Return to Game
+slot, gap = Slot({ 0, 0, 20, 0, 0, 0, 20, 0, 20 })
+Equal("goes above the logout section", slot, 7)
+Equal("keeps the menu's section gap", gap, 20)
+
+-- Forever with the gamepad interface: no close button
+slot = Slot({ 0, 0, 20, 0, 0, 20, 0 })
+Equal("goes above the last section without a close button", slot, 6)
+
+slot, gap = Slot({ 0, 0, 20, 0, 0, 0, 30, 0, 30 })
+Equal("keeps a custom section gap", gap, 30)
+
+slot, gap = Slot({ 0, 0, 0 })
+Equal("one section: goes below the last button", slot, nil)
+Equal("one section: the default gap", gap, 20)
+
+slot = Slot({ 0, 0, 20 })
+Equal("a lone close button: goes above it", slot, 3)
+
+slot = Slot({})
+Equal("no buttons: goes below", slot, nil)
+
+-- Key bindings -------------------------------------------------------------------------------------------
+
+Equal("AeonUI's section in Key Bindings", BINDING_HEADER_AEONUI, AUI.brand)
+Equal("reload is named as Blizzard names it", BINDING_NAME_AEONUI_RELOAD, "Reload UI")
+Equal("eject is named", BINDING_NAME_AEONUI_EJECT, "Eject All Passengers")
+
+local bindingsFile = assert(io.open(root .. "Bindings.xml", "rb"))
+local bindingsXML = bindingsFile:read("*a")
+bindingsFile:close()
+local order, bodies, categories = {}, {}, {}
+for name, category, body in bindingsXML:gmatch('<Binding name="([^"]+)" category="([^"]+)">(.-)</Binding>') do
+	order[#order + 1] = name
+	categories[#categories + 1] = category
+	if body:find("%S") then
+		bodies[name] = assert(loadstring(body, name))
+	end
+end
+Equal("the bindings in order", table.concat(order, ", "), "AEONUI_RELOAD, AEONUI_EJECT, "
+	.. "CLICK AeonUIWorldMarkerPlace:LeftButton, CLICK AeonUIWorldMarkerClear:LeftButton, "
+	.. "CLICK AeonUIDeleteCheapestItemToggle:LeftButton")
+Equal("all in AeonUI's section", table.concat(categories, " "),
+	"BINDING_HEADER_AEONUI BINDING_HEADER_AEONUI BINDING_HEADER_AEONUI BINDING_HEADER_AEONUI BINDING_HEADER_AEONUI")
+
+local reloads = 0
+C_UI = {
+	Reload = function()
+		reloads = reloads + 1
+	end,
+}
+bodies.AEONUI_RELOAD()
+Equal("the reload binding reloads", reloads, 1)
+
+local ejected, ejectable, seats = {}, { [1] = false, [2] = true, [3] = true }, 3
+function UnitVehicleSeatCount()
+	return seats
+end
+function CanEjectPassengerFromSeat(seat)
+	return ejectable[seat]
+end
+function EjectPassengerFromSeat(seat)
+	ejected[#ejected + 1] = seat
+end
+bodies.AEONUI_EJECT()
+Equal("the eject binding ejects every passenger seat, not the driver's", table.concat(ejected, ","), "2,3")
+seats = 0
+bodies.AEONUI_EJECT()
+Equal("without a vehicle nothing is ejected", #ejected, 2)
+
+local keyBindingsAt
+Settings = {
+	KEYBINDINGS_CATEGORY_ID = 9,
+	OpenToCategory = function(category, element)
+		keyBindingsAt = category .. " " .. element
+	end,
+}
+AUI.Bindings:Open()
+Equal("Key Bindings opens at AeonUI's section", keyBindingsAt, "9 " .. AUI.brand)
 
 print = _G.print
 io.stdout:write(("check_core: %d checks passed\n"):format(checks))

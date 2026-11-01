@@ -1,90 +1,129 @@
 local AUI = select(2, ...)
 
 local L = AUI.L
-local AS = AUI.AeonSettings --[[@as table]]
-local Pages = AUI.SettingsPages
 
 -- The word the player types to confirm erasing the saved data.
 local CONFIRM_WORD = "RESET"
 
----The Recovery page, shown in place of the other pages while the saved data cannot be used: what happened, a
----diagnostic export of the data, and an explicit reset.
+local EXPORT_POPUP = "AEONUI_DIAGNOSTIC_EXPORT"
+local RESET_POPUP = "AEONUI_RESET_SAVED_SETTINGS"
+
+---The Recovery page, the window's only page while the saved data cannot be used: what happened, a diagnostic export
+---of the data, and an explicit reset that reloads the interface on the new store.
 ---@class AUISettingsRecovery
 local Recovery = {}
 AUI.SettingsRecovery = Recovery
 
+StaticPopupDialogs[EXPORT_POPUP] = {
+	text = "%s",
+	button1 = CLOSE,
+	hasEditBox = true,
+	editBoxWidth = 350,
+	maxLetters = 0,
+	OnShow = function(dialog, data)
+		local editBox = dialog:GetEditBox()
+
+		editBox:SetText(data.text)
+		editBox:HighlightText()
+		editBox:SetFocus()
+	end,
+	EditBoxOnTextChanged = function(editBox, data)
+		if editBox:GetText() ~= data.text then
+			editBox:SetText(data.text)
+			editBox:HighlightText()
+		end
+	end,
+	EditBoxOnEscapePressed = StaticPopup_StandardEditBoxOnEscapePressed,
+	timeout = 0,
+	whileDead = true,
+	hideOnEscape = true,
+}
+
+StaticPopupDialogs[RESET_POPUP] = {
+	text = "%s",
+	button1 = RESET,
+	button2 = CANCEL,
+	hasEditBox = true,
+	maxLetters = 16,
+	OnShow = function(dialog)
+		dialog:GetButton1():Disable()
+		dialog:GetEditBox():SetFocus()
+	end,
+	EditBoxOnTextChanged = function(editBox)
+		StaticPopup_StandardConfirmationTextHandler(editBox, CONFIRM_WORD)
+	end,
+	-- Enter accepts only once the word matches, as the Reset button does.
+	EditBoxOnEnterPressed = function(editBox)
+		local dialog = editBox:GetParent()
+
+		if dialog:GetButton1():IsEnabled() then
+			StaticPopup_OnClick(dialog, 1)
+		end
+	end,
+	EditBoxOnEscapePressed = StaticPopup_StandardEditBoxOnEscapePressed,
+	OnAccept = function()
+		Recovery:Reset()
+	end,
+	timeout = 0,
+	whileDead = true,
+	hideOnEscape = true,
+}
+
 function Recovery:ShowExport()
 	local text, complete = AUI.Profile:RawExport()
+	local title = complete and L["Diagnostic Export"] or L["Diagnostic Export (Incomplete)"]
 
-	AS:ProfileDialogFrame():Open("export", {
-		title = complete and L["Diagnostic Export"] or L["Diagnostic Export (Incomplete)"],
-		text = text or "",
-	})
+	StaticPopup_Show(EXPORT_POPUP, title, nil, { text = text or "" })
 end
 
-function Recovery:AskReset()
-	AS:ProfileDialogFrame():Open("name", {
-		title = L["Reset Saved Settings"],
-		message = L["Type %s to erase every AeonUI profile and setting on this account."]:format(CONFIRM_WORD),
-		verb = RESET,
-		validate = function(text)
-			if text ~= CONFIRM_WORD then
-				return ""
-			end
-		end,
-		accept = function()
-			local ok, problem = AUI.Profile:ResetStore()
+---Replaces the saved data with a new store, then reloads the interface so every page is declared on it.
+function Recovery:Reset()
+	local ok, problem = AUI.Profile:ResetStore()
 
-			if not ok then
-				AUI:Warn(tostring(problem))
-			end
-		end,
-	})
+	if not ok then
+		AUI:Warn(tostring(problem))
+
+		return
+	end
+
+	ReloadUI()
 end
 
----@return table[] elements
-local function Build()
+---@param window table
+function Recovery:Declare(window)
 	local profile = AUI.Profile
+	local page = window:Page("recovery", {
+		title = L["Recovery"],
+		description = L["AeonUI's saved settings can't be used, so its other pages are unavailable."],
+	})
 
-	return {
-		Pages.Section("recovery", L["Saved Settings"]),
-		{
-			kind = "note",
-			id = "explanation",
-			text = profile.newer
-					and L["Your saved settings come from a newer version of AeonUI. This version shows default settings and leaves them unchanged."]
-				or L["Your saved settings are damaged. AeonUI shows default settings and leaves them unchanged until you reset them."],
-		},
-		{ kind = "note", id = "problem", text = tostring(profile.problem or ""), small = true },
-		Pages.Row({
-			id = "export",
-			control = "action",
-			label = L["Diagnostic Export"],
-			description = L["The saved settings as text, to keep or to share when reporting the problem. It is not a profile string."],
-			verb = L["Show"],
-			set = function()
-				Recovery:ShowExport()
+	if not page then
+		return
+	end
 
-				return true
-			end,
-		}),
-		Pages.Row({
-			id = "reset",
-			control = "action",
-			label = L["Reset Saved Settings"],
-			description = L["Erase every AeonUI profile and setting on this account and start again with defaults."],
-			verb = RESET,
-			confirm = L["Erase every AeonUI profile and setting on this account? This cannot be undone."],
-			set = function()
-				Recovery:AskReset()
+	local section = page:Section("recovery", L["Saved Settings"])
 
-				return true
-			end,
-		}),
-	}
-end
-
----@return table page
-function Recovery:Page()
-	return { id = "recovery", title = L["Recovery"], Build = Build }
+	section:Note(profile.newer
+		and L["Your saved settings come from a newer version of AeonUI. This version shows default settings and leaves them unchanged."]
+		or L["Your saved settings are damaged. AeonUI shows default settings and leaves them unchanged until you reset them."],
+		tostring(profile.problem or ""))
+	section:Button({
+		id = "export",
+		label = L["Diagnostic Export"],
+		description = L["The saved settings as text, to keep or to share when reporting the problem. It is not a profile string."],
+		verb = L["Show"],
+		run = function()
+			Recovery:ShowExport()
+		end,
+	})
+	section:Button({
+		id = "reset",
+		label = L["Reset Saved Settings"],
+		description = L["Erase every AeonUI profile and setting on this account and start again with defaults."],
+		verb = RESET,
+		confirm = L["Erase every AeonUI profile and setting on this account? This cannot be undone."],
+		run = function()
+			StaticPopup_Show(RESET_POPUP, L["Type %s to erase every AeonUI profile and setting on this account."]:format(CONFIRM_WORD))
+		end,
+	})
 end

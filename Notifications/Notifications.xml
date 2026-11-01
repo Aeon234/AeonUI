@@ -1,0 +1,10 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+	<Script file="Options.lua" />
+	<Script file="Notifications.lua" />
+	<Script file="Combat.lua" />
+	<Script file="Pet.lua" />
+	<Script file="Character.lua" />
+	<Script file="Potion.lua" />
+	<Script file="Health.lua" />
+	<Script file="Tracking.lua" />
+</Ui>

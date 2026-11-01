@@ -1,0 +1,69 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+	<Script file="DeleteCheapestItemProbe.lua"/>
+
+	<Frame name="AeonUIDeleteCheapestItemProbeRowTemplate" mixin="AeonUIDeleteCheapestItemProbeRowMixin" virtual="true">
+		<Size x="214" y="46"/>
+		<Frames>
+			<ItemButton parentKey="Item" useParentLevel="true">
+				<Size x="37" y="37"/>
+				<Anchors>
+					<Anchor point="TOPLEFT" x="5" y="-4"/>
+				</Anchors>
+			</ItemButton>
+			<Button parentKey="Delete" inherits="UIPanelButtonTemplate">
+				<Size x="56" y="20"/>
+				<Anchors>
+					<Anchor point="BOTTOMRIGHT" x="-5" y="5"/>
+				</Anchors>
+			</Button>
+		</Frames>
+		<Layers>
+			<Layer level="BACKGROUND">
+				<Texture parentKey="NameFrame" atlas="looting_itemcard_bg" setAllPoints="true"/>
+			</Layer>
+			<Layer level="BORDER">
+				<Texture parentKey="BorderFrame" atlas="looting_itemcard_stroke_normal" setAllPoints="true"/>
+			</Layer>
+			<Layer level="ARTWORK">
+				<FontString parentKey="Text" inherits="GameFontNormal" justifyH="LEFT" justifyV="TOP" maxLines="2">
+					<Size x="160" y="26"/>
+					<Anchors>
+						<Anchor point="TOPLEFT" relativeKey="$parent.Item" relativePoint="TOPRIGHT" x="8" y="-2"/>
+					</Anchors>
+				</FontString>
+				<FontString parentKey="Price" inherits="GameFontHighlightSmall" justifyH="LEFT">
+					<Anchors>
+						<Anchor point="BOTTOMLEFT" relativeKey="$parent.Item" relativePoint="BOTTOMRIGHT" x="8" y="2"/>
+					</Anchors>
+				</FontString>
+			</Layer>
+			<Layer level="OVERLAY">
+				<Texture parentKey="HighlightNameFrame" alphaMode="ADD" atlas="looting_itemcard_stroke_clickstate" alpha="0.7" hidden="true" setAllPoints="true"/>
+			</Layer>
+		</Layers>
+		<Animations>
+			<AnimationGroup parentKey="SlideOutRightAnim" looping="NONE" setToFinalAlpha="true">
+				<Translation duration="0.3" offsetX="100" smoothing="IN"/>
+				<Alpha duration="0.2" fromAlpha="1" toAlpha="0" startDelay="0.1" smoothing="IN"/>
+			</AnimationGroup>
+		</Animations>
+		<Scripts>
+			<OnEnter method="OnEnter"/>
+			<OnLeave method="OnLeave"/>
+		</Scripts>
+	</Frame>
+
+	<Frame name="AeonUIDeleteCheapestItemProbe" mixin="AeonUIDeleteCheapestItemProbeMixin" inherits="ScrollingFlatPanelTemplate" parent="UIParent" frameStrata="HIGH" toplevel="true" movable="true" hidden="true">
+		<Size x="230" y="290"/>
+		<KeyValues>
+			<KeyValue key="panelTitle" value="Delete Cheapest Item (probe)" type="string"/>
+			<KeyValue key="panelMaxHeight" value="290" type="number"/>
+			<KeyValue key="panelWidth" value="230" type="number"/>
+		</KeyValues>
+		<Scripts>
+			<OnLoad method="OnLoad"/>
+			<OnDragStart method="OnDragStart"/>
+			<OnDragStop method="OnDragStop"/>
+		</Scripts>
+	</Frame>
+</Ui>

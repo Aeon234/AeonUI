@@ -62,6 +62,27 @@ assert(loadfile(root .. "Profile/Profile.lua"))("AeonUI", AUI)
 
 local Schema, Store, Profile = AUI.Schema, AUI.Store, AUI.Profile
 
+-- A fixture schema standing in for the fields features declare: shared settings, sections that follow them, and a
+-- choice.
+Schema:String("text.font", "Expressway", 64)
+Schema:Number("bars.border", 1, 0, 4, true)
+Schema:Choices("fixtureSide", { "LEFT", "RIGHT" })
+Schema:Number("fixture.left.width", 270, 40, 800, true)
+Schema:Number("fixture.left.height", 36, 16, 200, true)
+Schema:Number("fixture.left.x", -330, -3000, 3000)
+Schema:Number("fixture.left.y", -200, -3000, 3000)
+Schema:Choice("fixture.left.side", "fixtureSide", "LEFT")
+Schema:Order("fixture.order", "fixtureSide", { "LEFT", "RIGHT" })
+Schema:Inherit("fixture.left.bars.border", "bars.border")
+Schema:Boolean("fixture.right.reverse", true)
+Schema:Number("fixture.right.width", 270, 40, 800, true)
+Schema:Number("fixture.right.height", 36, 16, 200, true)
+Schema:Number("fixture.right.x", 330, -3000, 3000)
+Schema:Number("fixture.small.width", 270, 40, 800, true)
+Schema:Inherit("fixture.small.text.font", "text.font")
+Schema:Inherit("fixture.small.bars.border", "bars.border")
+Schema:Number("fixture.bar.y", -184, -3000, 3000)
+
 local fired = {}
 AUI.Callbacks:Register("Profile", fired, function(_, path)
 	fired[#fired + 1] = path or "*"
@@ -131,15 +152,24 @@ end
 
 -- Schema --------------------------------------------------------------------------------------------------
 
-Equal("default width", Schema:Defaults().frames.player.width, 270)
-Equal("target fills right to left", Schema:Defaults().frames.target.reverse, true)
-Equal("in range", (Schema:CheckValue("frames.player.width", 300)), true)
-Equal("below range", (Schema:CheckValue("frames.player.width", 10)), false)
-Equal("not a number", (Schema:CheckValue("frames.player.width", "300")), false)
-Equal("not finite", (Schema:CheckValue("frames.player.x", 1 / 0)), false)
-Equal("NaN", (Schema:CheckValue("frames.player.x", 0 / 0)), false)
-Equal("unknown path", (Schema:CheckValue("frames.player.colour", true)), false)
-Equal("read falls back to the default", Schema:Read({}, "frames.target.x"), 330)
+Equal("default width", Schema:Defaults().fixture.left.width, 270)
+Equal("target fills right to left", Schema:Defaults().fixture.right.reverse, true)
+Equal("in range", (Schema:CheckValue("fixture.left.width", 300)), true)
+Equal("below range", (Schema:CheckValue("fixture.left.width", 10)), false)
+Equal("not a number", (Schema:CheckValue("fixture.left.width", "300")), false)
+Equal("not finite", (Schema:CheckValue("fixture.left.x", 1 / 0)), false)
+Equal("NaN", (Schema:CheckValue("fixture.left.x", 0 / 0)), false)
+Equal("unknown path", (Schema:CheckValue("fixture.left.colour", true)), false)
+Equal("read falls back to the default", Schema:Read({}, "fixture.right.x"), 330)
+Equal("a choice it lists", (Schema:CheckValue("fixture.left.side", "RIGHT")), true)
+Equal("a choice it does not list", (Schema:CheckValue("fixture.left.side", "TOP")), false)
+Equal("an order of its choices", (Schema:CheckValue("fixture.order", { "RIGHT" })), true)
+Equal("an order naming a value twice", (Schema:CheckValue("fixture.order", { "RIGHT", "RIGHT" })), false)
+Equal("an order naming another value", (Schema:CheckValue("fixture.order", { "TOP" })), false)
+Equal("an order with a gap", (Schema:CheckValue("fixture.order", { "LEFT", [3] = "RIGHT" })), false)
+Equal("a field is declared once", (pcall(Schema.Boolean, Schema, "fixture.right.reverse", false)), false)
+Equal("a choice list is declared once", (pcall(Schema.Choices, Schema, "fixtureSide", {})), false)
+Equal("a choice needs its list", (pcall(Schema.Choice, Schema, "fixture.right.side", "missing", "LEFT")), false)
 Equal("a function is not plain", Schema:IsPlain({ f = function() end }), false)
 Equal("a zero key is not plain", Schema:IsPlain({ [0] = 1 }), false)
 local shared = {}
@@ -151,8 +181,8 @@ for _ = 1, 40 do
 	node = node.child
 end
 Equal("too deep is not plain", Schema:IsPlain(deep), false)
-Equal("branch that is not a table", (Schema:ValidateConfig({ frames = { player = 5 } })), false)
-Equal("a dormant key is accepted", (Schema:ValidateConfig({ frames = { arena = { width = 9 } }, future = "x" })), true)
+Equal("branch that is not a table", (Schema:ValidateConfig({ fixture = { left = 5 } })), false)
+Equal("a dormant key is accepted", (Schema:ValidateConfig({ fixture = { extra = { width = 9 } }, future = "x" })), true)
 
 -- Pristine ------------------------------------------------------------------------------------------------
 
@@ -162,7 +192,9 @@ Equal("pristine is normal", Profile.mode, "normal")
 Equal("pristine activates Default", Profile.activeID, Store.DEFAULT_ID)
 Equal("pristine store is saved", AeonUIDB, Profile.root)
 Equal("pristine character record", AeonUIDB.charactersByID["Player-1"].activeProfileID, Store.DEFAULT_ID)
-Equal("pristine reads defaults", Profile:Get("frames.playerPower.y"), -184)
+Equal("pristine reads defaults", Profile:Get("fixture.bar.y"), -184)
+Equal("pristine holds account settings", type(AeonUIDB.global), "table")
+Equal("account settings are the store's", Profile:Global(), AeonUIDB.global)
 
 -- A second character joins an existing store.
 local existing = Valid("Player-1")
@@ -181,8 +213,8 @@ local function ExpectRecovery(name, data, newer)
 	Equal(name .. " publishes nothing", saves, 0)
 	Equal(name .. " leaves the saved data alone", Serialize(AeonUIDB), before)
 	Equal(name .. " reports newer", Profile.newer == true, newer == true)
-	Equal(name .. " shows defaults", Profile:Get("frames.player.width"), 270)
-	Refused(name .. " set", Profile:Set("frames.player.width", 300))
+	Equal(name .. " shows defaults", Profile:Get("fixture.left.width"), 270)
+	Refused(name .. " set", Profile:Set("fixture.left.width", 300))
 	Refused(name .. " create", Profile:Create("Mine"))
 end
 
@@ -200,6 +232,13 @@ ExpectRecovery("no profiles", noProfiles)
 local badID = Valid()
 badID.profilesByID.nope = badID.profilesByID[Store.DEFAULT_ID]
 ExpectRecovery("a malformed profile ID", badID)
+local badGlobal = Valid()
+badGlobal.global = 5
+ExpectRecovery("malformed account settings", badGlobal)
+local noGlobal = Valid()
+noGlobal.global = nil
+ExpectRecovery("missing account settings", noGlobal)
+Equal("recovery has no account settings", Profile:Global(), nil)
 local badCharacter = Valid()
 badCharacter.charactersByID["Player-1"].specAssignments = { [0] = Store.DEFAULT_ID }
 ExpectRecovery("a malformed specialization assignment", badCharacter)
@@ -244,22 +283,22 @@ Store.SCHEMA, Store.migrations = schemaBefore, migrationsBefore
 -- Shared settings --------------------------------------------------------------------------------------------
 
 Load(Valid())
-Equal("shared: a frame reads the shared value", Profile:Get("frames.focus.text.font"), "Expressway")
+Equal("shared: a setting reads the shared value", Profile:Get("fixture.small.text.font"), "Expressway")
 Equal("shared: follows a change to the shared value", (Profile:Set("text.font", "Friz Quadrata TT")), true)
-Equal("shared: the frame follows", Profile:Get("frames.focus.text.font"), "Friz Quadrata TT")
-Equal("shared: not custom", Profile:IsCustom("frames.focus.text.font"), false)
-Equal("shared: a value equal to the shared one is saved as the frame's own",
-	(Profile:Set("frames.focus.text.font", "Friz Quadrata TT")), true)
-Equal("shared: now custom", Profile:IsCustom("frames.focus.text.font"), true)
+Equal("shared: the setting follows", Profile:Get("fixture.small.text.font"), "Friz Quadrata TT")
+Equal("shared: not custom", Profile:IsCustom("fixture.small.text.font"), false)
+Equal("shared: a value equal to the shared one is saved as the setting's own",
+	(Profile:Set("fixture.small.text.font", "Friz Quadrata TT")), true)
+Equal("shared: now custom", Profile:IsCustom("fixture.small.text.font"), true)
 Equal("shared: custom ignores the shared value", (Profile:Set("text.font", "Expressway")) and
-	Profile:Get("frames.focus.text.font"), "Friz Quadrata TT")
-Equal("shared: clearing", (Profile:Set("frames.focus.text.font", nil)), true)
-Equal("shared: follows again", Profile:Get("frames.focus.text.font"), "Expressway")
+	Profile:Get("fixture.small.text.font"), "Friz Quadrata TT")
+Equal("shared: clearing", (Profile:Set("fixture.small.text.font", nil)), true)
+Equal("shared: follows again", Profile:Get("fixture.small.text.font"), "Expressway")
 Equal("shared: a shared setting itself is never custom", Profile:IsCustom("text.font"), false)
-Equal("shared: bounds follow the shared field", (Profile:Set("frames.focus.bars.border", 9)), false)
-Equal("shared: a frame resets to Shared", (Profile:Set("frames.player.bars.border", 3)) and
-	(Profile:Reset("frames.player")) and Profile:IsCustom("frames.player.bars.border"), false)
-Equal("shared: defaults hold no frame appearance", Schema:Defaults().frames.player.text.font, nil)
+Equal("shared: bounds follow the shared field", (Profile:Set("fixture.small.bars.border", 9)), false)
+Equal("shared: a section reset returns to Shared", (Profile:Set("fixture.left.bars.border", 3)) and
+	(Profile:Reset("fixture.left")) and Profile:IsCustom("fixture.left.bars.border"), false)
+Equal("shared: defaults hold no value of their own", Schema:Lookup(Schema:Defaults(), "fixture.small.text.font"), nil)
 
 -- Quarantine ----------------------------------------------------------------------------------------------
 
@@ -267,7 +306,7 @@ local mixed = Valid()
 mixed.profilesByID.p00000002 = {
 	name = "Broken",
 	schemaVersion = Schema.VERSION,
-	config = { frames = { player = { width = "x" } } },
+	config = { fixture = { left = { width = "x" } } },
 }
 mixed.profilesByID.p00000003 = { name = "DEFAULT", schemaVersion = Schema.VERSION, config = {} }
 mixed.profilesByID.p00000004 = { name = "Later", schemaVersion = Schema.VERSION + 1, config = {} }
@@ -279,7 +318,7 @@ Equal("bad field quarantined", type(Profile.quarantined.p00000002), "string")
 Equal("case-insensitive duplicate quarantined", type(Profile.quarantined.p00000003), "string")
 Equal("newer profile quarantined", type(Profile.quarantined.p00000004), "string")
 Equal("valid profile kept", Profile.quarantined[Store.DEFAULT_ID], nil)
-Equal("valid profiles stay editable", (Profile:Set("frames.player.width", 280)), true)
+Equal("valid profiles stay editable", (Profile:Set("fixture.left.width", 280)), true)
 Refused("selecting a quarantined profile", Profile:Select("p00000002"))
 Refused("renaming a quarantined profile", Profile:Rename("p00000002", "Fixed"))
 Refused("copying a quarantined profile", Profile:Duplicate("p00000002", "Copy"))
@@ -288,18 +327,18 @@ Refused("a name a quarantined profile holds", Profile:Create("broken"))
 
 -- Fallback when the active profile cannot be used.
 local fallback = Valid()
-fallback.profilesByID[Store.DEFAULT_ID].config.frames.player.width = 400
-fallback.profilesByID.p00000002 = { name = "Mine", schemaVersion = Schema.VERSION, config = { frames = { target = 5 } } }
+fallback.profilesByID[Store.DEFAULT_ID].config.fixture.left.width = 400
+fallback.profilesByID.p00000002 = { name = "Mine", schemaVersion = Schema.VERSION, config = { fixture = { right = 5 } } }
 fallback.charactersByID["Player-1"].activeProfileID = "p00000002"
 fallback.charactersByID["Player-1"].specAssignments = { [62] = "p00000002" }
 fallback.nextID = 3
 Load(fallback)
 Equal("active quarantined profile falls back", Profile.mode, "fallback")
-Equal("fallback shows Default's settings", Profile:Get("frames.player.width"), 400)
-Refused("editing the fallback", Profile:Set("frames.player.width", 300))
+Equal("fallback shows Default's settings", Profile:Get("fixture.left.width"), 400)
+Refused("editing the fallback", Profile:Set("fixture.left.width", 300))
 Refused("resetting the fallback", Profile:Reset())
-Profile.config.frames.player.width = 123
-Equal("the fallback is a disposable copy", AeonUIDB.profilesByID[Store.DEFAULT_ID].config.frames.player.width, 400)
+Profile.config.fixture.left.width = 123
+Equal("the fallback is a disposable copy", AeonUIDB.profilesByID[Store.DEFAULT_ID].config.fixture.left.width, 400)
 Equal("selecting a valid profile", (Profile:Select(Store.DEFAULT_ID)), true)
 Equal("selection restores normal", Profile.mode, "normal")
 Equal("selection is saved", AeonUIDB.charactersByID["Player-1"].activeProfileID, Store.DEFAULT_ID)
@@ -315,15 +354,15 @@ Equal("the missing reference is kept", AeonUIDB.charactersByID["Player-1"].activ
 
 Load(Valid())
 fired = {}
-Equal("set", (Profile:Set("frames.target.height", 40)), true)
-Equal("set is stored", AeonUIDB.profilesByID[Store.DEFAULT_ID].config.frames.target.height, 40)
-Equal("set announces its path", fired[#fired], "frames.target.height")
+Equal("set", (Profile:Set("fixture.right.height", 40)), true)
+Equal("set is stored", AeonUIDB.profilesByID[Store.DEFAULT_ID].config.fixture.right.height, 40)
+Equal("set announces its path", fired[#fired], "fixture.right.height")
 local count = #fired
-Equal("setting the same value", (Profile:Set("frames.target.height", 40)), true)
+Equal("setting the same value", (Profile:Set("fixture.right.height", 40)), true)
 Equal("the same value announces nothing", #fired, count)
-Refused("an out-of-range value", Profile:Set("frames.target.height", 400))
-Refused("a wrong type", Profile:Set("frames.target.reverse", 1))
-Refused("an unknown setting", Profile:Set("frames.target.colour", 1))
+Refused("an out-of-range value", Profile:Set("fixture.right.height", 400))
+Refused("a wrong type", Profile:Set("fixture.right.reverse", 1))
+Refused("an unknown setting", Profile:Set("fixture.right.colour", 1))
 
 -- Names and profiles ---------------------------------------------------------------------------------------
 
@@ -332,7 +371,7 @@ local ok, id = Profile:Create("Raid")
 Equal("create", ok, true)
 Equal("create activates", Profile.activeID, id)
 Equal("create uses the next ID", id, "p00000002")
-Equal("create uses defaults", Profile:Get("frames.player.width"), 270)
+Equal("create uses defaults", Profile:Get("fixture.left.width"), 270)
 Refused("an empty name", Profile:Create("  "))
 Refused("a case-insensitive duplicate", Profile:Create("RAID"))
 Refused("a non-ASCII case-insensitive duplicate", (function()
@@ -348,32 +387,32 @@ Equal("rename to a new case of its own name", (Profile:Rename(id, "RAID NIGHT"))
 Refused("renaming the default profile", Profile:Rename(Store.DEFAULT_ID, "Main"))
 
 Profile:Select(id)
-Profile:Set("frames.player.width", 333)
+Profile:Set("fixture.left.width", 333)
 Profile.root.profilesByID[id].config.future = { kept = true }
 local copied
 ok, copied = Profile:Duplicate(id, "Raid Copy")
 Equal("duplicate", ok, true)
 Equal("duplicate activates", Profile.activeID, copied)
-Equal("duplicate copies settings", Profile:Get("frames.player.width"), 333)
+Equal("duplicate copies settings", Profile:Get("fixture.left.width"), 333)
 Equal("duplicate copies dormant settings", AeonUIDB.profilesByID[copied].config.future.kept, true)
 
 -- Dormant settings survive edits; resets remove them only inside their scope.
-Profile:Set("frames.player.height", 50)
+Profile:Set("fixture.left.height", 50)
 Equal("dormant settings survive an edit", AeonUIDB.profilesByID[copied].config.future.kept, true)
-Profile.root.profilesByID[copied].config.frames.player.future = 1
-Equal("section reset", (Profile:Reset("frames.player")), true)
-Equal("section reset restores defaults", Profile:Get("frames.player.width"), 270)
-Equal("section reset clears dormant settings in scope", AeonUIDB.profilesByID[copied].config.frames.player.future, nil)
+Profile.root.profilesByID[copied].config.fixture.left.future = 1
+Equal("section reset", (Profile:Reset("fixture.left")), true)
+Equal("section reset restores defaults", Profile:Get("fixture.left.width"), 270)
+Equal("section reset clears dormant settings in scope", AeonUIDB.profilesByID[copied].config.fixture.left.future, nil)
 Equal("section reset keeps dormant settings outside", AeonUIDB.profilesByID[copied].config.future.kept, true)
-Refused("an unknown reset scope", Profile:Reset("frames.nothing"))
-Profile:Set("frames.player.width", 300)
-Profile:Set("frames.target.width", 300)
-Profile:Set("frames.focus.width", 300)
-Equal("several scopes reset together", (Profile:Reset({ "frames.player", "frames.target" })), true)
-Equal("first scope reset", Profile:Get("frames.player.width"), 270)
-Equal("second scope reset", Profile:Get("frames.target.width"), 270)
-Equal("other scopes kept", Profile:Get("frames.focus.width"), 300)
-Refused("any unknown scope refuses the reset", Profile:Reset({ "frames.player", "frames.nothing" }))
+Refused("an unknown reset scope", Profile:Reset("fixture.nothing"))
+Profile:Set("fixture.left.width", 300)
+Profile:Set("fixture.right.width", 300)
+Profile:Set("fixture.small.width", 300)
+Equal("several scopes reset together", (Profile:Reset({ "fixture.left", "fixture.right" })), true)
+Equal("first scope reset", Profile:Get("fixture.left.width"), 270)
+Equal("second scope reset", Profile:Get("fixture.right.width"), 270)
+Equal("other scopes kept", Profile:Get("fixture.small.width"), 300)
+Refused("any unknown scope refuses the reset", Profile:Reset({ "fixture.left", "fixture.nothing" }))
 Equal("full reset", (Profile:Reset()), true)
 Equal("full reset clears every dormant setting", AeonUIDB.profilesByID[copied].config.future, nil)
 
@@ -406,6 +445,15 @@ Load(lagging)
 ok, id = Profile:Create("Eight")
 Equal("IDs never reuse one in use", id, "p00000008")
 
+-- Account settings stay the same table across commits: libraries keep a reference and write it in place.
+Load(Valid())
+local global = Profile:Global()
+global.minimapButton = { hide = true }
+Equal("a commit with account settings", (Profile:Create("Account")), true)
+Equal("a commit keeps the account table", Profile:Global(), global)
+Equal("the published store holds it", AeonUIDB.global, global)
+Equal("its contents are kept", AeonUIDB.global.minimapButton.hide, true)
+
 -- Rollback ------------------------------------------------------------------------------------------------
 
 Load(Valid())
@@ -422,7 +470,7 @@ Equal("the name is free after a failed create", (Profile:Create("Lost")), true)
 Load(Valid())
 before = Serialize(AeonUIDB)
 local okCommit, problem = Profile:Commit(function(candidate)
-	candidate.profilesByID[Store.DEFAULT_ID].config.frames.player.width = "x"
+	candidate.profilesByID[Store.DEFAULT_ID].config.fixture.left.width = "x"
 end)
 Refused("a change that would damage a profile", okCommit, problem)
 Equal("a refused change publishes nothing", Serialize(AeonUIDB), before)
@@ -431,25 +479,5 @@ okCommit = Profile:Commit(function()
 end)
 Equal("an error inside a change is contained", okCommit, false)
 Equal("an error inside a change publishes nothing", Serialize(AeonUIDB), before)
-
--- Editor session helpers ------------------------------------------------------------------------------------------
-
-Load(Valid())
-local snapshot = Profile:Snapshot()
-Equal("snapshot names the profile", snapshot and snapshot.id, Store.DEFAULT_ID)
-Equal("a fresh snapshot is unchanged", Profile:Changed(snapshot), false)
-Equal("several settings in one change", (Profile:SetPaths({ ["frames.player.x"] = 12.5, ["frames.player.y"] = -40 })),
-	true)
-Equal("first path saved", Profile:Get("frames.player.x"), 12.5)
-Equal("second path saved", Profile:Get("frames.player.y"), -40)
-Equal("a change shows", Profile:Changed(snapshot), true)
-Refused("a bad value refuses every path", Profile:SetPaths({ ["frames.player.x"] = 0, ["frames.player.width"] = 1 }))
-Equal("nothing saved from a refused change", Profile:Get("frames.player.x"), 12.5)
-Equal("restore", (Profile:Restore(snapshot)), true)
-Equal("restored value", Profile:Get("frames.player.x"), -330)
-Equal("restored is unchanged", Profile:Changed(snapshot), false)
-Equal("a preference saves quietly", Profile:SetEditorPreference("snap", false), true)
-Equal("a preference reads back", Profile:EditorPreference("snap", true), false)
-Equal("a preference does not change the profile", Profile:Changed(snapshot), false)
 
 io.stdout:write(("check_profile: %d checks passed\n"):format(checks))

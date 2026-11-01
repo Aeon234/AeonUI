@@ -1,0 +1,10 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+	<Script file="Layout.lua" />
+	<Script file="Elements.lua" />
+	<Script file="Rows.lua" />
+	<Script file="Fade.lua" />
+	<Script file="Text.lua" />
+	<Script file="Difficulty.lua" />
+	<Script file="Buttons.lua" />
+	<Script file="Map.lua" />
+</Ui>

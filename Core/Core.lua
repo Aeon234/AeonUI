@@ -5,15 +5,20 @@ local addonName = ...
 ---@field name string
 ---@field title string
 ---@field version string
+---@field brand string the addon name in blue and parchment, as an escape-coded string
 ---@field L AUILocale
 ---@field Callbacks AUICallbacks
 ---@field Events AUIEvents
----@field oUF table the private oUF instance, set by Libs/oUF/init.lua
----@field AeonSettings table the vendored settings library, set by Libs/AeonSettings/Core.lua
 ---@field Schema AUISchema
 ---@field Store AUIStore
 ---@field Profile AUIProfile
 ---@field Settings AUISettings
+---@field Broker AUIBroker
+---@field GameMenu AUIGameMenu
+---@field Border AUIBorderFactory
+---@field Minimap AUIMinimap the Minimap module (not Blizzard's `Minimap` frame)
+---@field WorldMap AUIWorldMap the World Map module (not Blizzard's `WorldMapFrame`)
+---@field EditTargets AUIEditTargets
 ---@field Codec AUICodec
 ---@field Dev AUIDev? development self-tests, present only in unpackaged builds
 ---@field failed boolean? saved data or the character could not be loaded; AeonUI stays off for the session
@@ -27,9 +32,11 @@ if AUI.version:find("@", 1, true) then
 	AUI.version = "dev"
 end
 
--- The suite accent (bronze) used for the addon name in chat.
-local PREFIX = "|cff9e754aAeonUI|r: "
-local WARN_PREFIX = "|cff9e754aAeonUI|r |cffff4d4dWarning|r: "
+-- The addon name in blue and parchment, used in chat, the game menu and the settings window title.
+AUI.brand = "|cff00a3e3Aeon|r|cfff2e6c8UI|r"
+
+local PREFIX = AUI.brand .. ": "
+local WARN_PREFIX = AUI.brand .. " |cffff4d4dWarning|r: "
 
 ---@param message string
 ---@param ... any
@@ -98,6 +105,17 @@ function AUI:OpenSettings(page)
 	self.Settings:Open(page)
 end
 
+---Closes the settings window when it is open, else opens it as `OpenSettings` does.
+function AUI:ToggleSettings()
+	if self.Settings and self.Settings:IsOpen() then
+		self.Settings:Close()
+
+		return
+	end
+
+	self:OpenSettings()
+end
+
 function AUI:PrintDiagnostics()
 	local Profile = self.Profile
 
@@ -112,7 +130,12 @@ function AUI:PrintDiagnostics()
 	end
 
 	for _, entry in ipairs(Profile:List()) do
-		self:Print("  %s %s%s", entry.id, entry.name, entry.quarantined and ("  quarantined: " .. entry.quarantined) or "")
+		self:Print(
+			"  %s %s%s",
+			entry.id,
+			entry.name,
+			entry.quarantined and ("  quarantined: " .. entry.quarantined) or ""
+		)
 	end
 end
 
@@ -120,10 +143,10 @@ SLASH_AEONUI1 = "/aeonui"
 SLASH_AEONUI2 = "/aui"
 
 SlashCmdList.AEONUI = function(message)
-	local command, argument = (message or ""):lower():match("^%s*(%S*)%s*(%S*)")
+	local command, rest = (message or ""):lower():match("^%s*(%S*)%s*(.-)%s*$")
 
 	if command == "dev" and AUI.Dev then
-		AUI.Dev:Command(argument)
+		AUI.Dev:Command(rest)
 
 		return
 	end
@@ -134,14 +157,8 @@ SlashCmdList.AEONUI = function(message)
 		return
 	end
 
-	if command == "edit" then
-		if AUI.failed then
-			AUI:Warn(AUI.L["AeonUI is off for this session, so its settings can't open."])
-
-			return
-		end
-
-		AUI.Editor:Enter()
+	if command == "dci" then
+		AUI.DeleteCheapestItem:Toggle()
 
 		return
 	end
