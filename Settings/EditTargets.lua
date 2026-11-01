@@ -16,6 +16,7 @@ local PATHS = {
 	tooltip = "tooltip.position",
 	notifications = "notifications.position",
 	raidMarkers = "markers.position",
+	castBar = "castBar.position",
 }
 
 ---@return table[] targets the frames that exist this session, in the library's form
@@ -80,6 +81,21 @@ function EditTargets:Targets()
 			place = function(position)
 				MarkerBar:Place(position)
 			end,
+		}
+	end
+
+	local CastBar = AUI.CastBar
+
+	if CastBar.frame and CastBar:IsOn() then
+		targets[#targets + 1] = {
+			key = "castBar",
+			label = AUI.L["Cast Bar"],
+			frame = CastBar.frame,
+			default = AUI.CastBarOptions.DEFAULT_POSITION,
+			sample = function(shown)
+				CastBar:Sample(shown)
+			end,
+			settings = { page = "castBar" },
 		}
 	end
 

@@ -1886,6 +1886,7 @@ Equal("and writes it", cvars.UberTooltips, "1")
 AUI.Minimap = { active = false }
 AUI.Notifications = { active = false }
 AUI.MarkerBar = {}
+AUI.CastBar = {}
 assert(loadfile(root .. "Settings/EditTargets.lua"))("AeonUI", AUI)
 local targets = AUI.EditTargets:Targets()
 Equal("the tooltip has a mover", targets[1] and targets[1].key, "tooltip")

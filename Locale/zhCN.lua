@@ -47,6 +47,8 @@ L["Eject All Passengers"] = "弹出所有乘客"
 -- Page titles (Settings)
 L["Profiles"] = "配置文件"
 L["Recovery"] = "恢复"
+L["Unit Frames"] = "单位框架"
+L["Cast Bar"] = "施法条"
 L["Maps"] = "地图"
 L["Quality of Life"] = "便利功能"
 L["Automation"] = "自动化"
@@ -107,6 +109,9 @@ L["Pixel Perfect"] = "像素完美"
 L["One interface unit per pixel on this screen."] = "在此屏幕上一个界面单位对应一个像素。"
 L["Pixel Perfect For"] = "像素完美：分辨率"
 L["Game Menu Scale"] = "游戏菜单缩放"
+
+-- Cast Bar page (Settings)
+L["Show Cast Bar"] = "显示施法条"
 
 -- Release Spirit confirmation popup (Interface)
 L["Do you want to release your spirit?"] = "你要释放灵魂吗？"

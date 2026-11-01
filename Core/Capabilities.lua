@@ -51,6 +51,8 @@ AUI.Capabilities = Capabilities
 ---@field screenText boolean the error frame and the zone, subzone and territory lines exist, with their font objects
 ---@field cursorRing boolean the cursor's place and the global cooldown's duration object can be read
 ---@field castSwipe boolean the player's casts and channels give duration objects
+---@field castBar boolean status bars run timers from duration objects and duration text bindings write the time
+---@field petBattles boolean the client has pet battles
 ---@field premadeJoined boolean a joined group's listing and its Adventure Guide instance can be read
 ---@field petNotices boolean the pet's stance and the character's spells can be read
 ---@field petHealthNotice boolean the pet's health can be drawn through a curve
@@ -141,6 +143,11 @@ function Capabilities:Resolve()
 		and PVPArenaTextString ~= nil and PVPInfoTextFont ~= nil
 	can.cursorRing = GetCursorPosition ~= nil and C_Spell ~= nil and C_Spell.GetSpellCooldownDuration ~= nil
 	can.castSwipe = UnitCastingDuration ~= nil and UnitChannelDuration ~= nil
+	can.castBar = UnitCastingInfo ~= nil and UnitChannelInfo ~= nil and can.castSwipe and C_DurationUtil ~= nil
+		and C_DurationUtil.CreateDurationTextBinding ~= nil and C_StringUtil ~= nil
+		and C_StringUtil.CreateNumericRuleFormatter ~= nil and Enum.StatusBarTimerDirection ~= nil
+		and Enum.StatusBarInterpolation ~= nil and Enum.DurationTextBindingProperty ~= nil
+	can.petBattles = C_PetBattles ~= nil and C_PetBattles.IsInBattle ~= nil
 	can.premadeJoined = C_LFGList ~= nil and C_LFGList.GetSearchResultInfo ~= nil
 		and C_LFGList.GetActivityInfoTable ~= nil and C_EncounterJournal ~= nil
 		and C_EncounterJournal.GetInstanceForGameMap ~= nil and canaccesstable ~= nil

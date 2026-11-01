@@ -47,6 +47,8 @@ L["Eject All Passengers"] = "모든 승객 내보내기"
 -- Page titles (Settings)
 L["Profiles"] = "프로필"
 L["Recovery"] = "복구"
+L["Unit Frames"] = "유닛 프레임"
+L["Cast Bar"] = "시전바"
 L["Maps"] = "지도"
 L["Quality of Life"] = "편의 기능"
 L["Automation"] = "자동화"
@@ -107,6 +109,9 @@ L["Pixel Perfect"] = "픽셀 퍼펙트"
 L["One interface unit per pixel on this screen."] = "이 화면에서 인터페이스 1단위가 1픽셀입니다."
 L["Pixel Perfect For"] = "해상도별 픽셀 퍼펙트"
 L["Game Menu Scale"] = "게임 메뉴 크기"
+
+-- Cast Bar page (Settings)
+L["Show Cast Bar"] = "시전바 표시"
 
 -- Release Spirit confirmation popup (Interface)
 L["Do you want to release your spirit?"] = "영혼을 해방하시겠습니까?"

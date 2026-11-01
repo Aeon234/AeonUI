@@ -1,6 +1,7 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/">
 	<Script file="Window.lua" />
 	<Script file="General.lua" />
+	<Script file="CastBar.lua" />
 	<Script file="Minimap.lua" />
 	<Script file="MinimapEditor.lua" />
 	<Script file="WorldMap.lua" />

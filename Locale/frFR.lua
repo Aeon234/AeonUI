@@ -47,6 +47,8 @@ L["Eject All Passengers"] = "Éjecter tous les passagers"
 -- Page titles (Settings)
 L["Profiles"] = "Profils"
 L["Recovery"] = "Récupération"
+L["Unit Frames"] = "Cadres d'unité"
+L["Cast Bar"] = "Barre d'incantation"
 L["Maps"] = "Cartes"
 L["Quality of Life"] = "Qualité de vie"
 L["Automation"] = "Automatisation"
@@ -107,6 +109,9 @@ L["Pixel Perfect"] = "Pixel parfait"
 L["One interface unit per pixel on this screen."] = "Une unité d'interface par pixel sur cet écran."
 L["Pixel Perfect For"] = "Pixel parfait pour"
 L["Game Menu Scale"] = "Échelle du menu du jeu"
+
+-- Cast Bar page (Settings)
+L["Show Cast Bar"] = "Afficher la barre d'incantation"
 
 -- Release Spirit confirmation popup (Interface)
 L["Do you want to release your spirit?"] = "Voulez-vous libérer votre esprit ?"

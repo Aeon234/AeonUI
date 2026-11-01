@@ -47,6 +47,8 @@ L["Eject All Passengers"] = "Высадить всех пассажиров"
 -- Page titles (Settings)
 L["Profiles"] = "Профили"
 L["Recovery"] = "Восстановление"
+L["Unit Frames"] = "Рамки юнитов"
+L["Cast Bar"] = "Полоса заклинаний"
 L["Maps"] = "Карты"
 L["Quality of Life"] = "Удобство"
 L["Automation"] = "Автоматизация"
@@ -107,6 +109,9 @@ L["Pixel Perfect"] = "Попиксельно"
 L["One interface unit per pixel on this screen."] = "Одна единица интерфейса на пиксель этого экрана."
 L["Pixel Perfect For"] = "Попиксельно для"
 L["Game Menu Scale"] = "Масштаб игрового меню"
+
+-- Cast Bar page (Settings)
+L["Show Cast Bar"] = "Показывать полосу заклинаний"
 
 -- Release Spirit confirmation popup (Interface)
 L["Do you want to release your spirit?"] = "Освободить дух?"

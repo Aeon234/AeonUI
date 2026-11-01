@@ -18,6 +18,7 @@ Core\Core.xml
 Profile\Profile.xml
 Media\Media.xml
 UI\UI.xml
+CastBar\CastBar.xml
 Minimap\Minimap.xml
 WorldMap\WorldMap.xml
 Tooltip\Tooltip.xml

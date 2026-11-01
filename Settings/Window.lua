@@ -23,6 +23,11 @@ local function DeclareSidebar(window)
 	end
 
 	AUI.SettingsGeneral:Declare(window)
+
+	if AUI.can.castBar then
+		AUI.SettingsCastBar:Declare(window)
+	end
+
 	window:Header("mapsHeader", L["Maps"])
 	AUI.SettingsMinimap:Declare(window)
 

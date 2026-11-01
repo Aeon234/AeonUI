@@ -414,7 +414,8 @@ for _, file in ipairs({ "Core/Callbacks.lua", "Core/Capabilities.lua", "Core/Bro
 	"Tooltip/Tooltip.lua", "Interface/UIScale.lua", "Interface/GameMenuScale.lua",
 	"Automation/Options.lua", "Automation/GameSettings.lua", "Menus/Options.lua", "Input/Options.lua",
 	"Input/FocusShortcut.lua", "Alerts/Options.lua", "Interface/Options.lua", "ScreenText/Options.lua",
-	"ScreenText/ScreenText.lua", "Cursor/Options.lua", "Cursor/CursorRing.lua", "Notifications/Options.lua",
+	"ScreenText/ScreenText.lua", "Cursor/Options.lua", "Cursor/CursorRing.lua", "CastBar/Options.lua",
+	"CastBar/BlizzardBar.lua", "CastBar/CastBar.lua", "Settings/CastBar.lua", "Notifications/Options.lua",
 	"Notifications/Notifications.lua", "Markers/Options.lua", "Markers/Bar.lua", "Markers/Cycler.lua",
 	"Markers/Markers.lua", "DeleteCheapestItem/Options.lua", "Core/AuctionPrices.lua",
 	"MerchantWindow/Options.lua", "MerchantWindow/BottomBar.lua", "MerchantWindow/MerchantWindow.lua", "Settings/MerchantWindow.lua",
@@ -780,6 +781,23 @@ Equal("without cast durations: no Casts, no Casting state", tostring(
 AUI.can.cursorRing = nil
 window = Load(nil)
 Equal("no Cursor page without the cursor ring", window.pages.cursor, nil)
+AUI.can.castBar = true
+window = Load(nil)
+Equal("Cast Bar under Unit Frames, after General", table.concat(window.order, " "), "general #unitFramesHeader "
+	.. "castBar #mapsHeader minimap #tooltipHeader tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader "
+	.. "automation alerts notifications - profiles")
+do
+	local castBarPage = window.pages.castBar
+	Equal("its title, under the Unit Frames header", castBarPage.info.title .. " " .. castBarPage.info.under,
+		"Cast Bar unitFramesHeader")
+	Equal("headed by the module's switch, off", castBarPage.info.switch.path .. "=" .. tostring(
+		castBarPage.info.switch.default) .. " " .. castBarPage.info.switch.label, "castBar.enabled=false Show Cast Bar")
+	Equal("no cards yet", #castBarPage.sections, 0)
+end
+AUI.can.castBar = nil
+window = Load(nil)
+Equal("no Cast Bar page or Unit Frames header without the client's timers", tostring(window.pages.castBar) .. " "
+	.. tostring(window.order[2]), "nil #mapsHeader")
 local function NoticeCards(page)
 	local cards = {}
 	for _, section in ipairs(page.sections) do
@@ -1200,6 +1218,22 @@ placement.declaration.set("minimap", { point = "NOWHERE", x = 0, y = 0 })
 Equal("a malformed position is refused", Profile:Get("minimap.position").point, "TOPLEFT")
 Equal("an unknown key reads nothing", placement.declaration.get("other"), nil)
 AUI.Minimap.active, AUI.Minimap.holder = false, nil
+AUI.CastBar.frame = {}
+Equal("no Cast Bar target while it is off", #placement.declaration.targets(), 0)
+Profile:Set("castBar.enabled", true)
+AUI.can.castBar = true
+do
+	local castBarTarget = placement.declaration.targets()[1]
+	Equal("the cast bar is a target while it is on", castBarTarget and castBarTarget.key, "castBar")
+	Equal("it moves the bar", castBarTarget.frame, AUI.CastBar.frame)
+	Equal("from its default place", castBarTarget.default, AUI.CastBarOptions.DEFAULT_POSITION)
+	Equal("with a sample", type(castBarTarget.sample), "function")
+	Equal("Element Options lands on its page", castBarTarget.settings.page, "castBar")
+end
+placement.declaration.set("castBar", { point = "BOTTOM", x = 0, y = 180 })
+Equal("its place is saved in the profile", Profile:Get("castBar.position").y, 180)
+Profile:Set("castBar.enabled", false)
+AUI.can.castBar, AUI.CastBar.frame = nil, nil
 
 -- Profiles adapter --------------------------------------------------------------------------------------------
 
