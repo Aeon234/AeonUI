@@ -505,6 +505,8 @@ L["Pick Up"] = "拿起"
 L["Drink"] = "飲料"
 L["Drink Macro"] = "飲料巨集"
 L["Your best drink, kept current as %s."] = "你最好的飲料，在%s中保持最新。"
+L["Health Macro"] = "生命巨集"
+L["Your best healthstone and healing potions, kept current as %s."] = "你最好的治療石和治療藥水，在%s中保持最新。"
 
 -- Player Menu page (Settings)
 L["Guild Invite"] = "公會邀請"

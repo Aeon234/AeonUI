@@ -399,7 +399,7 @@ end
 ALWAYS, COLOR, OPACITY = "Always", "Color", "Opacity"
 COMBAT, PET, CHARACTER = "Combat", "Pet", "Character"
 READY_CHECK, PLAYER_COUNTDOWN_BUTTON, KEY_BINDINGS, NONE = "Ready Check", "Countdown", "Key Bindings", "None"
-MACROS = "Macros"
+MACROS, HEALTH = "Macros", "Health"
 RAID_TARGET_1, RAID_TARGET_8 = "Star", "Skull"
 
 local AUI = {}
@@ -1871,7 +1871,8 @@ local function CheckMacrosPage()
 		macroCards[#macroCards + 1] = section.title .. ": " .. SettingIDs(section)
 	end
 	Equal("a Food and a Drink card, no mana potions on Retail", table.concat(macroCards, " | "), "Food: "
-		.. "macrosFoodEnabled macrosFoodOnly macrosFoodPickUp | Drink: macrosDrinkEnabled macrosDrinkPickUp")
+		.. "macrosFoodEnabled macrosFoodOnly macrosFoodPickUp | Drink: macrosDrinkEnabled macrosDrinkPickUp | Health: "
+		.. "macrosHealthEnabled macrosHealthPickUp")
 	local foodCard = macrosPage.sections.macrosFood.settings
 	Equal("headed by its switch, off, naming the macro", foodCard.macrosFoodEnabled.kind .. " "
 		.. foodCard.macrosFoodEnabled.label .. " " .. tostring(foodCard.macrosFoodEnabled.default) .. " "
@@ -1898,7 +1899,8 @@ local function CheckMacrosPage()
 		macroCards[#macroCards + 1] = section.title .. ": " .. SettingIDs(section)
 	end
 	Equal("mana potions on each card on Forever", table.concat(macroCards, " | "), "Food: macrosFoodEnabled "
-		.. "macrosFoodOnly macrosFoodMana macrosFoodPickUp | Drink: macrosDrinkEnabled macrosDrinkMana macrosDrinkPickUp")
+		.. "macrosFoodOnly macrosFoodMana macrosFoodPickUp | Drink: macrosDrinkEnabled macrosDrinkMana macrosDrinkPickUp "
+		.. "| Health: macrosHealthEnabled macrosHealthPickUp")
 	AUI.can.macros, AUI.can.manaPotions = nil, nil
 	window = Load(nil)
 	Equal("no page without the macro functions", window.pages.macros, nil)

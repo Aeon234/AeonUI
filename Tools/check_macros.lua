@@ -103,7 +103,7 @@ local function Item(id, spell, level, cooldown)
 end
 C_Spell = {
 	GetSpellName = function(id)
-		return ({ [433] = FOOD, [430] = DRINK })[id]
+		return ({ [433] = FOOD, [430] = DRINK, [1231411] = "Recuperate" })[id]
 	end,
 }
 
@@ -303,6 +303,19 @@ Equal("an unusable item gets the placeholder", Options.Wanted(nil, Lines("/use i
 	"#showtooltip")
 Equal("a used-up item stays", Options.Wanted(nil, Lines("/use item:1"), false, Usable), nil)
 
+local steps = Options.HealthSteps(5, { { id = 7, count = 2 }, { id = 8, count = 9 } })
+Equal("the stone, then each potion as often as carried, capped", table.concat(steps, " "),
+	"5 7 7 8 8 8 8 8 8")
+Equal("no stone", table.concat(Options.HealthSteps(nil, { { id = 7, count = 1 } }), " "), "7")
+Equal("health sequence", Options.HealthBody({ 5, 7, 7 }), Lines("/castsequence reset=combat item:5, item:7, item:7"))
+Equal("one health item used plainly", Options.HealthBody({ 5 }), Lines("/use item:5"))
+Equal("health with Recuperate", Options.HealthBody({ 5, 7 }, "Recuperate"),
+	Lines("/cast [nocombat] Recuperate", "/castsequence [combat] reset=combat item:5, item:7"))
+Equal("one item with Recuperate", Options.HealthBody({ 5 }, "Recuperate"),
+	Lines("/cast [nocombat] Recuperate", "/use [combat] item:5"))
+Equal("Recuperate alone", Options.HealthBody({}, "Recuperate"), Lines("/cast [nocombat] Recuperate"))
+Equal("nothing to heal with", Options.HealthBody({}), nil)
+
 -- Module: login ---------------------------------------------------------------------------------------------
 
 Item(101, FOOD, 25)
@@ -479,6 +492,36 @@ Equal("the player told", printed[#printed]:find("in combat", 1, true) ~= nil, tr
 inCombat = false
 Macros:Pickup("food")
 Equal("picked up", pickedUp, "AeonUI Food")
+
+-- Health ------------------------------------------------------------------------------------------------
+
+Item(5509, "Healthstone", 24)
+Item(19013, "Healthstone", 48)
+Item(1710, "Healing Potion", 21)
+Item(929, "Healing Potion", 12)
+bags[2] = { 5509, 19013, 1710, 929, 929 }
+Macros:Set("health", true)
+Equal("the usable stone, then potions as often as carried", Body("AeonUI Health"),
+	Lines("/castsequence reset=combat item:5509, item:1710, item:929, item:929"))
+bags[2] = { 929 }
+Fire("BAG_UPDATE_DELAYED")
+Equal("one potion used plainly", Body("AeonUI Health"), Lines("/use item:929"))
+bags[2] = {}
+Fire("BAG_UPDATE_DELAYED")
+Equal("the last potion stays on the macro", Body("AeonUI Health"), Lines("/use item:929"))
+AUI.can.recuperate = true
+bags[2] = { 5509 }
+Fire("BAG_UPDATE_DELAYED")
+Equal("Recuperate out of combat on Retail", Body("AeonUI Health"),
+	Lines("/cast [nocombat] Recuperate", "/use [combat] item:5509"))
+bags[2] = {}
+Fire("BAG_UPDATE_DELAYED")
+Equal("Recuperate alone without items", Body("AeonUI Health"), Lines("/cast [nocombat] Recuperate"))
+AUI.can.recuperate = nil
+Macros:Pickup("health")
+Equal("the health macro picked up", pickedUp, "AeonUI Health")
+Macros:Set("health", false)
+Equal("the health macro deleted when off", Index("AeonUI Health"), 0)
 
 -- Switching off -------------------------------------------------------------------------------------------
 

@@ -68,6 +68,7 @@ AUI.Capabilities = Capabilities
 ---@field deleteCheapestItem boolean bag items' quest status and sell prices can be read, and the cursor's item deleted
 ---@field macros boolean account macros can be made, read and edited, and bag items' use spells and cooldowns read
 ---@field manaPotions boolean mana potions belong in the food and drink macros (Forever)
+---@field recuperate boolean every character has Recuperate, the self-heal out of combat (Retail)
 AUI.can = {}
 
 ---The only place a client difference is detected. Runs once at login.
@@ -179,6 +180,7 @@ function Capabilities:Resolve()
 		and C_Item ~= nil and C_Item.GetItemSpell ~= nil and C_Item.GetItemCooldown ~= nil and C_Spell ~= nil
 		and C_Spell.GetSpellName ~= nil and C_Container ~= nil and C_Container.GetContainerItemID ~= nil
 	can.manaPotions = WOW_PROJECT_ID == WOW_PROJECT_CAMELOT
+	can.recuperate = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE
 
 	self.resolved = true
 

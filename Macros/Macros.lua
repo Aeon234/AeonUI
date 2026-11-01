@@ -9,16 +9,17 @@ local UPDATE_KEY = "macros"
 -- deleted macro frees a slot in General.
 local EVENTS = { "BAG_UPDATE_DELAYED", "BAG_UPDATE_COOLDOWN", "UNIT_LEVEL", "UPDATE_MACROS" }
 
----What a bag scan found: the best food and drink, the best mana potion when a macro wants one, and whether the player
----has mana.
+---What a bag scan found: the best food and drink, the best mana potion when a macro wants one, whether the player
+---has mana, and the health macro's steps while it is on.
 ---@class AUIMacroScan
 ---@field food AUIMacroCandidate?
 ---@field drink AUIMacroCandidate?
 ---@field mana number?
 ---@field hasMana boolean
+---@field health number[]?
 
 ---The macros module: account macros kept on the best item the character carries, rewritten out of combat. Its
----settings are account-wide, in `global.macros` (absent means off): `food`, `drink`, `foodOnly`, and `foodMana` and `drinkMana` for a mana potion in
+---settings are account-wide, in `global.macros` (absent means off): `food`, `drink`, `health`, `foodOnly`, and `foodMana` and `drinkMana` for a mana potion in
 ---combat in each.
 ---Nothing is written before the first `PLAYER_ENTERING_WORLD`, when the game's macros are loaded. Only switching a
 ---macro off deletes it.
@@ -58,7 +59,7 @@ local function State()
 	return global.macros
 end
 
----@param key string `food`, `drink`, `foodOnly`, `foodMana` or `drinkMana`
+---@param key string `food`, `drink`, `health`, `foodOnly`, `foodMana` or `drinkMana`
 ---@return boolean
 function Macros:IsOn(key)
 	local state = State()
@@ -77,7 +78,7 @@ function Macros:AnyOn()
 	return false
 end
 
----@param key string `food`, `drink`, `foodOnly`, `foodMana` or `drinkMana`
+---@param key string `food`, `drink`, `health`, `foodOnly`, `foodMana` or `drinkMana`
 ---@param on boolean
 function Macros:Set(key, on)
 	local state = State()
@@ -247,7 +248,7 @@ function Macros:Scan()
 
 	if scan.hasMana and AUI.can.manaPotions and (self:IsOn("foodMana") or self:IsOn("drinkMana")) then
 		for _, id in ipairs(Options.MANA_POTIONS) do
-			if C_Item.GetItemCount(id) > 0 and Options.LevelAllowed(self:RequiredLevel(id), playerLevel) then
+			if C_Item.GetItemCount(id) > 0 and self:Usable(id, playerLevel) then
 				scan.mana = id
 
 				break
@@ -255,7 +256,43 @@ function Macros:Scan()
 		end
 	end
 
+	if self:IsOn("health") then
+		scan.health = self:HealthSteps(playerLevel)
+	end
+
 	return scan
+end
+
+---@param id number
+---@param playerLevel number?
+---@return boolean
+function Macros:Usable(id, playerLevel)
+	return Options.LevelAllowed(self:RequiredLevel(id), playerLevel)
+end
+
+---@param playerLevel number?
+---@return number[] steps the best healthstone carried, then the healing potions carried, best first
+function Macros:HealthSteps(playerLevel)
+	local stone
+	local potions = {}
+
+	for _, id in ipairs(Options.HEALTHSTONES) do
+		if C_Item.GetItemCount(id) > 0 and self:Usable(id, playerLevel) then
+			stone = id
+
+			break
+		end
+	end
+
+	for _, id in ipairs(Options.HEALING_POTIONS) do
+		local count = C_Item.GetItemCount(id)
+
+		if count > 0 and self:Usable(id, playerLevel) then
+			potions[#potions + 1] = { id = id, count = count }
+		end
+	end
+
+	return Options.HealthSteps(stone, potions)
 end
 
 ---@param key string
@@ -264,6 +301,12 @@ end
 local function Fresh(key, scan)
 	local drink = scan.hasMana and scan.drink or nil
 	local mana = Macros:IsOn(key .. "Mana") and scan.mana or nil
+
+	if key == "health" then
+		local recuperate = AUI.can.recuperate and C_Spell.GetSpellName(Options.RECUPERATE) or nil
+
+		return Options.HealthBody(scan.health or {}, recuperate)
+	end
 
 	if key == "drink" then
 		return Options.DrinkBody(drink and drink.id, mana)
@@ -369,7 +412,7 @@ function Macros:OnCombatEnded()
 end
 
 ---Puts a macro on the cursor to place on an action bar, writing it first.
----@param key string `food` or `drink`
+---@param key string `food`, `drink` or `health`
 function Macros:Pickup(key)
 	if InCombatLockdown() then
 		AUI:Warn(L["Macros can't be picked up in combat."])

@@ -505,6 +505,8 @@ L["Pick Up"] = "집기"
 L["Drink"] = "음료"
 L["Drink Macro"] = "음료 매크로"
 L["Your best drink, kept current as %s."] = "가장 좋은 음료를 %s 매크로에 최신 상태로 유지합니다."
+L["Health Macro"] = "생명력 매크로"
+L["Your best healthstone and healing potions, kept current as %s."] = "가장 좋은 생명석과 치유 물약을 %s 매크로에 최신 상태로 유지합니다."
 
 -- Player Menu page (Settings)
 L["Guild Invite"] = "길드 초대"

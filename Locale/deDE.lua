@@ -505,6 +505,8 @@ L["Pick Up"] = "Aufnehmen"
 L["Drink"] = "Trinken"
 L["Drink Macro"] = "Trinkmakro"
 L["Your best drink, kept current as %s."] = "Dein bestes Getränk, aktuell gehalten als %s."
+L["Health Macro"] = "Heilungsmakro"
+L["Your best healthstone and healing potions, kept current as %s."] = "Dein bester Gesundheitsstein und deine besten Heiltränke, aktuell gehalten als %s."
 
 -- Player Menu page (Settings)
 L["Guild Invite"] = "Gildeneinladung"

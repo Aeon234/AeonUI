@@ -12,32 +12,44 @@ local AUI = select(2, ...)
 ---@class AUIMacrosOptions
 ---@field FOOD string the food macro's name
 ---@field DRINK string the drink macro's name
+---@field HEALTH string the health macro's name
 ---@field ICON number the question mark icon, so a macro shows what its `#showtooltip` line names
 ---@field PLACEHOLDER string a macro's text while nothing it could use is carried
 ---@field FOOD_SPELL number the spell every food item casts
 ---@field DRINK_SPELL number the spell every drink item casts
+---@field RECUPERATE number the self-heal every Retail character has out of combat
+---@field POTION_STEPS number the most healing potions a health sequence holds
 ---@field KEYS string[] the macros' settings keys, in the order the page lists them
 ---@field NAMES table<string, string> each macro's name by settings key
 ---@field CONJURED table<number, true> conjured mage food and water, preferred over other items
 ---@field FOOD_AND_DRINK table<number, true> items that are both food and drink, which their spell does not show
 ---@field MANA_POTIONS number[] mana potions, mana gems and healing-and-mana potions, best first (Forever)
-local FOOD, DRINK = "AeonUI Food", "AeonUI Drink"
+---@field HEALTHSTONES number[] healthstones of both clients, best first
+---@field HEALING_POTIONS number[] healing potions, Retail's then Forever's, best first
+local FOOD, DRINK, HEALTH = "AeonUI Food", "AeonUI Drink", "AeonUI Health"
 ---@type table<string, string>
-local NAMES = { food = FOOD, drink = DRINK }
+local NAMES = { food = FOOD, drink = DRINK, health = HEALTH }
 
 local Options = {
 	FOOD = FOOD,
 	DRINK = DRINK,
+	HEALTH = HEALTH,
 	ICON = 134400,
 	PLACEHOLDER = "#showtooltip",
 	FOOD_SPELL = 433,
 	DRINK_SPELL = 430,
-	KEYS = { "food", "drink" },
+	RECUPERATE = 1231411,
+	POTION_STEPS = 8,
+	KEYS = { "food", "drink", "health" },
 	NAMES = NAMES,
 	CONJURED = {},
 	FOOD_AND_DRINK = {},
 	MANA_POTIONS = { 13444, 23578, 18253, 13443, 18841, 8008, 8007, 6149, 274935, 9144, 5513, 3827, 5514, 3385, 2455,
 		3087, 2456, 282013 },
+	HEALTHSTONES = { 9421, 19012, 19013, 5510, 19010, 19011, 5509, 19008, 19009, 5511, 19006, 19007, 5512, 19004, 19005,
+		224464 },
+	HEALING_POTIONS = { 271884, 271883, 245918, 245919, 241304, 241305, 241298, 241299, 241306, 241307, 13446, 23579, 3928,
+		18839, 247242, 1710, 247241, 929, 268883, 247240, 858, 268882, 247239, 118, 268881, 4596, 282011 },
 }
 AUI.MacrosOptions = Options
 
@@ -150,6 +162,52 @@ function Options.DrinkBody(drink, mana)
 
 	if drink then
 		lines[#lines + 1] = "/use [nocombat] item:" .. drink
+	end
+
+	return Body(lines)
+end
+
+---The health macro's steps: the best healthstone, then each healing potion as many times as it is carried, best
+---first, up to `POTION_STEPS` potions.
+---@param stone number? the best healthstone carried
+---@param potions {id: number, count: number}[] the healing potions carried and usable, best first
+---@return number[] steps item IDs in the order a sequence uses them
+function Options.HealthSteps(stone, potions)
+	local steps = {}
+
+	if stone then
+		steps[1] = stone
+	end
+
+	local added = 0
+
+	for _, potion in ipairs(potions) do
+		for _ = 1, math.min(potion.count, Options.POTION_STEPS - added) do
+			steps[#steps + 1] = potion.id
+			added = added + 1
+		end
+	end
+
+	return steps
+end
+
+---The health macro's text: the steps in a sequence that starts again when combat ends, under Recuperate out of combat
+---when a spell name is given, in which case the items wait for combat.
+---@param steps number[] item IDs from `HealthSteps`
+---@param recuperate string? Recuperate's name (Retail)
+---@return string? body nil when there is nothing to use
+function Options.HealthBody(steps, recuperate)
+	local lines = {}
+	local condition = recuperate and "[combat] " or ""
+
+	if recuperate then
+		lines[1] = "/cast [nocombat] " .. recuperate
+	end
+
+	if #steps == 1 then
+		lines[#lines + 1] = "/use " .. condition .. "item:" .. steps[1]
+	elseif #steps > 1 then
+		lines[#lines + 1] = "/castsequence " .. condition .. "reset=combat item:" .. table.concat(steps, ", item:")
 	end
 
 	return Body(lines)

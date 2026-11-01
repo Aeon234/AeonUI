@@ -26,7 +26,7 @@ end
 
 ---@param card table
 ---@param id string
----@param key string `food` or `drink`
+---@param key string `food`, `drink` or `health`
 ---@param depends string the card's switch
 local function PickUp(card, id, key, depends)
 	card:Button({
@@ -90,4 +90,11 @@ function SettingsMacros:Declare(window)
 	drink:Toggle(drinkSwitch)
 	ManaPotion(drink, "macrosDrinkMana", "drinkMana", "macrosDrinkEnabled")
 	PickUp(drink, "macrosDrinkPickUp", "drink", "macrosDrinkEnabled")
+
+	local health = page:Section("macrosHealth", HEALTH)
+	local healthSwitch = Stored("macrosHealthEnabled", "health")
+	healthSwitch.label = L["Health Macro"]
+	healthSwitch.description = L["Your best healthstone and healing potions, kept current as %s."]:format(Options.HEALTH)
+	health:Toggle(healthSwitch)
+	PickUp(health, "macrosHealthPickUp", "health", "macrosHealthEnabled")
 end
