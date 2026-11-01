@@ -21,6 +21,12 @@ L["Not enough money to repair (%s)."] = "Не хватает денег на р�
 L["Not enough guild funds to repair (%s)."] = "Не хватает средств гильдии на ремонт (%s)."
 L["Nothing in the current expansion, so all expansions were searched."] = "В текущем дополнении ничего нет, поэтому поиск выполнен по всем дополнениям."
 
+-- Chat messages (Macros)
+L["General macros are full, so %s could not be made. Delete one and it will be added."] = "Общие макросы заполнены, поэтому %s не удалось создать. Удалите один, и он будет добавлен."
+L["%s was made, but the game could not find it by name, so it won't be made again until you reload."] = "%s создан, но игра не находит его по имени, поэтому он не будет создан снова до перезагрузки."
+L["Macros can't be picked up in combat."] = "В бою нельзя взять макрос."
+L["Make room in General macros first."] = "Сначала освободите место в общих макросах."
+
 -- Profile names (Profile)
 L["A profile needs a name."] = "Профилю нужно название."
 L["A profile name can be %d letters at most."] = "Название профиля может содержать не более %d букв."
@@ -486,6 +492,19 @@ L["Approached objects use the game's soft targeting: while one of them is on, th
 -- Space-separated words a chest's name starts or ends with, in this language (HiddenSettings/Target.lua).
 L["chest strongbox lockbox coffer footlocker trunk"] = "сундук ларец Сундук Ларец"
 L["The sparkle stays until the game restarts. /reload is not enough."] = "Блеск остается до перезапуска игры. /reload недостаточно."
+
+-- Macros page (Settings)
+L["Food"] = "Еда"
+L["Food Macro"] = "Макрос еды"
+L["Your best food and drink, kept current as %s."] = "Ваши лучшие еда и питье, всегда актуальные в %s."
+L["Food Only"] = "Только еда"
+L["Leaves the drink to %s."] = "Питье остается за %s."
+L["Mana Potion in Combat"] = "Зелье маны в бою"
+L["Place on a Bar"] = "Поместить на панель"
+L["Pick Up"] = "Взять"
+L["Drink"] = "Питье"
+L["Drink Macro"] = "Макрос питья"
+L["Your best drink, kept current as %s."] = "Ваше лучшее питье, всегда актуальное в %s."
 
 -- Player Menu page (Settings)
 L["Guild Invite"] = "Пригласить в гильдию"

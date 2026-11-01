@@ -45,6 +45,10 @@ local function DeclareSidebar(window)
 		AUI.SettingsHiddenSettings:Declare(window)
 	end
 
+	if AUI.can.macros then
+		AUI.SettingsMacros:Declare(window)
+	end
+
 	if AUI.SettingsPlayerMenu:IsAvailable() then
 		AUI.SettingsPlayerMenu:Declare(window)
 	end

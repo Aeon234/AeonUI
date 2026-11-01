@@ -33,6 +33,7 @@ Markers\Markers.xml
 DeleteCheapestItem\DeleteCheapestItem.xml
 MerchantWindow\MerchantWindow.xml
 HiddenSettings\HiddenSettings.xml
+Macros\Macros.xml
 Settings\Settings.xml
 
 #@do-not-package@

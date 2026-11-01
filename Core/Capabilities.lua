@@ -66,6 +66,8 @@ AUI.Capabilities = Capabilities
 ---@field commodities boolean stackable items sell region-wide at the auction house (Retail)
 ---@field merchantFilter boolean the merchant's item filter can be read and set to all items
 ---@field deleteCheapestItem boolean bag items' quest status and sell prices can be read, and the cursor's item deleted
+---@field macros boolean account macros can be made, read and edited, and bag items' use spells and cooldowns read
+---@field manaPotions boolean mana potions belong in the food and drink macros (Forever)
 AUI.can = {}
 
 ---The only place a client difference is detected. Runs once at login.
@@ -172,6 +174,11 @@ function Capabilities:Resolve()
 	can.commodities = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE and C_AuctionHouse ~= nil
 	can.merchantFilter = can.merchantWindow and SetMerchantFilter ~= nil and GetMerchantFilter ~= nil
 		and LE_LOOT_FILTER_ALL ~= nil
+	can.macros = CreateMacro ~= nil and EditMacro ~= nil and DeleteMacro ~= nil and GetMacroInfo ~= nil
+		and GetMacroIndexByName ~= nil and GetNumMacros ~= nil and PickupMacro ~= nil and Constants.MacroConsts ~= nil
+		and C_Item ~= nil and C_Item.GetItemSpell ~= nil and C_Item.GetItemCooldown ~= nil and C_Spell ~= nil
+		and C_Spell.GetSpellName ~= nil and C_Container ~= nil and C_Container.GetContainerItemID ~= nil
+	can.manaPotions = WOW_PROJECT_ID == WOW_PROJECT_CAMELOT
 
 	self.resolved = true
 

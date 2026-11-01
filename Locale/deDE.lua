@@ -21,6 +21,12 @@ L["Not enough money to repair (%s)."] = "Nicht genug Geld für die Reparatur (%s
 L["Not enough guild funds to repair (%s)."] = "Nicht genug Gildengeld für die Reparatur (%s)."
 L["Nothing in the current expansion, so all expansions were searched."] = "Nichts in der aktuellen Erweiterung, daher wurden alle Erweiterungen durchsucht."
 
+-- Chat messages (Macros)
+L["General macros are full, so %s could not be made. Delete one and it will be added."] = "Die allgemeinen Makros sind voll, daher konnte %s nicht erstellt werden. Lösche eines, dann wird es hinzugefügt."
+L["%s was made, but the game could not find it by name, so it won't be made again until you reload."] = "%s wurde erstellt, aber das Spiel findet es nicht unter seinem Namen, daher wird es bis zum Neuladen nicht erneut erstellt."
+L["Macros can't be picked up in combat."] = "Makros können im Kampf nicht aufgenommen werden."
+L["Make room in General macros first."] = "Schaffe zuerst Platz bei den allgemeinen Makros."
+
 -- Profile names (Profile)
 L["A profile needs a name."] = "Ein Profil braucht einen Namen."
 L["A profile name can be %d letters at most."] = "Ein Profilname darf höchstens %d Zeichen lang sein."
@@ -486,6 +492,19 @@ L["Approached objects use the game's soft targeting: while one of them is on, th
 -- Space-separated words a chest's name starts or ends with, in this language (HiddenSettings/Target.lua).
 L["chest strongbox lockbox coffer footlocker trunk"] = "truhe kiste kassette schatulle"
 L["The sparkle stays until the game restarts. /reload is not enough."] = "Das Funkeln bleibt bis zum Neustart des Spiels. /reload reicht nicht."
+
+-- Macros page (Settings)
+L["Food"] = "Essen"
+L["Food Macro"] = "Essensmakro"
+L["Your best food and drink, kept current as %s."] = "Dein bestes Essen und Trinken, aktuell gehalten als %s."
+L["Food Only"] = "Nur Essen"
+L["Leaves the drink to %s."] = "Das Trinken übernimmt %s."
+L["Mana Potion in Combat"] = "Manatrank im Kampf"
+L["Place on a Bar"] = "In eine Leiste legen"
+L["Pick Up"] = "Aufnehmen"
+L["Drink"] = "Trinken"
+L["Drink Macro"] = "Trinkmakro"
+L["Your best drink, kept current as %s."] = "Dein bestes Getränk, aktuell gehalten als %s."
 
 -- Player Menu page (Settings)
 L["Guild Invite"] = "Gildeneinladung"

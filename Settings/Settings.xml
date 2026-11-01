@@ -9,6 +9,7 @@
 	<Script file="DeleteCheapestItem.lua" />
 	<Script file="MerchantWindow.lua" />
 	<Script file="HiddenSettings.lua" />
+	<Script file="Macros.lua" />
 	<Script file="PlayerMenu.lua" />
 	<Script file="Input.lua" />
 	<Script file="Alerts.lua" />

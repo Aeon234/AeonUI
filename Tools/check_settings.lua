@@ -399,6 +399,7 @@ end
 ALWAYS, COLOR, OPACITY = "Always", "Color", "Opacity"
 COMBAT, PET, CHARACTER = "Combat", "Pet", "Character"
 READY_CHECK, PLAYER_COUNTDOWN_BUTTON, KEY_BINDINGS, NONE = "Ready Check", "Countdown", "Key Bindings", "None"
+MACROS = "Macros"
 RAID_TARGET_1, RAID_TARGET_8 = "Star", "Skull"
 
 local AUI = {}
@@ -418,7 +419,7 @@ for _, file in ipairs({ "Core/Callbacks.lua", "Core/Capabilities.lua", "Core/Bro
 	"Markers/Markers.lua", "DeleteCheapestItem/Options.lua", "Core/AuctionPrices.lua",
 	"MerchantWindow/Options.lua", "MerchantWindow/BottomBar.lua", "MerchantWindow/MerchantWindow.lua", "Settings/MerchantWindow.lua",
 	"HiddenSettings/Options.lua", "HiddenSettings/CVarHolder.lua", "HiddenSettings/HiddenSettings.lua",
-	"Settings/HiddenSettings.lua",
+	"Settings/HiddenSettings.lua", "Macros/Options.lua", "Macros/Macros.lua", "Settings/Macros.lua",
 	"Settings/Window.lua", "Settings/MinimapEditor.lua", "Settings/General.lua", "Settings/Minimap.lua",
 	"Settings/WorldMap.lua", "Settings/Tooltip.lua", "Settings/Automation.lua", "Settings/DeleteCheapestItem.lua", "Settings/PlayerMenu.lua",
 	"Settings/Input.lua", "Settings/Alerts.lua", "Settings/Interface.lua", "Settings/ScreenText.lua",
@@ -1851,5 +1852,58 @@ AUI.can.approachSparkles = nil
 window = Load(nil)
 Equal("page left out without the CVar", window.pages.hiddenSettings, nil)
 AUI.can.merchantWindow = nil
+
+-- Macros page ---------------------------------------------------------------------------------------------
+
+-- In a function of its own: the main chunk is at Lua 5.1's limit of 200 locals.
+local function CheckMacrosPage()
+	AUI.can.macros = true
+	window = Load(nil)
+	Equal("macros after automation", table.concat(window.order, " "), "general #mapsHeader minimap "
+		.. "#tooltipHeader tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader automation macros alerts "
+		.. "notifications - profiles")
+	local macrosPage = window.pages.macros
+	Equal("titled Macros, under Quality of Life, with its icon, tinted", macrosPage.info.title .. " "
+		.. macrosPage.info.under .. " " .. tostring(macrosPage.info.icon == AUI.Media.sidebar.macros) .. " "
+		.. tostring(macrosPage.info.iconTint), "Macros qualityOfLifeHeader true true")
+	local macroCards = {}
+	for _, section in ipairs(macrosPage.sections) do
+		macroCards[#macroCards + 1] = section.title .. ": " .. SettingIDs(section)
+	end
+	Equal("a Food and a Drink card, no mana potions on Retail", table.concat(macroCards, " | "), "Food: "
+		.. "macrosFoodEnabled macrosFoodOnly macrosFoodPickUp | Drink: macrosDrinkEnabled macrosDrinkPickUp")
+	local foodCard = macrosPage.sections.macrosFood.settings
+	Equal("headed by its switch, off, naming the macro", foodCard.macrosFoodEnabled.kind .. " "
+		.. foodCard.macrosFoodEnabled.label .. " " .. tostring(foodCard.macrosFoodEnabled.default) .. " "
+		.. foodCard.macrosFoodEnabled.description, "Toggle Food Macro false Your best food and drink, kept current as "
+		.. "AeonUI Food.")
+	Equal("Food Only and Pick Up wait for the switch", foodCard.macrosFoodOnly.depends .. " "
+		.. foodCard.macrosFoodPickUp.depends .. " " .. foodCard.macrosFoodPickUp.verb, "macrosFoodEnabled "
+		.. "macrosFoodEnabled Pick Up")
+	local macros, stored = AUI.Macros, {}
+	local isOn, set, pickup = macros.IsOn, macros.Set, macros.Pickup
+	local picked
+	macros.IsOn = function(_, key) return stored[key] == true end
+	macros.Set = function(_, key, on) stored[key] = on end
+	macros.Pickup = function(_, key) picked = key end
+	foodCard.macrosFoodOnly.set(true)
+	macrosPage.sections.macrosDrink.settings.macrosDrinkPickUp.run()
+	Equal("rows follow the module", tostring(stored.foodOnly) .. " " .. tostring(foodCard.macrosFoodOnly.get()) .. " "
+		.. tostring(foodCard.macrosFoodEnabled.get()) .. " " .. tostring(picked), "true true false drink")
+	macros.IsOn, macros.Set, macros.Pickup = isOn, set, pickup
+	AUI.can.manaPotions = true
+	window = Load(nil)
+	macroCards = {}
+	for _, section in ipairs(window.pages.macros.sections) do
+		macroCards[#macroCards + 1] = section.title .. ": " .. SettingIDs(section)
+	end
+	Equal("mana potions on each card on Forever", table.concat(macroCards, " | "), "Food: macrosFoodEnabled "
+		.. "macrosFoodOnly macrosFoodMana macrosFoodPickUp | Drink: macrosDrinkEnabled macrosDrinkMana macrosDrinkPickUp")
+	AUI.can.macros, AUI.can.manaPotions = nil, nil
+	window = Load(nil)
+	Equal("no page without the macro functions", window.pages.macros, nil)
+end
+
+CheckMacrosPage()
 
 io.stdout:write(("check_settings: %d checks passed\n"):format(checks))

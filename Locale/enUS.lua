@@ -35,6 +35,14 @@ L["Not enough guild funds to repair (%s)."] = "Not enough guild funds to repair 
 L["Nothing in the current expansion, so all expansions were searched."] =
 	"Nothing in the current expansion, so all expansions were searched."
 
+-- Chat messages (Macros)
+L["General macros are full, so %s could not be made. Delete one and it will be added."] =
+	"General macros are full, so %s could not be made. Delete one and it will be added."
+L["%s was made, but the game could not find it by name, so it won't be made again until you reload."] =
+	"%s was made, but the game could not find it by name, so it won't be made again until you reload."
+L["Macros can't be picked up in combat."] = "Macros can't be picked up in combat."
+L["Make room in General macros first."] = "Make room in General macros first."
+
 -- Profile names (Profile)
 L["A profile needs a name."] = "A profile needs a name."
 L["A profile name can be %d letters at most."] = "A profile name can be %d letters at most."
@@ -529,6 +537,19 @@ L["Approached objects use the game's soft targeting: while one of them is on, th
 L["chest strongbox lockbox coffer footlocker trunk"] = "chest strongbox lockbox coffer footlocker trunk"
 L["The sparkle stays until the game restarts. /reload is not enough."] =
 	"The sparkle stays until the game restarts. /reload is not enough."
+
+-- Macros page (Settings)
+L["Food"] = "Food"
+L["Food Macro"] = "Food Macro"
+L["Your best food and drink, kept current as %s."] = "Your best food and drink, kept current as %s."
+L["Food Only"] = "Food Only"
+L["Leaves the drink to %s."] = "Leaves the drink to %s."
+L["Mana Potion in Combat"] = "Mana Potion in Combat"
+L["Place on a Bar"] = "Place on a Bar"
+L["Pick Up"] = "Pick Up"
+L["Drink"] = "Drink"
+L["Drink Macro"] = "Drink Macro"
+L["Your best drink, kept current as %s."] = "Your best drink, kept current as %s."
 
 -- Player Menu page (Settings)
 L["Guild Invite"] = "Guild Invite"

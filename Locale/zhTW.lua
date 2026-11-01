@@ -21,6 +21,12 @@ L["Not enough money to repair (%s)."] = "金錢不足，無法修理（%s）。"
 L["Not enough guild funds to repair (%s)."] = "公會資金不足，無法修理（%s）。"
 L["Nothing in the current expansion, so all expansions were searched."] = "目前資料片中沒有結果，因此搜尋了所有資料片。"
 
+-- Chat messages (Macros)
+L["General macros are full, so %s could not be made. Delete one and it will be added."] = "通用巨集已滿，無法建立%s。刪除一個後會自動加入。"
+L["%s was made, but the game could not find it by name, so it won't be made again until you reload."] = "%s已建立，但遊戲無法依名稱找到它，因此在重新載入之前不會再次建立。"
+L["Macros can't be picked up in combat."] = "戰鬥中無法拿起巨集。"
+L["Make room in General macros first."] = "請先在通用巨集中騰出空間。"
+
 -- Profile names (Profile)
 L["A profile needs a name."] = "設定檔需要名稱。"
 L["A profile name can be %d letters at most."] = "設定檔名稱最多 %d 個字元。"
@@ -486,6 +492,19 @@ L["Approached objects use the game's soft targeting: while one of them is on, th
 -- Space-separated words a chest's name starts or ends with, in this language (HiddenSettings/Target.lua).
 L["chest strongbox lockbox coffer footlocker trunk"] = "寶箱 箱子"
 L["The sparkle stays until the game restarts. /reload is not enough."] = "閃光會一直保留到重新啟動遊戲。/reload 不夠。"
+
+-- Macros page (Settings)
+L["Food"] = "食物"
+L["Food Macro"] = "食物巨集"
+L["Your best food and drink, kept current as %s."] = "你最好的食物和飲料，在%s中保持最新。"
+L["Food Only"] = "僅食物"
+L["Leaves the drink to %s."] = "飲料交給%s。"
+L["Mana Potion in Combat"] = "戰鬥中使用法力藥水"
+L["Place on a Bar"] = "放到快捷列上"
+L["Pick Up"] = "拿起"
+L["Drink"] = "飲料"
+L["Drink Macro"] = "飲料巨集"
+L["Your best drink, kept current as %s."] = "你最好的飲料，在%s中保持最新。"
 
 -- Player Menu page (Settings)
 L["Guild Invite"] = "公會邀請"

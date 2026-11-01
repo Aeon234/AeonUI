@@ -21,6 +21,12 @@ L["Not enough money to repair (%s)."] = "수리할 돈이 부족합니다 (%s)."
 L["Not enough guild funds to repair (%s)."] = "수리할 길드 자금이 부족합니다 (%s)."
 L["Nothing in the current expansion, so all expansions were searched."] = "현재 확장팩에 결과가 없어 모든 확장팩을 검색했습니다."
 
+-- Chat messages (Macros)
+L["General macros are full, so %s could not be made. Delete one and it will be added."] = "공용 매크로가 가득 차서 %s 매크로를 만들 수 없습니다. 하나를 삭제하면 추가됩니다."
+L["%s was made, but the game could not find it by name, so it won't be made again until you reload."] = "%s 매크로를 만들었지만 게임이 이름으로 찾지 못해, UI를 다시 불러올 때까지 다시 만들지 않습니다."
+L["Macros can't be picked up in combat."] = "전투 중에는 매크로를 집을 수 없습니다."
+L["Make room in General macros first."] = "먼저 공용 매크로에 자리를 비우세요."
+
 -- Profile names (Profile)
 L["A profile needs a name."] = "프로필 이름이 필요합니다."
 L["A profile name can be %d letters at most."] = "프로필 이름은 최대 %d자까지 가능합니다."
@@ -486,6 +492,19 @@ L["Approached objects use the game's soft targeting: while one of them is on, th
 -- Space-separated words a chest's name starts or ends with, in this language (HiddenSettings/Target.lua).
 L["chest strongbox lockbox coffer footlocker trunk"] = "상자 궤짝"
 L["The sparkle stays until the game restarts. /reload is not enough."] = "반짝임은 게임을 다시 시작할 때까지 남아 있습니다. /reload로는 충분하지 않습니다."
+
+-- Macros page (Settings)
+L["Food"] = "음식"
+L["Food Macro"] = "음식 매크로"
+L["Your best food and drink, kept current as %s."] = "가장 좋은 음식과 음료를 %s 매크로에 최신 상태로 유지합니다."
+L["Food Only"] = "음식만"
+L["Leaves the drink to %s."] = "음료는 %s 매크로에 맡깁니다."
+L["Mana Potion in Combat"] = "전투 중 마나 물약"
+L["Place on a Bar"] = "행동 단축바에 놓기"
+L["Pick Up"] = "집기"
+L["Drink"] = "음료"
+L["Drink Macro"] = "음료 매크로"
+L["Your best drink, kept current as %s."] = "가장 좋은 음료를 %s 매크로에 최신 상태로 유지합니다."
 
 -- Player Menu page (Settings)
 L["Guild Invite"] = "길드 초대"
