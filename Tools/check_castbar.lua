@@ -490,7 +490,7 @@ AUI.L = setmetatable({}, { __index = function(_, key)
 	return key
 end })
 assert(loadfile(root .. "Core/Core.lua"))("AeonUI", AUI)
-AUI.can = { castBar = true, petBattles = true, castTarget = true }
+AUI.can = { castBar = true, petBattles = true, castTarget = true, empoweredCasts = true }
 
 for _, file in ipairs({ "Core/Callbacks.lua", "Core/Events.lua", "Profile/Schema.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
@@ -839,6 +839,10 @@ Set("castBar.iconSide", "RIGHT")
 Equal("or on the right", frame.icon.points[1][1] .. " " .. frame.bar.points[2][2], "TOPRIGHT -16")
 Set("castBar.icon", false)
 Equal("the bar back across the frame", #frame.bar.points, 0)
+Set("castBar.font", "Arial Narrow")
+Equal("the font, on every text", frame.text.font .. " " .. frame.time.font .. " " .. frame.pushback.font .. " "
+	.. frame.target.font, "font:Arial Narrow font:Arial Narrow font:Arial Narrow font:Arial Narrow")
+Set("castBar.font", "Expressway")
 Set("castBar.outline", "OUTLINE")
 Equal("the outline", frame.time.flags, "OUTLINE")
 Set("castBar.shadow", false)

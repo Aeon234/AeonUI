@@ -17,7 +17,6 @@ local ELLIPSIS = "\226\128\166"
 ---@field BORDER_COLOR AUIColor
 ---@field SPARK_TEXTURE string
 ---@field SPARK_WIDTH number
----@field FONT string a LibSharedMedia font name
 ---@field SHADOW AUIColor
 ---@field SAMPLE_PROGRESS number how far a sample is filled, 0 to 1
 ---@field SAMPLE_TOTAL number a sample cast's length, in seconds
@@ -50,7 +49,6 @@ local Options = {
 	BORDER_COLOR = { r = 0, g = 0, b = 0, a = 1 },
 	SPARK_TEXTURE = "Interface\\CastingBar\\UI-CastingBar-Spark",
 	SPARK_WIDTH = 10,
-	FONT = "Expressway",
 	SHADOW = { r = 0, g = 0, b = 0, a = 1 },
 	SAMPLE_PROGRESS = 0.6,
 	SAMPLE_TOTAL = 2.5,
@@ -110,6 +108,7 @@ Schema:Boolean("castBar.reverse", false)
 Schema:Boolean("castBar.smooth", true)
 Schema:Boolean("castBar.icon", false)
 Schema:Choice("castBar.iconSide", "castBarSide", "LEFT")
+Schema:String("castBar.font", "Expressway", 64)
 Schema:Choice("castBar.outline", "fontOutline", "SLUG")
 Schema:Boolean("castBar.shadow", true)
 Schema:Boolean("castBar.name.enabled", true)

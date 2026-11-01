@@ -782,7 +782,7 @@ Equal("without cast durations: no Casts, no Casting state", tostring(
 AUI.can.cursorRing = nil
 window = Load(nil)
 Equal("no Cursor page without the cursor ring", window.pages.cursor, nil)
-AUI.can.castBar, AUI.can.castTarget = true, true
+AUI.can.castBar, AUI.can.castTarget, AUI.can.empoweredCasts = true, true, true
 window = Load(nil)
 Equal("Cast Bar under Unit Frames, after General", table.concat(window.order, " "), "general #unitFramesHeader "
 	.. "castBar #mapsHeader minimap #tooltipHeader tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader "
@@ -806,16 +806,19 @@ do
 	end
 	Equal("its cards", table.concat(castBarCards, " | "), "Bar: width height texture color gradient gradientColor "
 		.. "gradientDirection notInterruptible background border spark reverse smooth alwaysShow strata | "
-		.. "Icon: icon iconSide | Text: outline shadow | Spell Name: nameEnabled nameSize nameColor nameX nameY "
+		.. "Icon: icon iconSide | Text: font outline shadow | Spell Name: nameEnabled nameSize nameColor nameX nameY "
 		.. "nameLength | Time: timeEnabled timeFormat timeSize timeColor timeX timeY | Cast Target: targetEnabled "
 		.. "targetColor targetSize targetX targetY | Feedback: interrupted holdTime fade | Latency: latency latencyColor "
 		.. "latencyText | Pushback: pushback pushbackColor | Channel Ticks: ticks tickColor lastTick lastTickColor | "
 		.. "Empowered Casts: empowerColors stage1 stage2 stage3 stage4 stageLabel")
 	Equal("a preview of five states", #castBarPage.preview.states, 5)
 end
-AUI.can.castTarget = nil
+AUI.can.castTarget, AUI.can.empoweredCasts = nil, nil
 window = Load(nil)
 Equal("no Cast Target card without the client's target names", window.pages.castBar.sections.castBarTarget, nil)
+Equal("no Empowered Casts card or state where the client has none", tostring(
+	window.pages.castBar.sections.castBarEmpowered) .. " " .. table.concat(window.pages.castBar.preview.states, ","),
+	"nil Casting,Channeling,Not Interruptible,Interrupted")
 AUI.can.castBar = nil
 window = Load(nil)
 Equal("no Cast Bar page or Unit Frames header without the client's timers", tostring(window.pages.castBar) .. " "

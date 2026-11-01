@@ -282,7 +282,7 @@ function CastBar:StyleText(region, size, color)
 	local Profile = AUI.Profile
 	local shadow = Options.SHADOW
 
-	region:SetFont(AUI.Media:Font(Options.FONT), size, AUI.Media:FontFlags(Profile:Get("castBar.outline")))
+	region:SetFont(AUI.Media:Font(Profile:Get("castBar.font")), size, AUI.Media:FontFlags(Profile:Get("castBar.outline")))
 	region:SetTextColor(color.r, color.g, color.b)
 	region:SetShadowColor(shadow.r, shadow.g, shadow.b, Profile:Get("castBar.shadow") and shadow.a or 0)
 	region:SetShadowOffset(1, -1)

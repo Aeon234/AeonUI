@@ -34,8 +34,8 @@ local CASTING, CHANNELING, EMPOWERED, NOT_INTERRUPTIBLE = L["Casting"], L["Chann
 	L["Not Interruptible"]
 
 ---The Cast Bar page, under the Unit Frames header: the module's switch, a sample bar with its states as its preview,
----and the Bar, Icon, Text, Spell Name, Time, Cast Target, Feedback, Latency, Pushback, Channel Ticks and Empowered
----Casts cards.
+---and the Bar, Icon, Text, Spell Name, Time, Cast Target, Feedback, Latency, Pushback, Channel Ticks and, where the
+---client has them, Empowered Casts cards.
 ---@class AUISettingsCastBar
 local SettingsCastBar = {}
 AUI.SettingsCastBar = SettingsCastBar
@@ -176,6 +176,7 @@ end
 function SettingsCastBar:DeclareText(page)
 	local card = page:Section("castBarText", L["Text"])
 
+	card:Dropdown(Field("font", L["Font"], "castBar.font", { picker = "font" }))
 	card:Dropdown(Field("outline", L["Outline"], "castBar.outline", { options = lib.OUTLINES }))
 	card:Checkbox(Field("shadow", L["Text Shadow"], "castBar.shadow"))
 end
@@ -353,9 +354,15 @@ function SettingsCastBar:Declare(window)
 		return
 	end
 
+	local states = { CASTING, CHANNELING, NOT_INTERRUPTIBLE, INTERRUPTED }
+
+	if AUI.can.empoweredCasts then
+		table.insert(states, 3, EMPOWERED)
+	end
+
 	page:Preview({
 		height = PREVIEW_HEIGHT,
-		states = { CASTING, CHANNELING, EMPOWERED, NOT_INTERRUPTIBLE, INTERRUPTED },
+		states = states,
 		create = function(canvas)
 			CastBarPreview:Create(canvas)
 		end,
@@ -378,5 +385,8 @@ function SettingsCastBar:Declare(window)
 	self:DeclareLatency(page)
 	self:DeclarePushback(page)
 	self:DeclareTicks(page)
-	self:DeclareEmpowered(page)
+
+	if AUI.can.empoweredCasts then
+		self:DeclareEmpowered(page)
+	end
 end

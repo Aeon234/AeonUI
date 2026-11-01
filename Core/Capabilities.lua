@@ -52,6 +52,7 @@ AUI.Capabilities = Capabilities
 ---@field cursorRing boolean the cursor's place and the global cooldown's duration object can be read
 ---@field castSwipe boolean the player's casts and channels give duration objects
 ---@field castBar boolean status bars run timers from duration objects and duration text bindings write the time
+---@field empoweredCasts boolean the client has empowered spells (Retail)
 ---@field petBattles boolean the client has pet battles
 ---@field castTarget boolean the client names a cast's target
 ---@field premadeJoined boolean a joined group's listing and its Adventure Guide instance can be read
@@ -148,6 +149,7 @@ function Capabilities:Resolve()
 		and C_DurationUtil.CreateDurationTextBinding ~= nil and C_StringUtil ~= nil
 		and C_StringUtil.CreateNumericRuleFormatter ~= nil and Enum.StatusBarTimerDirection ~= nil
 		and Enum.StatusBarInterpolation ~= nil and Enum.DurationTextBindingProperty ~= nil
+	can.empoweredCasts = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE
 	can.petBattles = C_PetBattles ~= nil and C_PetBattles.IsInBattle ~= nil
 	can.castTarget = UnitShouldDisplaySpellTargetName ~= nil and UnitSpellTargetName ~= nil
 		and UnitSpellTargetClass ~= nil and GetClassColor ~= nil
