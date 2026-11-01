@@ -69,6 +69,7 @@ AUI.Capabilities = Capabilities
 ---@field macros boolean account macros can be made, read and edited, and bag items' use spells and cooldowns read
 ---@field manaPotions boolean mana potions belong in the food and drink macros (Forever)
 ---@field recuperate boolean every character has Recuperate, the self-heal out of combat (Retail)
+---@field bandages boolean bandages need a First Aid rank that can be read (Forever)
 AUI.can = {}
 
 ---The only place a client difference is detected. Runs once at login.
@@ -181,6 +182,8 @@ function Capabilities:Resolve()
 		and C_Spell.GetSpellName ~= nil and C_Container ~= nil and C_Container.GetContainerItemID ~= nil
 	can.manaPotions = WOW_PROJECT_ID == WOW_PROJECT_CAMELOT
 	can.recuperate = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE
+	can.bandages = WOW_PROJECT_ID == WOW_PROJECT_CAMELOT and C_SkillInfo ~= nil
+		and C_SkillInfo.GetSkillLineInfoByID ~= nil
 
 	self.resolved = true
 

@@ -10,16 +10,17 @@ local UPDATE_KEY = "macros"
 local EVENTS = { "BAG_UPDATE_DELAYED", "BAG_UPDATE_COOLDOWN", "UNIT_LEVEL", "UPDATE_MACROS" }
 
 ---What a bag scan found: the best food and drink, the best mana potion when a macro wants one, whether the player
----has mana, and the health macro's steps while it is on.
+---has mana, and the health and bandage macros' items while they are on.
 ---@class AUIMacroScan
 ---@field food AUIMacroCandidate?
 ---@field drink AUIMacroCandidate?
 ---@field mana number?
 ---@field hasMana boolean
 ---@field health number[]?
+---@field bandage number?
 
 ---The macros module: account macros kept on the best item the character carries, rewritten out of combat. Its
----settings are account-wide, in `global.macros` (absent means off): `food`, `drink`, `health`, `foodOnly`, and `foodMana` and `drinkMana` for a mana potion in
+---settings are account-wide, in `global.macros` (absent means off): `food`, `drink`, `health`, `bandage`, `foodOnly`, and `foodMana` and `drinkMana` for a mana potion in
 ---combat in each.
 ---Nothing is written before the first `PLAYER_ENTERING_WORLD`, when the game's macros are loaded. Only switching a
 ---macro off deletes it.
@@ -27,6 +28,7 @@ local EVENTS = { "BAG_UPDATE_DELAYED", "BAG_UPDATE_COOLDOWN", "UNIT_LEVEL", "UPD
 ---@field ready boolean the game's macros are loaded
 ---@field pending boolean an update waits for combat to end
 ---@field following boolean the bag, level and macro events are registered
+---@field followingSkills boolean skill changes are registered, for the bandage macro
 ---@field warnedFull boolean the player was told General is full
 ---@field lost table<string, true> macros made that the game could not find by name; left alone until a reload
 ---@field refresh table<string, true> macros to rewrite even when they would keep their item, by settings key
@@ -36,6 +38,7 @@ local Macros = {
 	ready = false,
 	pending = false,
 	following = false,
+	followingSkills = false,
 	warnedFull = false,
 	lost = {},
 	refresh = {},
@@ -59,7 +62,7 @@ local function State()
 	return global.macros
 end
 
----@param key string `food`, `drink`, `health`, `foodOnly`, `foodMana` or `drinkMana`
+---@param key string a macro's key, `foodOnly`, `foodMana` or `drinkMana`
 ---@return boolean
 function Macros:IsOn(key)
 	local state = State()
@@ -78,7 +81,7 @@ function Macros:AnyOn()
 	return false
 end
 
----@param key string `food`, `drink`, `health`, `foodOnly`, `foodMana` or `drinkMana`
+---@param key string a macro's key, `foodOnly`, `foodMana` or `drinkMana`
 ---@param on boolean
 function Macros:Set(key, on)
 	local state = State()
@@ -119,6 +122,17 @@ end
 ---Registers the events while a macro is on and unregisters them once none is.
 function Macros:Follow()
 	local wanted = self.ready and self:AnyOn()
+	local skills = wanted and AUI.can.bandages == true and self:IsOn("bandage")
+
+	if skills ~= self.followingSkills then
+		self.followingSkills = skills
+
+		if skills then
+			AUI.Events:Register("SKILL_LINES_CHANGED", self, self.OnEvent)
+		else
+			AUI.Events:Unregister("SKILL_LINES_CHANGED", self)
+		end
+	end
 
 	if wanted == self.following then
 		return
@@ -260,6 +274,10 @@ function Macros:Scan()
 		scan.health = self:HealthSteps(playerLevel)
 	end
 
+	if AUI.can.bandages and self:IsOn("bandage") then
+		scan.bandage = self:Bandage(playerLevel)
+	end
+
 	return scan
 end
 
@@ -268,6 +286,25 @@ end
 ---@return boolean
 function Macros:Usable(id, playerLevel)
 	return Options.LevelAllowed(self:RequiredLevel(id), playerLevel)
+end
+
+---@param playerLevel number?
+---@return number? bandage the best bandage carried that the player's level and First Aid rank allow
+function Macros:Bandage(playerLevel)
+	local info = C_SkillInfo.GetSkillLineInfoByID(Options.FIRST_AID)
+	local rank = AUI:Readable(info and info.rank)
+
+	if type(rank) ~= "number" then
+		return nil
+	end
+
+	for _, bandage in ipairs(Options.BANDAGES) do
+		if rank >= bandage.rank and C_Item.GetItemCount(bandage.id) > 0 and self:Usable(bandage.id, playerLevel) then
+			return bandage.id
+		end
+	end
+
+	return nil
 end
 
 ---@param playerLevel number?
@@ -301,6 +338,10 @@ end
 local function Fresh(key, scan)
 	local drink = scan.hasMana and scan.drink or nil
 	local mana = Macros:IsOn(key .. "Mana") and scan.mana or nil
+
+	if key == "bandage" then
+		return Options.BandageBody(scan.bandage)
+	end
 
 	if key == "health" then
 		local recuperate = AUI.can.recuperate and C_Spell.GetSpellName(Options.RECUPERATE) or nil
@@ -412,7 +453,7 @@ function Macros:OnCombatEnded()
 end
 
 ---Puts a macro on the cursor to place on an action bar, writing it first.
----@param key string `food`, `drink` or `health`
+---@param key string a macro's key
 function Macros:Pickup(key)
 	if InCombatLockdown() then
 		AUI:Warn(L["Macros can't be picked up in combat."])

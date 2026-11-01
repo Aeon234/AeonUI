@@ -13,12 +13,14 @@ local AUI = select(2, ...)
 ---@field FOOD string the food macro's name
 ---@field DRINK string the drink macro's name
 ---@field HEALTH string the health macro's name
+---@field BANDAGE string the bandage macro's name
 ---@field ICON number the question mark icon, so a macro shows what its `#showtooltip` line names
 ---@field PLACEHOLDER string a macro's text while nothing it could use is carried
 ---@field FOOD_SPELL number the spell every food item casts
 ---@field DRINK_SPELL number the spell every drink item casts
 ---@field RECUPERATE number the self-heal every Retail character has out of combat
 ---@field POTION_STEPS number the most healing potions a health sequence holds
+---@field FIRST_AID number the First Aid skill line (Forever)
 ---@field KEYS string[] the macros' settings keys, in the order the page lists them
 ---@field NAMES table<string, string> each macro's name by settings key
 ---@field CONJURED table<number, true> conjured mage food and water, preferred over other items
@@ -26,21 +28,24 @@ local AUI = select(2, ...)
 ---@field MANA_POTIONS number[] mana potions, mana gems and healing-and-mana potions, best first (Forever)
 ---@field HEALTHSTONES number[] healthstones of both clients, best first
 ---@field HEALING_POTIONS number[] healing potions, Retail's then Forever's, best first
-local FOOD, DRINK, HEALTH = "AeonUI Food", "AeonUI Drink", "AeonUI Health"
+---@field BANDAGES {id: number, rank: number}[] bandages and the First Aid rank each needs, best first (Forever)
+local FOOD, DRINK, HEALTH, BANDAGE = "AeonUI Food", "AeonUI Drink", "AeonUI Health", "AeonUI Bandage"
 ---@type table<string, string>
-local NAMES = { food = FOOD, drink = DRINK, health = HEALTH }
+local NAMES = { food = FOOD, drink = DRINK, health = HEALTH, bandage = BANDAGE }
 
 local Options = {
 	FOOD = FOOD,
 	DRINK = DRINK,
 	HEALTH = HEALTH,
+	BANDAGE = BANDAGE,
 	ICON = 134400,
 	PLACEHOLDER = "#showtooltip",
 	FOOD_SPELL = 433,
 	DRINK_SPELL = 430,
 	RECUPERATE = 1231411,
 	POTION_STEPS = 8,
-	KEYS = { "food", "drink", "health" },
+	FIRST_AID = 2942,
+	KEYS = { "food", "drink", "health", "bandage" },
 	NAMES = NAMES,
 	CONJURED = {},
 	FOOD_AND_DRINK = {},
@@ -50,6 +55,11 @@ local Options = {
 		224464 },
 	HEALING_POTIONS = { 271884, 271883, 245918, 245919, 241304, 241305, 241298, 241299, 241306, 241307, 13446, 23579, 3928,
 		18839, 247242, 1710, 247241, 929, 268883, 247240, 858, 268882, 247239, 118, 268881, 4596, 282011 },
+	BANDAGES = {
+		{ id = 232433, rank = 300 }, { id = 23684, rank = 225 }, { id = 14530, rank = 225 }, { id = 14529, rank = 200 },
+		{ id = 8545, rank = 175 }, { id = 8544, rank = 150 }, { id = 6451, rank = 125 }, { id = 6450, rank = 100 },
+		{ id = 3531, rank = 75 }, { id = 3530, rank = 50 }, { id = 2581, rank = 20 }, { id = 1251, rank = 1 },
+	},
 }
 AUI.MacrosOptions = Options
 
@@ -211,6 +221,18 @@ function Options.HealthBody(steps, recuperate)
 	end
 
 	return Body(lines)
+end
+
+---The bandage macro's text: the bandage on the player, not while channeling, so a second press does not cut one
+---short.
+---@param bandage number? the bandage's item ID
+---@return string? body nil when there is none
+function Options.BandageBody(bandage)
+	if not bandage then
+		return nil
+	end
+
+	return Body({ "/use [@player,nochanneling] item:" .. bandage })
 end
 
 ---@param body string? a macro's current text

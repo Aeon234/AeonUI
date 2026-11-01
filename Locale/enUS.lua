@@ -553,6 +553,9 @@ L["Your best drink, kept current as %s."] = "Your best drink, kept current as %s
 L["Health Macro"] = "Health Macro"
 L["Your best healthstone and healing potions, kept current as %s."] =
 	"Your best healthstone and healing potions, kept current as %s."
+L["Bandage"] = "Bandage"
+L["Bandage Macro"] = "Bandage Macro"
+L["Your best bandage, on yourself, kept current as %s."] = "Your best bandage, on yourself, kept current as %s."
 
 -- Player Menu page (Settings)
 L["Guild Invite"] = "Guild Invite"

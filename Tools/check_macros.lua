@@ -94,6 +94,15 @@ function UnitPowerMax(unit, power)
 end
 Enum = { PowerType = { Mana = 0 } }
 
+-- First Aid: its rank, or nil while the character lacks the skill.
+local firstAid
+C_SkillInfo = {
+	GetSkillLineInfoByID = function(id)
+		assert(id == 2942)
+		return firstAid and { skillID = id, rank = firstAid }
+	end,
+}
+
 -- Items: each one's use spell, required level (nil while loading) and cooldown.
 local FOOD, DRINK = "Food", "Drink"
 local items = {}
@@ -315,6 +324,9 @@ Equal("one item with Recuperate", Options.HealthBody({ 5 }, "Recuperate"),
 	Lines("/cast [nocombat] Recuperate", "/use [combat] item:5"))
 Equal("Recuperate alone", Options.HealthBody({}, "Recuperate"), Lines("/cast [nocombat] Recuperate"))
 Equal("nothing to heal with", Options.HealthBody({}), nil)
+Equal("bandage on the player, not while channeling", Options.BandageBody(1251),
+	Lines("/use [@player,nochanneling] item:1251"))
+Equal("no bandage", Options.BandageBody(nil), nil)
 
 -- Module: login ---------------------------------------------------------------------------------------------
 
@@ -522,6 +534,30 @@ Macros:Pickup("health")
 Equal("the health macro picked up", pickedUp, "AeonUI Health")
 Macros:Set("health", false)
 Equal("the health macro deleted when off", Index("AeonUI Health"), 0)
+
+-- Bandage (Forever) --------------------------------------------------------------------------------------
+
+AUI.can.bandages = true
+Item(3531, "First Aid", 0)
+Item(8544, "First Aid", 0)
+bags[3] = { 3531, 8544 }
+firstAid = 100
+Macros:Set("bandage", true)
+True("skill changes followed while on", eventFrame.events.SKILL_LINES_CHANGED)
+Equal("the best bandage the First Aid rank allows", Body("AeonUI Bandage"),
+	Lines("/use [@player,nochanneling] item:3531"))
+firstAid = 150
+Fire("SKILL_LINES_CHANGED")
+Equal("a higher rank allows a better one", Body("AeonUI Bandage"), Lines("/use [@player,nochanneling] item:8544"))
+firstAid = nil
+bags[3] = {}
+Fire("BAG_UPDATE_DELAYED")
+Equal("without First Aid, the last bandage stays", Body("AeonUI Bandage"),
+	Lines("/use [@player,nochanneling] item:8544"))
+Macros:Set("bandage", false)
+Equal("the bandage macro deleted when off", Index("AeonUI Bandage"), 0)
+Equal("skill changes no longer followed", eventFrame.events.SKILL_LINES_CHANGED, nil)
+AUI.can.bandages = nil
 
 -- Switching off -------------------------------------------------------------------------------------------
 

@@ -1901,6 +1901,13 @@ local function CheckMacrosPage()
 	Equal("mana potions on each card on Forever", table.concat(macroCards, " | "), "Food: macrosFoodEnabled "
 		.. "macrosFoodOnly macrosFoodMana macrosFoodPickUp | Drink: macrosDrinkEnabled macrosDrinkMana macrosDrinkPickUp "
 		.. "| Health: macrosHealthEnabled macrosHealthPickUp")
+	AUI.can.bandages = true
+	window = Load(nil)
+	local bandageCard = window.pages.macros.sections.macrosBandage
+	Equal("a Bandage card where bandages need First Aid", bandageCard.title .. ": " .. SettingIDs(bandageCard) .. " "
+		.. bandageCard.settings.macrosBandageEnabled.description, "Bandage: macrosBandageEnabled macrosBandagePickUp "
+		.. "Your best bandage, on yourself, kept current as AeonUI Bandage.")
+	AUI.can.bandages = nil
 	AUI.can.macros, AUI.can.manaPotions = nil, nil
 	window = Load(nil)
 	Equal("no page without the macro functions", window.pages.macros, nil)

@@ -26,7 +26,7 @@ end
 
 ---@param card table
 ---@param id string
----@param key string `food`, `drink` or `health`
+---@param key string a macro's key
 ---@param depends string the card's switch
 local function PickUp(card, id, key, depends)
 	card:Button({
@@ -97,4 +97,15 @@ function SettingsMacros:Declare(window)
 	healthSwitch.description = L["Your best healthstone and healing potions, kept current as %s."]:format(Options.HEALTH)
 	health:Toggle(healthSwitch)
 	PickUp(health, "macrosHealthPickUp", "health", "macrosHealthEnabled")
+
+	if not AUI.can.bandages then
+		return
+	end
+
+	local bandage = page:Section("macrosBandage", L["Bandage"])
+	local bandageSwitch = Stored("macrosBandageEnabled", "bandage")
+	bandageSwitch.label = L["Bandage Macro"]
+	bandageSwitch.description = L["Your best bandage, on yourself, kept current as %s."]:format(Options.BANDAGE)
+	bandage:Toggle(bandageSwitch)
+	PickUp(bandage, "macrosBandagePickUp", "bandage", "macrosBandageEnabled")
 end

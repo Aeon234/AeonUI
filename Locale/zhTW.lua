@@ -507,6 +507,9 @@ L["Drink Macro"] = "飲料巨集"
 L["Your best drink, kept current as %s."] = "你最好的飲料，在%s中保持最新。"
 L["Health Macro"] = "生命巨集"
 L["Your best healthstone and healing potions, kept current as %s."] = "你最好的治療石和治療藥水，在%s中保持最新。"
+L["Bandage"] = "繃帶"
+L["Bandage Macro"] = "繃帶巨集"
+L["Your best bandage, on yourself, kept current as %s."] = "你最好的繃帶，對自己使用，在%s中保持最新。"
 
 -- Player Menu page (Settings)
 L["Guild Invite"] = "公會邀請"

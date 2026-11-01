@@ -507,6 +507,9 @@ L["Drink Macro"] = "Macro de boisson"
 L["Your best drink, kept current as %s."] = "Votre meilleure boisson, tenue à jour dans %s."
 L["Health Macro"] = "Macro de soins"
 L["Your best healthstone and healing potions, kept current as %s."] = "Votre meilleure pierre de soins et vos meilleures potions de soins, tenues à jour dans %s."
+L["Bandage"] = "Bandage"
+L["Bandage Macro"] = "Macro de bandage"
+L["Your best bandage, on yourself, kept current as %s."] = "Votre meilleur bandage, sur vous-même, tenu à jour dans %s."
 
 -- Player Menu page (Settings)
 L["Guild Invite"] = "Inviter dans la guilde"
