@@ -321,7 +321,6 @@ for _, file in ipairs({ "Core/Callbacks.lua", "Core/Events.lua", "Profile/Schema
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 
--- Declared by Minimap/Elements.lua, which loads before Notifications/ in the game.
 
 local values = {}
 AUI.Profile = {

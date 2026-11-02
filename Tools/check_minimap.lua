@@ -113,9 +113,9 @@ assert(loadfile(root .. "Core/Core.lua"))("AeonUI", AUI)
 AUI.L = setmetatable({}, { __index = function(_, key)
 	return key
 end })
-for _, file in ipairs({ "Core/Callbacks.lua", "Profile/Schema.lua", "UI/Border.lua", "Minimap/Layout.lua",
-	"Minimap/Elements.lua", "Minimap/Rows.lua", "Minimap/Fade.lua", "Minimap/Text.lua", "Minimap/Difficulty.lua",
-	"Minimap/Buttons.lua", "Minimap/Map.lua" }) do
+for _, file in ipairs({ "Core/Callbacks.lua", "Profile/Schema.lua", "UI/Border.lua", "AeonUI_Maps/Minimap/Layout.lua",
+	"AeonUI_Maps/Minimap/Elements.lua", "AeonUI_Maps/Minimap/Rows.lua", "AeonUI_Maps/Minimap/Fade.lua", "AeonUI_Maps/Minimap/Text.lua", "AeonUI_Maps/Minimap/Difficulty.lua",
+	"AeonUI_Maps/Minimap/Buttons.lua", "AeonUI_Maps/Minimap/Map.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 

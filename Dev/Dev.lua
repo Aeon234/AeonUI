@@ -5,8 +5,8 @@ local Codec = AUI.Codec
 
 ---@class AUIDev
 ---@field commands table<string, fun(rest: string)> commands the feature addons add
----@field MinimapProbe AUIMinimapProbe? the M0 minimap probe, from Dev/MinimapProbe.lua
----@field WorldMapProbe AUIWorldMapProbe? the W0 world map probe, from Dev/WorldMapProbe.lua
+---@field MinimapProbe AUIMinimapProbe? the M0 minimap probe, from AeonUI_Maps/Dev/MinimapProbe.lua
+---@field WorldMapProbe AUIWorldMapProbe? the W0 world map probe, from AeonUI_Maps/Dev/WorldMapProbe.lua
 ---@field DeleteCheapestItemProbe AUIDeleteCheapestItemProbe? the S0 Delete Cheapest Item probe, from
 ---Dev/DeleteCheapestItemProbe.lua
 ---@field SparklesProbe AUISparklesProbe? the S2 Loot Sparkles probe, from Dev/SparklesProbe.lua
@@ -176,86 +176,6 @@ function Dev:Atlases(line)
 	end
 end
 
----@param frame table
----@return string text a frame's center, size and scale in screen pixels' units
-local function Rect(frame)
-	local x, y = frame:GetCenter()
-	local scale = frame:GetEffectiveScale()
-
-	return ("center %.1f, %.1f  size %.1f x %.1f  scale %.3f"):format((x or 0) * scale, (y or 0) * scale,
-		frame:GetWidth() * scale, frame:GetHeight() * scale, scale)
-end
-
----Prints where the Minimap module's frame and Blizzard's map are on screen, and the map's clamping.
-function Dev:MapReport()
-	local module = AUI.Minimap
-
-	if not module.active then
-		AUI:Print("map: the Minimap module is not active this session.")
-
-		return
-	end
-
-	local left, right, top, bottom = Minimap:GetClampRectInsets()
-
-	AUI:Print("map: screen %.0f x %.0f", GetPhysicalScreenSize())
-	AUI:Print("holder: %s", Rect(module.holder --[[@as Frame]]))
-	AUI:Print("Minimap: %s", Rect(Minimap))
-	AUI:Print("clamped %s, clamp insets %.1f %.1f %.1f %.1f, mask %s", tostring(Minimap:IsClampedToScreen()), left,
-		right, top, bottom, tostring(module.mask):match("[^\\]+$") or "?")
-end
-
----Places a minimap row element.
----@param line string `<element> <top1|top2|bottom1|bottom2|hidden> [order]`, lowercased
-function Dev:PlaceElement(line)
-	local key, row, order = line:match("^(%S+)%s+(%S+)%s*(%d*)$")
-	local element = key and AUI.MinimapElements.byKey[key]
-
-	if not element then
-		local keys = {}
-
-		for _, known in ipairs(AUI.MinimapElements.list) do
-			keys[#keys + 1] = known.key
-		end
-
-		AUI:Print("usage: /aui dev row <%s> <top1|top2|bottom1|bottom2|hidden> [order]", table.concat(keys, "|"))
-
-		return
-	end
-
-	local elements = AUI.MinimapElements
-
-	if not tContains(elements.LISTS, row:upper()) then
-		AUI:Print("row: %s is not a row", row)
-
-		return
-	end
-
-	local layout = elements:Move(elements:Layout(), key, row:upper(), tonumber(order))
-	local ok, problem = AUI.Profile:Set(elements.LAYOUT_PATH, layout)
-
-	AUI:Print("row: %s %s", key, ok and "placed" or tostring(problem))
-end
-
----Prints the player's position as a world map marker row, ready to paste into WorldMap/Data.lua under its map.
----@param note string anything typed after the command, printed beside the row
-function Dev:Mark(note)
-	local mapID = C_Map.GetBestMapForUnit("player")
-	local position = mapID and C_Map.GetPlayerMapPosition(mapID, "player")
-
-	if not position then
-		AUI:Print("mark: no map position here (inside an instance, or no map)")
-
-		return
-	end
-
-	local x, y = position:GetXY()
-	local info = C_Map.GetMapInfo(mapID)
-
-	AUI:Print("mark: [%d] = { -- %s", mapID, info and info.name or "?")
-	AUI:Print("  { %.1f, %.1f },%s", x * 100, y * 100, note ~= "" and (" -- " .. note) or "")
-end
-
 ---Adds a `/aui dev` command for a feature addon.
 ---@param command string
 ---@param handler fun(rest: string)
@@ -273,29 +193,8 @@ function Dev:Command(line)
 		return
 	end
 
-	if command == "map" then
-		self:MapReport()
-
-		return
-	end
-
 	if command == "atlas" then
 		self:Atlases(rest)
-
-		return
-	end
-
-	if command == "preview" then
-		local elements = AUI.MinimapElements
-
-		elements:SetPreview(not elements.previewers.dev, "dev")
-		AUI:Print("preview: %s", elements.previewers.dev and "on" or "off")
-
-		return
-	end
-
-	if command == "row" then
-		self:PlaceElement(rest)
 
 		return
 	end
@@ -304,24 +203,6 @@ function Dev:Command(line)
 
 	if handler then
 		handler(rest --[[@as string]])
-
-		return
-	end
-
-	if command == "minimap" and self.MinimapProbe then
-		self.MinimapProbe:Command(rest)
-
-		return
-	end
-
-	if command == "mark" then
-		self:Mark(rest)
-
-		return
-	end
-
-	if command == "worldmap" and self.WorldMapProbe then
-		self.WorldMapProbe:Command(rest)
 
 		return
 	end
@@ -338,5 +219,11 @@ function Dev:Command(line)
 		return
 	end
 
-	AUI:Print("dev commands: codec, map, atlas [names], row, preview, channel, minimap, worldmap, dci, sparkles, mark [note]")
+	local names = { "codec", "atlas [names]", "dci", "sparkles" }
+
+	for name in pairs(self.commands) do
+		names[#names + 1] = name
+	end
+
+	AUI:Print("dev commands: %s", table.concat(names, ", "))
 end

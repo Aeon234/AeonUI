@@ -14,7 +14,8 @@ local CLIENT_PAGES = { worldMap = "forever" }
 local PAGES = {
 	AeonUI_UnitFrames = { "castBar" },
 	AeonUI_Tooltip = { "tooltipGeneral", "tooltipUnits", "tooltipItems" },
-	AeonUI = { "general", "profiles", "minimap", "worldMap",
+	AeonUI_Maps = { "minimap", "worldMap" },
+	AeonUI = { "general", "profiles",
 		"automation", "deleteCheapestItem", "merchantWindow", "hiddenSettings", "macros", "playerMenu", "input", "alerts",
 		"notifications", "raidMarkers", "interface", "screenText", "cursor" },
 }

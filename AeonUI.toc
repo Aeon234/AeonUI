@@ -18,8 +18,6 @@ Core\Core.xml
 Profile\Profile.xml
 Media\Media.xml
 UI\UI.xml
-Minimap\Minimap.xml
-WorldMap\WorldMap.xml
 Interface\Interface.xml
 Automation\Automation.xml
 Menus\Menus.xml
@@ -37,8 +35,6 @@ Settings\Settings.xml
 
 #@do-not-package@
 Dev\Dev.lua
-Dev\MinimapProbe.lua
-Dev\WorldMapProbe.xml
 Dev\DeleteCheapestItemProbe.xml
 Dev\SparklesProbe.lua
 #@end-do-not-package@

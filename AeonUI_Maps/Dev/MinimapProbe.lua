@@ -2,7 +2,7 @@
 -- answered in game on both clients. Development only; never packaged. Undo with /reload.
 local AUI = select(2, ...)
 
-local MEDIA = "Interface\\AddOns\\AeonUI\\Dev\\Media\\"
+local MEDIA = "Interface\\AddOns\\AeonUI_Maps\\Dev\\Media\\"
 
 -- Each mask with the visible area's width-to-height ratio. "plain" is a square white mask: any crop comes from the
 -- holder's clipping alone.
