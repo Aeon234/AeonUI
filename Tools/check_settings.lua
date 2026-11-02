@@ -812,7 +812,8 @@ do
 		.. "nameLength | Time: timeEnabled timeFormat timeSize timeColor timeX timeY | Cast Target: targetEnabled "
 		.. "targetColor targetSize targetX targetY | Feedback: interrupted holdTime fade | Latency: latency latencyColor "
 		.. "latencyText | Pushback: pushback pushbackColor | Channel Ticks: ticks tickColor lastTick lastTickColor | "
-		.. "Empowered Casts: empowerColors stage1 stage2 stage3 stage4 stageLabel")
+		.. "Empowered Casts: empowerColors stageLabel stage1 stage2 stage3 stage4")
+	Equal("Empowered Casts as a choice card", castBarPage.sections.castBarEmpowered.info.columns, 2)
 	Equal("a preview of five states", #castBarPage.preview.states, 5)
 end
 AUI.can.castTarget, AUI.can.empoweredCasts = nil, nil
@@ -1195,8 +1196,8 @@ Equal("without an auction addon, its tooltip names them", auctionPrice.tooltip,
 
 -- Choice cards ---------------------------------------------------------------------------------------------------
 
--- The library draws a section asking for two columns one to a line unless every row is a checkbox with no second
--- line; the pages must keep to that.
+-- The library draws a section asking for two columns one to a line unless every row is a checkbox or color swatch with
+-- no second line; the pages must keep to that.
 local function ChoiceCards(page)
 	local cards = {}
 
@@ -1206,7 +1207,7 @@ local function ChoiceCards(page)
 			Equal(section.id .. " has two or more choices", #section.settings >= 2, true)
 
 			for _, setting in ipairs(section.settings) do
-				Equal(setting.id .. " is a checkbox", setting.kind, "Checkbox")
+				Equal(setting.id .. " is a checkbox or swatch", setting.kind == "Checkbox" or setting.kind == "Color", true)
 				Equal(setting.id .. " has no second line", setting.description, nil)
 			end
 		end

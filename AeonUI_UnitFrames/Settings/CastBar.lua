@@ -277,19 +277,16 @@ end
 ---@param page table
 function SettingsCastBar:DeclareEmpowered(page)
 	local Options = AUI.CastBarOptions
-	local card = page:Section("castBarEmpowered", L["Empowered Casts"])
+	local card = page:Section("castBarEmpowered", L["Empowered Casts"], { columns = 2 })
 
 	card:Checkbox(Field("empowerColors", L["Colored Stages"], "castBar.empowerColors"))
+	card:Checkbox(Field("stageLabel", L["Show Stage Labels"], "castBar.stageLabel"))
 
 	for index = 1, Options.STAGE_COLORS do
 		card:Color(Field("stage" .. index, L["Stage %d Color"]:format(index), "castBar.stage." .. index, {
 			depends = "empowerColors",
 		}))
 	end
-
-	card:Checkbox(Field("stageLabel", L["Show Stage Label"], "castBar.stageLabel", {
-		description = L["Shows the stage reached, and Hold at full charge, in place of the time."],
-	}))
 end
 
 ---@param page table
