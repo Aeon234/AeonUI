@@ -8,8 +8,8 @@ local Codec = AUI.Codec
 ---@field MinimapProbe AUIMinimapProbe? the M0 minimap probe, from AeonUI_Maps/Dev/MinimapProbe.lua
 ---@field WorldMapProbe AUIWorldMapProbe? the W0 world map probe, from AeonUI_Maps/Dev/WorldMapProbe.lua
 ---@field DeleteCheapestItemProbe AUIDeleteCheapestItemProbe? the S0 Delete Cheapest Item probe, from
----Dev/DeleteCheapestItemProbe.lua
----@field SparklesProbe AUISparklesProbe? the S2 Loot Sparkles probe, from Dev/SparklesProbe.lua
+---AeonUI_QoL/Dev/DeleteCheapestItemProbe.lua
+---@field SparklesProbe AUISparklesProbe? the S2 Loot Sparkles probe, from AeonUI_QoL/Dev/SparklesProbe.lua
 local Dev = { commands = {} }
 AUI.Dev = Dev
 
@@ -207,19 +207,7 @@ function Dev:Command(line)
 		return
 	end
 
-	if command == "dci" and self.DeleteCheapestItemProbe then
-		self.DeleteCheapestItemProbe:Command(rest)
-
-		return
-	end
-
-	if command == "sparkles" and self.SparklesProbe and AUI.can.approachSparkles then
-		self.SparklesProbe:Command()
-
-		return
-	end
-
-	local names = { "codec", "atlas [names]", "dci", "sparkles" }
+	local names = { "codec", "atlas [names]" }
 
 	for name in pairs(self.commands) do
 		names[#names + 1] = name

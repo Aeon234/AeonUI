@@ -73,7 +73,7 @@ local function Set(path, value)
 	values[path] = value
 end
 
-assert(loadfile(root .. "DeleteCheapestItem/Options.lua"))("AeonUI", AUI)
+assert(loadfile(root .. "AeonUI_QoL/DeleteCheapestItem/Options.lua"))("AeonUI", AUI)
 
 local Options = AUI.DeleteCheapestItemOptions
 
@@ -368,7 +368,7 @@ C_Item = {
 	end,
 }
 
-assert(loadfile(root .. "DeleteCheapestItem/Bags.lua"))("AeonUI", AUI)
+assert(loadfile(root .. "AeonUI_QoL/DeleteCheapestItem/Bags.lua"))("AeonUI", AUI)
 
 local Bags = AUI.DeleteCheapestItemBags
 
@@ -476,7 +476,7 @@ function LootSlot(slot)
 	Call("LootSlot", slot)
 end
 
-assert(loadfile(root .. "DeleteCheapestItem/Actions.lua"))("AeonUI", AUI)
+assert(loadfile(root .. "AeonUI_QoL/DeleteCheapestItem/Actions.lua"))("AeonUI", AUI)
 
 local Actions = AUI.DeleteCheapestItemActions
 
@@ -647,7 +647,7 @@ function window:IsShown()
 end
 
 AUI.DeleteCheapestItemWindow = window
-assert(loadfile(root .. "DeleteCheapestItem/Openers.lua"))("AeonUI", AUI)
+assert(loadfile(root .. "AeonUI_QoL/DeleteCheapestItem/Openers.lua"))("AeonUI", AUI)
 
 local Openers = AUI.DeleteCheapestItemOpeners
 

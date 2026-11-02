@@ -242,9 +242,12 @@ Equal("AeonUI's section in Key Bindings", BINDING_HEADER_AEONUI, AUI.brand)
 Equal("reload is named as Blizzard names it", BINDING_NAME_AEONUI_RELOAD, "Reload UI")
 Equal("eject is named", BINDING_NAME_AEONUI_EJECT, "Eject All Passengers")
 
-local bindingsFile = assert(io.open(root .. "Bindings.xml", "rb"))
-local bindingsXML = bindingsFile:read("*a")
-bindingsFile:close()
+local bindingsXML = ""
+for _, path in ipairs({ "Bindings.xml", "AeonUI_QoL/Bindings.xml" }) do
+	local bindingsFile = assert(io.open(root .. path, "rb"))
+	bindingsXML = bindingsXML .. bindingsFile:read("*a")
+	bindingsFile:close()
+end
 local order, bodies, categories = {}, {}, {}
 for name, category, body in bindingsXML:gmatch('<Binding name="([^"]+)" category="([^"]+)">(.-)</Binding>') do
 	order[#order + 1] = name

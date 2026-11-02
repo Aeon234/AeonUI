@@ -236,7 +236,7 @@ local function Set(path, value)
 	AUI.Callbacks:Fire("Profile", path)
 end
 
-for _, file in ipairs({ "Menus/Options.lua", "Menus/Links.lua", "Menus/GuildInvite.lua", "Menus/Menus.lua" }) do
+for _, file in ipairs({ "AeonUI_QoL/Menus/Options.lua", "AeonUI_QoL/Menus/Links.lua", "AeonUI_QoL/Menus/GuildInvite.lua", "AeonUI_QoL/Menus/Menus.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 

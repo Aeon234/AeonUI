@@ -289,8 +289,8 @@ local function Set(path, value)
 end
 
 
-for _, file in ipairs({ "Input/Options.lua", "Input/ClickDown.lua", "Input/FocusShortcut.lua", "Input/KeyLabels.lua",
-	"Input/Input.lua" }) do
+for _, file in ipairs({ "AeonUI_QoL/Input/Options.lua", "AeonUI_QoL/Input/ClickDown.lua", "AeonUI_QoL/Input/FocusShortcut.lua", "AeonUI_QoL/Input/KeyLabels.lua",
+	"AeonUI_QoL/Input/Input.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 

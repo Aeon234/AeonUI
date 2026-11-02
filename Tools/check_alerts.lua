@@ -136,8 +136,8 @@ local function Set(path, value)
 	AUI.Callbacks:Fire("Profile", path)
 end
 
-for _, file in ipairs({ "Alerts/Options.lua", "Alerts/SoundAlerts.lua", "Alerts/PremadeJoined.lua",
-	"Alerts/Alerts.lua" }) do
+for _, file in ipairs({ "AeonUI_QoL/Alerts/Options.lua", "AeonUI_QoL/Alerts/SoundAlerts.lua", "AeonUI_QoL/Alerts/PremadeJoined.lua",
+	"AeonUI_QoL/Alerts/Alerts.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 

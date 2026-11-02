@@ -292,9 +292,9 @@ AUI.Profile = {
 	end,
 }
 
-for _, file in ipairs({ "Core/Callbacks.lua", "Core/Events.lua", "HiddenSettings/Options.lua",
-	"HiddenSettings/CVarHolder.lua", "HiddenSettings/Target.lua", "HiddenSettings/Glints.lua",
-	"HiddenSettings/Approach.lua", "HiddenSettings/HiddenSettings.lua" }) do
+for _, file in ipairs({ "Core/Callbacks.lua", "Core/Events.lua", "AeonUI_QoL/HiddenSettings/Options.lua",
+	"AeonUI_QoL/HiddenSettings/CVarHolder.lua", "AeonUI_QoL/HiddenSettings/Target.lua", "AeonUI_QoL/HiddenSettings/Glints.lua",
+	"AeonUI_QoL/HiddenSettings/Approach.lua", "AeonUI_QoL/HiddenSettings/HiddenSettings.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 

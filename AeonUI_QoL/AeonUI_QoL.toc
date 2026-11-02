@@ -1,0 +1,44 @@
+## Interface: 120100, 120105, 16001
+## Title: AeonUI Quality of Life
+## Notes: Automation, alerts, macros and other conveniences for AeonUI.
+## Author: Aeon
+## Version: @project-version@
+
+## Dependencies: AeonUI
+
+## Category: Unit Frames
+
+Namespace.lua
+Locale\Locale.xml
+Interface\Interface.xml
+Automation\Automation.xml
+Menus\Menus.xml
+Input\Input.xml
+Alerts\Alerts.xml
+ScreenText\ScreenText.xml
+Cursor\Cursor.xml
+Notifications\Notifications.xml
+Markers\Markers.xml
+DeleteCheapestItem\DeleteCheapestItem.xml
+MerchantWindow\MerchantWindow.xml
+HiddenSettings\HiddenSettings.xml
+Macros\Macros.xml
+Settings\Automation.lua
+Settings\DeleteCheapestItem.lua
+Settings\MerchantWindow.lua
+Settings\HiddenSettings.lua
+Settings\Macros.lua
+Settings\PlayerMenu.lua
+Settings\Input.lua
+Settings\Alerts.lua
+Settings\Notifications.lua
+Settings\RaidMarkers.lua
+Settings\Interface.lua
+Settings\ScreenText.lua
+Settings\Cursor.lua
+
+#@do-not-package@
+Dev\DeleteCheapestItemProbe.xml
+Dev\SparklesProbe.lua
+Dev\Commands.lua
+#@end-do-not-package@

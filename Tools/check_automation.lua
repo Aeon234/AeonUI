@@ -332,8 +332,8 @@ local function Set(path, value)
 	RunNextFrame()
 end
 
-for _, file in ipairs({ "Automation/Options.lua", "Automation/Merchant.lua", "Automation/ExpansionFilter.lua",
-	"Automation/Mail.lua", "Automation/GameSettings.lua", "Automation/Automation.lua" }) do
+for _, file in ipairs({ "AeonUI_QoL/Automation/Options.lua", "AeonUI_QoL/Automation/Merchant.lua", "AeonUI_QoL/Automation/ExpansionFilter.lua",
+	"AeonUI_QoL/Automation/Mail.lua", "AeonUI_QoL/Automation/GameSettings.lua", "AeonUI_QoL/Automation/Automation.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 

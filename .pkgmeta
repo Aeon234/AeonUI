@@ -19,6 +19,7 @@ move-folders:
   AeonUI/AeonUI_UnitFrames: AeonUI_UnitFrames
   AeonUI/AeonUI_Tooltip: AeonUI_Tooltip
   AeonUI/AeonUI_Maps: AeonUI_Maps
+  AeonUI/AeonUI_QoL: AeonUI_QoL
 
 ignore:
   - .pkgmeta
@@ -28,5 +29,6 @@ ignore:
   - Dev
   - AeonUI_UnitFrames/Dev
   - AeonUI_Maps/Dev
+  - AeonUI_QoL/Dev
   - "*.md"
   - Archive

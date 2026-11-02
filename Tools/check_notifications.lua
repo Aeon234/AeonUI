@@ -349,9 +349,9 @@ function LibStub(name)
 	return settingsLibrary
 end
 
-for _, file in ipairs({ "Notifications/Options.lua", "Notifications/Notifications.lua", "Notifications/Combat.lua",
-	"Notifications/Pet.lua", "Notifications/Character.lua", "Notifications/Potion.lua", "Notifications/Health.lua",
-	"Notifications/Tracking.lua" }) do
+for _, file in ipairs({ "AeonUI_QoL/Notifications/Options.lua", "AeonUI_QoL/Notifications/Notifications.lua", "AeonUI_QoL/Notifications/Combat.lua",
+	"AeonUI_QoL/Notifications/Pet.lua", "AeonUI_QoL/Notifications/Character.lua", "AeonUI_QoL/Notifications/Potion.lua", "AeonUI_QoL/Notifications/Health.lua",
+	"AeonUI_QoL/Notifications/Tracking.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 

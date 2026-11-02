@@ -235,7 +235,7 @@ AUI.Profile = {
 	end,
 }
 
-for _, file in ipairs({ "Core/Callbacks.lua", "Core/Events.lua", "Macros/Options.lua", "Macros/Macros.lua" }) do
+for _, file in ipairs({ "Core/Callbacks.lua", "Core/Events.lua", "AeonUI_QoL/Macros/Options.lua", "AeonUI_QoL/Macros/Macros.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 

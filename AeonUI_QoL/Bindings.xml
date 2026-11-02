@@ -1,0 +1,8 @@
+<Bindings>
+	<Binding name="CLICK AeonUIWorldMarkerPlace:LeftButton" category="BINDING_HEADER_AEONUI">
+	</Binding>
+	<Binding name="CLICK AeonUIWorldMarkerClear:LeftButton" category="BINDING_HEADER_AEONUI">
+	</Binding>
+	<Binding name="CLICK AeonUIDeleteCheapestItemToggle:LeftButton" category="BINDING_HEADER_AEONUI">
+	</Binding>
+</Bindings>

@@ -372,7 +372,7 @@ function LibStub(name)
 	return settingsLibrary
 end
 
-for _, file in ipairs({ "Markers/Options.lua", "Markers/Bar.lua", "Markers/Cycler.lua", "Markers/Markers.lua" }) do
+for _, file in ipairs({ "AeonUI_QoL/Markers/Options.lua", "AeonUI_QoL/Markers/Bar.lua", "AeonUI_QoL/Markers/Cycler.lua", "AeonUI_QoL/Markers/Markers.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 

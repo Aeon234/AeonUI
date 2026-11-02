@@ -15,9 +15,9 @@ local PAGES = {
 	AeonUI_UnitFrames = { "castBar" },
 	AeonUI_Tooltip = { "tooltipGeneral", "tooltipUnits", "tooltipItems" },
 	AeonUI_Maps = { "minimap", "worldMap" },
-	AeonUI = { "general", "profiles",
-		"automation", "deleteCheapestItem", "merchantWindow", "hiddenSettings", "macros", "playerMenu", "input", "alerts",
-		"notifications", "raidMarkers", "interface", "screenText", "cursor" },
+	AeonUI_QoL = { "automation", "deleteCheapestItem", "merchantWindow", "hiddenSettings", "macros", "playerMenu", "input",
+		"alerts", "notifications", "raidMarkers", "interface", "screenText", "cursor" },
+	AeonUI = { "general", "profiles" },
 }
 
 local function FeatureAddons()

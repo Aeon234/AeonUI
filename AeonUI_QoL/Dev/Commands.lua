@@ -1,0 +1,15 @@
+-- Development commands for the quality of life features. Not packaged.
+local AUI = select(2, ...)
+
+local Dev = AUI.Dev
+
+Dev:Register("dci", function(rest)
+	(Dev.DeleteCheapestItemProbe --[[@as AUIDeleteCheapestItemProbe]]):Command(rest)
+end)
+Dev:Register("sparkles", function()
+	if AUI.can.approachSparkles then
+		(Dev.SparklesProbe --[[@as AUISparklesProbe]]):Command()
+	else
+		AUI:Print("sparkles: this client has no approached-object glints.")
+	end
+end)

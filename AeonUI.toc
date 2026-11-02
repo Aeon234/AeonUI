@@ -19,22 +19,8 @@ Profile\Profile.xml
 Media\Media.xml
 UI\UI.xml
 Interface\Interface.xml
-Automation\Automation.xml
-Menus\Menus.xml
-Input\Input.xml
-Alerts\Alerts.xml
-ScreenText\ScreenText.xml
-Cursor\Cursor.xml
-Notifications\Notifications.xml
-Markers\Markers.xml
-DeleteCheapestItem\DeleteCheapestItem.xml
-MerchantWindow\MerchantWindow.xml
-HiddenSettings\HiddenSettings.xml
-Macros\Macros.xml
 Settings\Settings.xml
 
 #@do-not-package@
 Dev\Dev.lua
-Dev\DeleteCheapestItemProbe.xml
-Dev\SparklesProbe.lua
 #@end-do-not-package@

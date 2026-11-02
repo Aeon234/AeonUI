@@ -365,10 +365,10 @@ local function Set(path, value)
 	RunTimers()
 end
 
-for _, file in ipairs({ "Profile/Schema.lua", "Interface/Options.lua", "Interface/ExtraActionButton.lua",
-	"Interface/HelpTips.lua", "Interface/HideFrames.lua",
-	"Interface/Popups.lua", "Interface/ReleaseProtection.lua", "Interface/TradingPost.lua",
-	"Interface/Interface.lua" }) do
+for _, file in ipairs({ "Profile/Schema.lua", "AeonUI_QoL/Interface/Options.lua", "AeonUI_QoL/Interface/ExtraActionButton.lua",
+	"AeonUI_QoL/Interface/HelpTips.lua", "AeonUI_QoL/Interface/HideFrames.lua",
+	"AeonUI_QoL/Interface/Popups.lua", "AeonUI_QoL/Interface/ReleaseProtection.lua", "AeonUI_QoL/Interface/TradingPost.lua",
+	"AeonUI_QoL/Interface/Interface.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 
