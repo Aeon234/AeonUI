@@ -1008,6 +1008,59 @@ Fire("UNIT_SPELLCAST_INTERRUPTED", "player", "Cast-1", 133)
 Equal("no hold at 0", frame.shown, false)
 Set("castBar.holdTime", 0.6)
 
+Equal("Show Interrupted is on by default", AUI.Schema:Field("castBar.interruptedFeedback").default, true)
+Set("castBar.interruptedFeedback", false)
+local timersBefore = #namedTimers
+StartCast()
+EndCast()
+Fire("UNIT_SPELLCAST_INTERRUPTED", "player", "Cast-1", 133)
+Equal("off, an interrupted cast goes at once, with no hold", tostring(frame.shown) .. " " .. frame.failed.alpha .. " "
+	.. tostring(frame.binding.enabled) .. " " .. (#namedTimers - timersBefore), "false 0 false 0")
+StartCast()
+Fire("UNIT_SPELLCAST_INTERRUPTED", "player", "Cast-1", 133)
+Equal("even while the client still reports the cast", frame.shown, false)
+EndCast()
+Fire("UNIT_SPELLCAST_STOP", "player", "Cast-1", 133)
+Equal("and the stop after it changes nothing", frame.shown, false)
+channel, channelDuration = { name = "Mind Flay", display = "Mind Flay" }, {}
+Fire("UNIT_SPELLCAST_CHANNEL_START", "player")
+channel, channelDuration = nil, nil
+Fire("UNIT_SPELLCAST_CHANNEL_STOP", "player", "Cast-3", 15407, "Creature-1")
+Equal("an interrupted channel too", frame.shown, false)
+channel, empoweredDuration = { name = "Fire Breath", display = "Fire Breath", empowered = true }, {}
+Fire("UNIT_SPELLCAST_EMPOWER_START", "player")
+channel, empoweredDuration = nil, nil
+Fire("UNIT_SPELLCAST_EMPOWER_STOP", "player", "Cast-4", 357208, false, nil)
+Equal("an uncompleted empowered cast too", frame.shown, false)
+Set("castBar.fade", true)
+StartCast()
+EndCast()
+Fire("UNIT_SPELLCAST_INTERRUPTED", "player", "Cast-1", 133)
+Equal("without Fade Out", tostring(frame.shown) .. " " .. tostring(frame.fade.playing), "false false")
+Fire("UNIT_SPELLCAST_STOP", "player", "Cast-1", 133)
+Equal("the stop does not fade it either", tostring(frame.shown) .. " " .. tostring(frame.fade.playing), "false false")
+Set("castBar.fade", false)
+Set("castBar.alwaysShow", true)
+StartCast()
+Fire("UNIT_SPELLCAST_INTERRUPTED", "player", "Cast-1", 133)
+Equal("Always Show empties at once", tostring(frame.shown) .. " " .. frame.bar.value .. " " .. frame.text.text .. " "
+	.. tostring(frame.bar.timer) .. " " .. frame.failed.alpha, "true 0  nil 0")
+EndCast()
+Fire("UNIT_SPELLCAST_STOP", "player", "Cast-1", 133)
+Set("castBar.alwaysShow", false)
+StartCast()
+CastBar:Sample(true)
+Fire("UNIT_SPELLCAST_INTERRUPTED", "player", "Cast-1", 133)
+Equal("the sample stays", tostring(frame.shown) .. " " .. frame.text.text, "true Cast Bar")
+EndCast()
+CastBar:Sample(false)
+StartCast()
+EndCast()
+Fire("UNIT_SPELLCAST_FAILED", "player", "Cast-1", 133)
+Equal("Failed still shows", frame.text.text, "Failed")
+RunNamedTimer()
+Set("castBar.interruptedFeedback", true)
+
 -- Fade Out ------------------------------------------------------------------------------------------------
 
 Equal("fades over 0.2 seconds, off by default", frame.fade.animation.seconds .. " "

@@ -818,7 +818,7 @@ do
 		.. "gradientDirection notInterruptible background borderStyle border spark reverse smooth alwaysShow strata | "
 		.. "Icon: icon iconSide | Text: font outline shadow | Spell Name: nameEnabled nameSize nameColor nameX nameY "
 		.. "nameLength | Time: timeEnabled timeFormat timeSize timeColor timeX timeY | Cast Target: targetEnabled "
-		.. "targetColor targetSize targetX targetY | Feedback: interrupted holdTime fade | Latency: latency latencyColor "
+		.. "targetColor targetSize targetX targetY | Feedback: interruptedFeedback interrupted holdTime fade | Latency: latency latencyColor "
 		.. "latencyText | Pushback: pushback pushbackColor | Channel Ticks: ticks tickColor lastTick lastTickColor | "
 		.. "Empowered Casts: empowerColors stageLabel stage1 stage2 stage3 stage4")
 	Equal("Empowered Casts as a choice card", castBarPage.sections.castBarEmpowered.info.columns, 2)

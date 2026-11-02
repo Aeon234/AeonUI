@@ -973,6 +973,35 @@ function CastBar:EndFeedback()
 	end
 end
 
+---Ends an interrupted cast at once: empties the bar for Always Show, or hides it. The client may still report the
+---cast at this event, so this does not read it again.
+function CastBar:EndInterrupted()
+	local frame = self.frame --[[@as AUICastBarFrame]]
+
+	self.drawn, self.drawnID, self.channelEnd = nil, nil, nil
+
+	if self.sampling then
+		return
+	end
+
+	if AUI.Profile:Get("castBar.alwaysShow") then
+		self:DrawEmpty(frame)
+	else
+		self:CancelStageTimer()
+		frame.binding:SetEnabled(false)
+		frame:Hide()
+	end
+end
+
+---Shows Interrupted, or ends the cast without it while Show Interrupted is off.
+function CastBar:OnInterrupted()
+	if AUI.Profile:Get("castBar.interruptedFeedback") then
+		self:ShowFeedback(INTERRUPTED)
+	else
+		self:EndInterrupted()
+	end
+end
+
 ---Draws the player's cast, or the sample, or the empty bar, or hides it; Interrupted, Failed and Fade Out stay until
 ---they end or a new cast replaces them. A finished cast fades while Fade Out is on.
 function CastBar:Update()
@@ -1062,7 +1091,11 @@ function CastBar:OnCastEvent(event, unit, castGUID, _, detail)
 
 	if event == "UNIT_SPELLCAST_FAILED" or event == "UNIT_SPELLCAST_INTERRUPTED" then
 		if self:IsDrawnCast(castGUID --[[@as string]]) then
-			self:ShowFeedback(event == "UNIT_SPELLCAST_FAILED" and FAILED or INTERRUPTED)
+			if event == "UNIT_SPELLCAST_FAILED" then
+				self:ShowFeedback(FAILED)
+			else
+				self:OnInterrupted()
+			end
 		end
 
 		return
@@ -1070,7 +1103,7 @@ function CastBar:OnCastEvent(event, unit, castGUID, _, detail)
 
 	if self.drawn and ((event == "UNIT_SPELLCAST_CHANNEL_STOP" and AUI:Readable(detail) ~= nil)
 		or (event == "UNIT_SPELLCAST_EMPOWER_STOP" and AUI:Readable(detail) == false)) then
-		self:ShowFeedback(INTERRUPTED)
+		self:OnInterrupted()
 
 		return
 	end
