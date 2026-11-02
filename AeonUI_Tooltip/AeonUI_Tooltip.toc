@@ -1,6 +1,6 @@
 ## Interface: 120100, 120105, 16001
-## Title: AeonUI Tooltip
-## Notes: Tooltip text, lines and placement for AeonUI.
+## Title: |cff00a3e3Aeon|r|cfff2e6c8UI|r Tooltip
+## Notes: Tooltip text, lines and placement for |cff00a3e3Aeon|r|cfff2e6c8UI|r.
 ## Author: Aeon
 ## Version: @project-version@
 

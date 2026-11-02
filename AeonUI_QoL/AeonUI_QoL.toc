@@ -1,6 +1,6 @@
 ## Interface: 120100, 120105, 16001
-## Title: AeonUI Quality of Life
-## Notes: Automation, alerts, macros and other conveniences for AeonUI.
+## Title: |cff00a3e3Aeon|r|cfff2e6c8UI|r Quality of Life
+## Notes: Automation, alerts, macros and other conveniences for |cff00a3e3Aeon|r|cfff2e6c8UI|r.
 ## Author: Aeon
 ## Version: @project-version@
 

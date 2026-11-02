@@ -249,7 +249,7 @@ function SettingsRaidMarkers:DeclareCycle(page)
 	card:Button({
 		id = "markersKeys",
 		label = KEY_BINDINGS,
-		description = L["Bind Place Next World Marker and Clear World Markers under AeonUI."],
+		description = AUI:Branded(L["Bind Place Next World Marker and Clear World Markers under AeonUI."]),
 		verb = L["Open"],
 		run = function()
 			AUI.Bindings:Open()

@@ -366,9 +366,11 @@ end
 function icon:Show(name)
 	self.hidden[name] = false
 end
-function icon:AddButtonToCompartment(name)
-	self.compartment[name] = true
-end
+AddonCompartmentFrame = {
+	RegisterAddon = function(_, entry)
+		icon.compartment[#icon.compartment + 1] = entry
+	end,
+}
 
 DEFAULT = "Default"
 COLOR = "Color"
@@ -1541,11 +1543,14 @@ AUI.can.upgrades = nil
 
 window = Load(nil)
 AUI.can.compartment = true
+AeonUIDB.global.minimapButton = { hide = false, showInCompartment = true }
 Broker:Create()
 Equal("a launcher", launchers.AeonUI ~= nil, true)
 Equal("LibDBIcon keeps the saved table", icon.registered.AeonUI, AeonUIDB.global.minimapButton)
 Equal("shown by default", Broker:Hidden(), false)
-Equal("added to the compartment", icon.compartment.AeonUI, true)
+Equal("added to the compartment once", #icon.compartment, 1)
+Equal("the compartment entry shows the brand", icon.compartment[1].text, AUI.brand)
+Equal("LibDBIcon adds no entry of its own", AeonUIDB.global.minimapButton.showInCompartment, nil)
 local settingsOpen, realIsOpen, realOpen, realClose = false, Settings.IsOpen, Settings.Open, Settings.Close
 Settings.IsOpen = function()
 	return settingsOpen
@@ -1558,6 +1563,9 @@ Settings.Close = function()
 end
 launchers.AeonUI.OnClick(nil, "LeftButton")
 Equal("a click opens the settings", settingsOpen, true)
+Settings.Close()
+icon.compartment[1].func()
+Equal("a compartment click opens the settings", settingsOpen, true)
 launchers.AeonUI.OnClick(nil, "LeftButton")
 Equal("a click while they are open closes them", settingsOpen, false)
 Settings.IsOpen, Settings.Open, Settings.Close = realIsOpen, realOpen, realClose

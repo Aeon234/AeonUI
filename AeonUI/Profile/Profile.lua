@@ -616,21 +616,21 @@ function Profile:Decode(text)
 	local payload, problem = AUI.Codec:Decode(AUI.Codec.PREFIX, text)
 
 	if problem == "newer" then
-		return nil, L["This profile string was made by a newer version of AeonUI."]
+		return nil, AUI:Branded(L["This profile string was made by a newer version of AeonUI."])
 	end
 
 	if not payload or payload.addon ~= AUI.name then
-		return nil, L["This is not an AeonUI profile string, or it was cut short."]
+		return nil, AUI:Branded(L["This is not an AeonUI profile string, or it was cut short."])
 	end
 
 	local version = payload.version
 
 	if type(version) == "number" and version > Schema.VERSION then
-		return nil, L["This profile string was made by a newer version of AeonUI."]
+		return nil, AUI:Branded(L["This profile string was made by a newer version of AeonUI."])
 	end
 
 	if version ~= Schema.VERSION or type(payload.name) ~= "string" or not Schema:ValidateConfig(payload.profile) then
-		return nil, L["This profile string holds settings AeonUI can't use."]
+		return nil, AUI:Branded(L["This profile string holds settings AeonUI can't use."])
 	end
 
 	return {

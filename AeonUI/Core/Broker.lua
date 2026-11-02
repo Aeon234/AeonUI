@@ -4,8 +4,9 @@ local L = AUI.L
 
 local ICON = "Interface\\Icons\\INV_Misc_Gear_01"
 
----The minimap button and the addon compartment entry, both from one LibDataBroker launcher. LibDBIcon keeps the
----button's state (hidden, position) in `global.minimapButton` and writes it in place.
+---The minimap button, from a LibDataBroker launcher, and the addon compartment entry. LibDBIcon keeps the button's
+---state (hidden, position) in `global.minimapButton` and writes it in place. The entry is registered directly because
+---LibDBIcon labels its entry with the launcher's name and finds the launcher by that label, which rules out color codes.
 ---@class AUIBroker
 ---@field icon table? LibDBIcon, once the button is registered
 ---@field state table the table LibDBIcon reads and writes
@@ -22,6 +23,17 @@ end
 local function OnTooltipShow(tooltip)
 	tooltip:AddLine(AUI.brand)
 	tooltip:AddLine(L["Click: open settings"], 1, 1, 1)
+end
+
+---@param button Button
+local function OnCompartmentEnter(button)
+	GameTooltip:SetOwner(button, "ANCHOR_LEFT")
+	OnTooltipShow(GameTooltip)
+	GameTooltip:Show()
+end
+
+local function OnCompartmentLeave()
+	GameTooltip:Hide()
 end
 
 ---Registers the launcher once saved data is loaded. In recovery the button keeps a state that is not saved, so the
@@ -56,10 +68,18 @@ function Broker:Create()
 		return
 	end
 
+	-- LibDBIcon adds its own compartment entry on registration while this saved flag is set.
+	self.state.showInCompartment = nil
 	icon:Register(AUI.name, launcher, self.state)
 
 	if AUI.can.compartment then
-		icon:AddButtonToCompartment(AUI.name)
+		AddonCompartmentFrame:RegisterAddon({
+			text = AUI.brand,
+			icon = ICON,
+			func = OnClick,
+			funcOnEnter = OnCompartmentEnter,
+			funcOnLeave = OnCompartmentLeave,
+		})
 	end
 
 	self.icon = icon

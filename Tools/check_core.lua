@@ -100,6 +100,8 @@ end
 
 Equal("name", AUI.name, "AeonUI")
 Equal("title", AUI.title, "AeonUI")
+Equal("every mention of the name takes the brand", AUI:Branded("AeonUI and AeonUI's"), AUI.brand .. " and " .. AUI.brand .. "'s")
+Equal("the branded result is one value", select("#", AUI:Branded("AeonUI")), 1)
 Equal("unsubstituted version reads as dev", AUI.version, "dev")
 
 AUI:Print("%d frames", 2)

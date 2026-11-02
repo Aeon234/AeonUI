@@ -66,7 +66,7 @@ function DeleteCheapestItem:Open()
 	end
 
 	if not self:IsOn() then
-		AUI:Print(L["Delete Cheapest Item is off. Turn it on in AeonUI's settings."])
+		AUI:Print(AUI:Branded(L["Delete Cheapest Item is off. Turn it on in AeonUI's settings."]))
 
 		return
 	end

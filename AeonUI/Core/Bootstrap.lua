@@ -13,7 +13,7 @@ frame:SetScript("OnEvent", function(self, event)
 
 		if issecretvalue(guid) or type(guid) ~= "string" or guid == "" then
 			AUI.failed = true
-			AUI:Warn(L["your character could not be identified, so AeonUI is off for this session."])
+			AUI:Warn(AUI:Branded(L["your character could not be identified, so AeonUI is off for this session."]))
 
 			return
 		end
@@ -24,7 +24,7 @@ frame:SetScript("OnEvent", function(self, event)
 
 		if not ok then
 			AUI.failed = true
-			AUI:Warn(L["saved settings failed to load, so AeonUI is off for this session."])
+			AUI:Warn(AUI:Branded(L["saved settings failed to load, so AeonUI is off for this session."]))
 			AUI:Warn(tostring(problem))
 
 			return
@@ -35,16 +35,16 @@ frame:SetScript("OnEvent", function(self, event)
 		if mode == "recovery" then
 			if AUI.Profile.newer then
 				AUI:Warn(
-					L["saved settings come from a newer version of AeonUI, so this version is using default settings and leaves them unchanged."]
+					AUI:Branded(L["saved settings come from a newer version of AeonUI, so this version is using default settings and leaves them unchanged."])
 				)
 			else
 				AUI:Warn(
-					L["saved settings are damaged, so AeonUI is using default settings and leaves them unchanged until you reset them."]
+					AUI:Branded(L["saved settings are damaged, so AeonUI is using default settings and leaves them unchanged until you reset them."])
 				)
 			end
 		elseif mode == "fallback" then
 			AUI:Warn(
-				L["the active profile can't be used, so AeonUI is showing default settings until you choose another profile."]
+				AUI:Branded(L["the active profile can't be used, so AeonUI is showing default settings until you choose another profile."])
 			)
 		end
 

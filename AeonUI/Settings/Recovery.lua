@@ -94,7 +94,7 @@ function Recovery:Declare(window)
 	local profile = AUI.Profile
 	local page = window:Page("recovery", {
 		title = L["Recovery"],
-		description = L["AeonUI's saved settings can't be used, so its other pages are unavailable."],
+		description = AUI:Branded(L["AeonUI's saved settings can't be used, so its other pages are unavailable."]),
 	})
 
 	if not page then
@@ -104,8 +104,8 @@ function Recovery:Declare(window)
 	local section = page:Section("recovery", L["Saved Settings"])
 
 	section:Note(profile.newer
-		and L["Your saved settings come from a newer version of AeonUI. This version shows default settings and leaves them unchanged."]
-		or L["Your saved settings are damaged. AeonUI shows default settings and leaves them unchanged until you reset them."],
+		and AUI:Branded(L["Your saved settings come from a newer version of AeonUI. This version shows default settings and leaves them unchanged."])
+		or AUI:Branded(L["Your saved settings are damaged. AeonUI shows default settings and leaves them unchanged until you reset them."]),
 		tostring(profile.problem or ""))
 	section:Button({
 		id = "export",
@@ -119,11 +119,11 @@ function Recovery:Declare(window)
 	section:Button({
 		id = "reset",
 		label = L["Reset Saved Settings"],
-		description = L["Erase every AeonUI profile and setting on this account and start again with defaults."],
+		description = AUI:Branded(L["Erase every AeonUI profile and setting on this account and start again with defaults."]),
 		verb = RESET,
-		confirm = L["Erase every AeonUI profile and setting on this account? This cannot be undone."],
+		confirm = AUI:Branded(L["Erase every AeonUI profile and setting on this account? This cannot be undone."]),
 		run = function()
-			StaticPopup_Show(RESET_POPUP, L["Type %s to erase every AeonUI profile and setting on this account."]:format(CONFIRM_WORD))
+			StaticPopup_Show(RESET_POPUP, AUI:Branded(L["Type %s to erase every AeonUI profile and setting on this account."]):format(CONFIRM_WORD))
 		end,
 	})
 end

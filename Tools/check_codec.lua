@@ -262,9 +262,9 @@ local function Refused(name, fields, expected)
 	Equal(name .. " is refused", result, nil)
 	Equal(name .. " reason", why, expected)
 end
-local NOT_OURS = "This is not an AeonUI profile string, or it was cut short."
-local NEWER = "This profile string was made by a newer version of AeonUI."
-local UNUSABLE = "This profile string holds settings AeonUI can't use."
+local NOT_OURS = AUI:Branded("This is not an AeonUI profile string, or it was cut short.")
+local NEWER = AUI:Branded("This profile string was made by a newer version of AeonUI.")
+local UNUSABLE = AUI:Branded("This profile string holds settings AeonUI can't use.")
 Refused("another addon's payload", { addon = "Levelbound", version = VERSION, name = "N", profile = {} }, NOT_OURS)
 Refused("a newer profile schema", { addon = "AeonUI", version = VERSION + 1, name = "N", profile = {} }, NEWER)
 Refused("no name", { addon = "AeonUI", version = VERSION, profile = {} }, UNUSABLE)

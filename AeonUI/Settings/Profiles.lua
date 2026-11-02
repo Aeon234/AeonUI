@@ -79,7 +79,7 @@ local adapter = {
 			return nil, reason
 		end
 
-		local summary = L["AeonUI profile \"%s\"."]:format(import.name)
+		local summary = AUI:Branded(L["AeonUI profile \"%s\"."]):format(import.name)
 
 		if import.dormant > 0 then
 			summary = summary .. " " .. L["It holds %d settings this version doesn't use; they are kept."]:format(import.dormant)

@@ -35,8 +35,15 @@ if AUI.version:find("@", 1, true) then
 	AUI.version = "dev"
 end
 
--- The addon name in blue and parchment, used in chat, the game menu and the settings window title.
+-- The addon name in blue and parchment, used wherever the addon names itself.
 AUI.brand = "|cff00a3e3Aeon|r|cfff2e6c8UI|r"
+
+---Returns the text with the addon's name in the brand colors. Call it before formatting, so arguments stay as given.
+---@param text string
+---@return string branded
+function AUI:Branded(text)
+	return (text:gsub("AeonUI", self.brand))
+end
 
 local PREFIX = AUI.brand .. ": "
 local WARN_PREFIX = AUI.brand .. " |cffff4d4dWarning|r: "
@@ -100,7 +107,7 @@ end
 ---@param page string? page to open at
 function AUI:OpenSettings(page)
 	if self.failed or self.Profile.characterID == "" then
-		self:Warn(self.L["AeonUI is off for this session, so its settings can't open."])
+		self:Warn(self:Branded(self.L["AeonUI is off for this session, so its settings can't open."]))
 
 		return
 	end
