@@ -75,7 +75,7 @@ for kind, files in pairs(Media.shared) do
 	end
 end
 
-Equal("seven borders", counts.border, 7)
+Equal("eight borders", counts.border, 8)
 Equal("fourteen fonts", counts.font, 14)
 Equal("two sounds", counts.sound, 2)
 Equal("AeonUI's three bar textures and fifteen more", counts.statusbar, 18)

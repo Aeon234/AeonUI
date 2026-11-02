@@ -40,6 +40,7 @@ local Media = {
 	TOOLTIP_BAR = "Blizzard Tooltip",
 	shared = {
 		[LSM.MediaType.BORDER] = {
+			["AeonUI Forever Minimal"] = MEDIA .. "Borders\\ForeverMinimal.tga",
 			["border thick 1 s16 o0"] = MEDIA .. "Borders\\BorderThick1S16O0.tga",
 			["border thick 1 s16 o4"] = MEDIA .. "Borders\\BorderThick1S16O4.tga",
 			["border thick 2 s16 o4"] = MEDIA .. "Borders\\BorderThick2S16O4.tga",
