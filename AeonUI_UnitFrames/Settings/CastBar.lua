@@ -30,7 +30,12 @@ local TIME_FORMAT_LABELS = {
 	ELAPSED_TOTAL = L["Elapsed / Total"],
 }
 
-local CASTING, CHANNELING, EMPOWERED, NOT_INTERRUPTIBLE = L["Casting"], L["Channeling"], L["Empowered"],
+local BORDER_STYLE_LABELS = {
+	PIXEL = L["Pixel"],
+	FOREVER_MINIMAL = L["Forever Minimal"],
+}
+
+local CASTING, CHANNELING, EMPOWERED, NOT_INTERRUPTIBLE =L["Casting"], L["Channeling"], L["Empowered"],
 	L["Not Interruptible"]
 
 ---The Cast Bar page, under the Unit Frames header: the module's switch, a sample bar with its states as its preview,
@@ -150,7 +155,20 @@ function SettingsCastBar:DeclareBar(page)
 	}))
 	card:Color(Field("notInterruptible", L["Not Interruptible"], "castBar.notInterruptible"))
 	card:Color(Field("background", L["Background"], "castBar.background", { hasOpacity = true }))
-	card:Slider(Field("border", L["Border Size"], "castBar.border", { min = 0, max = Options.MAX_BORDER, step = 1 }))
+	card:Dropdown(Field("borderStyle", L["Border Style"], "castBar.borderStyle", {
+		description = L["Forever Minimal keeps the bar at least 16 tall."],
+		options = ChoiceOptions(Options.BORDER_STYLES, BORDER_STYLE_LABELS),
+	}))
+	card:Slider(Field("border", L["Border Size"], "castBar.border", {
+		min = 0,
+		max = Options.MAX_BORDER,
+		step = 1,
+		blocked = function()
+			if AUI.Profile:Get("castBar.borderStyle") ~= "PIXEL" then
+				return L["Needs the Pixel border style."]
+			end
+		end,
+	}))
 	card:Checkbox(Field("spark", L["Show Spark"], "castBar.spark"))
 	card:Checkbox(Field("reverse", L["Reverse Fill"], "castBar.reverse"))
 	card:Checkbox(Field("smooth", L["Smooth Animation"], "castBar.smooth"))

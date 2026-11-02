@@ -403,10 +403,22 @@ local function Frame(kind, name, parent)
 	return frame
 end
 
-function CreateFrame(kind, name, parent)
+function CreateFrame(kind, name, parent, template)
 	assert(kind == "Frame" or kind == "StatusBar", "unexpected frame " .. tostring(kind))
 
-	return Frame(kind, name, parent)
+	local frame = Frame(kind, name, parent)
+
+	if template then
+		assert(template == "BackdropTemplate", "unexpected template " .. tostring(template))
+		frame.SetBackdrop = function(self, info)
+			self.backdrop = info
+		end
+		frame.SetBackdropBorderColor = function(self, r, g, b, a)
+			self.borderColor = { r, g, b, a }
+		end
+	end
+
+	return frame
 end
 
 UIParent = Frame("Frame", "UIParent")
@@ -527,6 +539,7 @@ end
 
 AUI.Media = {
 	FLAT = "flat",
+	FOREVER_MINIMAL_BORDER = "forever minimal border",
 	Font = function(_, name)
 		return "font:" .. name
 	end,
@@ -582,6 +595,9 @@ Equal("Always Show keeps it between casts", Options:Visible(true, false, false, 
 Equal("but not in a pet battle", Options:Visible(true, false, false, true, true), false)
 Equal("the spark at the default height", Options:SparkHeight(16), 30)
 Equal("a taller bar's reaches past it", Options:SparkHeight(40), 54)
+Equal("Pixel keeps any height", Options:DrawnHeight("PIXEL", 6), 6)
+Equal("Forever Minimal holds a short bar", Options:DrawnHeight("FOREVER_MINIMAL", 6), 16)
+Equal("and keeps a taller one", Options:DrawnHeight("FOREVER_MINIMAL", 40), 40)
 Equal("0 keeps a name whole", Options:Shorten("Pyroblast", 0), "Pyroblast")
 Equal("a short name stays whole", Options:Shorten("Pyroblast", 9), "Pyroblast")
 Equal("a long one is cut", Options:Shorten("Pyroblast", 4), "Pyro\226\128\166")
@@ -827,6 +843,31 @@ Equal("a thicker border", frame.lines[1].height .. " " .. frame.lines[1].points[
 Set("castBar.border", 0)
 Equal("no border at 0", frame.lines[1].shown, false)
 Set("castBar.border", 1)
+Equal("no Forever Minimal frame until it is chosen", frame.edge, nil)
+Set("castBar.height", 10)
+Equal("Pixel draws a short bar", frame.height, 10)
+Set("castBar.borderStyle", "FOREVER_MINIMAL")
+local edge = frame.edge --[[@as table]]
+Equal("Forever Minimal's file and size", edge.backdrop.edgeFile .. " " .. edge.backdrop.edgeSize,
+	"forever minimal border 14")
+Equal("in the art's own color", edge.borderColor[1] .. " " .. edge.borderColor[4], 110 / 255 .. " 1")
+Equal("outside the frame", edge.points[1][1] .. " " .. edge.points[1][2] .. " " .. edge.points[1][3] .. " "
+	.. edge.points[2][1] .. " " .. edge.points[2][2] .. " " .. edge.points[2][3], "TOPLEFT -6 6 BOTTOMRIGHT 6 -6")
+Equal("above the text", edge.level, frame.over.level + 1)
+Equal("no Pixel lines beside it", frame.lines[1].shown, false)
+Equal("it shows", edge.shown, true)
+Equal("the short bar is held", frame.height, 16)
+Set("castBar.icon", true)
+Equal("and its icon with it", frame.icon.width, 16)
+Set("castBar.icon", false)
+Set("castBar.borderStyle", "PIXEL")
+Equal("Pixel hides it", edge.shown, false)
+Equal("and draws its lines again", frame.lines[1].shown, true)
+Equal("at the Height setting", frame.height, 10)
+Set("castBar.borderStyle", "FOREVER_MINIMAL")
+Equal("choosing it again reuses it", frame.edge == edge and edge.shown, true)
+Set("castBar.borderStyle", "PIXEL")
+Set("castBar.height", 16)
 Set("castBar.reverse", true)
 Equal("a reversed fill", tostring(frame.bar.reverse) .. " " .. frame.spark.points[1][3], "true LEFT")
 Set("castBar.reverse", false)

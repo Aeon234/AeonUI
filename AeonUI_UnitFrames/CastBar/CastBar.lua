@@ -28,7 +28,8 @@ local ICON_CROP = 0.08
 local LATENCY_TEXT_SIZE = 10
 
 ---@class AUICastBarFrame : Frame
----@field lines Texture[] the border, `BORDER_LINES` in order
+---@field lines Texture[] the Pixel border, `BORDER_LINES` in order
+---@field edge Frame? the Forever Minimal border, created when first chosen
 ---@field icon Texture
 ---@field bar StatusBar
 ---@field background Texture
@@ -236,6 +237,31 @@ function CastBar:StyleFill(frame)
 		CreateColor(r2, g2, b2, 1))
 end
 
+---Shows or hides the Forever Minimal border. It lies above the bar and its text, so its band covers the corners of the
+---rectangular bar and icon and the bar reads as chamfered.
+---@param frame AUICastBarFrame
+---@param shown boolean
+function CastBar:StyleEdge(frame, shown)
+	local edge = frame.edge
+
+	if shown and not edge then
+		local look = Options.FOREVER_MINIMAL
+		local color = look.color
+
+		edge = CreateFrame("Frame", nil, frame, "BackdropTemplate")
+		edge:SetFrameLevel(frame.over:GetFrameLevel() + 1)
+		edge:SetPoint("TOPLEFT", -look.outset, look.outset)
+		edge:SetPoint("BOTTOMRIGHT", look.outset, -look.outset)
+		edge:SetBackdrop({ edgeFile = AUI.Media.FOREVER_MINIMAL_BORDER, edgeSize = look.edgeSize })
+		edge:SetBackdropBorderColor(color.r, color.g, color.b, 1)
+		frame.edge = edge
+	end
+
+	if edge then
+		edge:SetShown(shown)
+	end
+end
+
 ---Puts the bar beside the icon, or across the whole frame, and the border outside it all.
 ---@param frame AUICastBarFrame
 ---@param height number
@@ -244,7 +270,8 @@ function CastBar:StyleLayout(frame, height)
 	local bar, icon = frame.bar, frame.icon
 	local showIcon = Profile:Get("castBar.icon") == true
 	local right = Profile:Get("castBar.iconSide") == "RIGHT"
-	local thickness = Profile:Get("castBar.border") * AUI:Pixel(frame)
+	local pixelBorder = Profile:Get("castBar.borderStyle") == "PIXEL"
+	local thickness = pixelBorder and Profile:Get("castBar.border") * AUI:Pixel(frame) or 0
 
 	bar:ClearAllPoints()
 	icon:ClearAllPoints()
@@ -274,6 +301,8 @@ function CastBar:StyleLayout(frame, height)
 
 		line:SetShown(thickness > 0)
 	end
+
+	self:StyleEdge(frame, not pixelBorder)
 end
 
 ---Gives a font string its size and color, and the text's shared outline and shadow.
@@ -369,7 +398,7 @@ end
 ---@param frame AUICastBarFrame
 function CastBar:Style(frame)
 	local Profile = AUI.Profile
-	local height = Profile:Get("castBar.height")
+	local height = Options:DrawnHeight(Profile:Get("castBar.borderStyle"), Profile:Get("castBar.height"))
 	local reverse = Profile:Get("castBar.reverse") == true
 	local bar = frame.bar
 

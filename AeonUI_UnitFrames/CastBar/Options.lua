@@ -14,7 +14,10 @@ local ELLIPSIS = "\226\128\166"
 ---@field ORIENTATIONS string[] the Gradient Direction choices
 ---@field SIDES string[] the Icon Side choices
 ---@field TIME_FORMATS string[] the Time Format choices
+---@field BORDER_STYLES string[] the Border Style choices
 ---@field BORDER_COLOR AUIColor
+---@field FOREVER_MINIMAL { edgeSize: number, outset: number, minHeight: number, color: AUIColor } how the Forever
+---Minimal border is drawn: outside the frame by `outset`, around a frame at least `minHeight` tall
 ---@field SPARK_TEXTURE string
 ---@field SPARK_WIDTH number
 ---@field SHADOW AUIColor
@@ -46,7 +49,9 @@ local Options = {
 	ORIENTATIONS = { "HORIZONTAL", "VERTICAL" },
 	SIDES = { "LEFT", "RIGHT" },
 	TIME_FORMATS = { "REMAINING", "ELAPSED", "REMAINING_TOTAL", "ELAPSED_TOTAL" },
+	BORDER_STYLES = { "PIXEL", "FOREVER_MINIMAL" },
 	BORDER_COLOR = { r = 0, g = 0, b = 0, a = 1 },
+	FOREVER_MINIMAL = { edgeSize = 14, outset = 6, minHeight = 16, color = { r = 110 / 255, g = 89 / 255, b = 71 / 255 } },
 	SPARK_TEXTURE = "Interface\\CastingBar\\UI-CastingBar-Spark",
 	SPARK_WIDTH = 10,
 	SHADOW = { r = 0, g = 0, b = 0, a = 1 },
@@ -87,6 +92,7 @@ Schema:Choices("castBarStrata", Options.STRATAS)
 Schema:Choices("castBarOrientation", Options.ORIENTATIONS)
 Schema:Choices("castBarSide", Options.SIDES)
 Schema:Choices("castBarTimeFormat", Options.TIME_FORMATS)
+Schema:Choices("castBarBorderStyle", Options.BORDER_STYLES)
 
 Schema:Boolean(Options.ENABLED_PATH, false)
 Schema:Position(Options.POSITION_PATH)
@@ -101,6 +107,7 @@ Schema:Boolean("castBar.gradient", true)
 Schema:Color("castBar.gradientColor", { r = 1, g = 0.682, b = 0.224 })
 Schema:Choice("castBar.gradientDirection", "castBarOrientation", "HORIZONTAL")
 Schema:Color("castBar.background", { r = 1, g = 1, b = 1, a = 0.5 })
+Schema:Choice("castBar.borderStyle", "castBarBorderStyle", "PIXEL")
 Schema:Number("castBar.border", 1, 0, Options.MAX_BORDER, true)
 Schema:Color("castBar.notInterruptible", { r = 0.8, g = 0.1, b = 0.1 })
 Schema:Boolean("castBar.spark", true)
@@ -198,6 +205,13 @@ function Options:Visible(on, casting, sampling, petBattle, alwaysShow)
 	end
 
 	return sampling or ((casting or alwaysShow) and not petBattle)
+end
+
+---@param style string a `BORDER_STYLES` choice
+---@param height number the Height setting
+---@return number height the bar's, which Forever Minimal holds at its least
+function Options:DrawnHeight(style, height)
+	return style == "FOREVER_MINIMAL" and math.max(height, self.FOREVER_MINIMAL.minHeight) or height
 end
 
 ---@param height number the bar's height
