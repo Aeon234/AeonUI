@@ -1,4 +1,4 @@
--- Checks CastBar/ outside the game: which duration a cast is drawn from and the way its fill runs, when the bar shows,
+-- Checks AeonUI_UnitFrames/CastBar/ outside the game: which duration a cast is drawn from and the way its fill runs, when the bar shows,
 -- the spell name's length and the time's formats; then nothing built and Blizzard's bar left alone while off, the
 -- default look and place, casts, channels and empowered casts drawn from duration objects (secret ones too), the
 -- not-interruptible cover, other units ignored, pet battles, the samples, every look setting, Always Show, a saved
@@ -539,8 +539,8 @@ AUI.Media = {
 	end,
 }
 
-for _, file in ipairs({ "CastBar/Options.lua", "CastBar/TickData.lua", "CastBar/BlizzardBar.lua",
-	"CastBar/CastBar.lua" }) do
+for _, file in ipairs({ "AeonUI_UnitFrames/CastBar/Options.lua", "AeonUI_UnitFrames/CastBar/TickData.lua",
+	"AeonUI_UnitFrames/CastBar/BlizzardBar.lua", "AeonUI_UnitFrames/CastBar/CastBar.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 
@@ -1220,7 +1220,7 @@ end
 AUI.Settings = { Default = function(_, path)
 	return AUI.Schema:Field(path).default
 end }
-assert(loadfile(root .. "Settings/CastBar.lua"))("AeonUI", AUI)
+assert(loadfile(root .. "AeonUI_UnitFrames/Settings/CastBar.lua"))("AeonUI", AUI)
 
 local declaredPreview
 local noCard = setmetatable({}, { __index = function()

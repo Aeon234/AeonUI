@@ -25,6 +25,8 @@ local addonName = ...
 ---@field failed boolean? saved data or the character could not be loaded; AeonUI stays off for the session
 local AUI = select(2, ...)
 
+AeonUI = AUI
+
 AUI.name = addonName
 AUI.title = C_AddOns.GetAddOnMetadata(addonName, "Title") or addonName
 AUI.version = C_AddOns.GetAddOnMetadata(addonName, "Version") or UNKNOWN

@@ -28,7 +28,6 @@ Input\Input.xml
 Alerts\Alerts.xml
 ScreenText\ScreenText.xml
 Cursor\Cursor.xml
-CastBar\CastBar.xml
 Notifications\Notifications.xml
 Markers\Markers.xml
 DeleteCheapestItem\DeleteCheapestItem.xml

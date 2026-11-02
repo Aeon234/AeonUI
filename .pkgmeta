@@ -15,11 +15,15 @@ externals:
     url: https://github.com/BigWigsMods/LibSpecialization.git
     tag: v12.1.3
 
+move-folders:
+  AeonUI/AeonUI_UnitFrames: AeonUI_UnitFrames
+
 ignore:
   - .pkgmeta
   - .wowluarc.json
   - .github
   - Tools
   - Dev
+  - AeonUI_UnitFrames/Dev
   - "*.md"
   - Archive

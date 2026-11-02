@@ -1,0 +1,18 @@
+## Interface: 120100, 120105, 16001
+## Title: AeonUI Unit Frames
+## Notes: The player cast bar for AeonUI.
+## Author: Aeon
+## Version: @project-version@
+
+## Dependencies: AeonUI
+
+## Category: Unit Frames
+
+Namespace.lua
+Locale\Locale.xml
+CastBar\CastBar.xml
+Settings\CastBar.lua
+
+#@do-not-package@
+Dev\ChannelLog.lua
+#@end-do-not-package@

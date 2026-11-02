@@ -4,13 +4,13 @@ local AUI = select(2, ...)
 local Codec = AUI.Codec
 
 ---@class AUIDev
----@field channelLog boolean? each channel the player starts is printed
+---@field commands table<string, fun(rest: string)> commands the feature addons add
 ---@field MinimapProbe AUIMinimapProbe? the M0 minimap probe, from Dev/MinimapProbe.lua
 ---@field WorldMapProbe AUIWorldMapProbe? the W0 world map probe, from Dev/WorldMapProbe.lua
 ---@field DeleteCheapestItemProbe AUIDeleteCheapestItemProbe? the S0 Delete Cheapest Item probe, from
 ---Dev/DeleteCheapestItemProbe.lua
 ---@field SparklesProbe AUISparklesProbe? the S2 Loot Sparkles probe, from Dev/SparklesProbe.lua
-local Dev = {}
+local Dev = { commands = {} }
 AUI.Dev = Dev
 
 -- Values that stress CBOR and Deflate: zero, false, fractions, huge numbers, Unicode, arrays and nesting.
@@ -256,39 +256,11 @@ function Dev:Mark(note)
 	AUI:Print("  { %.1f, %.1f },%s", x * 100, y * 100, note ~= "" and (" -- " .. note) or "")
 end
 
----Prints a channel the player started: its spell ID, name and length, and whether the tick list has it.
----@param _ string
----@param unit string
-function Dev:OnChannel(_, unit)
-	if unit ~= "player" then
-		return
-	end
-
-	local name, _, _, start, finish, _, _, spellID = UnitChannelInfo("player")
-
-	if issecretvalue(name) or issecretvalue(spellID) or issecretvalue(start) or issecretvalue(finish) then
-		AUI:Print("channel: hidden by the client.")
-
-		return
-	end
-
-	if name then
-		AUI:Print("channel: %s, spell %d, %.2f s, %s", name, spellID, (finish - start) / 1000,
-			AUI.CastBarTickData.spells[spellID] and "listed" or "not listed")
-	end
-end
-
----Turns the channel log on or off.
-function Dev:ChannelLog()
-	self.channelLog = not self.channelLog
-
-	if self.channelLog then
-		AUI.Events:Register("UNIT_SPELLCAST_CHANNEL_START", self, self.OnChannel)
-	else
-		AUI.Events:Unregister("UNIT_SPELLCAST_CHANNEL_START", self)
-	end
-
-	AUI:Print("channel log %s.", self.channelLog and "on: start a channel" or "off")
+---Adds a `/aui dev` command for a feature addon.
+---@param command string
+---@param handler fun(rest: string)
+function Dev:Register(command, handler)
+	self.commands[command] = handler
 end
 
 ---@param line string the words after `/aui dev`, lowercased
@@ -328,8 +300,10 @@ function Dev:Command(line)
 		return
 	end
 
-	if command == "channel" then
-		self:ChannelLog()
+	local handler = self.commands[command --[[@as string]]]
+
+	if handler then
+		handler(rest --[[@as string]])
 
 		return
 	end
