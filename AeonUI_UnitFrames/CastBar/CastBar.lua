@@ -973,9 +973,9 @@ function CastBar:EndFeedback()
 	end
 end
 
----Ends an interrupted cast at once: empties the bar for Always Show, or hides it. The client may still report the
----cast at this event, so this does not read it again.
-function CastBar:EndInterrupted()
+---Ends a cast at once: empties the bar for Always Show, or hides it. The client may still report the cast at the
+---events that call this, so this does not read it again.
+function CastBar:EndAtOnce()
 	local frame = self.frame --[[@as AUICastBarFrame]]
 
 	self.drawn, self.drawnID, self.channelEnd = nil, nil, nil
@@ -993,12 +993,13 @@ function CastBar:EndInterrupted()
 	end
 end
 
----Shows Interrupted, or ends the cast without it while Show Interrupted is off.
-function CastBar:OnInterrupted()
-	if AUI.Profile:Get("castBar.interruptedFeedback") then
-		self:ShowFeedback(INTERRUPTED)
+---Shows Interrupted or Failed, or ends the cast without it while Show Interrupted and Failed is off.
+---@param text string
+function CastBar:EndWithFeedback(text)
+	if AUI.Profile:Get("castBar.feedback") then
+		self:ShowFeedback(text)
 	else
-		self:EndInterrupted()
+		self:EndAtOnce()
 	end
 end
 
@@ -1091,11 +1092,7 @@ function CastBar:OnCastEvent(event, unit, castGUID, _, detail)
 
 	if event == "UNIT_SPELLCAST_FAILED" or event == "UNIT_SPELLCAST_INTERRUPTED" then
 		if self:IsDrawnCast(castGUID --[[@as string]]) then
-			if event == "UNIT_SPELLCAST_FAILED" then
-				self:ShowFeedback(FAILED)
-			else
-				self:OnInterrupted()
-			end
+			self:EndWithFeedback(event == "UNIT_SPELLCAST_FAILED" and FAILED or INTERRUPTED)
 		end
 
 		return
@@ -1103,7 +1100,7 @@ function CastBar:OnCastEvent(event, unit, castGUID, _, detail)
 
 	if self.drawn and ((event == "UNIT_SPELLCAST_CHANNEL_STOP" and AUI:Readable(detail) ~= nil)
 		or (event == "UNIT_SPELLCAST_EMPOWER_STOP" and AUI:Readable(detail) == false)) then
-		self:OnInterrupted()
+		self:EndWithFeedback(INTERRUPTED)
 
 		return
 	end

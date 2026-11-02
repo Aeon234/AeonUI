@@ -1008,8 +1008,8 @@ Fire("UNIT_SPELLCAST_INTERRUPTED", "player", "Cast-1", 133)
 Equal("no hold at 0", frame.shown, false)
 Set("castBar.holdTime", 0.6)
 
-Equal("Show Interrupted is on by default", AUI.Schema:Field("castBar.interruptedFeedback").default, true)
-Set("castBar.interruptedFeedback", false)
+Equal("Show Interrupted and Failed is on by default", AUI.Schema:Field("castBar.feedback").default, true)
+Set("castBar.feedback", false)
 local timersBefore = #namedTimers
 StartCast()
 EndCast()
@@ -1057,9 +1057,9 @@ CastBar:Sample(false)
 StartCast()
 EndCast()
 Fire("UNIT_SPELLCAST_FAILED", "player", "Cast-1", 133)
-Equal("Failed still shows", frame.text.text, "Failed")
-RunNamedTimer()
-Set("castBar.interruptedFeedback", true)
+Equal("Failed goes at once too", tostring(frame.shown) .. " " .. frame.failed.alpha .. " "
+	.. (#namedTimers - timersBefore), "false 0 0")
+Set("castBar.feedback", true)
 
 -- Fade Out ------------------------------------------------------------------------------------------------
 

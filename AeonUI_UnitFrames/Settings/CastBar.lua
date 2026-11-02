@@ -262,13 +262,14 @@ function SettingsCastBar:DeclareFeedback(page)
 	local Options = AUI.CastBarOptions
 	local card = page:Section("castBarFeedback", L["Feedback"])
 
-	card:Checkbox(Field("interruptedFeedback", L["Show Interrupted"], "castBar.interruptedFeedback"))
-	card:Color(Field("interrupted", INTERRUPTED, "castBar.interrupted"))
+	card:Checkbox(Field("feedback", L["Show Interrupted and Failed"], "castBar.feedback"))
+	card:Color(Field("interrupted", INTERRUPTED, "castBar.interrupted", { depends = "feedback" }))
 	card:Slider(Field("holdTime", L["Hold Time"], "castBar.holdTime", {
 		min = 0,
 		max = Options.MAX_HOLD,
 		step = 0.1,
 		format = "decimal",
+		depends = "feedback",
 	}))
 	card:Checkbox(Field("fade", L["Fade Out"], "castBar.fade"))
 end
