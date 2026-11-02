@@ -173,7 +173,8 @@ function Capabilities:Resolve()
 	can.movementAlert = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE and can.specializations and can.petHealthNotice
 		and C_Spell ~= nil and C_Spell.GetSpellCooldown ~= nil and C_Spell.GetSpellCharges ~= nil
 		and C_Spell.GetSpellCooldownDuration ~= nil and C_Spell.GetSpellChargeDuration ~= nil
-		and C_Spell.GetOverrideSpell ~= nil and C_SpellBook ~= nil and C_SpellBook.IsSpellKnown ~= nil
+		and C_Spell.GetOverrideSpell ~= nil and C_Spell.GetSpellName ~= nil and C_SpellBook ~= nil
+		and C_SpellBook.IsSpellKnown ~= nil
 		and C_DurationUtil ~= nil and C_DurationUtil.CreateDurationTextBinding ~= nil and C_StringUtil ~= nil
 		and C_StringUtil.CreateNumericRuleFormatter ~= nil and Enum.DurationTextBindingProperty ~= nil
 	can.raidMarkers = RegisterStateDriver ~= nil and UnregisterStateDriver ~= nil and InitiateRolePoll ~= nil

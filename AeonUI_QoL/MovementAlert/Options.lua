@@ -171,6 +171,25 @@ function Options:TrackedSpells(class, specID, known, tracked)
 	return spellIDs
 end
 
+---@param combatOnly boolean Combat Only is on
+---@param inCombat boolean
+---@return boolean allowed lines may show now
+function Options:LinesAllowed(combatOnly, inCombat)
+	return inCombat or not combatOnly
+end
+
+---Whether a cooldown is the spell's own rather than the global cooldown, from fields the client never makes secret.
+---@param cooldown table? `C_Spell.GetSpellCooldown`'s answer
+---@param charges boolean the spell has charges, which an unknown `isOnGCD` may be banked behind
+---@return boolean own
+function Options:OnOwnCooldown(cooldown, charges)
+	if not cooldown or not cooldown.isActive then
+		return false
+	end
+
+	return cooldown.isOnGCD == false or (cooldown.isOnGCD == nil and not charges)
+end
+
 ---A duration text binding's format for a line: `{}` is where the binding writes the time.
 ---@param arrangement string a `movementAlertArrangement` choice
 ---@param name string the spell's name

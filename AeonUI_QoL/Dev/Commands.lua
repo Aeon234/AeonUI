@@ -6,6 +6,13 @@ local Dev = AUI.Dev
 Dev:Register("dci", function(rest)
 	(Dev.DeleteCheapestItemProbe --[[@as AUIDeleteCheapestItemProbe]]):Command(rest)
 end)
+Dev:Register("movealert", function(rest)
+	if AUI.can.movementAlert then
+		(Dev.MovementAlertProbe --[[@as AUIMovementAlertProbe]]):Command(rest)
+	else
+		AUI:Print("movealert: this client has no Movement Alerts.")
+	end
+end)
 Dev:Register("sparkles", function()
 	if AUI.can.approachSparkles then
 		(Dev.SparklesProbe --[[@as AUISparklesProbe]]):Command()
