@@ -28,8 +28,8 @@ function LibStub()
 end
 
 local AUI = {}
-assert(loadfile(root .. "Core/Core.lua"))("AeonUI", AUI)
-assert(loadfile(root .. "Media/Media.lua"))("AeonUI", AUI)
+assert(loadfile(root .. "AeonUI/Core/Core.lua"))("AeonUI", AUI)
+assert(loadfile(root .. "AeonUI/Media/Media.lua"))("AeonUI", AUI)
 
 local Media = AUI.Media
 
@@ -51,7 +51,7 @@ end
 ---@return boolean exists the file is in the working tree
 local function Ships(path)
 	local relative = path:match("^Interface\\AddOns\\AeonUI\\(.+)$")
-	local file = relative and io.open(root .. relative:gsub("\\", "/"), "rb")
+	local file = relative and io.open(root .. "AeonUI/" .. relative:gsub("\\", "/"), "rb")
 
 	if file then
 		file:close()

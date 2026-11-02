@@ -1,4 +1,4 @@
--- Checks CastBar/ outside the game: which duration a cast is drawn from and the way its fill runs, when the bar shows,
+-- Checks AeonUI_UnitFrames/CastBar/ outside the game: which duration a cast is drawn from and the way its fill runs, when the bar shows,
 -- the spell name's length and the time's formats; then nothing built and Blizzard's bar left alone while off, the
 -- default look and place, casts, channels and empowered casts drawn from duration objects (secret ones too), the
 -- not-interruptible cover, other units ignored, pet battles, the samples, every look setting, Always Show, a saved
@@ -489,16 +489,15 @@ local AUI = {}
 AUI.L = setmetatable({}, { __index = function(_, key)
 	return key
 end })
-assert(loadfile(root .. "Core/Core.lua"))("AeonUI", AUI)
+assert(loadfile(root .. "AeonUI/Core/Core.lua"))("AeonUI", AUI)
 AUI.can = { castBar = true, petBattles = true, castTarget = true, empoweredCasts = true }
 
-for _, file in ipairs({ "Core/Callbacks.lua", "Core/Events.lua", "Profile/Schema.lua" }) do
+for _, file in ipairs({ "AeonUI/Core/Callbacks.lua", "AeonUI/Core/Events.lua", "AeonUI/Core/Modules.lua", "AeonUI/Profile/Schema.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 
 local eventFrame = frames[#frames]
 
-AUI.Schema:Choices("fontOutline", { "NONE", "OUTLINE", "THICKOUTLINE", "SLUG", "SLUG_OUTLINE", "SLUG_THICKOUTLINE" })
 
 local values = {}
 AUI.Profile = {
@@ -539,8 +538,8 @@ AUI.Media = {
 	end,
 }
 
-for _, file in ipairs({ "CastBar/Options.lua", "CastBar/TickData.lua", "CastBar/BlizzardBar.lua",
-	"CastBar/CastBar.lua" }) do
+for _, file in ipairs({ "AeonUI_UnitFrames/CastBar/Options.lua", "AeonUI_UnitFrames/CastBar/TickData.lua",
+	"AeonUI_UnitFrames/CastBar/BlizzardBar.lua", "AeonUI_UnitFrames/CastBar/CastBar.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 
@@ -847,24 +846,26 @@ Set("castBar.outline", "OUTLINE")
 Equal("the outline", frame.time.flags, "OUTLINE")
 Set("castBar.shadow", false)
 Equal("no shadow", frame.text.shadow[4], 0)
+Equal("the text sits in from both edges", frame.text.points[1][4] .. " " .. frame.time.points[1][4], "4 -4")
 Set("castBar.name.size", 20)
 Set("castBar.name.color", { r = 1, g = 0, b = 0 })
 Set("castBar.name.x", 5)
 Set("castBar.name.y", -2)
 Equal("the name's size, color and place", frame.text.size .. " " .. frame.text.color[2] .. " "
-	.. frame.text.points[1][4] .. " " .. frame.text.points[1][5], "20 0 5 -2")
+	.. frame.text.points[1][4] .. " " .. frame.text.points[1][5], "20 0 9 -2")
 Set("castBar.name.enabled", false)
 Equal("no name", frame.text.shown, false)
 Set("castBar.name.enabled", true)
 Set("castBar.time.size", 10)
 Set("castBar.time.x", -3)
-Equal("the time's size and place", frame.time.size .. " " .. frame.time.points[1][4], "10 -3")
+Equal("the time's size and place", frame.time.size .. " " .. frame.time.points[1][4], "10 -7")
 Set("castBar.time.format", "ELAPSED_TOTAL")
 Equal("the time's format", frame.binding.format .. " " .. frame.binding.components[1].property .. " "
 	.. frame.binding.components[2].property, "{} / {} 2 4")
 Set("castBar.time.enabled", false)
 Equal("no time", frame.time.shown, false)
 Equal("the name then reaches the bar's edge", frame.text.points[2][2], frame.over)
+Equal("short of its padding", frame.text.points[2][4], -4)
 Set("castBar.time.enabled", true)
 Equal("and stops short of the time again", frame.text.points[2][2], frame.time)
 Set("castBar.name.maxLength", 4)
@@ -1220,7 +1221,7 @@ end
 AUI.Settings = { Default = function(_, path)
 	return AUI.Schema:Field(path).default
 end }
-assert(loadfile(root .. "Settings/CastBar.lua"))("AeonUI", AUI)
+assert(loadfile(root .. "AeonUI_UnitFrames/Settings/CastBar.lua"))("AeonUI", AUI)
 
 local declaredPreview
 local noCard = setmetatable({}, { __index = function()

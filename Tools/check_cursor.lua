@@ -208,10 +208,10 @@ local AUI = {}
 AUI.L = setmetatable({}, { __index = function(_, key)
 	return key
 end })
-assert(loadfile(root .. "Core/Core.lua"))("AeonUI", AUI)
+assert(loadfile(root .. "AeonUI/Core/Core.lua"))("AeonUI", AUI)
 AUI.can = { cursorRing = true, castSwipe = true }
 
-for _, file in ipairs({ "Core/Callbacks.lua", "Core/Events.lua", "Profile/Schema.lua" }) do
+for _, file in ipairs({ "AeonUI/Core/Callbacks.lua", "AeonUI/Core/Events.lua", "AeonUI/Core/Modules.lua", "AeonUI/Profile/Schema.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 
@@ -242,7 +242,7 @@ local function Fire(event, ...)
 	end
 end
 
-for _, file in ipairs({ "Cursor/Options.lua", "Cursor/CursorRing.lua" }) do
+for _, file in ipairs({ "AeonUI_QoL/Cursor/Options.lua", "AeonUI_QoL/Cursor/CursorRing.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 
@@ -472,7 +472,7 @@ local window = { Page = function()
 		preview = info
 	end, Section = Section }
 end }
-assert(loadfile(root .. "Settings/Cursor.lua"))("AeonUI", AUI)
+assert(loadfile(root .. "AeonUI_QoL/Settings/Cursor.lua"))("AeonUI", AUI)
 AUI.SettingsCursor:Declare(window)
 local canvas = Frame("Frame")
 local parts = {}

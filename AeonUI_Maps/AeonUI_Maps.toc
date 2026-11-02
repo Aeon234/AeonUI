@@ -1,0 +1,23 @@
+## Interface: 120100, 120105, 16001
+## Title: AeonUI Maps
+## Notes: The minimap and world map for AeonUI.
+## Author: Aeon
+## Version: @project-version@
+
+## Dependencies: AeonUI
+
+## Category: Unit Frames
+
+Namespace.lua
+Locale\Locale.xml
+Minimap\Minimap.xml
+WorldMap\WorldMap.xml
+Settings\Minimap.lua
+Settings\MinimapEditor.lua
+Settings\WorldMap.lua
+
+#@do-not-package@
+Dev\MinimapProbe.lua
+Dev\WorldMapProbe.xml
+Dev\Commands.lua
+#@end-do-not-package@

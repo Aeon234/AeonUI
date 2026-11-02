@@ -19,7 +19,7 @@ import sys
 from PIL import Image
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-TARGET = ROOT / "Media" / "Textures" / "Masks"
+TARGET = ROOT / "AeonUI" / "Media" / "Textures" / "Masks"
 SIZE = 256
 THIN = 4
 STEP = 4

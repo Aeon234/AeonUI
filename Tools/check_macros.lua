@@ -226,7 +226,7 @@ local AUI = {}
 AUI.L = setmetatable({}, { __index = function(_, key)
 	return key
 end })
-assert(loadfile(root .. "Core/Core.lua"))("AeonUI", AUI)
+assert(loadfile(root .. "AeonUI/Core/Core.lua"))("AeonUI", AUI)
 AUI.can = { macros = true, manaPotions = false }
 local global = {}
 AUI.Profile = {
@@ -235,7 +235,7 @@ AUI.Profile = {
 	end,
 }
 
-for _, file in ipairs({ "Core/Callbacks.lua", "Core/Events.lua", "Macros/Options.lua", "Macros/Macros.lua" }) do
+for _, file in ipairs({ "AeonUI/Core/Callbacks.lua", "AeonUI/Core/Events.lua", "AeonUI_QoL/Macros/Options.lua", "AeonUI_QoL/Macros/Macros.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 

@@ -111,10 +111,10 @@ local AUI = {}
 AUI.L = setmetatable({}, { __index = function(_, key)
 	return key
 end })
-assert(loadfile(root .. "Core/Core.lua"))("AeonUI", AUI)
+assert(loadfile(root .. "AeonUI/Core/Core.lua"))("AeonUI", AUI)
 AUI.can = {}
 
-for _, file in ipairs({ "Core/Callbacks.lua", "Core/Events.lua", "Profile/Schema.lua" }) do
+for _, file in ipairs({ "AeonUI/Core/Callbacks.lua", "AeonUI/Core/Events.lua", "AeonUI/Profile/Schema.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 
@@ -136,8 +136,8 @@ local function Set(path, value)
 	AUI.Callbacks:Fire("Profile", path)
 end
 
-for _, file in ipairs({ "Alerts/Options.lua", "Alerts/SoundAlerts.lua", "Alerts/PremadeJoined.lua",
-	"Alerts/Alerts.lua" }) do
+for _, file in ipairs({ "AeonUI_QoL/Alerts/Options.lua", "AeonUI_QoL/Alerts/SoundAlerts.lua", "AeonUI_QoL/Alerts/PremadeJoined.lua",
+	"AeonUI_QoL/Alerts/Alerts.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 

@@ -1,6 +1,6 @@
 """Builds the clock's day and night icons from Alex's artwork.
 
-    python Tools/day-night-icons.py          write Media/Textures/Sun.tga and Moon.tga
+    python Tools/day-night-icons.py          write AeonUI/Media/Textures/Sun.tga and Moon.tga
     python Tools/day-night-icons.py --check  change nothing; fail if an icon is missing or stale
 
 The sources (Tools/Art/Sun.webp and Moon.webp, supplied by Alex on 2026-10-20) are 1254-pixel images on a transparent
@@ -18,7 +18,7 @@ from PIL import Image
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 ART = ROOT / "Tools" / "Art"
-TEXTURES = ROOT / "Media" / "Textures"
+TEXTURES = ROOT / "AeonUI" / "Media" / "Textures"
 SOURCES = {"Sun.tga": "Sun.webp", "Moon.tga": "Moon.webp"}
 SIZE = 64
 

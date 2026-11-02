@@ -86,7 +86,7 @@ local AUI = {}
 AUI.L = setmetatable({}, { __index = function(_, key)
 	return key
 end })
-assert(loadfile(root .. "Core/Core.lua"))("AeonUI", AUI)
+assert(loadfile(root .. "AeonUI/Core/Core.lua"))("AeonUI", AUI)
 AUI.can = { screenText = true }
 AUI.Media = {
 	Font = function(_, name)
@@ -97,12 +97,10 @@ AUI.Media = {
 	end,
 }
 
-for _, file in ipairs({ "Core/Callbacks.lua", "Core/Events.lua", "Profile/Schema.lua" }) do
+for _, file in ipairs({ "AeonUI/Core/Callbacks.lua", "AeonUI/Core/Events.lua", "AeonUI/Profile/Schema.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 
--- Declared by Minimap/Elements.lua, which loads before ScreenText/ in the game.
-AUI.Schema:Choices("fontOutline", { "NONE", "OUTLINE", "THICKOUTLINE", "SLUG", "SLUG_OUTLINE", "SLUG_THICKOUTLINE" })
 
 local values = {}
 AUI.Profile = {
@@ -127,7 +125,7 @@ local function Set(path, value)
 	AUI.Callbacks:Fire("Profile", path)
 end
 
-for _, file in ipairs({ "ScreenText/Options.lua", "ScreenText/ScreenText.lua" }) do
+for _, file in ipairs({ "AeonUI_QoL/ScreenText/Options.lua", "AeonUI_QoL/ScreenText/ScreenText.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 

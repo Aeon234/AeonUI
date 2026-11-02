@@ -304,7 +304,7 @@ local AUI = {}
 AUI.L = setmetatable({}, { __index = function(_, key)
 	return key
 end })
-assert(loadfile(root .. "Core/Core.lua"))("AeonUI", AUI)
+assert(loadfile(root .. "AeonUI/Core/Core.lua"))("AeonUI", AUI)
 AUI.can = { petNotices = true, petHealthNotice = true, talentNotice = true, durabilityNotice = true,
 	lowHealthNotice = true, trackingNotice = true,
 	potionNotice = true, specializations = true }
@@ -317,12 +317,10 @@ AUI.Media = {
 	end,
 }
 
-for _, file in ipairs({ "Core/Callbacks.lua", "Core/Events.lua", "Profile/Schema.lua" }) do
+for _, file in ipairs({ "AeonUI/Core/Callbacks.lua", "AeonUI/Core/Events.lua", "AeonUI/Profile/Schema.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 
--- Declared by Minimap/Elements.lua, which loads before Notifications/ in the game.
-AUI.Schema:Choices("fontOutline", { "NONE", "OUTLINE", "THICKOUTLINE", "SLUG", "SLUG_OUTLINE", "SLUG_THICKOUTLINE" })
 
 local values = {}
 AUI.Profile = {
@@ -351,9 +349,9 @@ function LibStub(name)
 	return settingsLibrary
 end
 
-for _, file in ipairs({ "Notifications/Options.lua", "Notifications/Notifications.lua", "Notifications/Combat.lua",
-	"Notifications/Pet.lua", "Notifications/Character.lua", "Notifications/Potion.lua", "Notifications/Health.lua",
-	"Notifications/Tracking.lua" }) do
+for _, file in ipairs({ "AeonUI_QoL/Notifications/Options.lua", "AeonUI_QoL/Notifications/Notifications.lua", "AeonUI_QoL/Notifications/Combat.lua",
+	"AeonUI_QoL/Notifications/Pet.lua", "AeonUI_QoL/Notifications/Character.lua", "AeonUI_QoL/Notifications/Potion.lua", "AeonUI_QoL/Notifications/Health.lua",
+	"AeonUI_QoL/Notifications/Tracking.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 

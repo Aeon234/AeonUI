@@ -210,11 +210,11 @@ local AUI = {}
 AUI.L = setmetatable({}, { __index = function(_, key)
 	return key
 end })
-assert(loadfile(root .. "Core/Core.lua"))("AeonUI", AUI)
+assert(loadfile(root .. "AeonUI/Core/Core.lua"))("AeonUI", AUI)
 AUI.can = { playerMenus = true, guildInvite = true, battleNetFriends = true, groupFinderMenus = true,
 	raiderIOLinks = true, warcraftLogsLinks = true }
 
-for _, file in ipairs({ "Core/Callbacks.lua", "Core/Events.lua", "Profile/Schema.lua" }) do
+for _, file in ipairs({ "AeonUI/Core/Callbacks.lua", "AeonUI/Core/Events.lua", "AeonUI/Profile/Schema.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 
@@ -236,7 +236,7 @@ local function Set(path, value)
 	AUI.Callbacks:Fire("Profile", path)
 end
 
-for _, file in ipairs({ "Menus/Options.lua", "Menus/Links.lua", "Menus/GuildInvite.lua", "Menus/Menus.lua" }) do
+for _, file in ipairs({ "AeonUI_QoL/Menus/Options.lua", "AeonUI_QoL/Menus/Links.lua", "AeonUI_QoL/Menus/GuildInvite.lua", "AeonUI_QoL/Menus/Menus.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 

@@ -315,16 +315,15 @@ GameTooltipStatusBar = Widget("StatusBar", {
 })
 
 local AUI = {}
-assert(loadfile(root .. "Core/Core.lua"))("AeonUI", AUI)
+assert(loadfile(root .. "AeonUI/Core/Core.lua"))("AeonUI", AUI)
 AUI.L = setmetatable({}, { __index = function(_, key)
 	return key
 end })
 AUI.can = {}
-for _, file in ipairs({ "Profile/Schema.lua", "Media/Media.lua", "Core/AuctionPrices.lua", "Minimap/Elements.lua",
-	"Tooltip/Options.lua",
-	"Tooltip/Format.lua", "Tooltip/Appearance.lua", "Tooltip/Units.lua", "Tooltip/Details.lua", "Tooltip/UpgradeSeasons.lua",
-	"Tooltip/Upgrades.lua", "Tooltip/Inspect.lua", "Tooltip/Anchor.lua", "Tooltip/Visibility.lua",
-	"Tooltip/Tooltip.lua" }) do
+for _, file in ipairs({ "AeonUI/Profile/Schema.lua", "AeonUI/Media/Media.lua", "AeonUI/Core/AuctionPrices.lua",
+	"AeonUI_Tooltip/Tooltip/Options.lua", "AeonUI_Tooltip/Tooltip/Format.lua", "AeonUI_Tooltip/Tooltip/Appearance.lua", "AeonUI_Tooltip/Tooltip/Units.lua",
+	"AeonUI_Tooltip/Tooltip/Details.lua", "AeonUI_Tooltip/Tooltip/UpgradeSeasons.lua", "AeonUI_Tooltip/Tooltip/Upgrades.lua", "AeonUI_Tooltip/Tooltip/Inspect.lua",
+	"AeonUI_Tooltip/Tooltip/Anchor.lua", "AeonUI_Tooltip/Tooltip/Visibility.lua", "AeonUI_Tooltip/Tooltip/Tooltip.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 
@@ -1883,11 +1882,9 @@ Equal("Enhanced Tooltips reads the game's setting", Anchor:Enhanced(), false)
 Anchor:SetEnhanced(true)
 Equal("and writes it", cvars.UberTooltips, "1")
 
-AUI.Minimap = { active = false }
-AUI.Notifications = { active = false }
-AUI.MarkerBar = {}
-AUI.CastBar = {}
-assert(loadfile(root .. "Settings/EditTargets.lua"))("AeonUI", AUI)
+for _, file in ipairs({ "AeonUI/Core/Modules.lua", "AeonUI_Tooltip/Settings/Tooltip.lua", "AeonUI/Settings/EditTargets.lua" }) do
+	assert(loadfile(root .. file))("AeonUI", AUI)
+end
 local targets = AUI.EditTargets:Targets()
 Equal("the tooltip has a mover", targets[1] and targets[1].key, "tooltip")
 Equal("around AeonUI's box", targets[1].frame, Anchor.box)

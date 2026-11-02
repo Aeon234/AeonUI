@@ -1,6 +1,6 @@
 """Builds the Forever border styles' band-only textures from the full ones.
 
-    python Tools/border-bands.py          write Media/Textures/ForeverBand.tga and ForeverMinimalBand.tga
+    python Tools/border-bands.py          write AeonUI/Media/Textures/ForeverBand.tga and ForeverMinimalBand.tga
     python Tools/border-bands.py --check  change nothing; fail if a band texture is missing or stale
 
 Forever.tga and ForeverMinimal.tga are UI-HUD-ActionBar-Frame exports with their own dark middle. Drawn above the
@@ -19,7 +19,7 @@ from collections import deque
 from PIL import Image
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-TEXTURES = ROOT / "Media" / "Textures"
+TEXTURES = ROOT / "AeonUI" / "Media" / "Textures"
 SOURCES = {"ForeverBand.tga": "Forever.tga", "ForeverMinimalBand.tga": "ForeverMinimal.tga"}
 
 

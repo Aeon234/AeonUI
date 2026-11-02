@@ -1,6 +1,6 @@
 """Builds the settings sidebar's page icons from their SVG line glyphs.
 
-    python Tools/sidebar-icons.py          write Media/Textures/Sidebar<Name>.tga for each <Name>.svg
+    python Tools/sidebar-icons.py          write AeonUI/Media/Textures/Sidebar<Name>.tga for each <Name>.svg
     python Tools/sidebar-icons.py --check  change nothing; fail if an icon is missing or stale
 
 The glyphs are AeonDocs/design/assets/aeonui/sidebar-icons/<Name>.svg: one 24-unit SVG per page, stroked with round
@@ -23,7 +23,7 @@ from PIL import Image
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SOURCES = ROOT.parent / "AeonDocs" / "design" / "assets" / "aeonui" / "sidebar-icons"
-TEXTURES = ROOT / "Media" / "Textures"
+TEXTURES = ROOT / "AeonUI" / "Media" / "Textures"
 
 SIZE = 64
 SAMPLES = 4  # per axis, for each pixel's coverage of the stroke

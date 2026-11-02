@@ -324,10 +324,10 @@ local AUI = {}
 AUI.L = setmetatable({}, { __index = function(_, key)
 	return key
 end })
-assert(loadfile(root .. "Core/Core.lua"))("AeonUI", AUI)
+assert(loadfile(root .. "AeonUI/Core/Core.lua"))("AeonUI", AUI)
 AUI.can = { raidMarkers = true, worldMarkers = true, secureSnippets = false }
 
-for _, file in ipairs({ "Core/Callbacks.lua", "Core/Events.lua", "Profile/Schema.lua" }) do
+for _, file in ipairs({ "AeonUI/Core/Callbacks.lua", "AeonUI/Core/Events.lua", "AeonUI/Profile/Schema.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 
@@ -372,7 +372,7 @@ function LibStub(name)
 	return settingsLibrary
 end
 
-for _, file in ipairs({ "Markers/Options.lua", "Markers/Bar.lua", "Markers/Cycler.lua", "Markers/Markers.lua" }) do
+for _, file in ipairs({ "AeonUI_QoL/Markers/Options.lua", "AeonUI_QoL/Markers/Bar.lua", "AeonUI_QoL/Markers/Cycler.lua", "AeonUI_QoL/Markers/Markers.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 

@@ -15,8 +15,8 @@ local root = (arg and arg[0] or ""):match("^(.-)[^/\\]*$") .. "../"
 -- Environment ---------------------------------------------------------------------------------------------
 
 local AUI = {}
-for _, file in ipairs({ "Locale/enUS.lua", "Profile/Schema.lua", "WorldMap/Markers.lua", "WorldMap/Data.lua",
-	"WorldMap/TownData.lua", "WorldMap/Options.lua", "WorldMap/OptionsData.lua", "WorldMap/Dungeons.lua", "WorldMap/DungeonData.lua" }) do
+for _, file in ipairs({ "AeonUI/Locale/enUS.lua", "AeonUI_Maps/Locale/enUS.lua", "AeonUI/Profile/Schema.lua", "AeonUI_Maps/WorldMap/Markers.lua", "AeonUI_Maps/WorldMap/Data.lua",
+	"AeonUI_Maps/WorldMap/TownData.lua", "AeonUI_Maps/WorldMap/Options.lua", "AeonUI_Maps/WorldMap/OptionsData.lua", "AeonUI_Maps/WorldMap/Dungeons.lua", "AeonUI_Maps/WorldMap/DungeonData.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 
@@ -224,7 +224,8 @@ Equal("and not elsewhere", Markers:LeadsTo(dock, 4), false)
 Equal("a dungeon leads nowhere", Markers:LeadsTo({ markers = { {} } }, 1), false)
 
 -- Every category's kind and name are in the English locale file.
-local english = assert(io.open(root .. "Locale/enUS.lua", "rb")):read("*a")
+local english = assert(io.open(root .. "AeonUI/Locale/enUS.lua", "rb")):read("*a")
+	.. assert(io.open(root .. "AeonUI_Maps/Locale/enUS.lua", "rb")):read("*a")
 for _, category in ipairs(Markers.CATEGORIES) do
 	Equal(category.key .. " names its kind in English", english:find('L["' .. category.label .. '"]', 1, true) ~= nil,
 		true)
@@ -528,23 +529,29 @@ end
 Equal("every marker and exit of the merged sources is here", total, 392)
 
 local L = AUI.L
+
+-- A key lives in the maps' table or the base's, which that table falls back to.
+local function Known(key)
+	return rawget(L, key) or rawget(getmetatable(L).__index, key)
+end
+
 for _, category in ipairs(Markers.CATEGORIES) do
-	Equal(category.key .. "'s label is a locale key", rawget(L, category.label) ~= nil, true)
-	Equal(category.key .. "'s name, if any, is a locale key", category.name == nil or rawget(L, category.name) ~= nil,
+	Equal(category.key .. "'s label is a locale key", Known(category.label) ~= nil, true)
+	Equal(category.key .. "'s name, if any, is a locale key", category.name == nil or Known(category.name) ~= nil,
 		true)
 	Equal(category.key .. "'s how-to line, if any, is a locale key",
-		category.howTo == nil or rawget(L, category.howTo) ~= nil, true)
+		category.howTo == nil or Known(category.howTo) ~= nil, true)
 	Equal(category.key .. " has a how-to line exactly when it has a racial", category.howTo ~= nil,
 		category.racial ~= nil)
 	for kind, info in pairs(category.kinds or {}) do
-		Equal(category.key .. " kind " .. kind .. "'s label is a locale key", rawget(L, info.label) ~= nil, true)
+		Equal(category.key .. " kind " .. kind .. "'s label is a locale key", Known(info.label) ~= nil, true)
 	end
 end
 for key, list in pairs(AUI.WorldMapData()) do
 	for mapID, markers in pairs(list) do
 		for index, row in ipairs(markers) do
 			if row.name then
-				Equal(("%s %d on %d's name is a locale key"):format(key, index, mapID), rawget(L, row.name) ~= nil,
+				Equal(("%s %d on %d's name is a locale key"):format(key, index, mapID), Known(row.name) ~= nil,
 					true)
 			end
 		end
@@ -591,7 +598,7 @@ C_Timer = { After = function(delay, work) timers[#timers + 1] = { delay, work } 
 C_UnitAuras = { GetPlayerAuraBySpellID = function(id) return auras[id] end }
 UNKNOWN = "Unknown"
 
-assert(loadfile(root .. "WorldMap/Spots.lua"))("AeonUI", AUI)
+assert(loadfile(root .. "AeonUI_Maps/WorldMap/Spots.lua"))("AeonUI", AUI)
 local Spots = AUI.WorldMapSpots
 local LEY = Markers.byKey.leyLines
 

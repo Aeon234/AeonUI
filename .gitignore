@@ -24,8 +24,8 @@ desktop.ini
 # Fetched at release by .pkgmeta; embeds.xml is ours and the .toc's only way in.
 # Excluding the contents rather than the folder is what lets the negation apply.
 # ---------------------------------------------------------------------------
-/Libs/*
-!/Libs/embeds.xml
+/AeonUI/Libs/*
+!/AeonUI/Libs/embeds.xml
 
 # ---------------------------------------------------------------------------
 # AI assistant files — never published to GitHub

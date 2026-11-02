@@ -1,6 +1,6 @@
 """Builds the cursor ring's textures from geometry.
 
-    python Tools/cursor-ring.py          write Media/Textures/CursorRing<Thickness>.tga and CursorDot.tga
+    python Tools/cursor-ring.py          write AeonUI/Media/Textures/CursorRing<Thickness>.tga and CursorDot.tga
     python Tools/cursor-ring.py --check  change nothing; fail if a texture is missing or stale
 
 Each texture is 256x256, white, an uncompressed 32-bit TGA with a top-left origin, antialiased by 4x4 supersampling.
@@ -17,7 +17,7 @@ import struct
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-TEXTURES = ROOT / "Media" / "Textures"
+TEXTURES = ROOT / "AeonUI" / "Media" / "Textures"
 SIZE = 256
 SAMPLES = 4
 CENTER = SIZE / 2 * 0.65

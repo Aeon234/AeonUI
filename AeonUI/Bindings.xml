@@ -1,0 +1,12 @@
+<Bindings>
+	<Binding name="AEONUI_RELOAD" category="BINDING_HEADER_AEONUI">
+		C_UI.Reload()
+	</Binding>
+	<Binding name="AEONUI_EJECT" category="BINDING_HEADER_AEONUI">
+		for seat = 1, UnitVehicleSeatCount("player") do
+			if CanEjectPassengerFromSeat(seat) then
+				EjectPassengerFromSeat(seat)
+			end
+		end
+	</Binding>
+</Bindings>

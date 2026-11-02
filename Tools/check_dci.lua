@@ -47,9 +47,9 @@ local AUI = {}
 AUI.L = setmetatable({}, { __index = function(_, key)
 	return key
 end })
-assert(loadfile(root .. "Core/Core.lua"))("AeonUI", AUI)
+assert(loadfile(root .. "AeonUI/Core/Core.lua"))("AeonUI", AUI)
 
-for _, file in ipairs({ "Core/Callbacks.lua", "Core/Events.lua", "Profile/Schema.lua" }) do
+for _, file in ipairs({ "AeonUI/Core/Callbacks.lua", "AeonUI/Core/Events.lua", "AeonUI/Profile/Schema.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 
@@ -73,7 +73,7 @@ local function Set(path, value)
 	values[path] = value
 end
 
-assert(loadfile(root .. "DeleteCheapestItem/Options.lua"))("AeonUI", AUI)
+assert(loadfile(root .. "AeonUI_QoL/DeleteCheapestItem/Options.lua"))("AeonUI", AUI)
 
 local Options = AUI.DeleteCheapestItemOptions
 
@@ -273,7 +273,7 @@ Equal("a removed ID leaves no key", list[30], nil)
 
 -- Auction prices ------------------------------------------------------------------------------------------
 
-assert(loadfile(root .. "Core/AuctionPrices.lua"))("AeonUI", AUI)
+assert(loadfile(root .. "AeonUI/Core/AuctionPrices.lua"))("AeonUI", AUI)
 
 local Prices = AUI.AuctionPrices
 local auctionCalls = 0
@@ -368,7 +368,7 @@ C_Item = {
 	end,
 }
 
-assert(loadfile(root .. "DeleteCheapestItem/Bags.lua"))("AeonUI", AUI)
+assert(loadfile(root .. "AeonUI_QoL/DeleteCheapestItem/Bags.lua"))("AeonUI", AUI)
 
 local Bags = AUI.DeleteCheapestItemBags
 
@@ -476,7 +476,7 @@ function LootSlot(slot)
 	Call("LootSlot", slot)
 end
 
-assert(loadfile(root .. "DeleteCheapestItem/Actions.lua"))("AeonUI", AUI)
+assert(loadfile(root .. "AeonUI_QoL/DeleteCheapestItem/Actions.lua"))("AeonUI", AUI)
 
 local Actions = AUI.DeleteCheapestItemActions
 
@@ -647,7 +647,7 @@ function window:IsShown()
 end
 
 AUI.DeleteCheapestItemWindow = window
-assert(loadfile(root .. "DeleteCheapestItem/Openers.lua"))("AeonUI", AUI)
+assert(loadfile(root .. "AeonUI_QoL/DeleteCheapestItem/Openers.lua"))("AeonUI", AUI)
 
 local Openers = AUI.DeleteCheapestItemOpeners
 

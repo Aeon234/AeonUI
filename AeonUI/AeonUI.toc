@@ -1,0 +1,26 @@
+## Interface: 120100, 120105, 16001
+## Title: AeonUI
+## Notes: Unit frames for Retail and WoW: Forever.
+## Author: Aeon
+## Version: @project-version@
+
+## SavedVariables: AeonUIDB
+
+## Category: Unit Frames
+
+## X-Curse-Project-ID:
+## X-Wago-ID:
+
+Libs\embeds.xml
+
+Locale\Locale.xml
+Core\Core.xml
+Profile\Profile.xml
+Media\Media.xml
+UI\UI.xml
+Interface\Interface.xml
+Settings\Settings.xml
+
+#@do-not-package@
+Dev\Dev.lua
+#@end-do-not-package@
