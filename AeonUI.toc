@@ -20,7 +20,6 @@ Media\Media.xml
 UI\UI.xml
 Minimap\Minimap.xml
 WorldMap\WorldMap.xml
-Tooltip\Tooltip.xml
 Interface\Interface.xml
 Automation\Automation.xml
 Menus\Menus.xml

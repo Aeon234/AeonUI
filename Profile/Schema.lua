@@ -582,3 +582,6 @@ end
 function Schema:IsScope(scope)
 	return self.fields[scope] ~= nil or self.branches[scope] ~= nil
 end
+
+-- The suite's outline choices (LibAeonSettings' `OUTLINES`), turned into `SetFont` flags by `AUI.Media:FontFlags`.
+Schema:Choices("fontOutline", { "NONE", "OUTLINE", "THICKOUTLINE", "SLUG", "SLUG_OUTLINE", "SLUG_THICKOUTLINE" })

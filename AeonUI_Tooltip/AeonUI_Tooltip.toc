@@ -1,0 +1,14 @@
+## Interface: 120100, 120105, 16001
+## Title: AeonUI Tooltip
+## Notes: Tooltip text, lines and placement for AeonUI.
+## Author: Aeon
+## Version: @project-version@
+
+## Dependencies: AeonUI
+
+## Category: Unit Frames
+
+Namespace.lua
+Locale\Locale.xml
+Tooltip\Tooltip.xml
+Settings\Tooltip.lua

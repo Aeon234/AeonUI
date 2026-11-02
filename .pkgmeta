@@ -17,6 +17,7 @@ externals:
 
 move-folders:
   AeonUI/AeonUI_UnitFrames: AeonUI_UnitFrames
+  AeonUI/AeonUI_Tooltip: AeonUI_Tooltip
 
 ignore:
   - .pkgmeta

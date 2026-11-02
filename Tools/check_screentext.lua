@@ -102,7 +102,6 @@ for _, file in ipairs({ "Core/Callbacks.lua", "Core/Events.lua", "Profile/Schema
 end
 
 -- Declared by Minimap/Elements.lua, which loads before ScreenText/ in the game.
-AUI.Schema:Choices("fontOutline", { "NONE", "OUTLINE", "THICKOUTLINE", "SLUG", "SLUG_OUTLINE", "SLUG_THICKOUTLINE" })
 
 local values = {}
 AUI.Profile = {

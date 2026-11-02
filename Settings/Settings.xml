@@ -4,7 +4,6 @@
 	<Script file="Minimap.lua" />
 	<Script file="MinimapEditor.lua" />
 	<Script file="WorldMap.lua" />
-	<Script file="Tooltip.lua" />
 	<Script file="Automation.lua" />
 	<Script file="DeleteCheapestItem.lua" />
 	<Script file="MerchantWindow.lua" />

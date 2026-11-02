@@ -288,7 +288,6 @@ local function Set(path, value)
 	AUI.Callbacks:Fire("Profile", path)
 end
 
-AUI.Schema:Choices("fontOutline", { "NONE", "OUTLINE", "THICKOUTLINE", "SLUG", "SLUG_OUTLINE", "SLUG_THICKOUTLINE" })
 
 for _, file in ipairs({ "Input/Options.lua", "Input/ClickDown.lua", "Input/FocusShortcut.lua", "Input/KeyLabels.lua",
 	"Input/Input.lua" }) do

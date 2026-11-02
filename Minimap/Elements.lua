@@ -7,8 +7,6 @@ local LISTS = { "TOP1", "TOP2", "BOTTOM1", "BOTTOM2", "HIDDEN" }
 local LAYOUT_PATH = "minimap.layout"
 
 Schema:Lists(LAYOUT_PATH, LISTS, 32)
--- The suite's outline choices (LibAeonSettings' `OUTLINES`), turned into `SetFont` flags by `AUI.Media:FontFlags`.
-Schema:Choices("fontOutline", { "NONE", "OUTLINE", "THICKOUTLINE", "SLUG", "SLUG_OUTLINE", "SLUG_THICKOUTLINE" })
 -- The text of every row, which each text element follows until it is changed on the element's page.
 Schema:String("minimap.text.font", "Friz Quadrata TT", 64)
 Schema:Number("minimap.text.size", 12, 8, 24, true)

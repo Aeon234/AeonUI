@@ -498,7 +498,6 @@ end
 
 local eventFrame = frames[#frames]
 
-AUI.Schema:Choices("fontOutline", { "NONE", "OUTLINE", "THICKOUTLINE", "SLUG", "SLUG_OUTLINE", "SLUG_THICKOUTLINE" })
 
 local values = {}
 AUI.Profile = {

@@ -321,10 +321,9 @@ AUI.L = setmetatable({}, { __index = function(_, key)
 end })
 AUI.can = {}
 for _, file in ipairs({ "Profile/Schema.lua", "Media/Media.lua", "Core/AuctionPrices.lua", "Minimap/Elements.lua",
-	"Tooltip/Options.lua",
-	"Tooltip/Format.lua", "Tooltip/Appearance.lua", "Tooltip/Units.lua", "Tooltip/Details.lua", "Tooltip/UpgradeSeasons.lua",
-	"Tooltip/Upgrades.lua", "Tooltip/Inspect.lua", "Tooltip/Anchor.lua", "Tooltip/Visibility.lua",
-	"Tooltip/Tooltip.lua" }) do
+	"AeonUI_Tooltip/Tooltip/Options.lua", "AeonUI_Tooltip/Tooltip/Format.lua", "AeonUI_Tooltip/Tooltip/Appearance.lua", "AeonUI_Tooltip/Tooltip/Units.lua",
+	"AeonUI_Tooltip/Tooltip/Details.lua", "AeonUI_Tooltip/Tooltip/UpgradeSeasons.lua", "AeonUI_Tooltip/Tooltip/Upgrades.lua", "AeonUI_Tooltip/Tooltip/Inspect.lua",
+	"AeonUI_Tooltip/Tooltip/Anchor.lua", "AeonUI_Tooltip/Tooltip/Visibility.lua", "AeonUI_Tooltip/Tooltip/Tooltip.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 
@@ -1883,7 +1882,7 @@ Equal("Enhanced Tooltips reads the game's setting", Anchor:Enhanced(), false)
 Anchor:SetEnhanced(true)
 Equal("and writes it", cvars.UberTooltips, "1")
 
-for _, file in ipairs({ "Core/Modules.lua", "Settings/Tooltip.lua", "Settings/EditTargets.lua" }) do
+for _, file in ipairs({ "Core/Modules.lua", "AeonUI_Tooltip/Settings/Tooltip.lua", "Settings/EditTargets.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 local targets = AUI.EditTargets:Targets()
