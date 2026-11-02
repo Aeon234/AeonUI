@@ -12,6 +12,8 @@ local CAST_EVENTS = {
 local PET_BATTLE_EVENTS = { "PET_BATTLE_OPENING_START", "PET_BATTLE_CLOSE" }
 -- The gap between the spell name and the time, in UI units.
 local TEXT_GAP = 4
+-- The inset of the text from the bar's left and right edges, in UI units.
+local TEXT_PADDING = 4
 -- Each border line, outside the frame: its two corners with the direction each lies from the frame, and whether it
 -- runs across.
 ---@type table[]
@@ -295,7 +297,7 @@ function CastBar:AnchorName(frame)
 	local text, over = frame.text, frame.over
 
 	text:ClearAllPoints()
-	text:SetPoint("LEFT", over, "LEFT", Profile:Get("castBar.name.x"), Profile:Get("castBar.name.y"))
+	text:SetPoint("LEFT", over, "LEFT", TEXT_PADDING + Profile:Get("castBar.name.x"), Profile:Get("castBar.name.y"))
 
 	if frame.target:IsShown() then
 		text:SetPoint("RIGHT", frame.target, "LEFT", -TEXT_GAP, 0)
@@ -304,7 +306,7 @@ function CastBar:AnchorName(frame)
 	elseif Profile:Get("castBar.time.enabled") then
 		text:SetPoint("RIGHT", frame.time, "LEFT", -TEXT_GAP, 0)
 	else
-		text:SetPoint("RIGHT", over, "RIGHT")
+		text:SetPoint("RIGHT", over, "RIGHT", -TEXT_PADDING, 0)
 	end
 end
 
@@ -321,7 +323,7 @@ function CastBar:StyleTexts(frame)
 	time:SetShown(timeShown)
 
 	time:ClearAllPoints()
-	time:SetPoint("RIGHT", over, "RIGHT", Profile:Get("castBar.time.x"), Profile:Get("castBar.time.y"))
+	time:SetPoint("RIGHT", over, "RIGHT", Profile:Get("castBar.time.x") - TEXT_PADDING, Profile:Get("castBar.time.y"))
 
 	local pushback = frame.pushback
 	local pushbackShown = Profile:Get("castBar.pushback") == true
@@ -334,7 +336,7 @@ function CastBar:StyleTexts(frame)
 	if timeShown then
 		pushback:SetPoint("RIGHT", time, "LEFT", -TEXT_GAP, 0)
 	else
-		pushback:SetPoint("RIGHT", over, "RIGHT")
+		pushback:SetPoint("RIGHT", over, "RIGHT", -TEXT_PADDING, 0)
 	end
 
 	local target = frame.target
@@ -348,7 +350,7 @@ function CastBar:StyleTexts(frame)
 	elseif timeShown then
 		target:SetPoint("RIGHT", time, "LEFT", targetX - TEXT_GAP, targetY)
 	else
-		target:SetPoint("RIGHT", over, "RIGHT", targetX, targetY)
+		target:SetPoint("RIGHT", over, "RIGHT", targetX - TEXT_PADDING, targetY)
 	end
 
 	self:AnchorName(frame)
