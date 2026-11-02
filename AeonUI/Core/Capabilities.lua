@@ -64,6 +64,7 @@ AUI.Capabilities = Capabilities
 ---@field lowHealthNotice boolean the player's health can be drawn through a curve
 ---@field trackingNotice boolean the minimap's trackings and the player's shapeshift form can be read
 ---@field potionNotice boolean the bags' potions, their use spells and their cooldown can be read
+---@field movementAlert boolean spell cooldowns give duration objects for text bindings and curves (Retail)
 ---@field raidMarkers boolean a bar of secure marker buttons can follow a visibility driver and start a role check
 ---@field worldMarkers boolean the client has world markers (`IsRaidMarkerSystemEnabled`)
 ---@field secureSnippets boolean wrapped secure scripts run (Retail)
@@ -169,6 +170,12 @@ function Capabilities:Resolve()
 	can.potionNotice = C_Container ~= nil and C_Container.GetItemCooldown ~= nil
 		and C_Container.GetContainerItemID ~= nil and C_Item ~= nil and C_Item.GetItemSpell ~= nil
 		and C_Item.GetItemInfoInstant ~= nil and Enum.ItemConsumableSubclass ~= nil
+	can.movementAlert = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE and can.specializations and can.petHealthNotice
+		and C_Spell ~= nil and C_Spell.GetSpellCooldown ~= nil and C_Spell.GetSpellCharges ~= nil
+		and C_Spell.GetSpellCooldownDuration ~= nil and C_Spell.GetSpellChargeDuration ~= nil
+		and C_Spell.GetOverrideSpell ~= nil and C_SpellBook ~= nil and C_SpellBook.IsSpellKnown ~= nil
+		and C_DurationUtil ~= nil and C_DurationUtil.CreateDurationTextBinding ~= nil and C_StringUtil ~= nil
+		and C_StringUtil.CreateNumericRuleFormatter ~= nil and Enum.DurationTextBindingProperty ~= nil
 	can.raidMarkers = RegisterStateDriver ~= nil and UnregisterStateDriver ~= nil and InitiateRolePoll ~= nil
 		and IsEveryoneAssistant ~= nil and C_AddOns ~= nil and C_AddOns.IsAddOnLoaded ~= nil
 	can.worldMarkers = IsRaidMarkerSystemEnabled ~= nil and IsRaidMarkerSystemEnabled() == true

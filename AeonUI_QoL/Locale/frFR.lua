@@ -239,6 +239,9 @@ L["In Instances"] = "En instance"
 L["Hide While Turning the Camera"] = "Masquer en tournant la caméra"
 L["Idle"] = "Au repos"
 
+-- Movement Alerts page and its lines (Settings, MovementAlert)
+L["No %s"] = "Pas de %s"
+
 -- Notifications page and its notices (Settings, Notifications)
 L["Entering Combat"] = "Entrée en combat"
 L["Leaving Combat"] = "Sortie de combat"

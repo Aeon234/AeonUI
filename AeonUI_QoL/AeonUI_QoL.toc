@@ -18,6 +18,7 @@ Alerts\Alerts.xml
 ScreenText\ScreenText.xml
 Cursor\Cursor.xml
 Notifications\Notifications.xml
+MovementAlert\MovementAlert.xml
 Markers\Markers.xml
 DeleteCheapestItem\DeleteCheapestItem.xml
 MerchantWindow\MerchantWindow.xml

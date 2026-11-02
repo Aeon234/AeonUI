@@ -239,6 +239,9 @@ L["In Instances"] = "В подземельях"
 L["Hide While Turning the Camera"] = "Скрывать при повороте камеры"
 L["Idle"] = "Покой"
 
+-- Movement Alerts page and its lines (Settings, MovementAlert)
+L["No %s"] = "Нет %s"
+
 -- Notifications page and its notices (Settings, Notifications)
 L["Entering Combat"] = "Начало боя"
 L["Leaving Combat"] = "Конец боя"
