@@ -558,13 +558,13 @@ hooks.Show(GameTooltipStatusBar)
 Equal("and stays shown when Blizzard shows it", bar.alpha, 1)
 values[Options.BAR_STYLE_PATH] = "STRIP"
 values[Options.BAR_TEXTURE_PATH] = AUI.Media.STRIPED
-LSM_FILES.statusbar[AUI.Media.STRIPED] = "Interface\\AddOns\\AeonUI\\Media\\Textures\\ThinStripes.png"
+LSM_FILES.statusbar[AUI.Media.STRIPED] = "Interface\\AddOns\\AeonUI\\Media\\Statusbars\\ThinStripes.png"
 values[Options.BAR_HEIGHT_PATH] = 3
 Tooltip:Apply()
 BarAt("strip left", "BOTTOMLEFT", "BOTTOMLEFT", 3, 3)
 BarAt("strip right", "BOTTOMRIGHT", "BOTTOMRIGHT", -3, 3)
 Equal("the strip takes the height", bar.height, 3)
-Equal("and the texture", bar.texture, "Interface\\AddOns\\AeonUI\\Media\\Textures\\ThinStripes.png")
+Equal("and the texture", bar.texture, "Interface\\AddOns\\AeonUI\\Media\\Statusbars\\ThinStripes.png")
 
 values[Options.BAR_TEXTURE_PATH] = AUI.Media.FLAT
 Tooltip:Apply()

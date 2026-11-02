@@ -69,7 +69,7 @@ local Media = {
 			["Whisper FX"] = MEDIA .. "Sounds\\WhisperFX.ogg",
 		},
 		[LSM.MediaType.STATUSBAR] = {
-			["AeonUI Thin Stripes"] = MEDIA .. "Textures\\ThinStripes.png",
+			["AeonUI Thin Stripes"] = MEDIA .. "Statusbars\\ThinStripes.png",
 			["Blizzard Shield"] = "Interface\\RaidFrame\\Shield-Fill",
 			["Blizzard Tooltip"] = "Interface\\TargetingFrame\\UI-TargetingFrame-BarFill",
 			["Absorblutely"] = MEDIA .. "Statusbars\\Absorblutely.tga",
