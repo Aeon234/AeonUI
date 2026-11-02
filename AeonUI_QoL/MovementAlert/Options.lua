@@ -225,14 +225,33 @@ function Options:VisibilityCurve()
 	return { { 0, 0 }, { self.MIN_COOLDOWN, 1 } }
 end
 
----@param index number a line's place in the stack, the bottom's being 1
----@return number y its bottom's offset from the frame's bottom
-function Options:LineOffset(index)
-	return (index - 1) * (self.LINE_HEIGHT + self.LINE_GAP)
+---A line's text with a time standing in for the running one, for samples.
+---@param arrangement string a `movementAlertArrangement` choice
+---@param decimal boolean one decimal rather than whole seconds
+---@param name string the spell's name
+---@return string text
+function Options:SampleText(arrangement, decimal, name)
+	local text = self:TextFormat(arrangement, name):gsub("{}", decimal and "12.3" or "12")
+
+	return text
 end
 
----Where the frame sits by default.
+---@param size number the font's size
+---@return number height a line's height, which clears a large font
+function Options:LineHeight(size)
+	return math.max(self.LINE_HEIGHT, math.ceil(size * 1.25))
+end
+
+---@param index number a line's place in the stack, the bottom's being 1
+---@param size number the font's size
+---@return number y its bottom's offset from the frame's bottom
+function Options:LineOffset(index, size)
+	return (index - 1) * (self:LineHeight(size) + self.LINE_GAP)
+end
+
+---Where the frame sits by default: its bottom 30 units above the screen's center.
+---@param parentHeight number UIParent's height
 ---@return { point: string, x: number, y: number }
-function Options:DefaultPosition()
-	return { point = "CENTER", x = 0, y = 50 }
+function Options:DefaultPosition(parentHeight)
+	return { point = "BOTTOM", x = 0, y = math.floor(parentHeight / 2 + 30 + 0.5) }
 end

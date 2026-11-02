@@ -28,6 +28,7 @@ L["Interface"] = "界面"
 L["Screen Text"] = "屏幕文字"
 L["Cursor"] = "光标"
 L["Notifications"] = "通知"
+L["Movement Alerts"] = "位移提醒"
 L["Raid Markers"] = "团队标记"
 L["Merchant Window"] = "商人窗口"
 L["Hidden Settings"] = "隐藏设置"
@@ -240,6 +241,14 @@ L["Hide While Turning the Camera"] = "转动镜头时隐藏"
 L["Idle"] = "空闲"
 
 -- Movement Alerts page and its lines (Settings, MovementAlert)
+L["Show Movement Alerts"] = "显示位移提醒"
+L["Format"] = "格式"
+L["Time, Then Name"] = "时间在前"
+L["Name, Then Time"] = "名称在前"
+L["Time Only"] = "仅时间"
+L["Show Decimal"] = "显示小数"
+L["Combat Only"] = "仅战斗中"
+L["Tracked Spells"] = "追踪的法术"
 L["No %s"] = "无%s"
 
 -- Notifications page and its notices (Settings, Notifications)

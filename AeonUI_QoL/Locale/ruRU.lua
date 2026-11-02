@@ -28,6 +28,7 @@ L["Interface"] = "Интерфейс"
 L["Screen Text"] = "Текст на экране"
 L["Cursor"] = "Курсор"
 L["Notifications"] = "Уведомления"
+L["Movement Alerts"] = "Оповещения о перемещении"
 L["Raid Markers"] = "Рейдовые метки"
 L["Merchant Window"] = "Окно торговца"
 L["Hidden Settings"] = "Скрытые настройки"
@@ -240,6 +241,14 @@ L["Hide While Turning the Camera"] = "Скрывать при повороте �
 L["Idle"] = "Покой"
 
 -- Movement Alerts page and its lines (Settings, MovementAlert)
+L["Show Movement Alerts"] = "Показывать оповещения о перемещении"
+L["Format"] = "Формат"
+L["Time, Then Name"] = "Время, затем название"
+L["Name, Then Time"] = "Название, затем время"
+L["Time Only"] = "Только время"
+L["Show Decimal"] = "Показывать десятые"
+L["Combat Only"] = "Только в бою"
+L["Tracked Spells"] = "Отслеживаемые заклинания"
 L["No %s"] = "Нет %s"
 
 -- Notifications page and its notices (Settings, Notifications)

@@ -2,7 +2,8 @@
 -- spells a character tracks (specialization, the first known of an ability's IDs, unchecked abilities), the text's
 -- arrangements, the time's formats, the curve that hides short cooldowns and the lines' places; then nothing built
 -- while off or on a client without it, a line per spell on its own cooldown, the global cooldown and short lockouts,
--- secret totals passed on, charges, overrides, the stack, a cooldown's end, Combat Only, every setting, off and on.
+-- secret totals passed on, charges, overrides, the stack, a cooldown's end, Combat Only, every setting, off and on;
+-- the edit mode sample, the settings page and its preview.
 -- Run from any directory with Lua 5.1: lua Tools/check_movementalert.lua
 -- Loads the real files against stubbed globals. Widgets are modeled by type. Exits non-zero on the first failed check.
 
@@ -104,6 +105,16 @@ local function Frame(kind, name, parent)
 		text.SetTextColor = function(self, r, g, b)
 			self.color = ("%s %s %s"):format(r, g, b)
 		end
+		text.SetText = function(self, value)
+			self.value = value
+		end
+		text.SetShown = function(self, shown)
+			self.shown = shown
+		end
+		text.ClearAllPoints = function() end
+		text.GetUnboundedStringWidth = function()
+			return 100
+		end
 
 		return text
 	end
@@ -132,7 +143,9 @@ function CreateFrame(kind, name, parent, template)
 	return Frame(kind, name, parent)
 end
 
-UIParent = {}
+UIParent = { GetHeight = function()
+	return 800
+end }
 
 function InCombatLockdown()
 	return false
@@ -402,9 +415,9 @@ Equal("in seconds", Options:TimeBreakpoints(false)[1].step, 1)
 local curve = Options:VisibilityCurve()
 Equal("short cooldowns clear", curve[1][1] .. " " .. curve[1][2], "0 0")
 Equal("from three seconds opaque", curve[2][1] .. " " .. curve[2][2], "3 1")
-Equal("the first line at the bottom", Options:LineOffset(1), 0)
-Equal("the next above it", Options:LineOffset(2), 42)
-Equal("the frame's place", Options:DefaultPosition().point .. " " .. Options:DefaultPosition().y, "CENTER 50")
+Equal("the first line at the bottom", Options:LineOffset(1, 24), 0)
+Equal("the next above it", Options:LineOffset(2, 24), 42)
+Equal("the frame's place", Options:DefaultPosition(800).point .. " " .. Options:DefaultPosition(800).y, "BOTTOM 430")
 
 -- When a line shows ---------------------------------------------------------------------------------------
 
@@ -446,7 +459,7 @@ end
 
 Set(Options.ENABLED_PATH, true)
 Equal("on: the named frame", Alert.frame.name, "AeonUIMovementAlert")
-Equal("in its place", Alert.frame.point[1] .. " " .. Alert.frame.point[3], "CENTER 50")
+Equal("in its place", Alert.frame.point[1] .. " " .. Alert.frame.point[3], "BOTTOM 430")
 Equal("no line before a cooldown", #Alert.lines, 0)
 
 SetCooldown(1953, 15)
@@ -642,6 +655,152 @@ Set(Options.ENABLED_PATH, true)
 Equal("on again: shown", line.shown, true)
 Equal("on again: nothing built twice", #frames, frameCount)
 Equal("on again: the events back", eventFrame.events.SPELL_UPDATE_COOLDOWN, true)
+
+-- Sample and edit mode ------------------------------------------------------------------------------------
+
+Equal("the sample's text", Options:SampleText("DURATION_NAME", true, "Blink"), "12.3 No Blink")
+Equal("whole seconds", Options:SampleText("NAME_DURATION", false, "Blink"), "No Blink 12")
+Equal("the time alone", Options:SampleText("DURATION", true, "Blink"), "12.3")
+Equal("the first line's height", Options:LineHeight(24), 40)
+Equal("a large font's", Options:LineHeight(72), 90)
+Equal("lines clear a large font", Options:LineOffset(2, 72), 92)
+
+Set(Options.SIZE_PATH, 72)
+Equal("a large font lifts the frame", Alert.frame.height, 90)
+Equal("and the line", line.height, 90)
+Set(Options.SIZE_PATH, 24)
+Equal("back at its size", Alert.frame.height, 40)
+
+Alert:Sample(true)
+Equal("a sample stops the binding", line.binding.enabled, false)
+Equal("and shows its text", line.text.value, "12.3 No Blink")
+Equal("opaque", line.alpha, 1)
+Equal("and shown", line.shown, true)
+Fire("SPELL_UPDATE_COOLDOWN")
+Equal("a cooldown event leaves the sample", line.binding.enabled, false)
+Set(Options.ARRANGEMENT_PATH, "DURATION")
+Equal("the sample follows the settings", line.text.value, "12.3")
+Set(Options.ARRANGEMENT_PATH, "DURATION_NAME")
+Alert:Sample(false)
+Equal("after it, the real line", line.binding.enabled, true)
+
+cooldowns[1953].isActive = false
+Alert:Sample(true)
+Alert:Sample(false)
+Equal("after it, no line without a cooldown", line.shown, false)
+cooldowns[1953].isActive = true
+Fire("SPELL_UPDATE_COOLDOWN")
+
+-- The page ------------------------------------------------------------------------------------------------
+
+COLOR = "Color"
+AUI.Media.sidebar = { movementAlert = "SidebarMovementAlert.tga" }
+AUI.Settings = { Default = function(_, path)
+	return Schema:Field(path).default
+end }
+function LibStub()
+	return { OUTLINES = { { value = "SLUG", text = "Slug" } } }
+end
+
+local declared
+AUI.Modules = { Register = function(_, module)
+	declared = module
+end }
+assert(loadfile(root .. "AeonUI_QoL/Settings/MovementAlert.lua"))("AeonUI", AUI)
+
+local page = { sections = {} }
+local function Section(_, id, title, options)
+	local section = { id = id, title = title, options = options, rows = {} }
+
+	for _, kind in ipairs({ "Checkbox", "Dropdown", "Slider", "Color" }) do
+		section[kind] = function(self, row)
+			row.kind = kind
+			self.rows[#self.rows + 1] = row
+		end
+	end
+
+	page.sections[#page.sections + 1] = section
+
+	return section
+end
+page.Section = Section
+page.Preview = function(self, info)
+	self.preview = info
+end
+local pageID, pageInfo
+AUI.SettingsMovementAlert:Declare({ Page = function(_, id, info)
+	pageID, pageInfo = id, info
+
+	return page
+end })
+
+local function RowIDs(section)
+	local ids = {}
+
+	for index, row in ipairs(section.rows) do
+		ids[index] = row.id
+	end
+
+	return table.concat(ids, " ")
+end
+
+Equal("its id", pageID, "movementAlert")
+Equal("under Quality of Life", pageInfo.under, "qualityOfLifeHeader")
+Equal("its icon", pageInfo.icon, "SidebarMovementAlert.tga")
+Equal("headed by the switch, off", pageInfo.switch.path .. " " .. tostring(pageInfo.switch.default),
+	"movementAlert.enabled false")
+Equal("the switch's label", pageInfo.switch.label, "Show Movement Alerts")
+Equal("the Text card", RowIDs(page.sections[1]), "arrangement decimal font size outline color")
+Equal("the Visibility card", RowIDs(page.sections[2]), "combatOnly")
+Equal("the class's abilities", RowIDs(page.sections[3]), "spell212653")
+Equal("named as the character knows it", page.sections[3].rows[1].label, "Blink")
+Equal("the formats", page.sections[1].rows[1].options[2].text, "Name, Then Time")
+Equal("Class Color beside the swatch", page.sections[1].rows[6].classColor.path, Options.CLASS_COLOR_PATH)
+Equal("on this client", AUI.SettingsMovementAlert:IsAvailable(), true)
+AUI.can.movementAlert = nil
+Equal("not on a client without it", AUI.SettingsMovementAlert:IsAvailable(), false)
+AUI.can.movementAlert = true
+
+local canvas = Frame("Frame")
+local parts = {}
+local previewParts = { Part = function(_, region, target)
+	parts[#parts + 1] = target
+	parts.region = region
+end }
+local width, height = page.preview.refresh(canvas, nil, previewParts)
+Equal("the sample's text", parts.region.value, "12.3 No Blink")
+Equal("the sample's size", width .. "x" .. height, "100x40")
+Equal("it finds the font's row", parts[1], "font")
+
+known[186257] = true
+local extra = { ids = { 186257 } }
+Options:ClassSpells("MAGE")[2] = extra
+values[Options:SpellPath(extra)] = true
+width, height = page.preview.refresh(canvas, nil, previewParts)
+Equal("a line per tracked spell", height, 82)
+Options:ClassSpells("MAGE")[2] = nil
+known[186257] = nil
+width, height = page.preview.refresh(canvas, nil, previewParts)
+Equal("one again", height, 40)
+
+known[1953] = nil
+Equal("a class's name with nothing known", Alert:SampleNames()[1], "Shimmer")
+known[1953] = true
+
+local target = declared.editTargets[1]
+Equal("the edit target's path", target.path, Options.POSITION_PATH)
+local info = target.target()
+Equal("its frame", info.frame, Alert.frame)
+Equal("kept to the bottom edge", info.fixedEdge, "BOTTOM")
+Equal("its default", info.default.point .. " " .. info.default.y, "BOTTOM 430")
+info.sample(true)
+Equal("its sample", line.text.value, "12.3 No Blink")
+info.sample(false)
+Set(Options.ENABLED_PATH, false)
+Equal("no target while off", target.target(), nil)
+Set(Options.ENABLED_PATH, true)
+declared.start()
+Equal("started once", Alert.active, true)
 
 Equal("no Lua error in the run", errors[1], nil)
 

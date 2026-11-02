@@ -30,6 +30,7 @@ local DONE_GAP = 0.25
 ---@field lines AUIMovementAlertLine[]
 ---@field entries AUIMovementAlertEntry[]
 ---@field inCombat boolean
+---@field sampling boolean edit mode shows a sample line in place of the real ones
 ---@field curve table? the curve that clears a short cooldown's line
 ---@field formatter table? the time's numeric formatter
 ---@field formatterDecimal boolean? the Show Decimal state `formatter` was made for
@@ -39,6 +40,7 @@ local MovementAlert = {
 	lines = {},
 	entries = {},
 	inCombat = false,
+	sampling = false,
 }
 AUI.MovementAlert = MovementAlert
 
@@ -124,6 +126,16 @@ function MovementAlert:OnLineDone(line)
 	self:RequestCheck()
 end
 
+---@param line AUIMovementAlertLine
+---@param index number the line's place in the stack, the bottom's being 1
+function MovementAlert:LayoutLine(line, index)
+	local size = AUI.Profile:Get(Options.SIZE_PATH)
+
+	line:SetSize(Options.WIDTH, Options:LineHeight(size))
+	line:ClearAllPoints()
+	line:SetPoint("BOTTOM", self.frame, "BOTTOM", 0, Options:LineOffset(index, size))
+end
+
 ---@param index number the line's place in the stack, the bottom's being 1
 ---@return AUIMovementAlertLine line
 function MovementAlert:Line(index)
@@ -134,8 +146,7 @@ function MovementAlert:Line(index)
 	end
 
 	line = CreateFrame("Frame", nil, self.frame) --[[@as AUIMovementAlertLine]]
-	line:SetSize(Options.WIDTH, Options.LINE_HEIGHT)
-	line:SetPoint("BOTTOM", self.frame, "BOTTOM", 0, Options:LineOffset(index))
+	self:LayoutLine(line, index)
 	line:Hide()
 
 	line.text = line:CreateFontString(nil, "OVERLAY")
@@ -217,6 +228,19 @@ local function TimeDuration(spellID, charges)
 	return C_Spell.GetSpellCooldownDuration(spellID, true) or C_Spell.GetSpellChargeDuration(spellID)
 end
 
+---Shows the bottom line with a sample of the first tracked spell's text.
+function MovementAlert:ShowSample()
+	local Profile = AUI.Profile
+	local line = self:Line(1)
+
+	line.binding:SetEnabled(false)
+	line.ending:Clear()
+	line.text:SetText(Options:SampleText(Profile:Get(Options.ARRANGEMENT_PATH), Profile:Get(Options.DECIMAL_PATH) == true,
+		self:SampleNames()[1]))
+	line:SetAlpha(1)
+	line:Show()
+end
+
 ---Brings the lines up to date with the tracked spells' cooldowns.
 function MovementAlert:Check()
 	if not self.frame then
@@ -225,7 +249,10 @@ function MovementAlert:Check()
 
 	local count = 0
 
-	if self:IsOn() and Options:LinesAllowed(AUI.Profile:Get(Options.COMBAT_ONLY_PATH) == true, self.inCombat) then
+	if self.sampling then
+		self:ShowSample()
+		count = 1
+	elseif self:IsOn() and Options:LinesAllowed(AUI.Profile:Get(Options.COMBAT_ONLY_PATH) == true, self.inCombat) then
 		for _, entry in ipairs(self.entries) do
 			local charges = HasCharges(entry)
 
@@ -261,14 +288,69 @@ local function CurrentSpec()
 	return index and C_SpecializationInfo.GetSpecializationInfo(index) or nil
 end
 
----Rebuilds the tracked spells, keeping what is known of a spell still tracked.
-function MovementAlert:RebuildEntries()
+---@return number[] spellIDs the spells the character tracks now
+local function TrackedIDs()
 	local _, class = UnitClass("player")
-	local spellIDs = Options:TrackedSpells(class, CurrentSpec(), function(spellID)
+
+	return Options:TrackedSpells(class, CurrentSpec(), function(spellID)
 		return C_SpellBook.IsSpellKnown(spellID)
 	end, function(spell)
 		return AUI.Profile:Get(Options:SpellPath(spell)) == true
 	end)
+end
+
+---@param spellID number
+---@return string? name its name, or its override's
+local function SpellName(spellID)
+	return C_Spell.GetSpellName(C_Spell.GetOverrideSpell(spellID))
+end
+
+---@param spell AUIMovementSpell
+---@return string? name the ability's name as the character knows it, or its first ID's the client can name
+function MovementAlert:AbilityName(spell)
+	for _, spellID in ipairs(spell.ids) do
+		if C_SpellBook.IsSpellKnown(spellID) then
+			return SpellName(spellID)
+		end
+	end
+
+	for _, spellID in ipairs(spell.ids) do
+		local name = C_Spell.GetSpellName(spellID)
+
+		if name then
+			return name
+		end
+	end
+end
+
+---@return string[] names each tracked spell's name for samples; the class's first ability's when none is tracked
+function MovementAlert:SampleNames()
+	local names = {}
+
+	for _, spellID in ipairs(TrackedIDs()) do
+		names[#names + 1] = SpellName(spellID)
+	end
+
+	if #names == 0 then
+		local _, class = UnitClass("player")
+		local spell = Options:ClassSpells(class)[1]
+
+		names[1] = spell and self:AbilityName(spell) or ""
+	end
+
+	return names
+end
+
+---Shows or takes away the sample line while edit mode is open.
+---@param shown boolean
+function MovementAlert:Sample(shown)
+	self.sampling = shown
+	self:Check()
+end
+
+---Rebuilds the tracked spells, keeping what is known of a spell still tracked.
+function MovementAlert:RebuildEntries()
+	local spellIDs = TrackedIDs()
 	local known, entries = {}, {}
 
 	for _, entry in ipairs(self.entries) do
@@ -276,7 +358,7 @@ function MovementAlert:RebuildEntries()
 	end
 
 	for _, spellID in ipairs(spellIDs) do
-		local name = C_Spell.GetSpellName(C_Spell.GetOverrideSpell(spellID))
+		local name = SpellName(spellID)
 
 		if name then
 			entries[#entries + 1] = { id = spellID, name = name, charges = known[spellID] and known[spellID].charges }
@@ -310,7 +392,6 @@ function MovementAlert:CreateFrame()
 
 	local frame = CreateFrame("Frame", "AeonUIMovementAlert", UIParent)
 
-	frame:SetSize(Options.WIDTH, Options.LINE_HEIGHT)
 	frame:SetFrameStrata("HIGH")
 	frame:EnableMouse(false)
 	self.frame = frame
@@ -324,8 +405,10 @@ function MovementAlert:Place()
 		return
 	end
 
-	local position = AUI.Profile:Get(Options.POSITION_PATH) or Options:DefaultPosition()
+	local Profile = AUI.Profile
+	local position = Profile:Get(Options.POSITION_PATH) or Options:DefaultPosition(UIParent:GetHeight())
 
+	frame:SetSize(Options.WIDTH, Options:LineHeight(Profile:Get(Options.SIZE_PATH)))
 	frame:ClearAllPoints()
 	frame:SetPoint(position.point, UIParent, position.point, position.x, position.y)
 end
@@ -352,6 +435,7 @@ function MovementAlert:Apply()
 			AUI.Events:Register("PLAYER_REGEN_DISABLED", self, self.OnCombatEvent)
 			AUI.Events:Register("PLAYER_REGEN_ENABLED", self, self.OnCombatEvent)
 		else
+			self.sampling = false
 			AUI.Events:UnregisterAll(self)
 			AUI.Events:Cancel("movementAlertCheck")
 			AUI.Events:Cancel("movementAlertList")
@@ -360,8 +444,9 @@ function MovementAlert:Apply()
 
 	self:Place()
 
-	for _, line in ipairs(self.lines) do
+	for index, line in ipairs(self.lines) do
 		self:Style(line.text)
+		self:LayoutLine(line, index)
 	end
 
 	if on then

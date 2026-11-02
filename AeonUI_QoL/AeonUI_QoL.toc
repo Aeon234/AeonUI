@@ -33,6 +33,7 @@ Settings\PlayerMenu.lua
 Settings\Input.lua
 Settings\Alerts.lua
 Settings\Notifications.lua
+Settings\MovementAlert.lua
 Settings\RaidMarkers.lua
 Settings\Interface.lua
 Settings\ScreenText.lua

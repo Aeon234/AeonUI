@@ -28,6 +28,7 @@ L["Interface"] = "인터페이스"
 L["Screen Text"] = "화면 문자"
 L["Cursor"] = "커서"
 L["Notifications"] = "알림"
+L["Movement Alerts"] = "이동기 알림"
 L["Raid Markers"] = "공격대 징표"
 L["Merchant Window"] = "상인 창"
 L["Hidden Settings"] = "숨겨진 설정"
@@ -240,6 +241,14 @@ L["Hide While Turning the Camera"] = "카메라 회전 중 숨기기"
 L["Idle"] = "대기"
 
 -- Movement Alerts page and its lines (Settings, MovementAlert)
+L["Show Movement Alerts"] = "이동기 알림 표시"
+L["Format"] = "형식"
+L["Time, Then Name"] = "시간, 이름"
+L["Name, Then Time"] = "이름, 시간"
+L["Time Only"] = "시간만"
+L["Show Decimal"] = "소수점 표시"
+L["Combat Only"] = "전투 중에만"
+L["Tracked Spells"] = "추적 주문"
 L["No %s"] = "%s 없음"
 
 -- Notifications page and its notices (Settings, Notifications)

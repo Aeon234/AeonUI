@@ -31,6 +31,7 @@ L["Interface"] = "Interface"
 L["Screen Text"] = "Screen Text"
 L["Cursor"] = "Cursor"
 L["Notifications"] = "Notifications"
+L["Movement Alerts"] = "Movement Alerts"
 L["Raid Markers"] = "Raid Markers"
 L["Merchant Window"] = "Merchant Window"
 L["Hidden Settings"] = "Hidden Settings"
@@ -249,6 +250,14 @@ L["Hide While Turning the Camera"] = "Hide While Turning the Camera"
 L["Idle"] = "Idle"
 
 -- Movement Alerts page and its lines (Settings, MovementAlert)
+L["Show Movement Alerts"] = "Show Movement Alerts"
+L["Format"] = "Format"
+L["Time, Then Name"] = "Time, Then Name"
+L["Name, Then Time"] = "Name, Then Time"
+L["Time Only"] = "Time Only"
+L["Show Decimal"] = "Show Decimal"
+L["Combat Only"] = "Combat Only"
+L["Tracked Spells"] = "Tracked Spells"
 L["No %s"] = "No %s"
 
 -- Notifications page and its notices (Settings, Notifications)

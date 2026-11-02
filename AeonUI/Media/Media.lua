@@ -117,6 +117,7 @@ local Media = {
 		screenText = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarScreenText.tga",
 		cursor = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarCursor.tga",
 		notifications = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarNotifications.tga",
+		movementAlert = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarMovementAlert.tga",
 		raidMarkers = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarRaidMarkers.tga",
 		profiles = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarProfiles.tga",
 	},
