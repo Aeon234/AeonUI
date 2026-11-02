@@ -310,3 +310,35 @@ function SettingsRaidMarkers:Declare(window)
 		self:DeclareCycle(page)
 	end
 end
+
+AUI.Modules:Register({
+	group = "qualityOfLife",
+	page = SettingsRaidMarkers,
+	start = function()
+		AUI.Markers:Start()
+	end,
+	editTargets = {
+		{
+			key = "raidMarkers",
+			path = "markers.position",
+			target = function()
+				local MarkerBar = AUI.MarkerBar
+
+				if MarkerBar.bar and AUI.Profile:Get("markers.enabled") then
+					return {
+						label = L["Raid Markers Bar"],
+						frame = MarkerBar.bar,
+						default = MarkerBar.DEFAULT_POSITION,
+						sample = function(shown)
+							MarkerBar:Sample(shown)
+						end,
+						settings = { page = "raidMarkers", section = "markersLayout" },
+						place = function(position)
+							MarkerBar:Place(position)
+						end,
+					}
+				end
+			end,
+		},
+	},
+})

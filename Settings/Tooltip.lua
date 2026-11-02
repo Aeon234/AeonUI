@@ -686,8 +686,37 @@ end
 
 ---@param window table
 function SettingsTooltip:Declare(window)
-	window:Header("tooltipHeader", L["Tooltip"])
 	self:DeclareGeneral(window)
 	self:DeclareUnits(window)
 	self:DeclareItems(window)
 end
+
+AUI.Modules:Register({
+	group = "tooltip",
+	page = SettingsTooltip,
+	start = function()
+		AUI.Tooltip:Start()
+	end,
+	editTargets = {
+		{
+			key = "tooltip",
+			path = "tooltip.position",
+			target = function()
+				local Anchor = AUI.TooltipAnchor
+
+				-- A tooltip riding the cursor has no place to move.
+				if AUI.Tooltip.active and not Anchor:Cursor() then
+					return {
+						label = L["Tooltip"],
+						frame = Anchor:Box(),
+						default = Anchor:DefaultPosition(),
+						settings = { page = "tooltipGeneral", section = "tooltipPlace" },
+						place = function(position)
+							Anchor:Place(position)
+						end,
+					}
+				end
+			end,
+		},
+	},
+})

@@ -246,6 +246,11 @@ function SettingsDeleteCheapestItem:DeclareIgnored(page)
 	})
 end
 
+---@return boolean
+function SettingsDeleteCheapestItem:IsAvailable()
+	return AUI.can.deleteCheapestItem == true
+end
+
 ---@param window table
 function SettingsDeleteCheapestItem:Declare(window)
 	local Options = AUI.DeleteCheapestItemOptions
@@ -270,3 +275,16 @@ function SettingsDeleteCheapestItem:Declare(window)
 	self:DeclareAccess(page)
 	self:DeclareIgnored(page)
 end
+
+AUI.Modules:Register({
+	group = "qualityOfLife",
+	page = SettingsDeleteCheapestItem,
+	start = function()
+		AUI.DeleteCheapestItem:Start()
+	end,
+	commands = {
+		dci = function()
+			AUI.DeleteCheapestItem:Toggle()
+		end,
+	},
+})

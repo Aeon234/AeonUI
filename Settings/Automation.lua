@@ -143,8 +143,6 @@ end
 
 ---@param window table
 function SettingsAutomation:Declare(window)
-	window:Header("qualityOfLifeHeader", L["Quality of Life"])
-
 	local page = window:Page("automation", {
 		title = L["Automation"],
 		under = "qualityOfLifeHeader",
@@ -168,3 +166,11 @@ function SettingsAutomation:Declare(window)
 
 	self:DeclareGameSettings(page)
 end
+
+AUI.Modules:Register({
+	group = "qualityOfLife",
+	page = SettingsAutomation,
+	start = function()
+		AUI.Automation:Start()
+	end,
+})

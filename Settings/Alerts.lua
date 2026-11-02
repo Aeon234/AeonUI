@@ -63,3 +63,11 @@ function SettingsAlerts:Declare(window)
 		})
 	end
 end
+
+AUI.Modules:Register({
+	group = "qualityOfLife",
+	page = SettingsAlerts,
+	start = function()
+		AUI.Alerts:Start()
+	end,
+})

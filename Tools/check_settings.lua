@@ -408,25 +408,27 @@ assert(loadfile(root .. "Core/Core.lua"))("AeonUI", AUI)
 AUI.L = setmetatable({}, { __index = function(_, key)
 	return key
 end })
-for _, file in ipairs({ "Core/Callbacks.lua", "Core/Capabilities.lua", "Core/Broker.lua", "Profile/Schema.lua",
-	"Profile/Store.lua", "Profile/Profile.lua", "Media/Media.lua", "UI/Border.lua", "Minimap/Layout.lua",
-	"Minimap/Elements.lua", "Minimap/Rows.lua", "Minimap/Fade.lua", "Minimap/Text.lua", "Minimap/Difficulty.lua",
-	"Minimap/Buttons.lua", "Minimap/Map.lua", "WorldMap/Markers.lua", "WorldMap/Options.lua", "Tooltip/Options.lua",
-	"Tooltip/Tooltip.lua", "Interface/UIScale.lua", "Interface/GameMenuScale.lua",
+-- The pages load in Settings.xml's order, which sets the order they register in.
+for _, file in ipairs({ "Core/Callbacks.lua", "Core/Capabilities.lua", "Core/Modules.lua", "Core/Broker.lua",
+	"Profile/Schema.lua", "Profile/Store.lua", "Profile/Profile.lua", "Media/Media.lua", "UI/Border.lua",
+	"Minimap/Layout.lua", "Minimap/Elements.lua", "Minimap/Rows.lua", "Minimap/Fade.lua", "Minimap/Text.lua",
+	"Minimap/Difficulty.lua", "Minimap/Buttons.lua", "Minimap/Map.lua", "WorldMap/Markers.lua", "WorldMap/Options.lua",
+	"Tooltip/Options.lua", "Tooltip/Tooltip.lua", "Interface/UIScale.lua", "Interface/GameMenuScale.lua",
 	"Automation/Options.lua", "Automation/GameSettings.lua", "Menus/Options.lua", "Input/Options.lua",
 	"Input/FocusShortcut.lua", "Alerts/Options.lua", "Interface/Options.lua", "ScreenText/Options.lua",
 	"ScreenText/ScreenText.lua", "Cursor/Options.lua", "Cursor/CursorRing.lua", "CastBar/Options.lua",
-	"CastBar/TickData.lua", "CastBar/BlizzardBar.lua", "CastBar/CastBar.lua", "Settings/CastBar.lua", "Notifications/Options.lua",
+	"CastBar/TickData.lua", "CastBar/BlizzardBar.lua", "CastBar/CastBar.lua", "Notifications/Options.lua",
 	"Notifications/Notifications.lua", "Markers/Options.lua", "Markers/Bar.lua", "Markers/Cycler.lua",
 	"Markers/Markers.lua", "DeleteCheapestItem/Options.lua", "Core/AuctionPrices.lua",
-	"MerchantWindow/Options.lua", "MerchantWindow/BottomBar.lua", "MerchantWindow/MerchantWindow.lua", "Settings/MerchantWindow.lua",
+	"MerchantWindow/Options.lua", "MerchantWindow/BottomBar.lua", "MerchantWindow/MerchantWindow.lua",
 	"HiddenSettings/Options.lua", "HiddenSettings/CVarHolder.lua", "HiddenSettings/HiddenSettings.lua",
-	"Settings/HiddenSettings.lua", "Macros/Options.lua", "Macros/Macros.lua", "Settings/Macros.lua",
-	"Settings/Window.lua", "Settings/MinimapEditor.lua", "Settings/General.lua", "Settings/Minimap.lua",
-	"Settings/WorldMap.lua", "Settings/Tooltip.lua", "Settings/Automation.lua", "Settings/DeleteCheapestItem.lua", "Settings/PlayerMenu.lua",
-	"Settings/Input.lua", "Settings/Alerts.lua", "Settings/Interface.lua", "Settings/ScreenText.lua",
-	"Settings/Cursor.lua", "Settings/Notifications.lua", "Settings/RaidMarkers.lua",
-	"Settings/Profiles.lua", "Settings/Recovery.lua", "Settings/EditTargets.lua" }) do
+	"Macros/Options.lua", "Macros/Macros.lua", "Settings/Window.lua", "Settings/General.lua", "Settings/CastBar.lua",
+	"Settings/MinimapEditor.lua", "Settings/Minimap.lua", "Settings/WorldMap.lua", "Settings/Tooltip.lua",
+	"Settings/Automation.lua", "Settings/DeleteCheapestItem.lua", "Settings/MerchantWindow.lua",
+	"Settings/HiddenSettings.lua", "Settings/Macros.lua", "Settings/PlayerMenu.lua", "Settings/Input.lua",
+	"Settings/Alerts.lua", "Settings/Notifications.lua", "Settings/RaidMarkers.lua", "Settings/Interface.lua",
+	"Settings/ScreenText.lua", "Settings/Cursor.lua", "Settings/Profiles.lua", "Settings/Recovery.lua",
+	"Settings/EditTargets.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 

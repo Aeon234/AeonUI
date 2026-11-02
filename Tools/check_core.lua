@@ -82,6 +82,7 @@ assert(loadfile(root .. "Core/Bindings.lua"))("AeonUI", AUI)
 assert(loadfile(root .. "Core/Callbacks.lua"))("AeonUI", AUI)
 assert(loadfile(root .. "Core/Events.lua"))("AeonUI", AUI)
 assert(loadfile(root .. "Core/GameMenu.lua"))("AeonUI", AUI)
+assert(loadfile(root .. "Core/Modules.lua"))("AeonUI", AUI)
 
 -- Harness -------------------------------------------------------------------------------------------------
 
@@ -292,6 +293,93 @@ Settings = {
 }
 AUI.Bindings:Open()
 Equal("Key Bindings opens at AeonUI's section", keyBindingsAt, "9 " .. AUI.brand)
+
+-- Modules -------------------------------------------------------------------------------------------------
+
+local Modules = AUI.Modules
+local calls = {}
+
+local function Logged(text, result)
+	return function()
+		calls[#calls + 1] = text
+
+		return result
+	end
+end
+
+local function Page(id, available)
+	return {
+		IsAvailable = available ~= nil and function()
+			return available
+		end or nil,
+		Declare = function(_, window)
+			window:Page(id)
+		end,
+	}
+end
+
+local function LogText()
+	local text = table.concat(calls, " ")
+	calls = {}
+
+	return text
+end
+
+Modules:Register({ group = "qualityOfLife", start = Logged("qol1"), page = Page("qol1") })
+Modules:Register({ group = "maps", start = Logged("maps1"), page = Page("maps1", false) })
+Modules:Register({ group = "tooltip", start = Logged("tooltip"), page = Page("tooltip", true) })
+Modules:Register({
+	group = "maps",
+	start = function()
+		calls[#calls + 1] = "broken"
+		error("start failed")
+	end,
+	page = Page("maps2", true),
+	reloadNeeded = Logged("reload", true),
+	pageShown = function(page)
+		calls[#calls + 1] = "shown:" .. tostring(page)
+	end,
+	commands = { go = Logged("go") },
+	editTargets = { { key = "bar", path = "bar.position", target = Logged("target") } },
+})
+Modules:Register({ group = "qualityOfLife", start = Logged("qol2") })
+Modules:Register({ group = "unitFrames", start = Logged("frames") })
+
+Equal("an unknown group is refused", pcall(Modules.Register, Modules, { group = "other" }), false)
+
+local before = #errors
+Modules:Start()
+Equal("modules start by group, then as registered, past an error", LogText(),
+	"frames maps1 broken tooltip qol1 qol2")
+Equal("the error is reported", #errors, before + 1)
+
+local declared = {}
+Modules:DeclarePages({
+	Header = function(_, id, title)
+		declared[#declared + 1] = "#" .. id .. "=" .. title
+	end,
+	Page = function(_, id)
+		declared[#declared + 1] = id
+	end,
+})
+Equal("a header comes once, before its group's first available page", table.concat(declared, " "),
+	"#mapsHeader=Maps maps2 #tooltipHeader=Tooltip tooltip #qualityOfLifeHeader=Quality of Life qol1")
+
+Equal("a waiting reload is reported", Modules:ReloadNeeded(), true)
+Equal("after asking in order", LogText(), "reload")
+Equal("an edit target's position setting is kept by key", Modules.paths.bar, "bar.position")
+Modules:PageShown("minimap")
+Modules:PageShown(nil)
+Equal("the shown page reaches the module", LogText(), "shown:minimap shown:nil")
+
+AUI.Settings = {
+	Open = function()
+		calls[#calls + 1] = "opened"
+	end,
+}
+SlashCmdList.AEONUI("go")
+Equal("a module's command runs instead of opening the window", LogText(), "go")
+Equal("an unknown command finds no handler", Modules:Command("other"), nil)
 
 print = _G.print
 io.stdout:write(("check_core: %d checks passed\n"):format(checks))

@@ -10,93 +10,19 @@ local ADDON_NAME = ...
 local EditTargets = {}
 AUI.EditTargets = EditTargets
 
--- Each target's position setting, by key.
-local PATHS = {
-	minimap = "minimap.position",
-	tooltip = "tooltip.position",
-	notifications = "notifications.position",
-	raidMarkers = "markers.position",
-	castBar = "castBar.position",
-}
-
 ---@return table[] targets the frames that exist this session, in the library's form
 function EditTargets:Targets()
 	local targets = {}
-	local minimap = AUI.Minimap
 
-	if minimap.active then
-		targets[#targets + 1] = {
-			key = "minimap",
-			label = MINIMAP_LABEL,
-			frame = minimap.holder,
-			default = minimap.DEFAULT_POSITION,
-			settings = { page = "minimap", section = "map" },
-		}
-	end
+	for _, module in ipairs(AUI.Modules.list) do
+		for _, editTarget in ipairs(module.editTargets or {}) do
+			local target = editTarget.target()
 
-	local Anchor = AUI.TooltipAnchor
-
-	-- A tooltip riding the cursor has no place to move.
-	if AUI.Tooltip.active and not Anchor:Cursor() then
-		targets[#targets + 1] = {
-			key = "tooltip",
-			label = AUI.L["Tooltip"],
-			frame = Anchor:Box(),
-			default = Anchor:DefaultPosition(),
-			settings = { page = "tooltipGeneral", section = "tooltipPlace" },
-			place = function(position)
-				Anchor:Place(position)
-			end,
-		}
-	end
-
-	local Notifications = AUI.Notifications
-
-	if Notifications.active then
-		targets[#targets + 1] = {
-			key = "notifications",
-			label = AUI.L["Notifications"],
-			frame = Notifications:Frame(),
-			default = Notifications:DefaultPosition(),
-			fixedEdge = "TOP",
-			sample = function(shown)
-				Notifications:Sample(shown)
-			end,
-			settings = { page = "notifications", section = "notificationsStyle" },
-		}
-	end
-
-	local MarkerBar = AUI.MarkerBar
-
-	if MarkerBar.bar and AUI.Profile:Get("markers.enabled") then
-		targets[#targets + 1] = {
-			key = "raidMarkers",
-			label = AUI.L["Raid Markers Bar"],
-			frame = MarkerBar.bar,
-			default = MarkerBar.DEFAULT_POSITION,
-			sample = function(shown)
-				MarkerBar:Sample(shown)
-			end,
-			settings = { page = "raidMarkers", section = "markersLayout" },
-			place = function(position)
-				MarkerBar:Place(position)
-			end,
-		}
-	end
-
-	local CastBar = AUI.CastBar
-
-	if CastBar.frame and CastBar:IsOn() then
-		targets[#targets + 1] = {
-			key = "castBar",
-			label = AUI.L["Cast Bar"],
-			frame = CastBar.frame,
-			default = AUI.CastBarOptions.DEFAULT_POSITION,
-			sample = function(shown)
-				CastBar:Sample(shown)
-			end,
-			settings = { page = "castBar", section = "castBarBar" },
-		}
+			if target then
+				target.key = editTarget.key
+				targets[#targets + 1] = target
+			end
+		end
 	end
 
 	return targets
@@ -110,12 +36,12 @@ function EditTargets:Register()
 	self.registration = lib:Placement(ADDON_NAME, {
 		title = AUI.brand,
 		get = function(key)
-			local path = PATHS[key]
+			local path = AUI.Modules.paths[key]
 
 			return path and AUI.Profile:Get(path)
 		end,
 		set = function(key, position)
-			local path = PATHS[key]
+			local path = AUI.Modules.paths[key]
 
 			if path then
 				AUI.Profile:Set(path, position)

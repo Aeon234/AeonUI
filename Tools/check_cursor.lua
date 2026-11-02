@@ -211,7 +211,7 @@ end })
 assert(loadfile(root .. "Core/Core.lua"))("AeonUI", AUI)
 AUI.can = { cursorRing = true, castSwipe = true }
 
-for _, file in ipairs({ "Core/Callbacks.lua", "Core/Events.lua", "Profile/Schema.lua" }) do
+for _, file in ipairs({ "Core/Callbacks.lua", "Core/Events.lua", "Core/Modules.lua", "Profile/Schema.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 

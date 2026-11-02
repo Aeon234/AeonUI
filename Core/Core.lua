@@ -18,6 +18,7 @@ local addonName = ...
 ---@field Border AUIBorderFactory
 ---@field Minimap AUIMinimap the Minimap module (not Blizzard's `Minimap` frame)
 ---@field WorldMap AUIWorldMap the World Map module (not Blizzard's `WorldMapFrame`)
+---@field Modules AUIModules
 ---@field EditTargets AUIEditTargets
 ---@field Codec AUICodec
 ---@field Dev AUIDev? development self-tests, present only in unpackaged builds
@@ -157,8 +158,10 @@ SlashCmdList.AEONUI = function(message)
 		return
 	end
 
-	if command == "dci" then
-		AUI.DeleteCheapestItem:Toggle()
+	local handler = AUI.Modules:Command(command --[[@as string]])
+
+	if handler then
+		handler()
 
 		return
 	end

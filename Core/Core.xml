@@ -4,6 +4,7 @@
 	<Script file="Callbacks.lua" />
 	<Script file="Events.lua" />
 	<Script file="Capabilities.lua" />
+	<Script file="Modules.lua" />
 	<Script file="AuctionPrices.lua" />
 	<Script file="Broker.lua" />
 	<Script file="GameMenu.lua" />

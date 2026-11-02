@@ -36,6 +36,11 @@ local function Count(card, id, label, path, min, max)
 	})
 end
 
+---@return boolean
+function SettingsMerchantWindow:IsAvailable()
+	return AUI.can.merchantWindow == true
+end
+
 ---@param window table
 function SettingsMerchantWindow:Declare(window)
 	local Settings, Options = AUI.Settings, AUI.MerchantWindowOptions
@@ -90,3 +95,11 @@ function SettingsMerchantWindow:Declare(window)
 		})
 	end
 end
+
+AUI.Modules:Register({
+	group = "qualityOfLife",
+	page = SettingsMerchantWindow,
+	start = function()
+		AUI.MerchantWindow:Start()
+	end,
+})

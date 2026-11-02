@@ -1883,11 +1883,9 @@ Equal("Enhanced Tooltips reads the game's setting", Anchor:Enhanced(), false)
 Anchor:SetEnhanced(true)
 Equal("and writes it", cvars.UberTooltips, "1")
 
-AUI.Minimap = { active = false }
-AUI.Notifications = { active = false }
-AUI.MarkerBar = {}
-AUI.CastBar = {}
-assert(loadfile(root .. "Settings/EditTargets.lua"))("AeonUI", AUI)
+for _, file in ipairs({ "Core/Modules.lua", "Settings/Tooltip.lua", "Settings/EditTargets.lua" }) do
+	assert(loadfile(root .. file))("AeonUI", AUI)
+end
 local targets = AUI.EditTargets:Targets()
 Equal("the tooltip has a mover", targets[1] and targets[1].key, "tooltip")
 Equal("around AeonUI's box", targets[1].frame, Anchor.box)

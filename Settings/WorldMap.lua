@@ -254,3 +254,11 @@ function SettingsWorldMap:Declare(window)
 	self:DeclareOptions(page)
 	self:DeclareMarkers(page)
 end
+
+AUI.Modules:Register({
+	group = "maps",
+	page = SettingsWorldMap,
+	start = function()
+		AUI.WorldMap:Start()
+	end,
+})

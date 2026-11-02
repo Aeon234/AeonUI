@@ -1,6 +1,5 @@
 local AUI = select(2, ...)
 
-local L = AUI.L
 local lib = LibStub("LibAeonSettings-1.0")
 
 local ADDON_NAME = ...
@@ -23,60 +22,7 @@ local function DeclareSidebar(window)
 	end
 
 	AUI.SettingsGeneral:Declare(window)
-
-	if AUI.can.castBar then
-		AUI.SettingsCastBar:Declare(window)
-	end
-
-	window:Header("mapsHeader", L["Maps"])
-	AUI.SettingsMinimap:Declare(window)
-
-	if AUI.SettingsWorldMap:IsAvailable() then
-		AUI.SettingsWorldMap:Declare(window)
-	end
-
-	AUI.SettingsTooltip:Declare(window)
-	AUI.SettingsAutomation:Declare(window)
-
-	if AUI.can.deleteCheapestItem then
-		AUI.SettingsDeleteCheapestItem:Declare(window)
-	end
-
-	if AUI.can.merchantWindow then
-		AUI.SettingsMerchantWindow:Declare(window)
-	end
-
-	if AUI.SettingsHiddenSettings:IsAvailable() then
-		AUI.SettingsHiddenSettings:Declare(window)
-	end
-
-	if AUI.can.macros then
-		AUI.SettingsMacros:Declare(window)
-	end
-
-	if AUI.SettingsPlayerMenu:IsAvailable() then
-		AUI.SettingsPlayerMenu:Declare(window)
-	end
-
-	if AUI.SettingsInput:IsAvailable() then
-		AUI.SettingsInput:Declare(window)
-	end
-
-	AUI.SettingsAlerts:Declare(window)
-	AUI.SettingsNotifications:Declare(window)
-	AUI.SettingsRaidMarkers:Declare(window)
-
-	if AUI.SettingsInterface:IsAvailable() then
-		AUI.SettingsInterface:Declare(window)
-	end
-
-	if AUI.can.screenText then
-		AUI.SettingsScreenText:Declare(window)
-	end
-
-	if AUI.can.cursorRing then
-		AUI.SettingsCursor:Declare(window)
-	end
+	AUI.Modules:DeclarePages(window)
 	window:Divider()
 	AUI.SettingsProfiles:Declare(window)
 end
@@ -92,7 +38,7 @@ function Settings:Window()
 		version = AUI.version,
 		frameName = FRAME_NAME,
 		reloadNeeded = function()
-			return AUI.Minimap:ReloadNeeded() or AUI.UIScale:ReloadNeeded()
+			return AUI.Modules:ReloadNeeded() or AUI.UIScale:ReloadNeeded()
 		end,
 		store = function()
 			return AUI.Profile.config
@@ -121,13 +67,11 @@ function Settings:Window()
 	return window
 end
 
----The minimap shows its samples while the window is open on one of its pages, so each setting is seen on the minimap
----itself.
+---Tells the modules which page the window shows, or nil when it is closed.
 function Settings:UpdatePreview()
 	local window = self.window
-	local on = window ~= nil and window:IsShown() and AUI.SettingsMinimap.pageIDs[window.page] == true
 
-	AUI.MinimapElements:SetPreview(on, "settings")
+	AUI.Modules:PageShown(window ~= nil and window:IsShown() and window.page or nil)
 end
 
 ---@param path string

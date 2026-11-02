@@ -74,3 +74,11 @@ function SettingsPlayerMenu:Declare(window)
 
 	self:DeclareLinks(page)
 end
+
+AUI.Modules:Register({
+	group = "qualityOfLife",
+	page = SettingsPlayerMenu,
+	start = function()
+		AUI.Menus:Start()
+	end,
+})

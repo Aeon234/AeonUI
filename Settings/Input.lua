@@ -187,3 +187,11 @@ function SettingsInput:Declare(window)
 		self:DeclareFocusShortcut(page)
 	end
 end
+
+AUI.Modules:Register({
+	group = "qualityOfLife",
+	page = SettingsInput,
+	start = function()
+		AUI.Input:Start()
+	end,
+})

@@ -298,3 +298,33 @@ function SettingsNotifications:Declare(window)
 	self:DeclarePet(page)
 	self:DeclareCharacter(page)
 end
+
+AUI.Modules:Register({
+	group = "qualityOfLife",
+	page = SettingsNotifications,
+	start = function()
+		AUI.Notifications:Start()
+	end,
+	editTargets = {
+		{
+			key = "notifications",
+			path = "notifications.position",
+			target = function()
+				local Notifications = AUI.Notifications
+
+				if Notifications.active then
+					return {
+						label = L["Notifications"],
+						frame = Notifications:Frame(),
+						default = Notifications:DefaultPosition(),
+						fixedEdge = "TOP",
+						sample = function(shown)
+							Notifications:Sample(shown)
+						end,
+						settings = { page = "notifications", section = "notificationsStyle" },
+					}
+				end
+			end,
+		},
+	},
+})

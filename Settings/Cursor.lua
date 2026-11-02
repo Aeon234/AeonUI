@@ -220,6 +220,11 @@ function SettingsCursor:DeclareVisibility(page)
 	Checkbox(card, "hideTurning", L["Hide While Turning the Camera"], Options.HIDE_TURNING_PATH)
 end
 
+---@return boolean
+function SettingsCursor:IsAvailable()
+	return AUI.can.cursorRing == true
+end
+
 ---@param window table
 function SettingsCursor:Declare(window)
 	local Settings, Options = AUI.Settings, AUI.CursorOptions
@@ -259,3 +264,11 @@ function SettingsCursor:Declare(window)
 	self:DeclareSwipes(page)
 	self:DeclareVisibility(page)
 end
+
+AUI.Modules:Register({
+	group = "qualityOfLife",
+	page = SettingsCursor,
+	start = function()
+		AUI.CursorRing:Start()
+	end,
+})

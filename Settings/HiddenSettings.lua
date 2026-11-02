@@ -77,3 +77,11 @@ function SettingsHiddenSettings:Declare(window)
 		L["Approached objects use the game's soft targeting: while one of them is on, the Interact Key reaches all around you."]
 	)
 end
+
+AUI.Modules:Register({
+	group = "qualityOfLife",
+	page = SettingsHiddenSettings,
+	start = function()
+		AUI.HiddenSettings:Start()
+	end,
+})

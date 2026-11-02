@@ -55,6 +55,11 @@ local function ManaPotion(card, id, key, depends)
 	card:Checkbox(spec)
 end
 
+---@return boolean
+function SettingsMacros:IsAvailable()
+	return AUI.can.macros == true
+end
+
 ---@param window table
 function SettingsMacros:Declare(window)
 	local Options = AUI.MacrosOptions
@@ -109,3 +114,11 @@ function SettingsMacros:Declare(window)
 	bandage:Toggle(bandageSwitch)
 	PickUp(bandage, "macrosBandagePickUp", "bandage", "macrosBandageEnabled")
 end
+
+AUI.Modules:Register({
+	group = "qualityOfLife",
+	page = SettingsMacros,
+	start = function()
+		AUI.Macros:Start()
+	end,
+})

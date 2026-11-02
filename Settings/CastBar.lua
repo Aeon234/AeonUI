@@ -332,11 +332,14 @@ function SettingsCastBar:DeclareTicks(page)
 	card:Color(Field("lastTickColor", L["Last Tick Color"], "castBar.lastTickColor", { depends = "lastTick" }))
 end
 
+---@return boolean
+function SettingsCastBar:IsAvailable()
+	return AUI.can.castBar == true
+end
+
 ---@param window table
 function SettingsCastBar:Declare(window)
 	local Options = AUI.CastBarOptions
-
-	window:Header("unitFramesHeader", L["Unit Frames"])
 
 	local page = window:Page("castBar", {
 		title = L["Cast Bar"],
@@ -390,3 +393,32 @@ function SettingsCastBar:Declare(window)
 		self:DeclareEmpowered(page)
 	end
 end
+
+AUI.Modules:Register({
+	group = "unitFrames",
+	page = SettingsCastBar,
+	start = function()
+		AUI.CastBar:Start()
+	end,
+	editTargets = {
+		{
+			key = "castBar",
+			path = "castBar.position",
+			target = function()
+				local CastBar = AUI.CastBar
+
+				if CastBar.frame and CastBar:IsOn() then
+					return {
+						label = L["Cast Bar"],
+						frame = CastBar.frame,
+						default = AUI.CastBarOptions.DEFAULT_POSITION,
+						sample = function(shown)
+							CastBar:Sample(shown)
+						end,
+						settings = { page = "castBar", section = "castBarBar" },
+					}
+				end
+			end,
+		},
+	},
+})

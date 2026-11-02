@@ -158,3 +158,11 @@ function SettingsInterface:Declare(window)
 		self:DeclareTradingPost(page)
 	end
 end
+
+AUI.Modules:Register({
+	group = "qualityOfLife",
+	page = SettingsInterface,
+	start = function()
+		AUI.Interface:Start()
+	end,
+})

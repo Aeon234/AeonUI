@@ -541,3 +541,37 @@ function SettingsMinimap:Declare(window)
 	self:DeclareRows(page)
 	self:DeclareElements(page)
 end
+
+AUI.Modules:Register({
+	group = "maps",
+	page = SettingsMinimap,
+	start = function()
+		AUI.Minimap:Start()
+	end,
+	reloadNeeded = function()
+		return AUI.Minimap:ReloadNeeded()
+	end,
+	-- The minimap shows its samples while the window is open on one of its pages, so each setting is seen on the
+	-- minimap itself.
+	pageShown = function(page)
+		AUI.MinimapElements:SetPreview(page ~= nil and SettingsMinimap.pageIDs[page] == true, "settings")
+	end,
+	editTargets = {
+		{
+			key = "minimap",
+			path = "minimap.position",
+			target = function()
+				local minimap = AUI.Minimap
+
+				if minimap.active then
+					return {
+						label = MINIMAP_LABEL,
+						frame = minimap.holder,
+						default = minimap.DEFAULT_POSITION,
+						settings = { page = "minimap", section = "map" },
+					}
+				end
+			end,
+		},
+	},
+})

@@ -162,6 +162,11 @@ function ScreenTextPreview:Refresh(preview)
 	return width, height
 end
 
+---@return boolean
+function SettingsScreenText:IsAvailable()
+	return AUI.can.screenText == true
+end
+
 ---@param window table
 function SettingsScreenText:Declare(window)
 	local Settings, Options = AUI.Settings, AUI.ScreenTextOptions
@@ -199,3 +204,11 @@ function SettingsScreenText:Declare(window)
 		DeclareText(card, line)
 	end
 end
+
+AUI.Modules:Register({
+	group = "qualityOfLife",
+	page = SettingsScreenText,
+	start = function()
+		AUI.ScreenText:Start()
+	end,
+})
