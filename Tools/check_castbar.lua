@@ -382,10 +382,10 @@ local function Frame(kind, name, parent)
 			return self.fill
 		end
 		frame.SetMinMaxValues = function(self, low, high)
-			self.min, self.max = low, high
+			self.min, self.max, self.timer = low, high, nil
 		end
 		frame.SetValue = function(self, value)
-			self.value, self.timer = value, nil
+			self.value = value
 		end
 		frame.SetTimerDuration = function(self, duration, interpolation, direction)
 			self.timer, self.interpolation, self.direction, self.snapped = duration, interpolation, direction, false
@@ -952,6 +952,7 @@ EndCast()
 Fire("UNIT_SPELLCAST_INTERRUPTED", "player", "Cast-1", 133)
 Equal("Interrupted fills the bar in its color", frame.text.text .. " " .. frame.failed.alpha .. " " .. frame.bar.value,
 	"Interrupted 1 1")
+Equal("and stops the cast's timer", frame.bar.timer, nil)
 Equal("without the time, spark or latency", tostring(frame.time.shown) .. " " .. tostring(frame.spark.shown) .. " "
 	.. tostring(frame.latency.shown), "false false false")
 Equal("held for its time", namedTimers[#namedTimers].seconds, 0.6)
@@ -1040,6 +1041,20 @@ StartCast()
 EndCast()
 Fire("UNIT_SPELLCAST_STOP", "player", "Cast-1", 133)
 Equal("Always Show empties instead", tostring(frame.fade.playing) .. " " .. frame.bar.value, "false 0")
+Equal("and stops the cast's timer", frame.bar.timer, nil)
+StartCast()
+EndCast()
+Fire("UNIT_SPELLCAST_INTERRUPTED", "player", "Cast-1", 133)
+Equal("Interrupted under Always Show stops the timer", frame.bar.timer, nil)
+RunNamedTimer()
+Equal("and then empties", tostring(frame.shown) .. " " .. frame.bar.value .. " " .. tostring(frame.bar.timer),
+	"true 0 nil")
+StartCast()
+CastBar:Sample(true)
+Equal("the sample stops the timer too", frame.bar.timer, nil)
+CastBar:Sample(false)
+EndCast()
+Fire("UNIT_SPELLCAST_STOP", "player", "Cast-1", 133)
 Set("castBar.alwaysShow", false)
 Set("castBar.fade", false)
 

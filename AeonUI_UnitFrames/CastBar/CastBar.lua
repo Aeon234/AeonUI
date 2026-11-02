@@ -817,12 +817,20 @@ function CastBar:Draw(frame, cast)
 	self:DrawTarget(frame)
 end
 
+---Stops the cast's timer and holds the fill at a value; `SetValue` alone leaves the timer driving the fill.
+---@param frame AUICastBarFrame
+---@param value number from 0 to 1
+function CastBar:HoldFill(frame, value)
+	frame.bar:SetMinMaxValues(0, 1)
+	frame.bar:SetValue(value)
+end
+
 ---Empties the bar for Always Show between casts.
 ---@param frame AUICastBarFrame
 function CastBar:DrawEmpty(frame)
 	self:ClearAids(frame)
 	frame.binding:SetEnabled(false)
-	frame.bar:SetValue(0)
+	self:HoldFill(frame, 0)
 	frame.text:SetText("")
 	frame.time:SetText("")
 	frame.icon:SetTexture(nil)
@@ -845,7 +853,7 @@ function CastBar:DrawSample(frame, state, label)
 
 	self:ClearAids(frame)
 	frame.binding:SetEnabled(false)
-	frame.bar:SetValue(interrupted and 1 or Options.SAMPLE_PROGRESS)
+	self:HoldFill(frame, interrupted and 1 or Options.SAMPLE_PROGRESS)
 	frame.text:SetText(self:SpellName(label))
 	frame.icon:SetTexture(Options.SAMPLE_ICON)
 	frame.spark:SetShown(Profile:Get("castBar.spark") == true and not interrupted)
@@ -936,7 +944,7 @@ function CastBar:ShowFeedback(text)
 	self:ClearAids(frame)
 	self.drawn, self.drawnID, self.channelEnd = nil, nil, nil
 	frame.binding:SetEnabled(false)
-	frame.bar:SetValue(1)
+	self:HoldFill(frame, 1)
 	frame.text:SetText(text)
 	frame.time:Hide()
 	frame.spark:Hide()
