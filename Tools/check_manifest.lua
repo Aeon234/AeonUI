@@ -1,5 +1,7 @@
--- Checks the load path: every file the .toc and its .xml files name exists, and every AeonUI-owned .lua file is
--- loaded exactly once. Libraries under Libs/ are followed only where embeds.xml names them.
+-- Checks the load path: every file the .toc files and their .xml files name exists, and every AeonUI-owned .lua file
+-- is loaded exactly once. Libraries under Libs/ are followed only where embeds.xml names them. Each AeonUI_* folder is
+-- a feature addon: it needs its own .toc, depending on the base, on the base's clients and version, with no saved
+-- variables of its own.
 -- Run from any directory with Lua 5.1: lua Tools/check_manifest.lua
 
 local root = (arg and arg[0] or ""):match("^(.-)[^/\\]*$") .. "../"
@@ -71,29 +73,64 @@ function Visit(path, text)
 	end
 end
 
-local toc = Read("AeonUI.toc")
-if not toc then
-	Problem("missing AeonUI.toc")
-else
+local function Field(toc, name)
+	return toc:match("##%s*" .. name .. "%s*:%s*([^\r\n]-)%s*[\r\n]")
+end
+
+---@return string? toc the .toc's text
+local function LoadToc(folder, name)
+	local path = folder .. name .. ".toc"
+	local toc = Read(path)
+	if not toc then
+		Problem("missing " .. path)
+
+		return nil
+	end
 	-- Lines inside #@do-not-package@ markers are ordinary file lines in development; the markers are comments.
 	for line in toc:gmatch("[^\r\n]+") do
 		if not line:match("^%s*#") and line:match("%S") then
-			Load(line:match("^%s*(.-)%s*$"), "AeonUI.toc")
+			Load(folder .. line:match("^%s*(.-)%s*$"), path)
+		end
+	end
+
+	return toc
+end
+
+local base = LoadToc("", "AeonUI")
+local listing = windows and ('dir /b /ad "%sAeonUI_*" 2>nul'):format(root:gsub("/", "\\"))
+	or ('ls -d "%s"AeonUI_*/ 2>/dev/null'):format(root)
+local folders = assert(io.popen(listing))
+for line in folders:lines() do
+	local name = line:match("([^/\\]+)[/\\]?$")
+	local toc = LoadToc(name .. "/", name)
+	if toc and base then
+		if Field(toc, "Dependencies") ~= "AeonUI" then
+			Problem(name .. ".toc must declare ## Dependencies: AeonUI")
+		end
+		if Field(toc, "Interface") ~= Field(base, "Interface") then
+			Problem(name .. ".toc must list the base's ## Interface")
+		end
+		if Field(toc, "Version") ~= Field(base, "Version") then
+			Problem(name .. ".toc must list the base's ## Version")
+		end
+		if Field(toc, "SavedVariables") or Field(toc, "SavedVariablesPerCharacter") then
+			Problem(name .. ".toc must not declare saved variables")
 		end
 	end
 end
+folders:close()
 
 -- Every owned .lua file on disk must be loaded.
 local here = assert(io.popen(windows and ('cd /d "%s" && cd'):format(root:gsub("/", "\\")) or ('cd "%s" && pwd'):format(root)))
-local base = Normalize(here:read("*l")):lower() .. "/"
+local rootPath = Normalize(here:read("*l")):lower() .. "/"
 here:close()
-local listing = windows and 'dir /s /b /a-d "' .. root:gsub("/", "\\") .. '*.lua" 2>nul'
+local files = windows and 'dir /s /b /a-d "' .. root:gsub("/", "\\") .. '*.lua" 2>nul'
 	or 'find "' .. root .. '" -name "*.lua" -type f'
-local pipe = assert(io.popen(listing))
+local pipe = assert(io.popen(files))
 for line in pipe:lines() do
 	local path = Normalize(line)
-	if path:lower():sub(1, #base) == base then
-		path = path:sub(#base + 1)
+	if path:lower():sub(1, #rootPath) == rootPath then
+		path = path:sub(#rootPath + 1)
 	end
 	local top = path:match("^[^/]+/")
 	if not (top and UNLISTED[top]) and not path:match("^%.") and not loaded[path] then

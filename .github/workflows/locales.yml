@@ -4,11 +4,13 @@ on:
   pull_request:
     paths:
       - "Locale/**"
+      - "AeonUI_*/Locale/**"
       - "Tools/sync-locales.py"
   push:
     branches: [main]
     paths:
       - "Locale/**"
+      - "AeonUI_*/Locale/**"
       - "Tools/sync-locales.py"
 
 permissions:

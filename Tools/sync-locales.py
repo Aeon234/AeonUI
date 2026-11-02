@@ -1,4 +1,4 @@
-"""Keep the addon's translation files in step with Locale/enUS.lua.
+"""Keep each addon's translation files in step with its Locale/enUS.lua: the base's and each AeonUI_* folder's.
 
     python Tools/sync-locales.py          rewrite every locale file from enUS.lua, keeping translations
     python Tools/sync-locales.py --check  change nothing; fail if a file is out of step or a translation is broken
@@ -14,8 +14,6 @@ import subprocess
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-LOCALE_DIR = os.path.join(ROOT, "Locale")
-SOURCE = os.path.join(LOCALE_DIR, "enUS.lua")
 LOCALES = ["deDE", "esES", "esMX", "frFR", "itIT", "koKR", "ptBR", "ruRU", "zhCN", "zhTW"]
 
 # Either quote style: enUS.lua single-quotes text that contains double quotes.
@@ -40,9 +38,17 @@ def write(path, text):
         handle.write(text.replace("\n", "\r\n").encode("utf-8"))
 
 
-def source_layout():
+def locale_dirs():
+    """The base's locale folder, then each feature addon's that has one."""
+    folders = sorted(name for name in os.listdir(ROOT) if name.startswith("AeonUI_"))
+    dirs = [os.path.join(ROOT, name, "Locale") for name in folders]
+
+    return [os.path.join(ROOT, "Locale")] + [path for path in dirs if os.path.isdir(path)]
+
+
+def source_layout(locale_dir):
     """The English file after its setup code, as ("comment" | "blank" | "entry", data) items."""
-    text = read(SOURCE)
+    text = read(os.path.join(locale_dir, "enUS.lua"))
     publish = PUBLISH.search(text)
 
     if not publish:
@@ -161,15 +167,16 @@ def luac():
     return fallback if os.path.exists(fallback) else None
 
 
-def main():
-    check = "--check" in sys.argv[1:]
-    items = source_layout()
+def sync(locale_dir, check):
+    """Returns this folder's failures; rewrites its files unless checking."""
+    name = os.path.relpath(locale_dir, ROOT).replace(os.sep, "/")
+    items = source_layout(locale_dir)
     failures = []
 
     for code in LOCALES:
-        path = os.path.join(LOCALE_DIR, code + ".lua")
+        path = os.path.join(locale_dir, code + ".lua")
         done, duplicates = translations(path)
-        failures += problems(code, items, done, duplicates)
+        failures += ["{}: {}".format(name, failure) for failure in problems(code, items, done, duplicates)]
 
         english = {data[0] for kind, data in items if kind == "entry"}
         wanted = render(code, items, {key: value for key, value in done.items() if key in english})
@@ -179,22 +186,33 @@ def main():
             continue
 
         if check:
-            failures.append("{}: out of step with enUS.lua; run python Tools/sync-locales.py".format(code))
+            failures.append("{}: {}: out of step with enUS.lua; run python Tools/sync-locales.py".format(name, code))
         else:
             write(path, wanted)
-            print("updated " + code)
+            print("updated {} {}".format(name, code))
 
     compiler = luac()
 
     if compiler:
         for code in ["enUS"] + LOCALES:
-            path = os.path.join(LOCALE_DIR, code + ".lua")
+            path = os.path.join(locale_dir, code + ".lua")
             result = subprocess.run([compiler, "-p", path], capture_output=True, text=True)
 
             if result.returncode != 0:
-                failures.append("{}: does not parse: {}".format(code, (result.stderr or result.stdout).strip()))
+                failures.append("{}: {}: does not parse: {}".format(name, code, (result.stderr or result.stdout).strip()))
     else:
         print("note: no luac found, so the files were not parse-checked (set LUAC to its path)")
+
+    return failures
+
+
+def main():
+    check = "--check" in sys.argv[1:]
+    dirs = locale_dirs()
+    failures = []
+
+    for locale_dir in dirs:
+        failures += sync(locale_dir, check)
 
     for failure in failures:
         print(failure)
@@ -202,7 +220,7 @@ def main():
     if failures:
         sys.exit(1)
 
-    print("locales: {} languages in step with enUS.lua".format(len(LOCALES)))
+    print("locales: {} languages in step with enUS.lua, {} addon(s)".format(len(LOCALES), len(dirs)))
 
 
 if __name__ == "__main__":
