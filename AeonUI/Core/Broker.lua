@@ -2,8 +2,6 @@ local AUI = select(2, ...)
 
 local L = AUI.L
 
-local ICON = "Interface\\Icons\\INV_Misc_Gear_01"
-
 ---The minimap button, from a LibDataBroker launcher, and the addon compartment entry. LibDBIcon keeps the button's
 ---state (hidden, position) in `global.minimapButton` and writes it in place. The entry is registered directly because
 ---LibDBIcon labels its entry with the launcher's name and finds the launcher by that label, which rules out color codes.
@@ -59,7 +57,7 @@ function Broker:Create()
 
 	local launcher = broker:NewDataObject(AUI.name, {
 		type = "launcher",
-		icon = ICON,
+		icon = AUI.Media.logo,
 		OnClick = OnClick,
 		OnTooltipShow = OnTooltipShow,
 	})
@@ -75,7 +73,7 @@ function Broker:Create()
 	if AUI.can.compartment then
 		AddonCompartmentFrame:RegisterAddon({
 			text = AUI.brand,
-			icon = ICON,
+			icon = AUI.Media.logo,
 			func = OnClick,
 			funcOnEnter = OnCompartmentEnter,
 			funcOnLeave = OnCompartmentLeave,

@@ -113,6 +113,9 @@ for line in folders:lines() do
 		if Field(toc, "Version") ~= Field(base, "Version") then
 			Problem(name .. ".toc must list the base's ## Version")
 		end
+		if Field(toc, "IconTexture") ~= Field(base, "IconTexture") then
+			Problem(name .. ".toc must list the base's ## IconTexture")
+		end
 		if Field(toc, "SavedVariables") or Field(toc, "SavedVariablesPerCharacter") then
 			Problem(name .. ".toc must not declare saved variables")
 		end

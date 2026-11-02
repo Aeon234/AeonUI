@@ -815,7 +815,7 @@ do
 		castBarCards[#castBarCards + 1] = section.title .. ": " .. table.concat(ids, " ")
 	end
 	Equal("its cards", table.concat(castBarCards, " | "), "Bar: width height texture color gradient gradientColor "
-		.. "gradientDirection notInterruptible background border spark reverse smooth alwaysShow strata | "
+		.. "gradientDirection notInterruptible background borderStyle border spark reverse smooth alwaysShow strata | "
 		.. "Icon: icon iconSide | Text: font outline shadow | Spell Name: nameEnabled nameSize nameColor nameX nameY "
 		.. "nameLength | Time: timeEnabled timeFormat timeSize timeColor timeX timeY | Cast Target: targetEnabled "
 		.. "targetColor targetSize targetX targetY | Feedback: interrupted holdTime fade | Latency: latency latencyColor "
@@ -1546,10 +1546,12 @@ AUI.can.compartment = true
 AeonUIDB.global.minimapButton = { hide = false, showInCompartment = true }
 Broker:Create()
 Equal("a launcher", launchers.AeonUI ~= nil, true)
+Equal("the minimap button shows the logo", launchers.AeonUI.icon, AUI.Media.logo)
 Equal("LibDBIcon keeps the saved table", icon.registered.AeonUI, AeonUIDB.global.minimapButton)
 Equal("shown by default", Broker:Hidden(), false)
 Equal("added to the compartment once", #icon.compartment, 1)
 Equal("the compartment entry shows the brand", icon.compartment[1].text, AUI.brand)
+Equal("the compartment entry shows the logo", icon.compartment[1].icon, AUI.Media.logo)
 Equal("LibDBIcon adds no entry of its own", AeonUIDB.global.minimapButton.showInCompartment, nil)
 local settingsOpen, realIsOpen, realOpen, realClose = false, Settings.IsOpen, Settings.Open, Settings.Close
 Settings.IsOpen = function()

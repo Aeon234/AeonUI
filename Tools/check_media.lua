@@ -82,6 +82,10 @@ Equal("AeonUI's three bar textures and fifteen more", counts.statusbar, 18)
 Equal("AeonCore's names are kept", registered["font:Expressway"],
 	"Interface\\AddOns\\AeonUI\\Media\\Fonts\\Expressway.ttf")
 
+-- Logo ----------------------------------------------------------------------------------------------------
+
+Equal("the logo ships", Ships(Media.logo), true)
+
 -- Role icons ----------------------------------------------------------------------------------------------
 
 Equal("six styles, the client's first", Media.ROLE_STYLES[1] .. " " .. #Media.ROLE_STYLES, "DEFAULT 6")
