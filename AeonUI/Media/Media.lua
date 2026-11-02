@@ -93,7 +93,7 @@ local Media = {
 			["Toxi Half"] = MEDIA .. "Statusbars\\ToxiHalf.tga",
 		},
 	},
-	logo = MEDIA .. "Textures\\Logo.tga",
+	logo = MEDIA .. "Textures\\Logo.png",
 	ROLE_STYLES = { "DEFAULT", "BLIZZARD", "COLOR", "ELVUI", "SQUARE", "WHITE" },
 	roles = {
 		BLIZZARD = RoleFiles("Blizzard", "tga"),

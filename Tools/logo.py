@@ -1,6 +1,6 @@
 """Builds AeonUI's logo from Alex's artwork.
 
-    python Tools/logo.py          write AeonUI/Media/Textures/Logo.tga
+    python Tools/logo.py          write AeonUI/Media/Textures/Logo.png
     python Tools/logo.py --check  change nothing; fail if the logo is missing or stale
 
 The source (Tools/Art/Logo.png, supplied by Alex on 2026-11-02) is an 898x886 image on a transparent background. It is
@@ -18,7 +18,7 @@ from PIL import Image
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SOURCE = ROOT / "Tools" / "Art" / "Logo.png"
-TARGET = ROOT / "AeonUI" / "Media" / "Textures" / "Logo.tga"
+TARGET = ROOT / "AeonUI" / "Media" / "Textures" / "Logo.png"
 SIZE = 64
 MARGIN = 0.05
 
