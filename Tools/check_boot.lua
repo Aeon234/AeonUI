@@ -326,7 +326,7 @@ local function LoadFile(path, addon, namespace)
 end
 
 local function LoadAddon(addon)
-	local folder = addon == "AeonUI" and "" or addon .. "/"
+	local folder = addon .. "/"
 	local toc = assert(Read(folder .. addon .. ".toc"), "missing .toc of " .. addon)
 	local namespace = {}
 	local packaged = true

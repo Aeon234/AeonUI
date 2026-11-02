@@ -122,8 +122,8 @@ AUI.Profile = {
 	end,
 }
 
-for _, file in ipairs({ "Core/Callbacks.lua", "Core/Events.lua", "Interface/UIScale.lua",
-	"Interface/GameMenuScale.lua" }) do
+for _, file in ipairs({ "AeonUI/Core/Callbacks.lua", "AeonUI/Core/Events.lua", "AeonUI/Interface/UIScale.lua",
+	"AeonUI/Interface/GameMenuScale.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 
@@ -365,7 +365,7 @@ local function Set(path, value)
 	RunTimers()
 end
 
-for _, file in ipairs({ "Profile/Schema.lua", "AeonUI_QoL/Interface/Options.lua", "AeonUI_QoL/Interface/ExtraActionButton.lua",
+for _, file in ipairs({ "AeonUI/Profile/Schema.lua", "AeonUI_QoL/Interface/Options.lua", "AeonUI_QoL/Interface/ExtraActionButton.lua",
 	"AeonUI_QoL/Interface/HelpTips.lua", "AeonUI_QoL/Interface/HideFrames.lua",
 	"AeonUI_QoL/Interface/Popups.lua", "AeonUI_QoL/Interface/ReleaseProtection.lua", "AeonUI_QoL/Interface/TradingPost.lua",
 	"AeonUI_QoL/Interface/Interface.lua" }) do

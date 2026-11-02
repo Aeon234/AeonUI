@@ -51,14 +51,14 @@ function strlenutf8(text)
 end
 
 local AUI = {}
-assert(loadfile(root .. "Core/Core.lua"))("AeonUI", AUI)
+assert(loadfile(root .. "AeonUI/Core/Core.lua"))("AeonUI", AUI)
 AUI.L = setmetatable({}, { __index = function(_, key)
 	return key
 end })
-assert(loadfile(root .. "Core/Callbacks.lua"))("AeonUI", AUI)
-assert(loadfile(root .. "Profile/Schema.lua"))("AeonUI", AUI)
-assert(loadfile(root .. "Profile/Store.lua"))("AeonUI", AUI)
-assert(loadfile(root .. "Profile/Profile.lua"))("AeonUI", AUI)
+assert(loadfile(root .. "AeonUI/Core/Callbacks.lua"))("AeonUI", AUI)
+assert(loadfile(root .. "AeonUI/Profile/Schema.lua"))("AeonUI", AUI)
+assert(loadfile(root .. "AeonUI/Profile/Store.lua"))("AeonUI", AUI)
+assert(loadfile(root .. "AeonUI/Profile/Profile.lua"))("AeonUI", AUI)
 
 local Schema, Store, Profile = AUI.Schema, AUI.Store, AUI.Profile
 

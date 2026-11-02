@@ -109,11 +109,11 @@ function Mixin(object, ...)
 end
 
 local AUI = {}
-assert(loadfile(root .. "Core/Core.lua"))("AeonUI", AUI)
+assert(loadfile(root .. "AeonUI/Core/Core.lua"))("AeonUI", AUI)
 AUI.L = setmetatable({}, { __index = function(_, key)
 	return key
 end })
-for _, file in ipairs({ "Core/Callbacks.lua", "Profile/Schema.lua", "UI/Border.lua", "AeonUI_Maps/Minimap/Layout.lua",
+for _, file in ipairs({ "AeonUI/Core/Callbacks.lua", "AeonUI/Profile/Schema.lua", "AeonUI/UI/Border.lua", "AeonUI_Maps/Minimap/Layout.lua",
 	"AeonUI_Maps/Minimap/Elements.lua", "AeonUI_Maps/Minimap/Rows.lua", "AeonUI_Maps/Minimap/Fade.lua", "AeonUI_Maps/Minimap/Text.lua", "AeonUI_Maps/Minimap/Difficulty.lua",
 	"AeonUI_Maps/Minimap/Buttons.lua", "AeonUI_Maps/Minimap/Map.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
@@ -181,7 +181,7 @@ for width = 140, 400, 10 do
 end
 for mask in pairs(names) do
 	if mask ~= "WHITE8X8" then
-		local file = io.open(root .. "Media/Textures/Masks/" .. mask .. ".tga", "rb")
+		local file = io.open(root .. "AeonUI/Media/Textures/Masks/" .. mask .. ".tga", "rb")
 
 		Equal(mask .. " exists", file ~= nil, true)
 

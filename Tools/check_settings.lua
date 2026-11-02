@@ -404,31 +404,31 @@ MACROS, HEALTH = "Macros", "Health"
 RAID_TARGET_1, RAID_TARGET_8 = "Star", "Skull"
 
 local AUI = {}
-assert(loadfile(root .. "Core/Core.lua"))("AeonUI", AUI)
+assert(loadfile(root .. "AeonUI/Core/Core.lua"))("AeonUI", AUI)
 AUI.L = setmetatable({}, { __index = function(_, key)
 	return key
 end })
 -- The pages load in Settings.xml's order, which sets the order they register in.
-for _, file in ipairs({ "Core/Callbacks.lua", "Core/Capabilities.lua", "Core/Modules.lua", "Core/Broker.lua",
-	"Profile/Schema.lua", "Profile/Store.lua", "Profile/Profile.lua", "Media/Media.lua", "UI/Border.lua",
+for _, file in ipairs({ "AeonUI/Core/Callbacks.lua", "AeonUI/Core/Capabilities.lua", "AeonUI/Core/Modules.lua", "AeonUI/Core/Broker.lua",
+	"AeonUI/Profile/Schema.lua", "AeonUI/Profile/Store.lua", "AeonUI/Profile/Profile.lua", "AeonUI/Media/Media.lua", "AeonUI/UI/Border.lua",
 	"AeonUI_Maps/Minimap/Layout.lua", "AeonUI_Maps/Minimap/Elements.lua", "AeonUI_Maps/Minimap/Rows.lua", "AeonUI_Maps/Minimap/Fade.lua", "AeonUI_Maps/Minimap/Text.lua",
 	"AeonUI_Maps/Minimap/Difficulty.lua", "AeonUI_Maps/Minimap/Buttons.lua", "AeonUI_Maps/Minimap/Map.lua", "AeonUI_Maps/WorldMap/Markers.lua", "AeonUI_Maps/WorldMap/Options.lua",
-	"AeonUI_Tooltip/Tooltip/Options.lua", "AeonUI_Tooltip/Tooltip/Tooltip.lua", "Interface/UIScale.lua", "Interface/GameMenuScale.lua",
+	"AeonUI_Tooltip/Tooltip/Options.lua", "AeonUI_Tooltip/Tooltip/Tooltip.lua", "AeonUI/Interface/UIScale.lua", "AeonUI/Interface/GameMenuScale.lua",
 	"AeonUI_QoL/Automation/Options.lua", "AeonUI_QoL/Automation/GameSettings.lua", "AeonUI_QoL/Menus/Options.lua", "AeonUI_QoL/Input/Options.lua",
 	"AeonUI_QoL/Input/FocusShortcut.lua", "AeonUI_QoL/Alerts/Options.lua", "AeonUI_QoL/Interface/Options.lua", "AeonUI_QoL/ScreenText/Options.lua",
 	"AeonUI_QoL/ScreenText/ScreenText.lua", "AeonUI_QoL/Cursor/Options.lua", "AeonUI_QoL/Cursor/CursorRing.lua", "AeonUI_UnitFrames/CastBar/Options.lua",
 	"AeonUI_UnitFrames/CastBar/TickData.lua", "AeonUI_UnitFrames/CastBar/BlizzardBar.lua", "AeonUI_UnitFrames/CastBar/CastBar.lua", "AeonUI_QoL/Notifications/Options.lua",
 	"AeonUI_QoL/Notifications/Notifications.lua", "AeonUI_QoL/Markers/Options.lua", "AeonUI_QoL/Markers/Bar.lua", "AeonUI_QoL/Markers/Cycler.lua",
-	"AeonUI_QoL/Markers/Markers.lua", "AeonUI_QoL/DeleteCheapestItem/Options.lua", "Core/AuctionPrices.lua",
+	"AeonUI_QoL/Markers/Markers.lua", "AeonUI_QoL/DeleteCheapestItem/Options.lua", "AeonUI/Core/AuctionPrices.lua",
 	"AeonUI_QoL/MerchantWindow/Options.lua", "AeonUI_QoL/MerchantWindow/BottomBar.lua", "AeonUI_QoL/MerchantWindow/MerchantWindow.lua",
 	"AeonUI_QoL/HiddenSettings/Options.lua", "AeonUI_QoL/HiddenSettings/CVarHolder.lua", "AeonUI_QoL/HiddenSettings/HiddenSettings.lua",
-	"AeonUI_QoL/Macros/Options.lua", "AeonUI_QoL/Macros/Macros.lua", "Settings/Window.lua", "Settings/General.lua", "AeonUI_UnitFrames/Settings/CastBar.lua",
+	"AeonUI_QoL/Macros/Options.lua", "AeonUI_QoL/Macros/Macros.lua", "AeonUI/Settings/Window.lua", "AeonUI/Settings/General.lua", "AeonUI_UnitFrames/Settings/CastBar.lua",
 	"AeonUI_Maps/Settings/MinimapEditor.lua", "AeonUI_Maps/Settings/Minimap.lua", "AeonUI_Maps/Settings/WorldMap.lua", "AeonUI_Tooltip/Settings/Tooltip.lua",
 	"AeonUI_QoL/Settings/Automation.lua", "AeonUI_QoL/Settings/DeleteCheapestItem.lua", "AeonUI_QoL/Settings/MerchantWindow.lua",
 	"AeonUI_QoL/Settings/HiddenSettings.lua", "AeonUI_QoL/Settings/Macros.lua", "AeonUI_QoL/Settings/PlayerMenu.lua", "AeonUI_QoL/Settings/Input.lua",
 	"AeonUI_QoL/Settings/Alerts.lua", "AeonUI_QoL/Settings/Notifications.lua", "AeonUI_QoL/Settings/RaidMarkers.lua", "AeonUI_QoL/Settings/Interface.lua",
-	"AeonUI_QoL/Settings/ScreenText.lua", "AeonUI_QoL/Settings/Cursor.lua", "Settings/Profiles.lua", "Settings/Recovery.lua",
-	"Settings/EditTargets.lua" }) do
+	"AeonUI_QoL/Settings/ScreenText.lua", "AeonUI_QoL/Settings/Cursor.lua", "AeonUI/Settings/Profiles.lua", "AeonUI/Settings/Recovery.lua",
+	"AeonUI/Settings/EditTargets.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 

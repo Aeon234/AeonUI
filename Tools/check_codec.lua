@@ -123,12 +123,12 @@ C_EncodingUtil = {
 }
 
 local AUI = {}
-assert(loadfile(root .. "Core/Core.lua"))("AeonUI", AUI)
+assert(loadfile(root .. "AeonUI/Core/Core.lua"))("AeonUI", AUI)
 AUI.L = setmetatable({}, { __index = function(_, key)
 	return key
 end })
-for _, file in ipairs({ "Core/Callbacks.lua", "Profile/Schema.lua", "Profile/Store.lua", "Profile/Codec.lua",
-	"Profile/Profile.lua" }) do
+for _, file in ipairs({ "AeonUI/Core/Callbacks.lua", "AeonUI/Profile/Schema.lua", "AeonUI/Profile/Store.lua", "AeonUI/Profile/Codec.lua",
+	"AeonUI/Profile/Profile.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 

@@ -47,9 +47,9 @@ local AUI = {}
 AUI.L = setmetatable({}, { __index = function(_, key)
 	return key
 end })
-assert(loadfile(root .. "Core/Core.lua"))("AeonUI", AUI)
+assert(loadfile(root .. "AeonUI/Core/Core.lua"))("AeonUI", AUI)
 
-for _, file in ipairs({ "Core/Callbacks.lua", "Core/Events.lua", "Profile/Schema.lua" }) do
+for _, file in ipairs({ "AeonUI/Core/Callbacks.lua", "AeonUI/Core/Events.lua", "AeonUI/Profile/Schema.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 
@@ -273,7 +273,7 @@ Equal("a removed ID leaves no key", list[30], nil)
 
 -- Auction prices ------------------------------------------------------------------------------------------
 
-assert(loadfile(root .. "Core/AuctionPrices.lua"))("AeonUI", AUI)
+assert(loadfile(root .. "AeonUI/Core/AuctionPrices.lua"))("AeonUI", AUI)
 
 local Prices = AUI.AuctionPrices
 local auctionCalls = 0

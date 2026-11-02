@@ -76,13 +76,13 @@ local AUI = {}
 AUI.L = setmetatable({}, { __index = function(_, key)
 	return key
 end })
-assert(loadfile(root .. "Core/Core.lua"))("AeonUI", AUI)
+assert(loadfile(root .. "AeonUI/Core/Core.lua"))("AeonUI", AUI)
 RELOADUI = "Reload UI"
-assert(loadfile(root .. "Core/Bindings.lua"))("AeonUI", AUI)
-assert(loadfile(root .. "Core/Callbacks.lua"))("AeonUI", AUI)
-assert(loadfile(root .. "Core/Events.lua"))("AeonUI", AUI)
-assert(loadfile(root .. "Core/GameMenu.lua"))("AeonUI", AUI)
-assert(loadfile(root .. "Core/Modules.lua"))("AeonUI", AUI)
+assert(loadfile(root .. "AeonUI/Core/Bindings.lua"))("AeonUI", AUI)
+assert(loadfile(root .. "AeonUI/Core/Callbacks.lua"))("AeonUI", AUI)
+assert(loadfile(root .. "AeonUI/Core/Events.lua"))("AeonUI", AUI)
+assert(loadfile(root .. "AeonUI/Core/GameMenu.lua"))("AeonUI", AUI)
+assert(loadfile(root .. "AeonUI/Core/Modules.lua"))("AeonUI", AUI)
 
 -- Harness -------------------------------------------------------------------------------------------------
 
@@ -243,7 +243,7 @@ Equal("reload is named as Blizzard names it", BINDING_NAME_AEONUI_RELOAD, "Reloa
 Equal("eject is named", BINDING_NAME_AEONUI_EJECT, "Eject All Passengers")
 
 local bindingsXML = ""
-for _, path in ipairs({ "Bindings.xml", "AeonUI_QoL/Bindings.xml" }) do
+for _, path in ipairs({ "AeonUI/Bindings.xml", "AeonUI_QoL/Bindings.xml" }) do
 	local bindingsFile = assert(io.open(root .. path, "rb"))
 	bindingsXML = bindingsXML .. bindingsFile:read("*a")
 	bindingsFile:close()

@@ -43,7 +43,7 @@ def locale_dirs():
     folders = sorted(name for name in os.listdir(ROOT) if name.startswith("AeonUI_"))
     dirs = [os.path.join(ROOT, name, "Locale") for name in folders]
 
-    return [os.path.join(ROOT, "Locale")] + [path for path in dirs if os.path.isdir(path)]
+    return [os.path.join(ROOT, "AeonUI", "Locale")] + [path for path in dirs if os.path.isdir(path)]
 
 
 def source_layout(locale_dir):

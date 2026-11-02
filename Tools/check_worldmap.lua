@@ -15,7 +15,7 @@ local root = (arg and arg[0] or ""):match("^(.-)[^/\\]*$") .. "../"
 -- Environment ---------------------------------------------------------------------------------------------
 
 local AUI = {}
-for _, file in ipairs({ "Locale/enUS.lua", "AeonUI_Maps/Locale/enUS.lua", "Profile/Schema.lua", "AeonUI_Maps/WorldMap/Markers.lua", "AeonUI_Maps/WorldMap/Data.lua",
+for _, file in ipairs({ "AeonUI/Locale/enUS.lua", "AeonUI_Maps/Locale/enUS.lua", "AeonUI/Profile/Schema.lua", "AeonUI_Maps/WorldMap/Markers.lua", "AeonUI_Maps/WorldMap/Data.lua",
 	"AeonUI_Maps/WorldMap/TownData.lua", "AeonUI_Maps/WorldMap/Options.lua", "AeonUI_Maps/WorldMap/OptionsData.lua", "AeonUI_Maps/WorldMap/Dungeons.lua", "AeonUI_Maps/WorldMap/DungeonData.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
@@ -224,7 +224,7 @@ Equal("and not elsewhere", Markers:LeadsTo(dock, 4), false)
 Equal("a dungeon leads nowhere", Markers:LeadsTo({ markers = { {} } }, 1), false)
 
 -- Every category's kind and name are in the English locale file.
-local english = assert(io.open(root .. "Locale/enUS.lua", "rb")):read("*a")
+local english = assert(io.open(root .. "AeonUI/Locale/enUS.lua", "rb")):read("*a")
 	.. assert(io.open(root .. "AeonUI_Maps/Locale/enUS.lua", "rb")):read("*a")
 for _, category in ipairs(Markers.CATEGORIES) do
 	Equal(category.key .. " names its kind in English", english:find('L["' .. category.label .. '"]', 1, true) ~= nil,

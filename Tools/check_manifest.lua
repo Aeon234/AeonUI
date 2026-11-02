@@ -1,6 +1,6 @@
 -- Checks the load path: every file the .toc files and their .xml files name exists, and every AeonUI-owned .lua file
--- is loaded exactly once. Libraries under Libs/ are followed only where embeds.xml names them. Each AeonUI_* folder is
--- a feature addon: it needs its own .toc, depending on the base, on the base's clients and version, with no saved
+-- is loaded exactly once. Libraries under AeonUI/Libs/ are followed only where embeds.xml names them. AeonUI/ is the
+-- base addon and each AeonUI_* folder a feature addon: it needs its own .toc, depending on the base, on the base's clients and version, with no saved
 -- variables of its own.
 -- Run from any directory with Lua 5.1: lua Tools/check_manifest.lua
 
@@ -8,7 +8,7 @@ local root = (arg and arg[0] or ""):match("^(.-)[^/\\]*$") .. "../"
 local windows = package.config:sub(1, 1) == "\\"
 
 -- Folders whose .lua files are never loaded by the game or are not AeonUI's.
-local UNLISTED = { ["Libs/"] = true, ["Tools/"] = true, ["Scripts/"] = true, ["Archive/"] = true }
+local UNLISTED = { ["Tools/"] = true, ["Scripts/"] = true, ["Archive/"] = true }
 
 local problems = {}
 local loaded = {}
@@ -96,7 +96,7 @@ local function LoadToc(folder, name)
 	return toc
 end
 
-local base = LoadToc("", "AeonUI")
+local base = LoadToc("AeonUI/", "AeonUI")
 local listing = windows and ('dir /b /ad "%sAeonUI_*" 2>nul'):format(root:gsub("/", "\\"))
 	or ('ls -d "%s"AeonUI_*/ 2>/dev/null'):format(root)
 local folders = assert(io.popen(listing))
@@ -133,7 +133,7 @@ for line in pipe:lines() do
 		path = path:sub(#rootPath + 1)
 	end
 	local top = path:match("^[^/]+/")
-	if not (top and UNLISTED[top]) and not path:match("^%.") and not loaded[path] then
+	if not (top and UNLISTED[top]) and not path:match("^AeonUI/Libs/") and not path:match("^%.") and not loaded[path] then
 		Problem("not loaded: " .. path)
 	end
 end
