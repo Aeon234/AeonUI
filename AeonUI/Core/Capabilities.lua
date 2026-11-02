@@ -35,6 +35,7 @@ AUI.Capabilities = Capabilities
 ---@field warcraftLogsLinks boolean Warcraft Logs lists this client's characters (Retail)
 ---@field clickDown boolean action buttons can act on key down (`ActionButtonUseKeyDown`)
 ---@field focusShortcut boolean a mouse button can be bound to a secure button (`SetOverrideBindingClick`)
+---@field macroNames boolean Blizzard's action button bars can be listed (`ActionButtonUtil.ActionBarButtonNames`)
 ---@field keyLabels boolean action buttons' key labels can be read back from their bindings (`IsBindingForGamePad`)
 ---@field extraActionButton boolean the extra action button's frame exists (`ExtraActionBarFrame`)
 ---@field helpTips boolean help tips are marked seen in a console variable's bits (`closedInfoFramesAccountWide`)
@@ -121,6 +122,7 @@ function Capabilities:Resolve()
 	can.clickDown = C_CVar.GetCVarInfo("ActionButtonUseKeyDown") ~= nil
 	can.focusShortcut = SetOverrideBindingClick ~= nil and ClearOverrideBindings ~= nil and C_AddOns ~= nil
 		and C_AddOns.IsAddOnLoaded ~= nil
+	can.macroNames = ActionButtonUtil ~= nil and ActionButtonUtil.ActionBarButtonNames ~= nil
 	can.keyLabels = ActionButtonUtil ~= nil and ActionButtonUtil.ActionBarButtonNames ~= nil and GetBindingKey ~= nil
 		and IsBindingForGamePad ~= nil
 	can.extraActionButton = ExtraActionBarFrame ~= nil

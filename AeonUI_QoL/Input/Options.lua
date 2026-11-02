@@ -16,6 +16,7 @@ local MARK_BUTTON = "AeonUIFocusMark"
 ---@field FOCUS_WORLD_PATH string clicks in the world focus the unit under the cursor
 ---@field FOCUS_MARK_PATH string a raid marker is put on the new focus
 ---@field FOCUS_MARKER_PATH string a `focusMarker` choice, the marker's number
+---@field HIDE_MACRO_NAMES_PATH string action buttons hide macro names
 ---@field KEY_LABELS_PATH string action buttons show short key labels
 ---@field KEY_FONT_PATH string the key labels' LibSharedMedia font
 ---@field KEY_SIZE_PATH string the key labels' font size
@@ -37,6 +38,7 @@ local Options = {
 	FOCUS_WORLD_PATH = "input.focus.world",
 	FOCUS_MARK_PATH = "input.focus.mark",
 	FOCUS_MARKER_PATH = "input.focus.marker",
+	HIDE_MACRO_NAMES_PATH = "input.hideMacroNames",
 	KEY_LABELS_PATH = "input.keyLabels.enabled",
 	KEY_FONT_PATH = "input.keyLabels.font",
 	KEY_SIZE_PATH = "input.keyLabels.size",
@@ -66,6 +68,7 @@ Schema:Choice(Options.FOCUS_BUTTON_PATH, "focusButton", "1")
 Schema:Boolean(Options.FOCUS_WORLD_PATH, true)
 Schema:Boolean(Options.FOCUS_MARK_PATH, false)
 Schema:Choice(Options.FOCUS_MARKER_PATH, "focusMarker", "8")
+Schema:Boolean(Options.HIDE_MACRO_NAMES_PATH, false)
 -- Blizzard's key labels use NumberFontNormalSmallGray: Arial Narrow at 12 on both clients.
 Schema:Boolean(Options.KEY_LABELS_PATH, false)
 Schema:String(Options.KEY_FONT_PATH, "Arial Narrow", 64)

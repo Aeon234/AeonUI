@@ -155,6 +155,7 @@ L["Mark Focus"] = "주시 대상 표시"
 L["Never replaces an existing marker."] = "기존 징표는 바꾸지 않습니다."
 L["Marker"] = "표시"
 L["Clique handles unit frames; bind Focus there."] = "Clique가 유닛 프레임을 관리합니다. 주시는 Clique에서 지정하세요."
+L["Hide Macro Names"] = "매크로 이름 숨기기"
 L["Short Key Labels"] = "짧은 단축키 표시"
 L["Shows Shift + Mouse Button 4 as %s."] = "Shift + 마우스 버튼 4를 %s(으)로 표시합니다."
 

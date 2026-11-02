@@ -220,8 +220,19 @@ local function ShowKey(hotkey, key)
 	hotkey:SetText(key and blizzardText[key] or RANGE_INDICATOR)
 end
 
+local alphaWrites = 0
+local function MacroName()
+	local text = { alpha = 1 }
+	function text:SetAlpha(alpha)
+		self.alpha = alpha
+		alphaWrites = alphaWrites + 1
+	end
+
+	return text
+end
+
 local function ActionButton(name, action)
-	local button = { HotKey = HotKey() }
+	local button = { HotKey = HotKey(), Name = MacroName() }
 	function button:GetName()
 		return name
 	end
@@ -256,7 +267,7 @@ AUI.L = setmetatable({}, { __index = function(_, key)
 	return key
 end })
 assert(loadfile(root .. "AeonUI/Core/Core.lua"))("AeonUI", AUI)
-AUI.can = { clickDown = true, focusShortcut = true, keyLabels = true }
+AUI.can = { clickDown = true, focusShortcut = true, keyLabels = true, macroNames = true }
 AUI.Media = {
 	Font = function(_, name)
 		return name
@@ -290,7 +301,7 @@ end
 
 
 for _, file in ipairs({ "AeonUI_QoL/Input/Options.lua", "AeonUI_QoL/Input/ClickDown.lua", "AeonUI_QoL/Input/FocusShortcut.lua", "AeonUI_QoL/Input/KeyLabels.lua",
-	"AeonUI_QoL/Input/Input.lua" }) do
+	"AeonUI_QoL/Input/MacroNames.lua", "AeonUI_QoL/Input/Input.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 
@@ -531,5 +542,31 @@ Equal("Blizzard's updates are left alone", boundButton.HotKey.text, "s-Mouse But
 Set(Options.KEY_LABELS_PATH, true)
 Equal("on again: no second hook", hooks - baseHooks, 5)
 Equal("labels shortened again", boundButton.HotKey.text .. " " .. emptyButton.HotKey.text, "SM4 SM4")
+
+-- Macro names ---------------------------------------------------------------------------------------------
+
+Equal("off by default", Options:Get(Options.HIDE_MACRO_NAMES_PATH), false)
+Equal("never turned on: no button is touched", alphaWrites, 0)
+
+Set(Options.HIDE_MACRO_NAMES_PATH, true)
+Equal("on: every main bar button's name is hidden", alphaWrites, 4)
+Equal("on the first bar and the others", boundButton.Name.alpha .. " " .. emptyButton.Name.alpha, "0 0")
+Equal("the key label stays", boundButton.HotKey.text, "SM4")
+Set(Options.KEY_SIZE_PATH, 14)
+Equal("another Input setting writes nothing", alphaWrites, 4)
+
+Set(Options.HIDE_MACRO_NAMES_PATH, false)
+Equal("off: the names are back", boundButton.Name.alpha .. " " .. emptyButton.Name.alpha, "1 1")
+Set(Options.HIDE_MACRO_NAMES_PATH, true)
+Equal("on again: hidden again", boundButton.Name.alpha .. " " .. emptyButton.Name.alpha, "0 0")
+Set(Options.HIDE_MACRO_NAMES_PATH, false)
+
+AUI.can.macroNames = nil
+values[Options.HIDE_MACRO_NAMES_PATH] = true
+alphaWrites = 0
+AUI.MacroNames:Apply()
+Equal("a client without the buttons is left alone", alphaWrites, 0)
+AUI.can.macroNames = true
+values[Options.HIDE_MACRO_NAMES_PATH] = nil
 
 io.stdout:write(("check_input: %d checks passed\n"):format(checks))

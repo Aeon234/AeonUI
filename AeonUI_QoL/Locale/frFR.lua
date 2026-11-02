@@ -155,6 +155,7 @@ L["Mark Focus"] = "Marquer la focalisation"
 L["Never replaces an existing marker."] = "Ne remplace jamais une marque existante."
 L["Marker"] = "Marqueur"
 L["Clique handles unit frames; bind Focus there."] = "Clique gère les cadres d'unité ; assignez Focalisation là-bas."
+L["Hide Macro Names"] = "Masquer les noms de macros"
 L["Short Key Labels"] = "Libellés de touche courts"
 L["Shows Shift + Mouse Button 4 as %s."] = "Affiche Maj + Bouton 4 de la souris sous la forme %s."
 

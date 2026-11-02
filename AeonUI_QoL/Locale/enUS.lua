@@ -164,6 +164,7 @@ L["Mark Focus"] = "Mark Focus"
 L["Never replaces an existing marker."] = "Never replaces an existing marker."
 L["Marker"] = "Marker"
 L["Clique handles unit frames; bind Focus there."] = "Clique handles unit frames; bind Focus there."
+L["Hide Macro Names"] = "Hide Macro Names"
 L["Short Key Labels"] = "Short Key Labels"
 L["Shows Shift + Mouse Button 4 as %s."] = "Shows Shift + Mouse Button 4 as %s."
 

@@ -571,6 +571,12 @@ local keyLabels = window.pages.input.sections.inputClickDown.settings.keyLabels
 Equal("the switch shows an example", keyLabels.kind .. " " .. keyLabels.label .. ": " .. keyLabels.description,
 	"Checkbox Short Key Labels: Shows Shift + Mouse Button 4 as SM4.")
 AUI.can.keyLabels = nil
+AUI.can.macroNames = true
+window = Load(nil)
+local hideMacroNames = window.pages.input.sections.inputClickDown.settings.hideMacroNames
+Equal("macro names alone make the Action Bars card", hideMacroNames.kind .. " " .. hideMacroNames.label .. " "
+	.. tostring(hideMacroNames.default), "Checkbox Hide Macro Names false")
+AUI.can.macroNames = nil
 local alertsPage = window.pages.alerts
 local alertIDs = {}
 for _, setting in ipairs(alertsPage.sections.alertsSound.settings) do

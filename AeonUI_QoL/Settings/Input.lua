@@ -25,16 +25,17 @@ local BUTTON_LABELS = {
 	["5"] = L["Button 5"],
 }
 
----The Input page, under the Quality of Life header: the Action Bars card's Click Down and key labels, and the Focus
----Keybind card, headed by Focus Shortcut's switch. Changes take effect at once; Focus Shortcut's wait for combat to
----end.
+---The Input page, under the Quality of Life header: the Action Bars card's Click Down, macro names and key labels,
+---and the Focus Keybind card, headed by Focus Shortcut's switch. Changes take effect at once; Focus Shortcut's wait
+---for combat to end.
 ---@class AUISettingsInput
 local SettingsInput = {}
 AUI.SettingsInput = SettingsInput
 
 ---@return boolean
 function SettingsInput:IsAvailable()
-	return AUI.can.clickDown == true or AUI.can.keyLabels == true or AUI.can.focusShortcut == true
+	return AUI.can.clickDown == true or AUI.can.macroNames == true or AUI.can.keyLabels == true
+		or AUI.can.focusShortcut == true
 end
 
 ---@param values string[]
@@ -63,6 +64,15 @@ function SettingsInput:DeclareActionBars(page)
 			path = Options.CLICK_DOWN_PATH,
 			default = Settings:Default(Options.CLICK_DOWN_PATH),
 			options = DropdownOptions(Options.CLICK_DOWN, CLICK_DOWN_LABELS),
+		})
+	end
+
+	if AUI.can.macroNames then
+		card:Checkbox({
+			id = "hideMacroNames",
+			label = L["Hide Macro Names"],
+			path = Options.HIDE_MACRO_NAMES_PATH,
+			default = Settings:Default(Options.HIDE_MACRO_NAMES_PATH),
 		})
 	end
 
@@ -179,7 +189,7 @@ function SettingsInput:Declare(window)
 		return
 	end
 
-	if AUI.can.clickDown or AUI.can.keyLabels then
+	if AUI.can.clickDown or AUI.can.macroNames or AUI.can.keyLabels then
 		self:DeclareActionBars(page)
 	end
 

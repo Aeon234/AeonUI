@@ -1,6 +1,6 @@
 local AUI = select(2, ...)
 
----The Input module: Click Down, Focus Shortcut and the key labels. Changes take effect at once, out of combat for
+---The Input module: Click Down, Focus Shortcut, the key labels and macro names. Changes take effect at once, out of combat for
 ---Focus Shortcut, and a profile change applies the new profile's choices.
 ---@class AUIInput
 ---@field active boolean started this session
@@ -26,6 +26,7 @@ function Input:Apply()
 	end
 
 	AUI.KeyLabels:Apply()
+	AUI.MacroNames:Apply()
 end
 
 function Input:Start()

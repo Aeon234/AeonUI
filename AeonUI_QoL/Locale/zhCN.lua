@@ -155,6 +155,7 @@ L["Mark Focus"] = "标记焦点"
 L["Never replaces an existing marker."] = "不会替换已有的标记。"
 L["Marker"] = "标记"
 L["Clique handles unit frames; bind Focus there."] = "单位框体由Clique处理；请在其中绑定焦点。"
+L["Hide Macro Names"] = "隐藏宏名称"
 L["Short Key Labels"] = "简短按键标签"
 L["Shows Shift + Mouse Button 4 as %s."] = "将 Shift + 鼠标按键4 显示为 %s。"
 

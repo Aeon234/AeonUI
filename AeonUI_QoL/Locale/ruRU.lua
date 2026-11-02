@@ -155,6 +155,7 @@ L["Mark Focus"] = "Метка на фокус"
 L["Never replaces an existing marker."] = "Не заменяет уже поставленную метку."
 L["Marker"] = "Метка"
 L["Clique handles unit frames; bind Focus there."] = "Рамками юнитов управляет Clique; назначьте фокус там."
+L["Hide Macro Names"] = "Скрыть названия макросов"
 L["Short Key Labels"] = "Краткие подписи клавиш"
 L["Shows Shift + Mouse Button 4 as %s."] = "Показывает Shift + кнопку мыши 4 как %s."
 
