@@ -9,6 +9,8 @@
 	<Script file="Portrait.lua" />
 	<Script file="Indicators.lua" />
 	<Script file="Fading.lua" />
+	<Script file="RangeSpells.lua" />
+	<Script file="RangeFade.lua" />
 	<Script file="PowerColor.lua" />
 	<Script file="PlayerPower.lua" />
 	<Script file="ClassPower.lua" />

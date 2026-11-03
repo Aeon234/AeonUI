@@ -289,7 +289,16 @@ function UnitFrame.Style(frame, unit)
 
 	frame.spec = spec
 	frame.key = spec.key
-	frame.Bar, frame.Background, frame.Border = UnitFrame:CreateBar(frame)
+	frame.Content = frame
+
+	if spec.rangeFade then
+		frame.Content = CreateFrame("Frame", nil, frame)
+		frame.Content:SetAllPoints()
+	end
+
+	local content = frame.Content
+
+	frame.Bar, frame.Background, frame.Border = UnitFrame:CreateBar(content)
 	AUI.Text:Create(frame, frame.Bar, spec.slots)
 
 	local health = frame.Bar
@@ -304,7 +313,7 @@ function UnitFrame.Style(frame, unit)
 	frame.Health = health
 
 	if spec.power then
-		local power, background = UnitFrame:CreatePowerBar(frame)
+		local power, background = UnitFrame:CreatePowerBar(content)
 
 		power.colorPower = true
 		power.frequentUpdates = true
@@ -342,7 +351,7 @@ function UnitFrame.Style(frame, unit)
 	end
 
 	if spec.portrait then
-		frame.PortraitWidgets = AUI.Portrait:Create(frame, health)
+		frame.PortraitWidgets = AUI.Portrait:Create(content, health)
 	end
 
 	AUI.Indicators:Create(frame)

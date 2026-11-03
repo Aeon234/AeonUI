@@ -246,6 +246,9 @@ L["Idle Fade"] = "Fondu au repos"
 L["Fades the frame while you are out of combat, have no target and are not casting."] = "Estompe le cadre lorsque vous êtes hors combat, sans cible et sans incantation."
 L["Strength"] = "Intensité"
 L["Idle Fade Opacity"] = "Opacité au repos"
+L["Range Fade"] = "Fondu hors de portée"
+L["Fades the frame while its unit is out of range of your spells."] = "Estompe le cadre lorsque l'unité est hors de portée de vos sorts."
+L["Range Fade Opacity"] = "Opacité hors de portée"
 L["Hide Tooltip in Combat"] = "Masquer l'infobulle en combat"
 
 -- Unit frames: frame pages (Settings)

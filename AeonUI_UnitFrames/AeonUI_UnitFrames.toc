@@ -22,4 +22,5 @@ Settings\FramePages.lua
 
 #@do-not-package@
 Dev\ChannelLog.lua
+Dev\RangeProbe.lua
 #@end-do-not-package@

@@ -246,6 +246,9 @@ L["Idle Fade"] = "Desvanecer en reposo"
 L["Fades the frame while you are out of combat, have no target and are not casting."] = "Desvanece el marco mientras estás fuera de combate, sin objetivo y sin lanzar."
 L["Strength"] = "Intensidad"
 L["Idle Fade Opacity"] = "Opacidad en reposo"
+L["Range Fade"] = "Atenuar fuera de alcance"
+L["Fades the frame while its unit is out of range of your spells."] = "Atenúa el marco mientras la unidad está fuera del alcance de tus hechizos."
+L["Range Fade Opacity"] = "Opacidad fuera de alcance"
 L["Hide Tooltip in Combat"] = "Ocultar descripción en combate"
 
 -- Unit frames: frame pages (Settings)

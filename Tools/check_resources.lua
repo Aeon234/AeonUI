@@ -197,6 +197,7 @@ AUI.Text = {
 }
 AUI.HealthColor = { Paint = function() end }
 AUI.Fading = { Start = function() end }
+AUI.RangeFade = { Start = function() end }
 AUI.Events = { Register = function() end }
 AUI.Indicators = {
 	Register = function() end,

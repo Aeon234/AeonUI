@@ -246,6 +246,9 @@ L["Idle Fade"] = "空闲淡出"
 L["Fades the frame while you are out of combat, have no target and are not casting."] = "当你脱离战斗、没有目标且未施法时淡化框体。"
 L["Strength"] = "强度"
 L["Idle Fade Opacity"] = "空闲不透明度"
+L["Range Fade"] = "超出距离渐隐"
+L["Fades the frame while its unit is out of range of your spells."] = "单位超出你的法术距离时淡化框体。"
+L["Range Fade Opacity"] = "超出距离不透明度"
 L["Hide Tooltip in Combat"] = "战斗中隐藏鼠标提示"
 
 -- Unit frames: frame pages (Settings)

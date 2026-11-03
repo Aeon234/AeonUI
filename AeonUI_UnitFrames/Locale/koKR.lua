@@ -246,6 +246,9 @@ L["Idle Fade"] = "대기 시 페이드"
 L["Fades the frame while you are out of combat, have no target and are not casting."] = "전투 중이 아니고 대상이 없으며 시전 중이 아닐 때 프레임을 흐리게 합니다."
 L["Strength"] = "강도"
 L["Idle Fade Opacity"] = "대기 시 불투명도"
+L["Range Fade"] = "사거리 밖 페이드"
+L["Fades the frame while its unit is out of range of your spells."] = "유닛이 주문 사거리 밖에 있는 동안 프레임을 흐리게 합니다."
+L["Range Fade Opacity"] = "사거리 밖 불투명도"
 L["Hide Tooltip in Combat"] = "전투 중 툴팁 숨기기"
 
 -- Unit frames: frame pages (Settings)

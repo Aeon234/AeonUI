@@ -255,6 +255,9 @@ AnchorUtil = { FlowLayoutAxis = { Horizontal = 0 } }
 AuraContainerSortMethod = { AuraInstanceIDOnly = 8 }
 AuraContainerSortDirection = { Normal = 0 }
 
+METHODS.Region.GetParent = function(self)
+	return self.parent
+end
 METHODS.Region.SetAlphaFromBoolean = function(self, value, shown, hidden)
 	self.alpha = value and shown or hidden
 end
@@ -441,7 +444,16 @@ function LibStub()
 				value = value,
 				To = function(self, target)
 					self.value = target
+					self.moves = (self.moves or 0) + 1
 					onUpdate(target)
+				end,
+				Jump = function(self, target)
+					self.value = target
+					self.jumps = (self.jumps or 0) + 1
+					onUpdate(target)
+				end,
+				Stop = function(self)
+					self.stopped = true
 				end,
 			}
 		end,
@@ -596,6 +608,8 @@ Load("AeonUI_UnitFrames/Frames/Auras.lua")
 Load("AeonUI_UnitFrames/Frames/Portrait.lua")
 Load("AeonUI_UnitFrames/Frames/Indicators.lua")
 Load("AeonUI_UnitFrames/Frames/Fading.lua")
+Load("AeonUI_UnitFrames/Frames/RangeSpells.lua")
+Load("AeonUI_UnitFrames/Frames/RangeFade.lua")
 Load("AeonUI_UnitFrames/Frames/PowerColor.lua")
 Load("AeonUI_UnitFrames/Frames/PlayerPower.lua")
 Load("AeonUI_UnitFrames/Frames/ClassPower.lua")
@@ -1014,6 +1028,160 @@ Frames:OnCombatEnded()
 Equal("then gives it back", liveTarget.attributes.unit, "target")
 Frames.objects.target = nil
 Frames:SampleUnit("target", false)
+
+-- The target's range fade ----------------------------------------------------------------------------------------------
+
+local RangeFade = AUI.RangeFade
+local rangeBase = TargetPath("fade.range.")
+local targetExists, attackable, rangeResult = false, true, nil
+local knownSpells = { [133] = true, [475] = true }
+local rangeChecks, tickers = {}, {}
+local unitExists, canAttack, spell, spellBook, timer = UnitExists, UnitCanAttack, C_Spell, C_SpellBook, C_Timer
+
+function UnitExists()
+	return targetExists
+end
+
+function UnitCanAttack()
+	return attackable
+end
+
+C_Spell = {
+	IsSpellInRange = function(spellID, unit)
+		rangeChecks[#rangeChecks + 1] = spellID .. " " .. unit
+
+		return rangeResult
+	end,
+}
+C_SpellBook = {
+	IsSpellKnownOrInSpellBook = function(spellID)
+		return knownSpells[spellID] == true
+	end,
+}
+C_Timer = {
+	NewTicker = function(seconds, callback)
+		local ticker = { seconds = seconds, callback = callback }
+
+		function ticker.Cancel(self)
+			self.cancelled = true
+		end
+
+		tickers[#tickers + 1] = ticker
+
+		return ticker
+	end,
+}
+Equal("Target's parts lie in the fade's layer", liveTarget.Bar:GetParent(), liveTarget.Content)
+Equal("and its power bar", liveTarget.Power:GetParent(), liveTarget.Content)
+Equal("and its portrait", liveTarget.PortraitWidgets.holder:GetParent(), liveTarget.Content)
+Equal("and its indicators", liveTarget.IndicatorLayer:GetParent(), liveTarget.Content)
+Equal("and its cast bar", liveTarget.CastBarView:GetParent(), liveTarget.Content)
+Equal("and its auras", liveTarget.AuraDisplays.buffs.element.last.SetParent[1], liveTarget.Content)
+Equal("the layer is not the frame", liveTarget.Content ~= liveTarget, true)
+Equal("Player's parts stay on the frame", frame.Content, frame)
+Equal("on by default", Schema:Read(config, rangeBase .. "enabled"), true)
+Equal("at half", Schema:Read(config, rangeBase .. "alpha"), 50)
+Equal("Player has no range fade", RangeFade:Alpha("player"), nil)
+Equal("Target has", RangeFade:Alpha("target"), 0.5)
+
+local spawnedFrames = AUI.Frames.objects
+
+AUI.Frames.objects = { target = liveTarget }
+
+-- Never enabled, nothing runs.
+Schema:Write(config, rangeBase .. "enabled", false)
+RangeFade:UpdateAll()
+Equal("off, no events", RangeFade.following, false)
+Equal("off, no ticker", RangeFade.ticker, nil)
+Equal("off, no spring", liveTarget.rangeFade, nil)
+Equal("off, nothing measured", #rangeChecks, 0)
+
+Schema:Write(config, rangeBase .. "enabled", true)
+RangeFade:UpdateAll()
+Equal("on, follows the target", RangeFade.following, true)
+Equal("the first known enemy spell", RangeFade.harmful, 133)
+Equal("the first known friendly spell", RangeFade.helpful, 475)
+Equal("no target, no ticker", RangeFade.ticker, nil)
+Equal("no target, nothing measured", #rangeChecks, 0)
+
+targetExists = true
+RangeFade:UpdateAll()
+Equal("a target starts the ticker", RangeFade.ticker ~= nil, true)
+Equal("every 0.2 seconds", tickers[1].seconds, 0.2)
+Equal("measured with the enemy spell", rangeChecks[#rangeChecks], "133 target")
+Equal("nil counts as in range", liveTarget.rangeFade, nil)
+
+rangeResult = false
+tickers[1].callback()
+Equal("beyond range, faded", liveTarget.Content:GetAlpha(), 0.5)
+Equal("on the spring", liveTarget.rangeFade.spring.moves, 1)
+Equal("the frame itself stays", liveTarget:GetAlpha(), 1)
+tickers[1].callback()
+Equal("no change, no new motion", liveTarget.rangeFade.spring.moves, 1)
+
+rangeResult = true
+tickers[1].callback()
+Equal("in range, back to full", liveTarget.Content:GetAlpha(), 1)
+Equal("moved back", liveTarget.rangeFade.spring.moves, 2)
+
+attackable = false
+rangeResult = false
+tickers[1].callback()
+Equal("a friend uses the friendly spell", rangeChecks[#rangeChecks], "475 target")
+Equal("and fades the same", liveTarget.Content:GetAlpha(), 0.5)
+attackable = true
+tickers[1].callback()
+
+rangeResult = Secret()
+tickers[1].callback()
+Equal("a secret range stops the spring", liveTarget.rangeFade.spring.stopped, true)
+Equal("and goes to the client", liveTarget.rangeFade.secret, true)
+rangeResult = true
+tickers[1].callback()
+Equal("readable again, it jumps", liveTarget.rangeFade.spring.jumps, 1)
+Equal("to full", liveTarget.Content:GetAlpha(), 1)
+
+attackable = Secret()
+rangeResult = false
+Equal("a secret reaction cannot be measured", RangeFade:InRange("target"), nil)
+attackable = true
+
+rangeResult = false
+tickers[1].callback()
+targetExists = false
+RangeFade:UpdateAll()
+Equal("no target stops the ticker", tickers[1].cancelled, true)
+Equal("and forgets it", RangeFade.ticker, nil)
+Equal("and restores the frame", liveTarget.Content:GetAlpha(), 1)
+
+targetExists = true
+RangeFade:UpdateAll()
+Equal("a new target starts a new ticker", #tickers, 2)
+Schema:Write(config, rangeBase .. "enabled", false)
+RangeFade:UpdateAll()
+Equal("turned off, the ticker stops", tickers[2].cancelled, true)
+Equal("the events stop", RangeFade.following, false)
+Equal("full opacity", liveTarget.Content:GetAlpha(), 1)
+Schema:Write(config, rangeBase .. "enabled", true)
+rangeResult = false
+RangeFade:UpdateAll()
+Equal("turned on again, it follows", RangeFade.following, true)
+Equal("and ticks", #tickers, 3)
+Equal("and fades", liveTarget.Content:GetAlpha(), 0.5)
+Schema:Write(config, rangeBase .. "alpha", 30)
+tickers[3].callback()
+Equal("a new strength applies", liveTarget.Content:GetAlpha(), 0.3)
+Schema:Write(config, rangeBase .. "alpha", nil)
+targetExists = false
+RangeFade:UpdateAll()
+RangeFade:Follow(false)
+
+for class, list in pairs(AUI.RangeSpells.harmful) do
+	Equal(class .. " has an enemy spell", #list > 0, true)
+end
+
+AUI.Frames.objects = spawnedFrames
+UnitExists, UnitCanAttack, C_Spell, C_SpellBook, C_Timer = unitExists, canAttack, spell, spellBook, timer
 
 -- The target's cast bar -----------------------------------------------------------------------------------------------
 

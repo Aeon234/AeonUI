@@ -246,6 +246,9 @@ L["Idle Fade"] = "Затухание в покое"
 L["Fades the frame while you are out of combat, have no target and are not casting."] = "Приглушает рамку, пока вы вне боя, без цели и ничего не применяете."
 L["Strength"] = "Сила"
 L["Idle Fade Opacity"] = "Непрозрачность в покое"
+L["Range Fade"] = "Затухание вне радиуса"
+L["Fades the frame while its unit is out of range of your spells."] = "Делает рамку прозрачнее, пока единица находится вне радиуса действия ваших заклинаний."
+L["Range Fade Opacity"] = "Непрозрачность вне радиуса"
 L["Hide Tooltip in Combat"] = "Скрывать подсказку в бою"
 
 -- Unit frames: frame pages (Settings)

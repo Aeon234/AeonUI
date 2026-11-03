@@ -114,6 +114,7 @@ function Frames:Start()
 
 	self:ApplyAll(true)
 	AUI.Fading:Start()
+	AUI.RangeFade:Start()
 end
 
 ---Spawns the resource frames once they are turned on; in combat, waits for combat to end. They stand beside whatever

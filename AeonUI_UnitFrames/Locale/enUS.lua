@@ -246,6 +246,9 @@ L["Idle Fade"] = "Idle Fade"
 L["Fades the frame while you are out of combat, have no target and are not casting."] = "Fades the frame while you are out of combat, have no target and are not casting."
 L["Strength"] = "Strength"
 L["Idle Fade Opacity"] = "Idle Fade Opacity"
+L["Range Fade"] = "Range Fade"
+L["Fades the frame while its unit is out of range of your spells."] = "Fades the frame while its unit is out of range of your spells."
+L["Range Fade Opacity"] = "Range Fade Opacity"
 L["Hide Tooltip in Combat"] = "Hide Tooltip in Combat"
 
 -- Unit frames: frame pages (Settings)

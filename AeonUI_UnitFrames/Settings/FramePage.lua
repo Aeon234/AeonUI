@@ -962,6 +962,37 @@ function FramePage:DeclareIndicators(page)
 	end
 end
 
+---The fading card for a frame that fades with range: the range fade, then how strong it is in a row.
+---@param page table
+function FramePage:DeclareRangeFading(page)
+	local key = self.spec.key
+	local card = page:Section(key .. "Fading", L["Fading"])
+	local details = key .. "FadeStrength"
+
+	local function Own(field)
+		return Options:Path(key, "fade.range." .. field)
+	end
+
+	card:Checkbox(Field("rangeFade", L["Range Fade"], Own("enabled"), {
+		description = L["Fades the frame while its unit is out of range of your spells."],
+	}))
+	card:Details({
+		id = details,
+		label = L["Strength"],
+		depends = "rangeFade",
+		summary = function()
+			return ("%d%%"):format(AUI.Profile:Get(Own("alpha")))
+		end,
+	})
+	card:Slider(Field("rangeAlpha", L["Range Fade Opacity"], Own("alpha"), {
+		details = details,
+		min = 0,
+		max = 100,
+		step = 5,
+		format = "percent",
+	}))
+end
+
 ---The fading card: the idle fade, then how strong it is in a row.
 ---@param page table
 function FramePage:DeclareFading(page)
@@ -1470,6 +1501,8 @@ function FramePage:Declare(window)
 
 	if spec.idleFade then
 		self:DeclareFading(page)
+	elseif spec.rangeFade then
+		self:DeclareRangeFading(page)
 	end
 
 	self:DeclareInteraction(page)

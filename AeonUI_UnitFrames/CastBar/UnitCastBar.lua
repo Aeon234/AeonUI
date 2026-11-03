@@ -120,7 +120,7 @@ end
 ---@param frame table the oUF frame
 ---@return AUICastBarFrame view
 function UnitCastBar:Attach(frame)
-	local view = CastBar:Build(frame, nil, self:Owner(frame.spec))
+	local view = CastBar:Build(frame.Content, nil, self:Owner(frame.spec))
 	local bar = view.bar --[[@as table]]
 	local show, hide = bar.Show, bar.Hide
 

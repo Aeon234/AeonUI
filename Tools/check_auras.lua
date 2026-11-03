@@ -348,6 +348,8 @@ end
 
 local frame = { key = "player", colors = { dispel = {} } }
 
+frame.Content = frame
+
 function frame:CreateAuras(options)
 	self.options = options
 

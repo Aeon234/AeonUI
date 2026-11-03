@@ -21,6 +21,7 @@ local Schema = AUI.Schema
 ---@field castBar { y: number, icon: boolean }? its cast bar's defaults
 ---@field totems table? its totems' place until moved: `anchor`, `placement`, `x`, `y` and `growth`
 ---@field idleFade boolean? it fades while the player is idle
+---@field rangeFade boolean? it fades while its unit is out of range
 ---@field position { point: string, x: number, y: number } its place until moved
 
 ---The unit frames' settings: every frame's, and the shared ones they follow. Holds no frame code.
@@ -66,6 +67,7 @@ local Options = {
 			overlays = true,
 			reverse = true,
 			power = true,
+			rangeFade = true,
 			castBar = { y = -4, icon = true },
 			auras = {
 				buffs = { enabled = true, anchor = "aboveLeft", limit = 4, filter = "all" },
@@ -465,6 +467,11 @@ local function DeclareIndicators(spec)
 	if spec.idleFade then
 		Schema:Boolean(Options:Path(key, "fade.idle.enabled"), true)
 		Schema:Number(Options:Path(key, "fade.idle.alpha"), 50, 0, 100, true)
+	end
+
+	if spec.rangeFade then
+		Schema:Boolean(Options:Path(key, "fade.range.enabled"), true)
+		Schema:Number(Options:Path(key, "fade.range.alpha"), 50, 0, 100, true)
 	end
 
 	Schema:Boolean(Options:Path(key, "tooltip.enabled"), true)

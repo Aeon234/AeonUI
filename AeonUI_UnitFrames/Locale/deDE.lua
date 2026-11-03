@@ -246,6 +246,9 @@ L["Idle Fade"] = "Ausblenden im Leerlauf"
 L["Fades the frame while you are out of combat, have no target and are not casting."] = "Blendet den Rahmen aus, solange du außerhalb des Kampfes bist, kein Ziel hast und nichts wirkst."
 L["Strength"] = "Stärke"
 L["Idle Fade Opacity"] = "Deckkraft im Leerlauf"
+L["Range Fade"] = "Ausblenden außer Reichweite"
+L["Fades the frame while its unit is out of range of your spells."] = "Blendet den Rahmen aus, solange die Einheit außerhalb der Reichweite deiner Zauber ist."
+L["Range Fade Opacity"] = "Deckkraft außer Reichweite"
 L["Hide Tooltip in Combat"] = "Tooltip im Kampf ausblenden"
 
 -- Unit frames: frame pages (Settings)

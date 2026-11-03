@@ -276,10 +276,10 @@ function Indicators:Create(frame)
 	local spec = frame.spec
 
 	if spec.indicators then
-		local layer = CreateFrame("Frame", nil, frame)
+		local layer = CreateFrame("Frame", nil, frame.Content)
 
 		layer:SetAllPoints()
-		layer:SetFrameLevel(frame:GetFrameLevel() + LAYER_LEVEL)
+		layer:SetFrameLevel(frame.Content:GetFrameLevel() + LAYER_LEVEL)
 		frame.IndicatorLayer = layer
 
 		for _, indicator in ipairs(spec.indicators) do

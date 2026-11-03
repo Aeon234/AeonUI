@@ -368,6 +368,7 @@ local function NewFrame()
 	local frame = Region()
 
 	frame.key, frame.spec = "player", Options:Spec("player")
+	frame.Content = frame
 	frame.Bar = Region()
 	frame.enabled, frame.disabled = {}, {}
 

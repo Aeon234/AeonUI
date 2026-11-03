@@ -410,6 +410,12 @@ end
 ---@return AUIAuraWidgets widgets
 function Auras:Create(frame, kind)
 	local element = frame:CreateAuras({ layout = AnchorUtil.FlowLayoutAxis.Horizontal })
+
+	if frame.Content ~= frame then
+		element:SetParent(frame.Content)
+		element:SetFrameLevel(frame.Content:GetFrameLevel() + 1)
+	end
+
 	local widgets = { element = element, kind = kind, frame = frame, buttons = {} }
 
 	function element.CreateButton(_, _, button)
