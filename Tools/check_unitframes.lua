@@ -798,7 +798,7 @@ function UnitLevel()
 	return 80
 end
 
-RAID_CLASS_COLORS = {}
+RAID_CLASS_COLORS = { MAGE = { r = 0.25, g = 0.78, b = 0.92 } }
 AUI.oUF.colors.power.MANA = { r = 0, g = 0, b = 1 }
 
 local Resource = AUI.ResourcePreview
@@ -823,6 +823,35 @@ for _, state in ipairs(Resource.STATES) do
 	width, height = resourcePreview:Refresh(state, sampleTarget)
 	Equal(state .. ": every part marked", table.concat(parts, " "), "classWidth extraMana powerWidth")
 	Equal(state .. ": stacked", width .. "x" .. height, "360x28")
+end
+
+-- The target frame ---------------------------------------------------------------------------------------------------
+
+local function TargetPath(field)
+	return Options:Path("target", field)
+end
+
+Equal("off by default", Schema:Read(config, TargetPath("enabled")), false)
+Equal("its health fills from the right", Schema:Read(config, TargetPath("reverse")), true)
+Equal("the player's from the left", Schema:Read(config, Path("reverse")), false)
+Equal("buffs on", Schema:Read(config, TargetPath("buffs.enabled")), true)
+Equal("the player's stay off", Schema:Read(config, Path("buffs.enabled")), false)
+Equal("debuffs on", Schema:Read(config, TargetPath("debuffs.enabled")), true)
+Equal("twenty debuffs", Schema:Read(config, TargetPath("debuffs.limit")), 20)
+Equal("its portrait on the right", Schema:Read(config, TargetPath("portrait.side")), "RIGHT")
+Equal("health at the upper left", Schema:Read(config, Options:SlotPath("target", 1, "anchor")), "TOPLEFT")
+Equal("level and name at the upper right", Schema:Read(config, Options:SlotPath("target", 2, "content")), "levelName")
+Equal("in its unit's color", Schema:Read(config, Options:SlotPath("target", 2, "colorMode")), "class")
+Equal("power in its color", Schema:Read(config, Options:SlotPath("target", 3, "colorMode")), "power")
+Equal("the player's slots stay custom", Schema:Read(config, Options:SlotPath("player", 1, "colorMode")), "custom")
+
+local targetPreview = AUI.FramePreview:New(Options:Spec("target"))
+
+targetPreview:Create(New("Frame"))
+
+for _, state in ipairs(AUI.FramePreview.OVERLAY_STATES) do
+	width, height = targetPreview:Refresh(state, sampleTarget)
+	Equal(state .. ": the target sample draws", width > 0 and height > 0, true)
 end
 
 print(("check_unitframes: %d checks passed"):format(checks))

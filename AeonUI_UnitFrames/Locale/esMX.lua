@@ -250,6 +250,7 @@ L["Hide Tooltip in Combat"] = "Ocultar descripción en combate"
 
 -- Unit frames: frame pages (Settings)
 L["Show Player Frame"] = "Mostrar marco de jugador"
+L["Show Target Frame"] = "Mostrar marco de objetivo"
 L["Full"] = "Llena"
 L["Damaged"] = "Dañado"
 L["%d changed"] = "%d cambiados"

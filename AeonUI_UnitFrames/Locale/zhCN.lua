@@ -250,6 +250,7 @@ L["Hide Tooltip in Combat"] = "战斗中隐藏鼠标提示"
 
 -- Unit frames: frame pages (Settings)
 L["Show Player Frame"] = "显示玩家框体"
+L["Show Target Frame"] = "显示目标框体"
 L["Full"] = "满"
 L["Damaged"] = "受伤"
 L["%d changed"] = "已更改 %d 项"

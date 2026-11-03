@@ -12,7 +12,7 @@ local windows = package.config:sub(1, 1) == "\\"
 local CLIENT_PAGES = { worldMap = "forever", movementAlert = "retail", travelersLog = "retail" }
 
 local PAGES = {
-	AeonUI_UnitFrames = { "unitFramesAll", "unitFramePlayer", "unitFrameResources", "castBar" },
+	AeonUI_UnitFrames = { "unitFramesAll", "unitFramePlayer", "unitFrameResources", "castBar", "unitFrameTarget" },
 	AeonUI_Tooltip = { "tooltipGeneral", "tooltipUnits", "tooltipItems" },
 	AeonUI_Maps = { "minimap", "worldMap" },
 	AeonUI_QoL = { "automation", "deleteCheapestItem", "merchantWindow", "travelersLog", "hiddenSettings", "macros", "playerMenu", "input",

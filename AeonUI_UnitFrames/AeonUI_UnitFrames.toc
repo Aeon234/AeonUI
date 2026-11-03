@@ -18,6 +18,7 @@ Settings\Previews.lua
 Settings\FramePage.lua
 Settings\PlayerResources.lua
 Settings\CastBar.lua
+Settings\FramePages.lua
 
 #@do-not-package@
 Dev\ChannelLog.lua

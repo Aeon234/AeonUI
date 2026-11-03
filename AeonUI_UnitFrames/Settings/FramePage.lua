@@ -8,14 +8,17 @@ local PREVIEW_HEIGHT = 84
 
 local TITLES = {
 	player = PLAYER,
+	target = TARGET,
 }
 
 local SWITCHES = {
 	player = L["Show Player Frame"],
+	target = L["Show Target Frame"],
 }
 
 local ICONS = {
 	player = "unitPlayer",
+	target = "unitTarget",
 }
 
 local CONTENT_LABELS = {
@@ -1325,7 +1328,9 @@ function FramePage:Declare(window)
 	self:DeclareInteraction(page)
 end
 
-for _, spec in ipairs(Options.FRAMES) do
+---Adds a frame's page to the sidebar, after those registered so far, and its edit target.
+---@param spec AUIFrameSpec
+function FramePage.Register(spec)
 	AUI.Modules:Register({
 		group = "unitFrames",
 		page = setmetatable({ spec = spec }, FramePage),
@@ -1350,3 +1355,5 @@ for _, spec in ipairs(Options.FRAMES) do
 		},
 	})
 end
+
+FramePage.Register(Options.FRAMES[1])

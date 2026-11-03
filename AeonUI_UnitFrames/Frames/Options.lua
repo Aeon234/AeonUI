@@ -16,6 +16,7 @@ local Schema = AUI.Schema
 ---@field portrait { side: string }? it can show a portrait, at this side by default
 ---@field indicators table[]? its indicators: `name`, `enabled`, `size`, `anchor`, `placement`, `x` and `y`
 ---@field threat boolean? it has a threat border
+---@field reverse boolean? its health fills from the right by default
 ---@field totems table? its totems' place until moved: `anchor`, `placement`, `x`, `y` and `growth`
 ---@field idleFade boolean? it fades while the player is idle
 ---@field position { point: string, x: number, y: number } its place until moved
@@ -53,6 +54,27 @@ local Options = {
 			totems = { anchor = "BOTTOMRIGHT", placement = "outside", y = -4, growth = "left" },
 			idleFade = true,
 			position = { point = "CENTER", x = -330, y = -200 },
+		},
+		{
+			key = "target",
+			unit = "target",
+			name = "AeonUITarget",
+			page = "unitFrameTarget",
+			slots = 4,
+			overlays = true,
+			reverse = true,
+			auras = {
+				buffs = { enabled = true, anchor = "aboveLeft", limit = 4, filter = "all" },
+				debuffs = { enabled = true, anchor = "belowLeft", limit = 20, filter = "all" },
+			},
+			portrait = { side = "RIGHT" },
+			indicators = {
+				{ name = "raid", enabled = true, size = 18, anchor = "CENTER", placement = "inside" },
+				{ name = "combat", enabled = false, size = 16, anchor = "BOTTOMLEFT", placement = "inside" },
+				{ name = "leader", enabled = true, size = 16, anchor = "TOPLEFT", placement = "edge" },
+				{ name = "pvp", enabled = false, size = 24, anchor = "TOPRIGHT", placement = "outside" },
+			},
+			position = { point = "CENTER", x = 330, y = -200 },
 		},
 	},
 	RESOURCES_PATH = "frames.resources.enabled",
@@ -349,7 +371,7 @@ local function DeclareAuraDisplay(key, kind, defaults)
 		return Options:Path(key, kind .. "." .. field)
 	end
 
-	Schema:Boolean(Path("enabled"), false)
+	Schema:Boolean(Path("enabled"), defaults.enabled == true)
 	Schema:Number(Path("size"), 22, Options.MIN_AURA_SIZE, Options.MAX_AURA_SIZE, true)
 	Schema:Number(Path("limit"), defaults.limit, 1, Options.MAX_AURA_LIMIT, true)
 	Schema:Number(Path("perRow"), 0, 0, Options.MAX_AURA_LIMIT, true)
@@ -467,6 +489,7 @@ end
 ---@field anchor string
 ---@field placement string
 ---@field x number?
+---@field colorMode string?
 
 ---@param key string
 ---@param index integer
@@ -481,7 +504,7 @@ local function DeclareSlot(key, index, slot)
 	Schema:Number(Options:SlotPath(key, index, "x"), slot.x or 0, -Options.MAX_OFFSET, Options.MAX_OFFSET)
 	Schema:Number(Options:SlotPath(key, index, "y"), 0, -Options.MAX_OFFSET, Options.MAX_OFFSET)
 	Schema:Number(Options:SlotPath(key, index, "width"), 100, Options.MIN_SLOT_WIDTH, Options.MAX_SLOT_WIDTH, true)
-	Schema:Choice(Options:SlotPath(key, index, "colorMode"), "unitFrameColorMode", "custom")
+	Schema:Choice(Options:SlotPath(key, index, "colorMode"), "unitFrameColorMode", slot.colorMode or "custom")
 
 	for _, field in ipairs({ "font", "size", "outline", "color" }) do
 		Schema:Inherit(Options:SlotPath(key, index, field), Options:Path(key, "text." .. field))
@@ -500,7 +523,7 @@ local function DeclareFrame(spec, width, height, status, slots)
 	Schema:Position(Options:Path(key, "position"))
 	Schema:Number(Options:Path(key, "width"), width, Options.MIN_WIDTH, Options.MAX_WIDTH)
 	Schema:Number(Options:Path(key, "height"), height, Options.MIN_HEIGHT, Options.MAX_HEIGHT)
-	Schema:Boolean(Options:Path(key, "reverse"), false)
+	Schema:Boolean(Options:Path(key, "reverse"), spec.reverse == true)
 
 	for _, field in ipairs({ "texture", "background", "borderStyle", "borderThickness", "borderColor", "lineColor", "hover", "hoverColor" }) do
 		Schema:Inherit(Options:Path(key, "bars." .. field), Options.ALL .. "bars." .. field)
@@ -628,4 +651,9 @@ DeclarePower(Options:Spec("playerPower") --[[@as AUIFrameSpec]])
 DeclareClassPower("classPower")
 DeclareFrame(Options:Spec("player") --[[@as AUIFrameSpec]], 270, 36, 1, {
 	{ content = "healthAndPercent", anchor = "TOPRIGHT", placement = "edge", x = -4 },
+})
+DeclareFrame(Options:Spec("target") --[[@as AUIFrameSpec]], 270, 36, 1, {
+	{ content = "healthAndPercent", anchor = "TOPLEFT", placement = "edge", x = 4 },
+	{ content = "levelName", anchor = "TOPRIGHT", placement = "edge", x = -4, colorMode = "class" },
+	{ content = "power", anchor = "BOTTOMLEFT", placement = "inside", x = 4, colorMode = "power" },
 })
