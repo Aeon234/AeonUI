@@ -826,7 +826,11 @@ function CastBar:ClearAids(frame)
 	frame.zones:Hide()
 	frame.latency:Hide()
 	frame.latencyText:Hide()
-	frame.pushback:SetText("")
+
+	-- Only the player's bar styles its pushback, and a font string with no font cannot take text.
+	if frame.aids then
+		frame.pushback:SetText("")
+	end
 
 	for _, tick in ipairs(frame.ticks) do
 		tick:Hide()

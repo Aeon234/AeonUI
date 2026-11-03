@@ -136,6 +136,7 @@ METHODS.FontString = {
 		self.justify = justify
 	end,
 	SetText = function(self, text)
+		assert(self.font, "FontString:SetText(): Font not set")
 		self.text = text
 	end,
 	UpdateTag = function(self)
@@ -146,8 +147,12 @@ METHODS.Frame = {
 	CreateTexture = function(self)
 		return New("Texture", self)
 	end,
-	CreateFontString = function(self)
-		return New("FontString", self)
+	CreateFontString = function(self, _, _, template)
+		local text = New("FontString", self)
+
+		text.font = template
+
+		return text
 	end,
 	SetFrameLevel = function(self, level)
 		self.level = level

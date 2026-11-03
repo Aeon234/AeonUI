@@ -55,9 +55,13 @@ local INDICATOR_ART = {
 	pvp = { atlas = "UI-HUD-UnitFrame-Player-PVP-AllianceIcon" },
 	classification = { texture = "Interface\\AddOns\\AeonUI\\Media\\Textures\\Classification\\Elite.png", coords = { 0, 1, 0, 1 } },
 }
--- The states that draw the sample cast bar as themselves.
-local CASTING, CHANNELING, NOT_INTERRUPTIBLE, INTERRUPTED_STATE = L["Casting"], L["Channeling"], L["Not Interruptible"],
-	INTERRUPTED
+-- What the sample cast bar shows in each of a frame's states; its name says so, so one pill shows both.
+local CASTING = L["Casting"]
+local CAST_SAMPLES = {
+	[OVERFLOW] = { state = "CHANNELING", label = L["Channeling"] },
+	[HOVER] = { state = "NOT_INTERRUPTIBLE", label = L["Not Interruptible"] },
+	[DEAD] = { state = "INTERRUPTED", label = INTERRUPTED },
+}
 -- The setting a click on the sample power bar lands on.
 local POWER_SWITCH = "powerEnabled"
 -- The sample power bar's share of its maximum.
@@ -96,7 +100,7 @@ local FramePreview = {}
 FramePreview.__index = FramePreview
 FramePreview.STATES = { FULL, DAMAGED, DEAD, HOVER }
 FramePreview.OVERLAY_STATES = { FULL, DAMAGED, DEAD, HOVER, ABSORBS, OVERFLOW }
-FramePreview.CAST_STATES = { FULL, DAMAGED, DEAD, HOVER, ABSORBS, OVERFLOW, CASTING, CHANNELING, NOT_INTERRUPTIBLE, INTERRUPTED_STATE }
+FramePreview.CAST_STATES = { ABSORBS, OVERFLOW, HOVER, DEAD }
 AUI.FramePreview = FramePreview
 
 ---@param spec AUIFrameSpec
@@ -344,8 +348,8 @@ function FramePreview:Refresh(state, preview)
 	local width = Profile:Get(Options:Path(key, "width"))
 	local height = UnitFrame:FrameHeight(key)
 	local reverse = Profile:Get(Options:Path(key, "reverse")) == true
-	local label = state or FULL
-	local share = SHARES[label] or 1
+	local label = state or (self.cast and ABSORBS) or FULL
+	local share = SHARES[label]
 	local amounts = OVERLAY_SAMPLES[label] or NO_OVERLAYS
 	local sample = Sample(share, label == DEAD, amounts)
 	local bar = self.bar
@@ -449,7 +453,7 @@ function FramePreview:Refresh(state, preview)
 	return width + left + right, height + above + below
 end
 
----Draws the sample cast bar under the frame, in the state or casting, while it is on.
+---Draws the sample cast bar under the frame, as the state shows it, while it is on.
 ---@param label string the preview's state
 ---@param preview table the library's preview
 ---@return number reach how far below the frame it reaches
@@ -458,11 +462,7 @@ function FramePreview:DrawCast(label, preview)
 	local view = self.cast
 	local base = view.base
 	local STATES = AUI.CastBarOptions.STATES
-	local states = {
-		[CHANNELING] = STATES.CHANNELING,
-		[NOT_INTERRUPTIBLE] = STATES.NOT_INTERRUPTIBLE,
-		[INTERRUPTED_STATE] = STATES.INTERRUPTED,
-	}
+	local sample = CAST_SAMPLES[label]
 	local on = Profile:Get(base .. "enabled") == true
 
 	view:SetShown(on)
@@ -474,7 +474,7 @@ function FramePreview:DrawCast(label, preview)
 	CastBar:Style(view)
 	view:ClearAllPoints()
 	view:SetPoint("TOP", self.holder, "BOTTOM", Profile:Get(base .. "x"), Profile:Get(base .. "y"))
-	CastBar:DrawSample(view, states[label] or STATES.CASTING, states[label] and label or CASTING)
+	CastBar:DrawSample(view, sample and STATES[sample.state] or STATES.CASTING, sample and sample.label or CASTING)
 	preview:Part(view.bar, "castEnabled")
 
 	return AUI.UnitCastBar:Extent(self.spec.key)
