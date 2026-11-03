@@ -53,7 +53,12 @@ local INDICATOR_ART = {
 	combat = { atlas = "UI-HUD-UnitFrame-Player-CombatIcon" },
 	leader = { atlas = "UI-HUD-UnitFrame-Player-Group-LeaderIcon" },
 	pvp = { atlas = "UI-HUD-UnitFrame-Player-PVP-AllianceIcon" },
+	classification = { texture = "Interface\\AddOns\\AeonUI\\Media\\Textures\\Classification\\Elite.png", coords = { 0, 1, 0, 1 } },
 }
+-- The setting a click on the sample power bar lands on.
+local POWER_SWITCH = "powerEnabled"
+-- The sample power bar's share of its maximum.
+local POWER_SAMPLE = 0.64
 -- Where a sample icon's corner sits, as a rectangle against its own point (y up).
 local CORNER_RECTS = {
 	BOTTOMLEFT = { 0, 1, 0, 1 },
@@ -104,6 +109,11 @@ function FramePreview:Create(canvas)
 	self.holder = holder
 	self.bar, self.background, self.border = AUI.UnitFrame:CreateBar(holder)
 	AUI.Text:Create(self, self.bar, self.spec.slots)
+
+	if self.spec.power then
+		self.power, self.powerBackground = AUI.UnitFrame:CreatePowerBar(holder)
+		self.power:SetMinMaxValues(0, 1)
+	end
 	self.bar:SetMinMaxValues(0, 1)
 
 	if self.spec.overlays then
@@ -324,7 +334,7 @@ function FramePreview:Refresh(state, preview)
 	local UnitFrame = AUI.UnitFrame
 	local key = self.spec.key
 	local width = Profile:Get(Options:Path(key, "width"))
-	local height = Profile:Get(Options:Path(key, "height"))
+	local height = UnitFrame:FrameHeight(key)
 	local reverse = Profile:Get(Options:Path(key, "reverse")) == true
 	local label = state or FULL
 	local share = SHARES[label]
@@ -358,11 +368,30 @@ function FramePreview:Refresh(state, preview)
 
 	local inLeft, inRight = AUI.Portrait:Inset(key)
 
-	UnitFrame:PlaceBar(bar, self.holder, inLeft, inRight)
+	local _, powerHeight, separator = UnitFrame:Heights(key)
+
+	UnitFrame:PlaceBar(bar, self.holder, inLeft, inRight, powerHeight + separator)
 	bar:SetReverseFill(reverse)
 	bar:SetValue(share)
 	UnitFrame:AnchorBackground(bar, self.background, reverse)
 	HealthColor:Paint(bar, self.background, settings, fill, backdrop)
+
+	if self.power then
+		local shown = UnitFrame:PlacePowerBar(self.power, self.powerBackground, self.holder, key, inLeft, inRight, reverse)
+
+		self.power:SetShown(shown)
+
+		if shown then
+			local PowerColor = AUI.PowerColor
+			local colors = PowerColor:Resolve(key)
+			local powerFill = PowerColor:Fill(colors, AUI.oUF.colors.power.MANA, sample.classColor)
+
+			PowerColor:ApplyPalette()
+			self.power:SetValue(POWER_SAMPLE)
+			HealthColor:Paint(self.power, self.powerBackground, colors, powerFill, PowerColor:Background(colors, powerFill))
+			preview:Part(self.power, POWER_SWITCH)
+		end
+	end
 
 	if self.overlays then
 		local overlays = AUI.Overlays:Resolve(key)

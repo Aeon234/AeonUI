@@ -13,6 +13,8 @@ local NO_FILL = { r = 0, g = 0, b = 0, a = 0 }
 ---@field spec AUIFrameSpec
 ---@field hovered boolean? the mouse is over the frame
 ---@field Bar StatusBar the frame's main bar: oUF's Health element
+---@field Power StatusBar? oUF's Power element, under the health
+---@field PowerBackground Texture?
 ---@field Health StatusBar
 ---@field Background Texture
 ---@field Border AUIBorder
@@ -58,6 +60,45 @@ function UnitFrame:CreateBar(frame)
 	return bar, background, border
 end
 
+---@param key string
+---@return number height the power bar under the frame's health, 0 when it has none or it is off
+function UnitFrame:PowerHeight(key)
+	local Profile = AUI.Profile
+	local spec = Options:Spec(key)
+
+	if spec and spec.power and Profile:Get(Options:Path(key, "power.enabled")) == true then
+		return Profile:Get(Options:Path(key, "power.height"))
+	end
+
+	return 0
+end
+
+---The heights a frame's parts take.
+---@param key string
+---@return number health
+---@return number power 0 when it shows no power bar
+---@return number separator the border style's band between them
+function UnitFrame:Heights(key)
+	local health = AUI.Profile:Get(Options:Path(key, "height"))
+	local power = self:PowerHeight(key)
+
+	if power == 0 then
+		return health, 0, 0
+	end
+
+	local look = self:BarLook(key)
+
+	return health, power, (AUI.Border:Gaps(look.borderStyle, look.borderThickness, AUI:Pixel()))
+end
+
+---@param key string
+---@return number height the whole frame's
+function UnitFrame:FrameHeight(key)
+	local health, power, separator = self:Heights(key)
+
+	return health + separator + power
+end
+
 ---@class AUIBarLook
 ---@field texture string a bar texture choice
 ---@field background table the background color
@@ -65,6 +106,7 @@ end
 ---@field borderThickness number
 ---@field borderColor table the color the style draws in
 ---@field edgeFile string? the backdrop edge file, for the "EDGE" style
+---@field bottom { height: number }? the power bar under the frame's health, a row of the frame's border
 ---@field hover string how hovering shows: "color" takes the Hover Color, "lighten" lightens the color, "lit" the art
 
 ---A frame's bar look, its own values or the shared ones.
@@ -95,7 +137,10 @@ function UnitFrame:BarLook(key)
 		color = Profile:Get(Options:Path(key, "bars.borderColor"))
 	end
 
+	local power = self:PowerHeight(key)
+
 	return {
+		bottom = power > 0 and { height = power } or nil,
 		texture = Profile:Get(Options:Path(key, "bars.texture")),
 		background = Profile:Get(Options:Path(key, "bars.background")),
 		borderStyle = style,
@@ -121,6 +166,7 @@ function UnitFrame:StyleBar(bar, background, border, look)
 		color = look.borderColor,
 		thickness = look.borderThickness,
 		edgeFile = look.edgeFile,
+		bottom = look.bottom,
 		background = NO_FILL,
 	})
 end
@@ -160,10 +206,52 @@ end
 ---@param parent Region
 ---@param left number
 ---@param right number
-function UnitFrame:PlaceBar(bar, parent, left, right)
+function UnitFrame:PlaceBar(bar, parent, left, right, bottom)
 	bar:ClearAllPoints()
 	bar:SetPoint("TOPLEFT", parent, "TOPLEFT", left, 0)
-	bar:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", -right, 0)
+	bar:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", -right, bottom or 0)
+end
+
+---Creates the power bar a frame can show under its health.
+---@param parent Frame
+---@return StatusBar power
+---@return Texture background
+function UnitFrame:CreatePowerBar(parent)
+	local background = parent:CreateTexture(nil, "BACKGROUND")
+
+	background:SetColorTexture(1, 1, 1, 1)
+
+	return CreateFrame("StatusBar", nil, parent), background
+end
+
+---Places the power bar along the frame's bottom, or hides it, and gives it the frame's texture and fill direction.
+---@param power StatusBar
+---@param background Texture
+---@param parent Frame
+---@param key string
+---@param left number
+---@param right number
+---@param reverse boolean
+---@return boolean shown
+function UnitFrame:PlacePowerBar(power, background, parent, key, left, right, reverse)
+	local height = self:PowerHeight(key)
+	local shown = height > 0
+
+	background:SetShown(shown)
+
+	if not shown then
+		return false
+	end
+
+	power:ClearAllPoints()
+	power:SetPoint("BOTTOMLEFT", parent, "BOTTOMLEFT", left, 0)
+	power:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", -right, 0)
+	power:SetHeight(height)
+	AUI.Media:SetBarTexture(power, self:BarLook(key).texture)
+	power:SetReverseFill(reverse)
+	self:AnchorBackground(power, background, reverse)
+
+	return true
 end
 
 ---Places a bar's background over the part its fill leaves empty, so a translucent fill shows its own color.
@@ -207,6 +295,16 @@ function UnitFrame.Style(frame, unit)
 	health.colorHealth = true
 	health.UpdateColor = AUI.HealthColor.UpdateColor
 	frame.Health = health
+
+	if spec.power then
+		local power, background = UnitFrame:CreatePowerBar(frame)
+
+		power.colorPower = true
+		power.frequentUpdates = true
+		power.PostUpdateColor = AUI.PowerColor.PostUpdateColor
+		frame.Power = power
+		frame.PowerBackground = background
+	end
 
 	if spec.overlays then
 		local overlays = AUI.Overlays:Create(health)
@@ -304,10 +402,14 @@ function UnitFrameMixin:ApplyLayout()
 	local Profile = AUI.Profile
 	local position = self:Position()
 
-	self:SetSize(Profile:Get(Options:Path(self.key, "width")), Profile:Get(Options:Path(self.key, "height")))
+	self:SetSize(Profile:Get(Options:Path(self.key, "width")), UnitFrame:FrameHeight(self.key))
 	self:ClearAllPoints()
 	self:SetPoint(position.point, UIParent, position.point, position.x, position.y)
 	self.Border:Layout()
+
+	if self.spec.power then
+		AUI.Indicators:SetElement(self, "Power", UnitFrame:PowerHeight(self.key) > 0, self.Power --[[@as table]])
+	end
 
 	for kind, display in pairs(self.AuraDisplays or {}) do
 		AUI.Auras:Configure(display, AUI.Auras:Resolve(self.key, kind))
@@ -330,9 +432,25 @@ function UnitFrameMixin:ApplyAppearance()
 
 	local left, right = AUI.Portrait:Inset(self.key)
 
-	UnitFrame:PlaceBar(self.Bar, self, left, right)
+	local _, power, separator = UnitFrame:Heights(self.key)
+
+	UnitFrame:PlaceBar(self.Bar, self, left, right, power + separator)
 	self.Bar:SetReverseFill(reverse)
 	UnitFrame:AnchorBackground(self.Bar, self.Background, reverse)
+
+	if self.spec.power then
+		local bar, background = self.Power --[[@as StatusBar]], self.PowerBackground --[[@as Texture]]
+
+		if UnitFrame:PlacePowerBar(bar, background, self, self.key, left, right, reverse) then
+			AUI.PowerColor:ApplyPalette()
+			AUI.PowerColor:Apply(self, AUI.PowerColor:Resolve(self.key), background)
+
+			if bar:IsVisible() then
+				(bar --[[@as table]]):ForceUpdate()
+			end
+		end
+	end
+
 	AUI.Text:Apply(self, self.key)
 	AUI.HealthColor:Apply(self, AUI.HealthColor:Resolve(self.key))
 

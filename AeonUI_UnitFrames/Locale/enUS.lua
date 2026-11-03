@@ -251,6 +251,8 @@ L["Hide Tooltip in Combat"] = "Hide Tooltip in Combat"
 -- Unit frames: frame pages (Settings)
 L["Show Player Frame"] = "Show Player Frame"
 L["Show Target Frame"] = "Show Target Frame"
+L["Show Power Bar"] = "Show Power Bar"
+L["Classification"] = "Classification"
 L["Full"] = "Full"
 L["Damaged"] = "Damaged"
 L["%d changed"] = "%d changed"

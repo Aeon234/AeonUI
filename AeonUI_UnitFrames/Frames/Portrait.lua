@@ -61,7 +61,7 @@ function Portrait:Inset(key)
 		return 0, 0
 	end
 
-	local height = AUI.Profile:Get(Options:Path(key, "height"))
+	local height = AUI.UnitFrame:FrameHeight(key)
 
 	if settings.side == "LEFT" then
 		return height, 0
@@ -75,7 +75,7 @@ end
 ---@return number size the portrait's side: the frame's full height when attached
 function Portrait:Size(key, settings)
 	if settings.style == "attached" then
-		return AUI.Profile:Get(Options:Path(key, "height"))
+		return AUI.UnitFrame:FrameHeight(key)
 	end
 
 	return settings.size
@@ -94,7 +94,7 @@ function Portrait:Reach(key)
 		return 0, 0, 0, 0
 	end
 
-	local height = AUI.Profile:Get(Options:Path(key, "height"))
+	local height = AUI.UnitFrame:FrameHeight(key)
 	local above = math.max(0, settings.y)
 	local below = math.max(0, settings.size - settings.y - height)
 

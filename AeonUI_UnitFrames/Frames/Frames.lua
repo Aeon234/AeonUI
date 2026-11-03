@@ -5,7 +5,7 @@ local Options = AUI.UnitFrameOptions
 -- Settings that change a secure frame or an aura container, which wait for combat to end.
 local LAYOUT = {
 	width = true, height = true, position = true, text = true, buffs = true, debuffs = true, auras = true, enabled = true,
-	attach = true, attachX = true, attachY = true, extraMana = true, extraManaHeight = true, spacing = true,
+	bars = true, power = true, attach = true, attachX = true, attachY = true, extraMana = true, extraManaHeight = true, spacing = true,
 }
 
 -- The keys of the player's resources' settings.
@@ -83,6 +83,7 @@ function Frames:Start()
 	local UnitFrame = AUI.UnitFrame
 
 	AUI.Tags:Register()
+	AUI.Indicators:Register()
 	oUF:RegisterStyle("AeonUI", UnitFrame.Style)
 	oUF:RegisterStyle("AeonUIPlayerPower", AUI.PlayerPower.Style)
 	oUF:RegisterStyle("AeonUIClassPower", AUI.ClassPower.Style)

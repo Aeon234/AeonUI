@@ -276,8 +276,9 @@ function New(kind, parent)
 				end
 			end
 
-			-- Lowercase names are the stub's own recorded fields; anything else is a method the type lacks.
-			if tostring(method):match("^[%l_]") or method == "Portrait" then
+			-- Lowercase names are the stub's own recorded fields, and these capitalized ones are elements a frame may not have;
+			-- anything else is a method the type lacks.
+			if tostring(method):match("^[%l_]") or method == "Portrait" or method == "ThreatIndicator" or method == "Totems" then
 				return nil
 			end
 
@@ -416,6 +417,9 @@ AUI.Callbacks = {
 	end,
 }
 AUI.Border = {
+	Gaps = function()
+		return 1, 1
+	end,
 	ART_COLOR = { r = 0.5, g = 0.4, b = 0.3 },
 	CellDividerWidth = function() end,
 	StyleCellDivider = function() end,
@@ -461,6 +465,7 @@ local spawned, styles = {}, {}
 AUI.oUF = {
 	Tags = { Methods = {}, Events = {}, SharedEvents = {} },
 	colors = { power = {}, class = {}, reaction = {} },
+	AddElement = function() end,
 	RegisterStyle = function(_, name, style)
 		styles[name] = style
 	end,
@@ -853,5 +858,48 @@ for _, state in ipairs(AUI.FramePreview.OVERLAY_STATES) do
 	width, height = targetPreview:Refresh(state, sampleTarget)
 	Equal(state .. ": the target sample draws", width > 0 and height > 0, true)
 end
+
+-- The target's power bar and classification icon ------------------------------------------------------------------
+
+local UnitFrame = AUI.UnitFrame
+
+Equal("no power bar by default", UnitFrame:FrameHeight("target"), 36)
+Equal("the player has none to turn on", UnitFrame:PowerHeight("player"), 0)
+Equal("classification off by default", Schema:Read(config, TargetPath("indicators.classification.enabled")), false)
+Schema:Write(config, TargetPath("power.enabled"), true)
+Equal("the power bar's height", UnitFrame:PowerHeight("target"), 6)
+Equal("a row of the frame's border", UnitFrame:BarLook("target").bottom.height, 6)
+Equal("the Height stays the health bar's", (UnitFrame:Heights("target")), 36)
+
+local _, targetPower, targetSeparator = UnitFrame:Heights("target")
+
+Equal("it adds to the frame", UnitFrame:FrameHeight("target"), 36 + targetSeparator + targetPower)
+parts = {}
+width, height = targetPreview:Refresh(nil, sampleTarget)
+Equal("the sample is that tall", select(2, targetPreview.holder:GetSize()), UnitFrame:FrameHeight("target"))
+Equal("the sample power bar is a part", partRegions.powerEnabled, targetPreview.power)
+Schema:Write(config, TargetPath("power.enabled"), false)
+targetPreview:Refresh(nil, sampleTarget)
+Equal("off, the sample hides it", targetPreview.powerBackground:IsShown(), false)
+
+AUI.UnitFrame.specs.target = Options:Spec("target")
+
+local liveTarget = AUI.oUF:Spawn("target", "AeonUITarget")
+
+liveTarget:ApplyLayout()
+liveTarget:ApplyAppearance()
+Equal("off, the live frame is the health's height", select(2, liveTarget:GetSize()), 36)
+Equal("the power background hidden", liveTarget.PowerBackground:IsShown(), false)
+Schema:Write(config, TargetPath("power.enabled"), true)
+Schema:Write(config, TargetPath("indicators.classification.enabled"), true)
+liveTarget:ApplyLayout()
+liveTarget:ApplyAppearance()
+Equal("on, the live frame grows", select(2, liveTarget:GetSize()), 43)
+Equal("the power background shows", liveTarget.PowerBackground:IsShown(), true)
+Equal("in its colors", liveTarget.powerBackground, liveTarget.PowerBackground)
+Equal("repainted by the palette's step", liveTarget.Power.PostUpdateColor, AUI.PowerColor.PostUpdateColor)
+Equal("the classification icon exists", liveTarget.AeonClassification ~= nil, true)
+Schema:Write(config, TargetPath("power.enabled"), false)
+Schema:Write(config, TargetPath("indicators.classification.enabled"), false)
 
 print(("check_unitframes: %d checks passed"):format(checks))

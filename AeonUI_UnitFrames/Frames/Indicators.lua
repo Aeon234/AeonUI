@@ -9,6 +9,17 @@ local ELEMENTS = {
 	combat = "CombatIndicator",
 	leader = "LeaderIndicator",
 	pvp = "PvPIndicator",
+	classification = "AeonClassification",
+}
+
+local CLASSIFICATION_ICONS = "Interface\\AddOns\\AeonUI\\Media\\Textures\\Classification\\"
+
+-- The icon for each classification the client reports; a world boss shows as elite.
+local CLASSIFICATIONS = {
+	rare = CLASSIFICATION_ICONS .. "Rare.png",
+	elite = CLASSIFICATION_ICONS .. "Elite.png",
+	worldboss = CLASSIFICATION_ICONS .. "Elite.png",
+	rareelite = CLASSIFICATION_ICONS .. "RareElite.png",
 }
 
 -- Threat border colors: gold near aggro, orange with aggro.
@@ -326,6 +337,51 @@ function Indicators:Place(widget, anchor, settings)
 
 	widget:ClearAllPoints()
 	widget:SetPoint(point, anchor, relative, settings.x, settings.y)
+end
+
+---@param frame table
+---@param _ string the event
+---@param unit string?
+local function UpdateClassification(frame, _, unit)
+	local element = frame.AeonClassification
+	local classification = UnitClassification(unit or frame.__unit)
+
+	if issecretvalue(classification) then
+		element:Hide()
+
+		return
+	end
+
+	local file = CLASSIFICATIONS[classification]
+
+	element:SetShown(file ~= nil)
+
+	if file then
+		element:SetTexture(file)
+	end
+end
+
+---@param frame table
+---@return boolean? active
+local function EnableClassification(frame)
+	if frame.AeonClassification then
+		frame:RegisterEvent("UNIT_CLASSIFICATION_CHANGED", UpdateClassification)
+
+		return true
+	end
+end
+
+---@param frame table
+local function DisableClassification(frame)
+	if frame.AeonClassification then
+		frame.AeonClassification:Hide()
+		frame:UnregisterEvent("UNIT_CLASSIFICATION_CHANGED", UpdateClassification)
+	end
+end
+
+---Adds the classification element to AeonUI's oUF, before any frame spawns.
+function Indicators:Register()
+	AUI.oUF:AddElement("AeonClassification", UpdateClassification, EnableClassification, DisableClassification)
 end
 
 ---Runs or stops an element. oUF draws nothing as it enables an element, so one turned back on is updated here.

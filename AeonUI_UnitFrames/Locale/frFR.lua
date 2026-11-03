@@ -251,6 +251,8 @@ L["Hide Tooltip in Combat"] = "Masquer l'infobulle en combat"
 -- Unit frames: frame pages (Settings)
 L["Show Player Frame"] = "Afficher le cadre du joueur"
 L["Show Target Frame"] = "Afficher le cadre de la cible"
+L["Show Power Bar"] = "Afficher la barre de puissance"
+L["Classification"] = "Classification"
 L["Full"] = "Pleine"
 L["Damaged"] = "Blessé"
 L["%d changed"] = "%d modifié(s)"

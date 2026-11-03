@@ -199,6 +199,7 @@ AUI.HealthColor = { Paint = function() end }
 AUI.Fading = { Start = function() end }
 AUI.Events = { Register = function() end }
 AUI.Indicators = {
+	Register = function() end,
 	SetElement = function(_, frame, element, on)
 		frame.elements = frame.elements or {}
 		frame.elements[element] = on

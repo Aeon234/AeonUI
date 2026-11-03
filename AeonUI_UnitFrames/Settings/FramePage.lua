@@ -21,6 +21,9 @@ local ICONS = {
 	target = "unitTarget",
 }
 
+-- The switch on a frame's power card.
+local POWER_SWITCH = "powerEnabled"
+
 local CONTENT_LABELS = {
 	none = NONE,
 	name = L["Name"],
@@ -178,6 +181,7 @@ local INDICATOR_LABELS = {
 	combat = COMBAT,
 	leader = L["Leader and Assistant"],
 	pvp = PVP,
+	classification = L["Classification"],
 }
 
 local RESTING_ICON_LABELS = {
@@ -308,8 +312,9 @@ function FramePage:PowerMaker()
 end
 
 ---@param card table
+---@param depends string? the switch the row depends on
 ---@return fun(): string group the one Colors row every group of power colors goes in, declared when first asked for
-function FramePage:PowerGroup(card)
+function FramePage:PowerGroup(card, depends)
 	local key = self.spec.key
 	local details = key .. "PowerColors"
 	local declared = false
@@ -320,6 +325,7 @@ function FramePage:PowerGroup(card)
 			card:Details({
 				id = details,
 				label = L["Colors"],
+				depends = depends,
 				summary = function()
 					local paths = {}
 
@@ -457,6 +463,30 @@ function FramePage:DeclareBars(page, title)
 	}))
 
 	return card
+end
+
+---The power bar under the frame's health, off by default, with its colors following All Frames until changed.
+---@param page table
+function FramePage:DeclarePower(page)
+	local key = self.spec.key
+	local card = page:Section(key .. "Power", L["Power"])
+	local make = self:PowerMaker()
+
+	card:Toggle(Field(POWER_SWITCH, L["Show Power Bar"], Options:Path(key, "power.enabled")))
+	card:Slider(Field("powerHeight", L["Height"], Options:Path(key, "power.height"), {
+		depends = POWER_SWITCH,
+		min = Options.MIN_POWER_HEIGHT,
+		max = Options.MAX_ATTACHED_POWER,
+		step = 1,
+	}))
+	AUI.SettingsAllFrames:DeclarePowerColors(card, function(id, label, field, extra)
+		extra = extra or {}
+		extra.depends = extra.depends or (not extra.details and POWER_SWITCH) or nil
+
+		return make(id, label, field, extra)
+	end, function(field)
+		return AUI.Profile:Get(Options:Path(key, "powerColors." .. field))
+	end, self:PowerGroup(card, POWER_SWITCH))
 end
 
 ---The frame's health color, with its other colors in one row; all follow All Frames until changed.
@@ -1305,6 +1335,10 @@ function FramePage:Declare(window)
 	self:DeclareSize(page)
 	self:DeclareBars(page)
 	self:DeclareHealth(page)
+
+	if spec.power then
+		self:DeclarePower(page)
+	end
 
 	if spec.portrait then
 		self:DeclarePortrait(page)

@@ -244,6 +244,9 @@ local look = {
 }
 
 AUI.UnitFrame = {
+	FrameHeight = function(_, key)
+		return AUI.Profile:Get(AUI.UnitFrameOptions:Path(key, "height"))
+	end,
 	BarLook = function()
 		return look
 	end,

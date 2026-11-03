@@ -251,6 +251,8 @@ L["Hide Tooltip in Combat"] = "Скрывать подсказку в бою"
 -- Unit frames: frame pages (Settings)
 L["Show Player Frame"] = "Показывать рамку игрока"
 L["Show Target Frame"] = "Показывать рамку цели"
+L["Show Power Bar"] = "Показывать полосу ресурса"
+L["Classification"] = "Классификация"
 L["Full"] = "Полное"
 L["Damaged"] = "Ранен"
 L["%d changed"] = "Изменено: %d"

@@ -17,6 +17,7 @@ local Schema = AUI.Schema
 ---@field indicators table[]? its indicators: `name`, `enabled`, `size`, `anchor`, `placement`, `x` and `y`
 ---@field threat boolean? it has a threat border
 ---@field reverse boolean? its health fills from the right by default
+---@field power boolean? it can show a power bar under its health
 ---@field totems table? its totems' place until moved: `anchor`, `placement`, `x`, `y` and `growth`
 ---@field idleFade boolean? it fades while the player is idle
 ---@field position { point: string, x: number, y: number } its place until moved
@@ -63,6 +64,7 @@ local Options = {
 			slots = 4,
 			overlays = true,
 			reverse = true,
+			power = true,
 			auras = {
 				buffs = { enabled = true, anchor = "aboveLeft", limit = 4, filter = "all" },
 				debuffs = { enabled = true, anchor = "belowLeft", limit = 20, filter = "all" },
@@ -73,6 +75,7 @@ local Options = {
 				{ name = "combat", enabled = false, size = 16, anchor = "BOTTOMLEFT", placement = "inside" },
 				{ name = "leader", enabled = true, size = 16, anchor = "TOPLEFT", placement = "edge" },
 				{ name = "pvp", enabled = false, size = 24, anchor = "TOPRIGHT", placement = "outside" },
+				{ name = "classification", enabled = false, size = 20, anchor = "TOPRIGHT", placement = "edge", x = 10 },
 			},
 			position = { point = "CENTER", x = 330, y = -200 },
 		},
@@ -194,6 +197,7 @@ local Options = {
 	MAX_RESOURCE_HEIGHT = 40,
 	MAX_RESOURCE_SPACING = 10,
 	MAX_RESOURCE_OFFSET = 50,
+	MAX_ATTACHED_POWER = 20,
 	MAX_EXTRA_MANA = 20,
 	RESTING_ICONS = {
 		"animated", "still", "classic", "portrait", "resting0", "resting1", "resting2", "resting3", "resting4", "resting5",
@@ -539,6 +543,15 @@ local function DeclareFrame(spec, width, height, status, slots)
 
 	for _, field in ipairs(Options.HEALTH_LOOK) do
 		Schema:Inherit(Options:Path(key, "health." .. field), Options.ALL .. "health." .. field)
+	end
+
+	if spec.power then
+		Schema:Boolean(Options:Path(key, "power.enabled"), false)
+		Schema:Number(Options:Path(key, "power.height"), 6, Options.MIN_POWER_HEIGHT, Options.MAX_ATTACHED_POWER, true)
+
+		for _, field in ipairs(Options.POWER_LOOK) do
+			Schema:Inherit(Options:Path(key, "powerColors." .. field), Options.ALL .. "powerColors." .. field)
+		end
 	end
 
 	if spec.overlays then

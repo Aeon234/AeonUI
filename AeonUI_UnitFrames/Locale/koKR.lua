@@ -251,6 +251,8 @@ L["Hide Tooltip in Combat"] = "전투 중 툴팁 숨기기"
 -- Unit frames: frame pages (Settings)
 L["Show Player Frame"] = "플레이어 프레임 표시"
 L["Show Target Frame"] = "대상 프레임 표시"
+L["Show Power Bar"] = "자원 바 표시"
+L["Classification"] = "등급"
 L["Full"] = "가득"
 L["Damaged"] = "피해 입음"
 L["%d changed"] = "%d개 변경됨"
