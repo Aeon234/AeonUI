@@ -112,6 +112,16 @@ L["Show Progress Bars"] = "Show Progress Bars"
 L["Count"] = "Count"
 L["Percent"] = "Percent"
 
+-- Traveler's Log list (ActivityList)
+L["Points: High to Low"] = "Points: High to Low"
+L["Points: Low to High"] = "Points: Low to High"
+L["Closest to Complete"] = "Closest to Complete"
+L["Time Remaining"] = "Time Remaining"
+L["Name (A-Z)"] = "Name (A-Z)"
+L["Completed"] = "Completed"
+L["Expired"] = "Expired"
+L["Everything here is hidden."] = "Everything here is hidden."
+
 -- Hidden Settings page (Settings)
 L["Loot Sparkles"] = "Loot Sparkles"
 L["Ore"] = "Ore"

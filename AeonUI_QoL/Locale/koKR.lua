@@ -106,6 +106,16 @@ L["Show Progress Bars"] = "진행 바 표시"
 L["Count"] = "개수"
 L["Percent"] = "백분율"
 
+-- Traveler's Log list (ActivityList)
+L["Points: High to Low"] = "점수: 높은 순"
+L["Points: Low to High"] = "점수: 낮은 순"
+L["Closest to Complete"] = "완료에 가까운 순"
+L["Time Remaining"] = "남은 시간"
+L["Name (A-Z)"] = "이름 (가나다순)"
+L["Completed"] = "완료됨"
+L["Expired"] = "만료됨"
+L["Everything here is hidden."] = "여기 있는 모든 항목이 숨겨져 있습니다."
+
 -- Hidden Settings page (Settings)
 L["Loot Sparkles"] = "전리품 반짝임"
 L["Ore"] = "광석"

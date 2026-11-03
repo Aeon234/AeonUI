@@ -21,17 +21,19 @@ function TravelersLog:IsOn()
 end
 
 function TravelersLog:Apply()
-	local Rows = AUI.TravelersLogRows
+	local Rows, List = AUI.TravelersLogRows, AUI.TravelersLogList
 
 	if self:IsOn() then
 		if C_AddOns.IsAddOnLoaded(JOURNAL_ADDON) then
 			Rows:Hook()
+			List:Hook()
 		elseif not self.waiting then
 			self.waiting = true
 			AUI.Events:Register("ADDON_LOADED", self, self.OnAddonLoaded)
 		end
 	end
 
+	List:Apply()
 	Rows:Refresh()
 end
 

@@ -106,6 +106,16 @@ L["Show Progress Bars"] = "显示进度条"
 L["Count"] = "数量"
 L["Percent"] = "百分比"
 
+-- Traveler's Log list (ActivityList)
+L["Points: High to Low"] = "点数:从高到低"
+L["Points: Low to High"] = "点数:从低到高"
+L["Closest to Complete"] = "最接近完成"
+L["Time Remaining"] = "剩余时间"
+L["Name (A-Z)"] = "名称(A-Z)"
+L["Completed"] = "已完成"
+L["Expired"] = "已过期"
+L["Everything here is hidden."] = "此处所有内容均已隐藏。"
+
 -- Hidden Settings page (Settings)
 L["Loot Sparkles"] = "战利品闪光"
 L["Ore"] = "矿石"
