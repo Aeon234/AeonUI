@@ -3,6 +3,7 @@
 	<Script file="Tags.lua" />
 	<Script file="Text.lua" />
 	<Script file="HealthColor.lua" />
+	<Script file="Overlays.lua" />
 	<Script file="UnitFrame.lua" />
 	<Script file="Frames.lua" />
 </Ui>

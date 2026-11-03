@@ -90,8 +90,24 @@ METHODS.Region = {
 	IsVisible = function(self)
 		return self.shown == true
 	end,
+	IsShown = function(self)
+		return self.shown == true
+	end,
+	GetWidth = function(self)
+		return self.width or 100
+	end,
+	GetHeight = function(self)
+		return self.height or 20
+	end,
+	SetAlpha = function(self, alpha)
+		self.alpha = alpha
+	end,
 }
 METHODS.Texture = {
+	SetTexture = function(self, file)
+		self.file = file
+	end,
+	SetBlendMode = function() end,
 	SetColorTexture = function(self, ...)
 		self.color = { ... }
 	end,
@@ -122,12 +138,25 @@ METHODS.Frame = {
 	CreateFontString = function(self)
 		return New("FontString", self)
 	end,
-	SetFrameLevel = function() end,
-	GetFrameLevel = function()
-		return 1
+	SetFrameLevel = function(self, level)
+		self.level = level
+	end,
+	GetFrameLevel = function(self)
+		return self.level or 1
+	end,
+	SetClipsChildren = function(self, clips)
+		self.clips = clips
 	end,
 }
 METHODS.StatusBar = {
+	SetStatusBarTexture = function(self, file)
+		self.texture = file
+	end,
+	SetStatusBarColor = function(self, ...)
+		self.barColor = { ... }
+	end,
+	SetMinMaxValues = function() end,
+	SetValue = function() end,
 	GetStatusBarTexture = function(self)
 		self.fill = self.fill or New("Texture", self)
 
@@ -149,6 +178,13 @@ METHODS.Button = {
 	Untag = function(_, text)
 		text.tag = nil
 	end,
+}
+
+Enum = {
+	UnitDamageAbsorbClampMode = { MaximumHealth = 2 },
+	UnitHealAbsorbClampMode = { MaximumHealth = 1 },
+	UnitHealAbsorbMode = { ReducedByIncomingHeals = 0 },
+	UnitIncomingHealClampMode = { MissingHealth = 0 },
 }
 
 local PARENTS = {
@@ -323,6 +359,7 @@ AUI.Border = {
 	end,
 }
 AUI.Media = {
+	FLAT = "flat",
 	Font = function(_, name)
 		return name
 	end,
@@ -380,6 +417,7 @@ AUI.Profile = {
 Load("AeonUI_UnitFrames/Frames/Tags.lua")
 Load("AeonUI_UnitFrames/Frames/Text.lua")
 Load("AeonUI_UnitFrames/Frames/HealthColor.lua")
+Load("AeonUI_UnitFrames/Frames/Overlays.lua")
 Load("AeonUI_UnitFrames/Frames/UnitFrame.lua")
 Load("AeonUI_UnitFrames/Frames/Frames.lua")
 
@@ -489,6 +527,15 @@ Equal("painted by AeonUI's color step", frame.Health.UpdateColor, AUI.HealthColo
 Equal("following oUF's reaction events", frame.Health.colorReaction, true)
 Equal("in class colors by default", frame.healthColors.mode, "classReaction")
 Equal("building no curve for them", frame.healthCurve, nil)
+Equal("its heal prediction is oUF's", frame.Health.HealingAll, frame.Overlays.healing)
+Equal("its shields too", frame.Health.DamageAbsorb, frame.Overlays.absorb)
+Equal("and its heal absorbs", frame.Health.HealAbsorb, frame.Overlays.healAbsorb)
+Equal("each shown", frame.Overlays.absorb.shown, true)
+Equal("the overlays get their settings", frame.Overlays.settings.absorb.position, "attach")
+Equal("no glow made while off", frame.Overlays.glow, nil)
+Equal("no backing made while off", frame.Overlays.backing, nil)
+Equal("the border sits above the overlays", AUI.UnitFrame.BORDER_LEVEL > 5, true)
+Equal("and the text above the border's edge", AUI.UnitFrame.TEXT_LEVEL > AUI.UnitFrame.BORDER_LEVEL + 1, true)
 Equal("a thin line by default", frame.Border.look.style, "THIN_LINE")
 Equal("in black", frame.Border.look.color.r, 0)
 Equal("drawing no fill of its own", frame.Border.look.background.a, 0)
@@ -509,6 +556,11 @@ Equal("a shared change reaches the frame", frame.Bar.texture, "other")
 Schema:Write(config, Options.ALL .. "health.dark", true)
 registered.Profile(Frames, Options.ALL .. "health.dark")
 Equal("a shared health color reaches the frame", frame.healthColors.dark, true)
+Schema:Write(config, Path("overlays.absorb.enabled"), false)
+registered.Profile(Frames, Path("overlays.absorb.enabled"))
+Equal("a frame's shields turn off", frame.Overlays.absorb.shown, false)
+Schema:Write(config, Path("overlays.absorb.enabled"), true)
+registered.Profile(Frames, Path("overlays.absorb.enabled"))
 Schema:Write(config, Path("health.dark"), false)
 registered.Profile(Frames, Path("health.dark"))
 Equal("and the frame's own value wins", frame.healthColors.dark, false)

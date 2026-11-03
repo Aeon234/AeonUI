@@ -8,6 +8,7 @@ local Schema = AUI.Schema
 ---@field name string the frame's global name
 ---@field page string the frame's settings page
 ---@field slots integer how many text slots it has
+---@field overlays boolean? it shows shields, heal absorbs and heal prediction
 ---@field position { point: string, x: number, y: number } its place until moved
 
 ---The unit frames' settings: every frame's, and the shared ones they follow. Holds no frame code.
@@ -21,6 +22,7 @@ local Options = {
 			name = "AeonUIPlayer",
 			page = "unitFramePlayer",
 			slots = 4,
+			overlays = true,
 			position = { point = "CENTER", x = -330, y = -200 },
 		},
 	},
@@ -37,6 +39,12 @@ local Options = {
 	HEALTH_MODES = { "classReaction", "custom", "classic", "stops", "classFade" },
 	HEALTH_BACKGROUNDS = { "custom", "classReaction" },
 	ORIENTATIONS = { "HORIZONTAL", "VERTICAL" },
+	OVERLAY_KINDS = { "absorb", "healAbsorb", "healPrediction" },
+	OVERLAY_POSITIONS = { "attach", "TOPLEFT", "TOPRIGHT", "BOTTOMLEFT", "BOTTOMRIGHT", "LEFT", "RIGHT" },
+	OVERSHIELDS = { "never", "always", "fromLeft" },
+	MIN_OVERLAY_HEIGHT = 1,
+	MAX_OVERLAY_HEIGHT = 40,
+	MAX_OVERHEAL = 50,
 	-- The health colors a frame can change, as paths under its `health.`.
 	HEALTH_LOOK = {
 		"mode", "color", "stops.full", "stops.half", "stops.empty", "gradient", "gradientDirection", "gradientColor",
@@ -110,6 +118,8 @@ Schema:Choices("unitFramePrecision", Options.PRECISIONS)
 Schema:Choices("unitFrameHealthMode", Options.HEALTH_MODES)
 Schema:Choices("unitFrameHealthBackground", Options.HEALTH_BACKGROUNDS)
 Schema:Choices("unitFrameOrientation", Options.ORIENTATIONS)
+Schema:Choices("unitFrameOverlayPosition", Options.OVERLAY_POSITIONS)
+Schema:Choices("unitFrameOvershield", Options.OVERSHIELDS)
 
 Schema:String(Options.ALL .. "bars.texture", "Solid", 64)
 Schema:Color(Options.ALL .. "bars.background", { r = 0.067, g = 0.067, b = 0.067, a = 1 })
@@ -147,6 +157,32 @@ Schema:Color(Options.ALL .. "health.disconnectedColor", { r = 0.6, g = 0.6, b = 
 Schema:Color(Options.ALL .. "health.reaction.hostile", nil)
 Schema:Color(Options.ALL .. "health.reaction.neutral", nil)
 Schema:Color(Options.ALL .. "health.reaction.friendly", nil)
+Schema:Color(Options.ALL .. "overlays.colors.absorb", { r = 0.502, g = 0.753, b = 1, a = 0.8 })
+Schema:Color(Options.ALL .. "overlays.colors.healAbsorb", { r = 0.502, g = 0.251, b = 1, a = 1 })
+Schema:Color(Options.ALL .. "overlays.colors.healPrediction", { r = 0.251, g = 1, b = 0.251, a = 1 })
+
+for _, kind in ipairs(Options.OVERLAY_KINDS) do
+	Schema:String(Options.ALL .. "overlays.textures." .. kind, "Solid", 64)
+end
+
+---A frame's shields, heal absorbs and heal prediction.
+---@param key string
+local function DeclareOverlays(key)
+	for _, kind in ipairs(Options.OVERLAY_KINDS) do
+		local path = Options:Path(key, "overlays." .. kind .. ".")
+
+		Schema:Boolean(path .. "enabled", true)
+		Schema:Choice(path .. "position", "unitFrameOverlayPosition", "attach")
+		Schema:Number(path .. "height", 4, Options.MIN_OVERLAY_HEIGHT, Options.MAX_OVERLAY_HEIGHT, true)
+		Schema:Boolean(path .. "matchHeight", true)
+		Schema:Inherit(path .. "texture", Options.ALL .. "overlays.textures." .. kind)
+	end
+
+	Schema:Choice(Options:Path(key, "overlays.absorb.overshield"), "unitFrameOvershield", "always")
+	Schema:Boolean(Options:Path(key, "overlays.absorb.glow"), false)
+	Schema:Number(Options:Path(key, "overlays.healAbsorb.backing"), 0, 0, 100, true)
+	Schema:Number(Options:Path(key, "overlays.healPrediction.overheal"), 0, 0, Options.MAX_OVERHEAL, true)
+end
 
 ---@class AUITextSlotDefault
 ---@field content string
@@ -202,6 +238,10 @@ local function DeclareFrame(spec, width, height, status, slots)
 
 	for _, field in ipairs(Options.HEALTH_LOOK) do
 		Schema:Inherit(Options:Path(key, "health." .. field), Options.ALL .. "health." .. field)
+	end
+
+	if spec.overlays then
+		DeclareOverlays(key)
 	end
 
 	Schema:Number(Options:Path(key, "text.status"), status, 0, spec.slots, true)

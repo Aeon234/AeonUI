@@ -17,13 +17,18 @@ local NO_FILL = { r = 0, g = 0, b = 0, a = 0 }
 ---@field Background Texture
 ---@field Border AUIBorder
 ---@field TextSlots FontString[]
+---@field Overlays AUIOverlayWidgets?
 local UnitFrameMixin = {}
 
 ---Builds the oUF style for AeonUI's frames, and the bars the settings previews share with them.
 ---@class AUIUnitFrameFactory
 ---@field specs table<string, AUIFrameSpec> the next spawned frame's spec, by unit
+---@field BORDER_LEVEL integer the border's level above its bar, over the health overlays
+---@field TEXT_LEVEL integer the text's level above its bar, over the border
 local UnitFrame = {
 	specs = {},
+	BORDER_LEVEL = 6,
+	TEXT_LEVEL = 8,
 }
 AUI.UnitFrame = UnitFrame
 
@@ -44,7 +49,7 @@ function UnitFrame:CreateBar(frame)
 
 	local border = AUI.Border:Create(frame, true)
 
-	border:SetFrameLevel(bar:GetFrameLevel() + 2)
+	border:SetFrameLevel(bar:GetFrameLevel() + self.BORDER_LEVEL)
 
 	return bar, background, border
 end
@@ -188,6 +193,24 @@ function UnitFrame.Style(frame, unit)
 	health.UpdateColor = AUI.HealthColor.UpdateColor
 	frame.Health = health
 
+	if spec.overlays then
+		local overlays = AUI.Overlays:Create(health)
+
+		health.HealingAll = overlays.healing
+		health.DamageAbsorb = overlays.absorb
+		health.HealAbsorb = overlays.healAbsorb
+		health.OverHealIndicator = overlays.marker
+		health.damageAbsorbClampMode = Enum.UnitDamageAbsorbClampMode.MaximumHealth
+		health.healAbsorbClampMode = Enum.UnitHealAbsorbClampMode.MaximumHealth
+		health.healAbsorbMode = Enum.UnitHealAbsorbMode.ReducedByIncomingHeals
+		health.incomingHealClampMode = Enum.UnitIncomingHealClampMode.MissingHealth
+		health.incomingHealOverflow = 1
+		health.PostUpdate = function(element)
+			AUI.Overlays:Update(overlays, element.values)
+		end
+		frame.Overlays = overlays
+	end
+
 	frame:RegisterForClicks("AnyUp")
 	frame:SetScript("OnEnter", frame.OnEnter)
 	frame:SetScript("OnLeave", frame.OnLeave)
@@ -238,6 +261,10 @@ function UnitFrameMixin:ApplyAppearance()
 	UnitFrame:AnchorBackground(self.Bar, self.Background, reverse)
 	AUI.Text:Apply(self, self.key)
 	AUI.HealthColor:Apply(self, AUI.HealthColor:Resolve(self.key))
+
+	if self.Overlays then
+		AUI.Overlays:Apply(self.Overlays, AUI.Overlays:Resolve(self.key), reverse, self.Health)
+	end
 
 	-- Redraws the bar with the new settings.
 	if self.Health:IsVisible() then

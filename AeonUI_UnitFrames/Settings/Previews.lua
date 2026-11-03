@@ -3,11 +3,17 @@ local AUI = select(2, ...)
 local L = AUI.L
 local Options = AUI.UnitFrameOptions
 
-local FULL, DAMAGED, HOVER = L["Full"], L["Damaged"], L["Hover"]
+local FULL, DAMAGED, HOVER, ABSORBS, OVERFLOW = L["Full"], L["Damaged"], L["Hover"], L["Absorbs"], L["Overflow"]
 
 -- The sample's maximum health, and each state's share of it.
 local MAX_HEALTH = 412000
-local SHARES = { [FULL] = 1, [DAMAGED] = 0.55, [DEAD] = 0, [HOVER] = 1 }
+local SHARES = { [FULL] = 1, [DAMAGED] = 0.55, [DEAD] = 0, [HOVER] = 1, [ABSORBS] = 0.6, [OVERFLOW] = 0.3 }
+-- The states that show health overlays; amounts are shares of maximum health.
+local OVERLAY_SAMPLES = {
+	[ABSORBS] = { health = 0.6, absorb = 0.25, healAbsorb = 0, healing = 0.15 },
+	[OVERFLOW] = { health = 0.3, absorb = 0.9, healAbsorb = 0.5, healing = 0 },
+}
+local NO_OVERLAYS = { health = 0, absorb = 0, healAbsorb = 0, healing = 0 }
 -- The reaction level a sample without a class takes.
 local FRIENDLY = 5
 
@@ -19,9 +25,11 @@ local FRIENDLY = 5
 ---@field background Texture
 ---@field border AUIBorder
 ---@field TextSlots FontString[]
+---@field overlays AUIOverlayWidgets?
 local FramePreview = {}
 FramePreview.__index = FramePreview
 FramePreview.STATES = { FULL, DAMAGED, DEAD, HOVER }
+FramePreview.OVERLAY_STATES = { FULL, DAMAGED, DEAD, HOVER, ABSORBS, OVERFLOW }
 AUI.FramePreview = FramePreview
 
 ---@param spec AUIFrameSpec
@@ -39,12 +47,17 @@ function FramePreview:Create(canvas)
 	self.bar, self.background, self.border = AUI.UnitFrame:CreateBar(holder)
 	AUI.Text:Create(self, self.bar, self.spec.slots)
 	self.bar:SetMinMaxValues(0, 1)
+
+	if self.spec.overlays then
+		self.overlays = AUI.Overlays:Create(self.bar)
+	end
 end
 
 ---@param share number the sample's share of its maximum health
 ---@param dead boolean
+---@param overlays table the state's overlay amounts
 ---@return AUITextSample sample
-local function Sample(share, dead)
+local function Sample(share, dead, overlays)
 	local name = AUI:Readable(UnitName("player"), "")
 	local level = AUI:Readable(UnitLevel("player"), 1)
 	local _, secretClass = UnitClass("player")
@@ -56,8 +69,8 @@ local function Sample(share, dead)
 		health = health,
 		percent = share * 100,
 		missing = MAX_HEALTH - health,
-		absorb = 0,
-		healAbsorb = 0,
+		absorb = MAX_HEALTH * overlays.absorb,
+		healAbsorb = MAX_HEALTH * overlays.healAbsorb,
 		power = 8240,
 		powerPercent = 64,
 		name = name,
@@ -79,7 +92,8 @@ function FramePreview:Refresh(state, preview)
 	local reverse = Profile:Get(Options:Path(key, "reverse")) == true
 	local label = state or FULL
 	local share = SHARES[label]
-	local sample = Sample(share, label == DEAD)
+	local amounts = OVERLAY_SAMPLES[label] or NO_OVERLAYS
+	local sample = Sample(share, label == DEAD, amounts)
 	local bar = self.bar
 	local HealthColor = AUI.HealthColor
 	local settings = HealthColor:Resolve(key)
@@ -97,6 +111,14 @@ function FramePreview:Refresh(state, preview)
 	bar:SetValue(share)
 	UnitFrame:AnchorBackground(bar, self.background, reverse)
 	HealthColor:Paint(bar, self.background, settings, fill, backdrop)
+
+	if self.overlays then
+		local overlays = AUI.Overlays:Resolve(key)
+
+		AUI.Overlays:Apply(self.overlays, overlays, reverse, nil)
+		AUI.Overlays:ShowSample(self.overlays, amounts, overlays.healPrediction.overheal)
+	end
+
 	preview:Part(bar, "width")
 
 	local slots, widths, contexts = AUI.Text:Layout(key, self.spec.slots)

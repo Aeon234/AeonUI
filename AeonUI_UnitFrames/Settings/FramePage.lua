@@ -61,6 +61,22 @@ local PLACEMENT_LABELS = {
 	outside = L["Outside"],
 }
 
+local OVERLAY_POSITION_LABELS = {
+	attach = L["Attach"],
+	TOPLEFT = L["Top Left"],
+	TOPRIGHT = L["Top Right"],
+	BOTTOMLEFT = L["Bottom Left"],
+	BOTTOMRIGHT = L["Bottom Right"],
+	LEFT = L["Left"],
+	RIGHT = L["Right"],
+}
+
+local OVERSHIELD_LABELS = {
+	never = L["Never"],
+	always = L["Always"],
+	fromLeft = L["From Left"],
+}
+
 local COLOR_MODE_LABELS = {
 	custom = L["Custom"],
 	class = L["Class / Reaction"],
@@ -289,6 +305,113 @@ function FramePage:DeclareHealth(page)
 	end
 
 	AUI.SettingsAllFrames:DeclareHealthColors(card, Make, Read, Group)
+
+	if self.spec.overlays then
+		self:DeclareOverlays(card)
+	end
+end
+
+---One overlay's row, opening to what it shows and where.
+---@param card table
+---@param kind string
+---@param label string
+---@param show string the switch's label
+---@param keywords string? other words search finds it by
+---@return string details the row's id
+---@return fun(field: string): string path the path of a field of the overlay
+---@return fun(): boolean attached the overlay is in the Attach position
+function FramePage:DeclareOverlay(card, kind, label, show, keywords)
+	local key = self.spec.key
+	local details = key .. kind .. "Details"
+
+	local function Own(field)
+		return Options:Path(key, "overlays." .. kind .. "." .. field)
+	end
+
+	card:Details({
+		id = details,
+		label = label,
+		summary = function()
+			if not AUI.Profile:Get(Own("enabled")) then
+				return OFF
+			end
+
+			return OVERLAY_POSITION_LABELS[AUI.Profile:Get(Own("position"))]
+		end,
+	})
+	card:Checkbox(Field(kind .. "Enabled", show, Own("enabled"), { details = details, keywords = keywords }))
+	card:Dropdown(Field(kind .. "Position", L["Position"], Own("position"), {
+		details = details,
+		depends = kind .. "Enabled",
+		options = ChoiceOptions(Options.OVERLAY_POSITIONS, OVERLAY_POSITION_LABELS),
+	}))
+	card:Dropdown(Inherited(kind .. "Texture", L["Texture"], Own("texture"), Options.ALL .. "overlays.textures." .. kind,
+		L["All Frames"], {
+			details = details,
+			depends = kind .. "Enabled",
+			picker = "texture",
+		}))
+	card:Checkbox(Field(kind .. "Match", L["Match Health Height"], Own("matchHeight"), {
+		details = details,
+		depends = kind .. "Enabled",
+	}))
+	card:Slider(Field(kind .. "Height", L["Height"], Own("height"), {
+		details = details,
+		depends = kind .. "Enabled",
+		min = Options.MIN_OVERLAY_HEIGHT,
+		max = Options.MAX_OVERLAY_HEIGHT,
+		step = 1,
+		show = function()
+			return AUI.Profile:Get(Own("matchHeight")) ~= true
+		end,
+	}))
+
+	return details, Own, function()
+		return AUI.Profile:Get(Own("position")) == "attach"
+	end
+end
+
+---The rows for shields, heal absorbs and heal prediction.
+---@param card table
+function FramePage:DeclareOverlays(card)
+	local details, Own, Attached = self:DeclareOverlay(card, "absorb", L["Shields"], L["Show Shields"], L["Absorb"])
+
+	card:Dropdown(Field("overshield", L["Show Overshield"], Own("overshield"), {
+		details = details,
+		depends = "absorbEnabled",
+		description = L["The part of a shield larger than the missing health."],
+		options = ChoiceOptions(Options.OVERSHIELDS, OVERSHIELD_LABELS),
+		show = Attached,
+	}))
+	card:Checkbox(Field("shieldGlow", L["Blizzard Glow Line"], Own("glow"), {
+		details = details,
+		depends = "absorbEnabled",
+		show = Attached,
+	}))
+
+	details, Own = self:DeclareOverlay(card, "healAbsorb", L["Heal Absorbs"], L["Show Heal Absorbs"])
+
+	card:Slider(Field("healAbsorbBacking", L["Backing Opacity"], Own("backing"), {
+		details = details,
+		depends = "healAbsorbEnabled",
+		description = L["Darkens the health under heal absorbs."],
+		min = 0,
+		max = 100,
+		step = 5,
+		format = "percent",
+	}))
+
+	details, Own = self:DeclareOverlay(card, "healPrediction", L["Heal Prediction"], L["Show Heal Prediction"])
+
+	card:Slider(Field("overheal", L["Overheal"], Own("overheal"), {
+		details = details,
+		depends = "healPredictionEnabled",
+		description = L["How far incoming heals can pass the end of the bar."],
+		min = 0,
+		max = Options.MAX_OVERHEAL,
+		step = 1,
+		format = "percent",
+	}))
 end
 
 ---A slot's row, opening to what the slot shows and where.
@@ -484,7 +607,7 @@ function FramePage:Declare(window)
 
 	page:Preview({
 		height = PREVIEW_HEIGHT,
-		states = AUI.FramePreview.STATES,
+		states = spec.overlays and AUI.FramePreview.OVERLAY_STATES or AUI.FramePreview.STATES,
 		create = function(canvas)
 			preview:Create(canvas)
 		end,

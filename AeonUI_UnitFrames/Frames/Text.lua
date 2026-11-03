@@ -212,7 +212,7 @@ function Text:Create(frame, bar, count)
 	local layer = CreateFrame("Frame", nil, bar)
 
 	layer:SetAllPoints(bar)
-	layer:SetFrameLevel(bar:GetFrameLevel() + 5)
+	layer:SetFrameLevel(bar:GetFrameLevel() + AUI.UnitFrame.TEXT_LEVEL)
 
 	local strings = {}
 

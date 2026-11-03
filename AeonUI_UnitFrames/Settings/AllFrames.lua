@@ -337,6 +337,40 @@ function SettingsAllFrames:Declare(window)
 	self:DeclareHealthColors(health, HealthField, HealthRead, HealthGroup)
 	self:DeclareHealthStates(health, HealthField, HealthRead, HealthGroup)
 
+	local overlays = page:Section("allFramesAbsorbs", L["Absorbs and Heals"])
+	local kinds = {
+		{ kind = "absorb", color = L["Shield Color"], texture = L["Shield Texture"] },
+		{ kind = "healAbsorb", color = L["Heal Absorb Color"], texture = L["Heal Absorb Texture"] },
+		{ kind = "healPrediction", color = L["Heal Prediction Color"], texture = L["Heal Prediction Texture"] },
+	}
+
+	for _, entry in ipairs(kinds) do
+		overlays:Color(Field(entry.kind .. "Color", entry.color, "overlays.colors." .. entry.kind, { hasOpacity = true }))
+	end
+
+	overlays:Details({
+		id = "allFramesAbsorbTextures",
+		label = L["Textures"],
+		summary = function()
+			local changed = 0
+
+			for _, kind in ipairs(Options.OVERLAY_KINDS) do
+				if AUI.Profile:IsCustom(Options.ALL .. "overlays.textures." .. kind) then
+					changed = changed + 1
+				end
+			end
+
+			return changed > 0 and L["%d changed"]:format(changed) or DEFAULT
+		end,
+	})
+
+	for _, entry in ipairs(kinds) do
+		overlays:Dropdown(Field(entry.kind .. "Texture", entry.texture, "overlays.textures." .. entry.kind, {
+			details = "allFramesAbsorbTextures",
+			picker = "texture",
+		}))
+	end
+
 	local numbers = page:Section("allFramesNumbers", L["Numbers"])
 	local precision = {}
 
