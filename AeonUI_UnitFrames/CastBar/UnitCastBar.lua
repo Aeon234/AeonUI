@@ -99,7 +99,6 @@ local function Reset(view)
 	if view.fading then
 		view.fading = false
 		fade:Stop()
-		view:SetIsFrameBuffer(false)
 	end
 
 	view:SetAlpha(1)
@@ -161,10 +160,10 @@ function UnitCastBar:Attach(frame)
 			view.fading = true
 			view.binding:SetEnabled(false)
 			view.spark:Hide()
-			view:SetIsFrameBuffer(true)
 			view.fade:Play()
 		else
 			Reset(view)
+			view.binding:SetEnabled(false)
 			hide(element)
 			view:Hide()
 		end
@@ -205,6 +204,9 @@ function UnitCastBar:Apply(frame)
 	local on = Profile:Get(base .. "enabled") == true
 
 	view:SetFrameStrata(Profile:Get(base .. "strata"))
+	-- Fade Out draws the bar as one image. Switching that on as a fade starts makes other frames flicker, so it stays on
+	-- with the setting.
+	view:SetIsFrameBuffer(Profile:Get(base .. "fade") == true)
 	CastBar:Style(view)
 	view:ClearAllPoints()
 	view:SetPoint("TOP", frame, "BOTTOM", Profile:Get(base .. "x"), Profile:Get(base .. "y"))
