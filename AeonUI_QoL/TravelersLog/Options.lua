@@ -18,7 +18,7 @@ local Schema = AUI.Schema
 ---@field TEXT_CHOICES string[] the Text choices, in the order the page lists them
 ---@field FULL_ROW AUITravelersLogRowGeometry
 ---@field CHILD_ROW AUITravelersLogRowGeometry a superseding activity's row, nested under its parent
----@field LABEL_WIDTH number
+---@field LABEL_WIDTH number the room kept for the longest label
 ---@field LABEL_GAP number between the bar and its label
 ---@field FILL_COLOR { r: number, g: number, b: number }
 ---@field TROUGH_ALPHA number
@@ -32,7 +32,7 @@ local Options = {
 	FULL_ROW = { left = 36, bottom = 9, height = 5, width = 370 },
 	CHILD_ROW = { left = 40, bottom = 5, height = 3, width = 350 },
 	LABEL_WIDTH = 62,
-	LABEL_GAP = 8,
+	LABEL_GAP = 6,
 	FILL_COLOR = { r = 0.92, g = 0.72, b = 0.2 },
 	TROUGH_ALPHA = 0.38,
 	LABEL_COLOR = { r = 0.95, g = 0.93, b = 0.87 },

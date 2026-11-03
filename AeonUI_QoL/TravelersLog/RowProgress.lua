@@ -30,8 +30,6 @@ function BarMixin:Build(geometry)
 
 	self.label = self:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 	self.label:SetPoint("LEFT", self, "RIGHT", Options.LABEL_GAP, 0)
-	self.label:SetWidth(Options.LABEL_WIDTH)
-	self.label:SetJustifyH("RIGHT")
 
 	self.spring = lib:CreateSpring(0, function(value)
 		self:SetValue(value)

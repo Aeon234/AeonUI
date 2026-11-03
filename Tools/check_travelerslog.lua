@@ -103,12 +103,6 @@ local function FontString()
 	text.SetPoint = function(self, point, _, relative, x)
 		self.point = { point, relative, x }
 	end
-	text.SetWidth = function(self, width)
-		self.width = width
-	end
-	text.SetJustifyH = function(self, justify)
-		self.justify = justify
-	end
 	text.SetText = function(self, value)
 		self.value = value
 	end
@@ -396,7 +390,8 @@ Equal("from 0 to 1", bar.low .. " " .. bar.high, "0 1")
 Equal("its value set at once", bar.value, 0.2)
 Equal("not moving", springs.Moving(), false)
 Equal("the label", bar.label.value, "5/25")
-Equal("right aligned", bar.label.justify, "RIGHT")
+Equal("just past the bar's end", bar.label.point[1] .. " " .. bar.label.point[2] .. " " .. bar.label.point[3],
+	"LEFT RIGHT " .. Options.LABEL_GAP)
 Equal("light with progress", bar.label.red, Options.LABEL_COLOR.r)
 
 local child = Row(Activity(2, { Requirement("- 0 / 10 Quests completed") }, { isChild = true }))
