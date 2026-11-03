@@ -56,6 +56,11 @@ function EditTargets:Register()
 	})
 end
 
+---Opens edit mode; the library refuses in combat and waits for Blizzard's panels to close.
+function EditTargets:Open()
+	lib:OpenEditMode(ADDON_NAME)
+end
+
 ---Places every target at its position again, after a profile change or a size change.
 function EditTargets:Apply()
 	if self.registration then

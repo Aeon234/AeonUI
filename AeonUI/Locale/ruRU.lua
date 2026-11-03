@@ -24,7 +24,8 @@ L["This profile string was made by a newer version of AeonUI."] = "Эта стр
 L["This profile string holds settings AeonUI can't use."] = "Эта строка профиля содержит настройки, которые AeonUI не может использовать."
 
 -- Minimap button tooltip (Core)
-L["Click: open settings"] = "Щелчок: открыть настройки"
+L["Left-click: open settings"] = "Левый клик: открыть настройки"
+L["Right-click: open edit mode"] = "Правый клик: открыть режим редактирования"
 
 -- Key bindings (Core)
 L["Eject All Passengers"] = "Высадить всех пассажиров"
@@ -82,7 +83,7 @@ L["Layout"] = "Расположение"
 
 -- General page (Settings)
 L["Show Minimap Button"] = "Показывать кнопку у миникарты"
-L["Left-click opens settings."] = "Левый щелчок открывает настройки."
+L["Left-click opens settings. Right-click opens edit mode."] = "Левый клик открывает настройки. Правый клик открывает режим редактирования."
 L["Goes below the game's own minimum. Turning it off needs a reload."] = "Ниже минимума игры. Чтобы выключить, нужна перезагрузка интерфейса."
 L["%s manages the UI scale."] = "Масштабом интерфейса управляет %s."
 L["Pixel Perfect"] = "Попиксельно"

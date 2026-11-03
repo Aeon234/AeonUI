@@ -334,6 +334,11 @@ function lib:Settings(name, declaration)
 	return window
 end
 
+lib.editModeOpened = {}
+function lib:OpenEditMode(name)
+	self.editModeOpened[#self.editModeOpened + 1] = name
+end
+
 local placements = {}
 function lib:Placement(name, declaration)
 	local registration = { name = name, declaration = declaration, applied = 0 }
@@ -1577,10 +1582,22 @@ end
 launchers.AeonUI.OnClick(nil, "LeftButton")
 Equal("a click opens the settings", settingsOpen, true)
 Settings.Close()
-icon.compartment[1].func()
+icon.compartment[1].func(nil, { buttonName = "LeftButton" })
 Equal("a compartment click opens the settings", settingsOpen, true)
 launchers.AeonUI.OnClick(nil, "LeftButton")
 Equal("a click while they are open closes them", settingsOpen, false)
+launchers.AeonUI.OnClick(nil, "RightButton")
+Equal("a right click opens edit mode for AeonUI", lib.editModeOpened[1], "AeonUI")
+Equal("a right click leaves the settings closed", settingsOpen, false)
+icon.compartment[1].func(nil, { buttonName = "RightButton" })
+Equal("a compartment right click opens edit mode", #lib.editModeOpened, 2)
+Equal("a compartment right click leaves the settings closed", settingsOpen, false)
+Profile.mode = "recovery"
+launchers.AeonUI.OnClick(nil, "RightButton")
+Equal("in recovery a right click does not open edit mode", #lib.editModeOpened, 2)
+Equal("in recovery a right click opens the settings", settingsOpen, true)
+Profile.mode = "normal"
+Settings.Close()
 Settings.IsOpen, Settings.Open, Settings.Close = realIsOpen, realOpen, realClose
 local checkbox = window.pages.general.sections.access.settings.minimapButton
 Equal("the checkbox reads shown", checkbox.get(), true)

@@ -13,14 +13,27 @@ local Broker = {
 }
 AUI.Broker = Broker
 
-local function OnClick()
-	AUI:ToggleSettings()
+---@param _ Frame
+---@param button string the mouse button
+local function OnClick(_, button)
+	if button == "RightButton" then
+		AUI:OpenEditMode()
+	else
+		AUI:ToggleSettings()
+	end
+end
+
+---@param _ any the entry's data
+---@param input table the menu's input, with the mouse button as `buttonName`
+local function OnCompartmentClick(_, input)
+	OnClick(nil, input.buttonName)
 end
 
 ---@param tooltip GameTooltip
 local function OnTooltipShow(tooltip)
 	tooltip:AddLine(AUI.brand)
-	tooltip:AddLine(L["Click: open settings"], 1, 1, 1)
+	tooltip:AddLine(L["Left-click: open settings"], 1, 1, 1)
+	tooltip:AddLine(L["Right-click: open edit mode"], 1, 1, 1)
 end
 
 ---@param button Button
@@ -74,7 +87,7 @@ function Broker:Create()
 		AddonCompartmentFrame:RegisterAddon({
 			text = AUI.brand,
 			icon = AUI.Media.logo,
-			func = OnClick,
+			func = OnCompartmentClick,
 			funcOnEnter = OnCompartmentEnter,
 			funcOnLeave = OnCompartmentLeave,
 		})

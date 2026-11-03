@@ -24,7 +24,8 @@ L["This profile string was made by a newer version of AeonUI."] = "此設定檔�
 L["This profile string holds settings AeonUI can't use."] = "此設定檔字串包含 AeonUI 無法使用的設定。"
 
 -- Minimap button tooltip (Core)
-L["Click: open settings"] = "點擊：開啟設定"
+L["Left-click: open settings"] = "左鍵點擊：開啟設定"
+L["Right-click: open edit mode"] = "右鍵點擊：開啟編輯模式"
 
 -- Key bindings (Core)
 L["Eject All Passengers"] = "彈出所有乘客"
@@ -82,7 +83,7 @@ L["Layout"] = "版面"
 
 -- General page (Settings)
 L["Show Minimap Button"] = "顯示小地圖按鈕"
-L["Left-click opens settings."] = "左鍵點擊開啟設定。"
+L["Left-click opens settings. Right-click opens edit mode."] = "左鍵點擊開啟設定。右鍵點擊開啟編輯模式。"
 L["Goes below the game's own minimum. Turning it off needs a reload."] = "可低於遊戲的最小值。關閉後需要重新載入介面。"
 L["%s manages the UI scale."] = "%s 正在管理介面縮放。"
 L["Pixel Perfect"] = "像素完美"

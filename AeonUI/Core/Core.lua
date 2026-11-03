@@ -126,6 +126,17 @@ function AUI:ToggleSettings()
 	self:OpenSettings()
 end
 
+---Opens edit mode. In recovery positions cannot be saved, so the settings window opens on the Recovery page instead.
+function AUI:OpenEditMode()
+	if self.Profile.mode == "recovery" then
+		self:OpenSettings()
+
+		return
+	end
+
+	self.EditTargets:Open()
+end
+
 function AUI:PrintDiagnostics()
 	local Profile = self.Profile
 

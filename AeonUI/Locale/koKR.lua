@@ -24,7 +24,8 @@ L["This profile string was made by a newer version of AeonUI."] = "이 프로필
 L["This profile string holds settings AeonUI can't use."] = "이 프로필 문자열에는 AeonUI가 사용할 수 없는 설정이 들어 있습니다."
 
 -- Minimap button tooltip (Core)
-L["Click: open settings"] = "클릭: 설정 열기"
+L["Left-click: open settings"] = "왼쪽 클릭: 설정 열기"
+L["Right-click: open edit mode"] = "오른쪽 클릭: 편집 모드 열기"
 
 -- Key bindings (Core)
 L["Eject All Passengers"] = "모든 승객 내보내기"
@@ -82,7 +83,7 @@ L["Layout"] = "배치"
 
 -- General page (Settings)
 L["Show Minimap Button"] = "미니맵 버튼 표시"
-L["Left-click opens settings."] = "왼쪽 클릭으로 설정을 엽니다."
+L["Left-click opens settings. Right-click opens edit mode."] = "왼쪽 클릭으로 설정을 열고, 오른쪽 클릭으로 편집 모드를 엽니다."
 L["Goes below the game's own minimum. Turning it off needs a reload."] = "게임 최소값보다 작게 할 수 있습니다. 끄려면 UI를 다시 불러와야 합니다."
 L["%s manages the UI scale."] = "%s 애드온이 UI 크기를 관리합니다."
 L["Pixel Perfect"] = "픽셀 퍼펙트"

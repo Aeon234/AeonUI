@@ -24,7 +24,7 @@ function General:Declare(window)
 	access:Checkbox({
 		id = "minimapButton",
 		label = L["Show Minimap Button"],
-		description = L["Left-click opens settings."],
+		description = L["Left-click opens settings. Right-click opens edit mode."],
 		get = function()
 			return not AUI.Broker:Hidden()
 		end,
