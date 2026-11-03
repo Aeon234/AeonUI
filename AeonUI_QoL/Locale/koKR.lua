@@ -99,6 +99,13 @@ L["Rows First"] = "행 우선"
 L["Columns First"] = "열 우선"
 L["Show All Items"] = "모든 아이템 표시"
 
+-- Traveler's Log page (Settings)
+L["Enhance %s"] = "%s 개선"
+L["Row Progress"] = "행 진행도"
+L["Show Progress Bars"] = "진행 바 표시"
+L["Count"] = "개수"
+L["Percent"] = "백분율"
+
 -- Hidden Settings page (Settings)
 L["Loot Sparkles"] = "전리품 반짝임"
 L["Ore"] = "광석"

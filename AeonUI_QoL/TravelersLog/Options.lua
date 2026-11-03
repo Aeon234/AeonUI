@@ -1,0 +1,140 @@
+local AUI = select(2, ...)
+
+local Schema = AUI.Schema
+
+---Where the bar and its label sit on one kind of row, as offsets from the row's bottom left corner.
+---@class AUITravelersLogRowGeometry
+---@field left number the row's text starts here
+---@field bottom number
+---@field height number the bar's
+---@field width number the row's text column, which the bar and its label share
+
+---The Traveler's Log settings and their frame-free rules: which activities show progress, how far along an activity
+---is, and its label.
+---@class AUITravelersLogOptions
+---@field ENABLED_PATH string the page's switch
+---@field BARS_PATH string rows draw a bar
+---@field TEXT_PATH string a `travelersLogText` choice
+---@field TEXT_CHOICES string[] the Text choices, in the order the page lists them
+---@field FULL_ROW AUITravelersLogRowGeometry
+---@field CHILD_ROW AUITravelersLogRowGeometry a superseding activity's row, nested under its parent
+---@field LABEL_WIDTH number
+---@field LABEL_GAP number between the bar and its label
+---@field FILL_COLOR { r: number, g: number, b: number }
+---@field TROUGH_ALPHA number
+---@field LABEL_COLOR { r: number, g: number, b: number }
+---@field LABEL_EMPTY_COLOR { r: number, g: number, b: number } the label at no progress
+local Options = {
+	ENABLED_PATH = "travelersLog.enabled",
+	BARS_PATH = "travelersLog.bars",
+	TEXT_PATH = "travelersLog.text",
+	TEXT_CHOICES = { "COUNT", "PERCENT", "NONE" },
+	FULL_ROW = { left = 36, bottom = 9, height = 5, width = 370 },
+	CHILD_ROW = { left = 40, bottom = 5, height = 3, width = 350 },
+	LABEL_WIDTH = 62,
+	LABEL_GAP = 8,
+	FILL_COLOR = { r = 0.92, g = 0.72, b = 0.2 },
+	TROUGH_ALPHA = 0.38,
+	LABEL_COLOR = { r = 0.95, g = 0.93, b = 0.87 },
+	LABEL_EMPTY_COLOR = { r = 0.72, g = 0.67, b = 0.58 },
+}
+AUI.TravelersLogOptions = Options
+
+Schema:Choices("travelersLogText", Options.TEXT_CHOICES)
+
+Schema:Boolean(Options.ENABLED_PATH, false)
+Schema:Boolean(Options.BARS_PATH, true)
+Schema:Choice(Options.TEXT_PATH, "travelersLogText", "COUNT")
+
+---@param number string digits, possibly with group separators
+---@return number
+local function ToNumber(number)
+	return tonumber((number:gsub("%D", ""))) --[[@as number]]
+end
+
+---The first `current / required` in a requirement's text. Spaces around the slash are allowed; a number holds none, so
+---a following number stays out of it.
+---@param text string
+---@return number? current
+---@return number? required
+function Options:ParseFraction(text)
+	local current, required = text:match("(%d[%d.,]*)%s*/%s*(%d[%d.,]*)")
+
+	if not current then
+		return nil
+	end
+
+	return ToNumber(current), ToNumber(required)
+end
+
+---Whether an activity's row can show progress: it can still be worked on and the client lets the player do so.
+---@param activity table a `PerksActivityInfo`, with the `restricted` field Blizzard's list adds
+---@param now number the server's time
+---@return boolean
+function Options:Shows(activity, now)
+	if activity.restricted or activity.completed then
+		return false
+	end
+
+	return not (activity.eventEndTime and now > activity.eventEndTime)
+end
+
+---How far along an activity is. One requirement gives its own count. Several give how many are done, with the ratio
+---the mean of each one's progress. One with no count, or none at all, gives nothing.
+---@param activity table a `PerksActivityInfo`
+---@return number? ratio 0 to 1
+---@return number? current
+---@return number? required
+function Options:Progress(activity)
+	local requirements = activity.requirementsList
+	local count = #requirements
+
+	if count == 0 then
+		return nil
+	end
+
+	if count == 1 then
+		local requirement = requirements[1]
+		local current, required = self:ParseFraction(requirement.requirementText)
+
+		if not current or required == 0 then
+			return nil
+		end
+
+		current = requirement.completed and required or math.min(current, required)
+
+		return current / required, current, required
+	end
+
+	local sum, done = 0, 0
+
+	for _, requirement in ipairs(requirements) do
+		if requirement.completed then
+			sum, done = sum + 1, done + 1
+		else
+			local current, required = self:ParseFraction(requirement.requirementText)
+
+			if current and required > 0 then
+				sum = sum + math.min(current / required, 1)
+			end
+		end
+	end
+
+	return sum / count, done, count
+end
+
+---The label for a Text choice, nil for none. A percentage rounds down, so 100% means finished.
+---@param choice string a `TEXT_CHOICES` entry
+---@param ratio number
+---@param current number
+---@param required number
+---@return string?
+function Options:Label(choice, ratio, current, required)
+	if choice == "COUNT" then
+		return BreakUpLargeNumbers(current) .. "/" .. BreakUpLargeNumbers(required)
+	elseif choice == "PERCENT" then
+		return ("%d%%"):format(math.floor(ratio * 100))
+	end
+
+	return nil
+end

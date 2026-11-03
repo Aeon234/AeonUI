@@ -97,6 +97,9 @@ AUI.L = setmetatable({}, { __index = function(_, key)
 	return key
 end })
 AUI.can = {}
+AUI.Pixel = function()
+	return 0.5
+end
 AUI.Border = { ART_COLOR = { r = 0.5, g = 0.4, b = 0.3 } }
 AUI.Media = {
 	FLAT = "flat",
@@ -401,6 +404,9 @@ Equal("swipe on", button.Cooldown.last.SetDrawSwipe[1], true)
 Equal("no countdown numbers", button.Cooldown.last.SetHideCountdownNumbers[1], true)
 Equal("cooldown bound", button.last.SetDurationCooldown[1], button.Cooldown)
 Equal("icon bound", button.last.SetIcon[1], button.Icon)
+Equal("the icon sits one pixel inside the button", button.Icon.points[1][4], 0.5)
+Equal("on every side", button.Icon.points[2][5], 0.5)
+Equal("the swipe covers the icon alone", button.Cooldown.last.SetAllPoints[1], button.Icon)
 Equal("stack bound", button.last.SetApplicationCount[1], button.Count)
 Equal("stack has a font before it is bound", button.Count.template, "NumberFontNormal")
 Equal("duration has a font before it is bound", button.Time.template, "NumberFontNormal")

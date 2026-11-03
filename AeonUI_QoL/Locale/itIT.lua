@@ -99,6 +99,13 @@ L["Rows First"] = "Prima le righe"
 L["Columns First"] = "Prima le colonne"
 L["Show All Items"] = "Mostra tutti gli oggetti"
 
+-- Traveler's Log page (Settings)
+L["Enhance %s"] = "Migliora %s"
+L["Row Progress"] = "Avanzamento nelle righe"
+L["Show Progress Bars"] = "Mostra barre di avanzamento"
+L["Count"] = "Conteggio"
+L["Percent"] = "Percentuale"
+
 -- Hidden Settings page (Settings)
 L["Loot Sparkles"] = "Scintillii del bottino"
 L["Ore"] = "Minerali"

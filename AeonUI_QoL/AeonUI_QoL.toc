@@ -23,11 +23,13 @@ MovementAlert\MovementAlert.xml
 Markers\Markers.xml
 DeleteCheapestItem\DeleteCheapestItem.xml
 MerchantWindow\MerchantWindow.xml
+TravelersLog\TravelersLog.xml
 HiddenSettings\HiddenSettings.xml
 Macros\Macros.xml
 Settings\Automation.lua
 Settings\DeleteCheapestItem.lua
 Settings\MerchantWindow.lua
+Settings\TravelersLog.lua
 Settings\HiddenSettings.lua
 Settings\Macros.lua
 Settings\PlayerMenu.lua

@@ -9,13 +9,13 @@ local root = dir .. "../"
 local windows = package.config:sub(1, 1) == "\\"
 
 -- The sidebar pages each addon brings, and the pages only one client has.
-local CLIENT_PAGES = { worldMap = "forever", movementAlert = "retail" }
+local CLIENT_PAGES = { worldMap = "forever", movementAlert = "retail", travelersLog = "retail" }
 
 local PAGES = {
 	AeonUI_UnitFrames = { "unitFramesAll", "unitFramePlayer", "castBar" },
 	AeonUI_Tooltip = { "tooltipGeneral", "tooltipUnits", "tooltipItems" },
 	AeonUI_Maps = { "minimap", "worldMap" },
-	AeonUI_QoL = { "automation", "deleteCheapestItem", "merchantWindow", "hiddenSettings", "macros", "playerMenu", "input",
+	AeonUI_QoL = { "automation", "deleteCheapestItem", "merchantWindow", "travelersLog", "hiddenSettings", "macros", "playerMenu", "input",
 		"alerts", "notifications", "movementAlert", "raidMarkers", "interface", "screenText", "cursor" },
 	AeonUI = { "general", "profiles" },
 }

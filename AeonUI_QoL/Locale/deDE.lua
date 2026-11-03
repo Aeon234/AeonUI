@@ -99,6 +99,13 @@ L["Rows First"] = "Zeilen zuerst"
 L["Columns First"] = "Spalten zuerst"
 L["Show All Items"] = "Alle Gegenstände anzeigen"
 
+-- Traveler's Log page (Settings)
+L["Enhance %s"] = "%s verbessern"
+L["Row Progress"] = "Zeilenfortschritt"
+L["Show Progress Bars"] = "Fortschrittsbalken anzeigen"
+L["Count"] = "Anzahl"
+L["Percent"] = "Prozent"
+
 -- Hidden Settings page (Settings)
 L["Loot Sparkles"] = "Beute-Funkeln"
 L["Ore"] = "Erz"

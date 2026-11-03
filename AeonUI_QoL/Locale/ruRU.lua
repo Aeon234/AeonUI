@@ -99,6 +99,13 @@ L["Rows First"] = "Сначала строки"
 L["Columns First"] = "Сначала столбцы"
 L["Show All Items"] = "Показывать все предметы"
 
+-- Traveler's Log page (Settings)
+L["Enhance %s"] = "Улучшить %s"
+L["Row Progress"] = "Прогресс в строках"
+L["Show Progress Bars"] = "Показывать полосы прогресса"
+L["Count"] = "Количество"
+L["Percent"] = "Проценты"
+
 -- Hidden Settings page (Settings)
 L["Loot Sparkles"] = "Блеск добычи"
 L["Ore"] = "Руда"
