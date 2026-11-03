@@ -4,9 +4,13 @@ local L = AUI.L
 
 local Options = AUI.TravelersLogOptions
 
-local DROPDOWN_WIDTH = 160
+local DROPDOWN_WIDTH = 150
 local DROPDOWN_GAP = 16
-local DROPDOWN_LEVEL = 560 -- above the log's header and help button
+local CONTROL_LEVEL = 560 -- above the log's header and help button
+local SEARCH_HEIGHT = 20
+local SEARCH_GAP = 8
+local MONTH_GAP = 16
+local SEARCH_ADDON = "TravelersLogSearcher" -- replaces the list's build method with its own search
 
 local SORT_LABELS = {
 	DEFAULT = DEFAULT,
@@ -23,14 +27,18 @@ local HIDE_ROWS = {
 	{ path = Options.HIDE_UNAVAILABLE_PATH, label = UNAVAILABLE },
 }
 
----The Traveler's Log's list: one pass after each time Blizzard builds it, which prunes and sorts its tree, and the
----dropdown that chooses both. Sorting leaves the tree's cached row order in place, so the pass ends by invalidating it.
+---The Traveler's Log's list: one pass after each time Blizzard builds it, which prunes and sorts its tree, the dropdown
+---that chooses how, and the search box. Sorting leaves the tree's cached row order in place, so the pass ends by
+---invalidating it.
 ---@class AUITravelersLogList
 ---@field hooked boolean the list's build is hooked
 ---@field dropdown DropdownButton
----@field message FontString shown when everything in the list is hidden
+---@field searchBox EditBox? absent while another addon searches the list
+---@field query string the search, empty for none; it lasts until the log closes
+---@field message FontString shown when nothing in the list is left to show
 local List = {
 	hooked = false,
+	query = "",
 }
 AUI.TravelersLogList = List
 
@@ -50,29 +58,32 @@ local function HideChoices()
 	}
 end
 
----Removes hidden activities below `node`, deepest first. A node keeps its place while a descendant survives, and one
----still playing its completion animation stays until the next build. A node left with no children stops offering to
----expand.
+---Removes activities below `node` that are hidden or that the search leaves out, deepest first. A node keeps its place
+---while a descendant survives, a match keeps the activities nested under it, and one still playing its completion
+---animation stays until the next build. A node left with no children stops offering to expand.
 ---@param frame table the log's frame
 ---@param node table a tree node
 ---@param hide table
 ---@param now number
+---@param query string
+---@param parentMatched boolean an ancestor matches the search
 ---@return number removed
-local function Prune(frame, node, hide, now)
+local function Prune(frame, node, hide, now, query, parentMatched)
 	local children = node:GetNodes()
 	local removed = 0
 
 	for index = #children, 1, -1 do
 		local child = children[index]
+		local activity = child:GetData()
+		local matched = parentMatched or Options:Matches(activity, query)
 
-		removed = removed + Prune(frame, child, hide, now)
+		removed = removed + Prune(frame, child, hide, now, query, matched)
 
 		if #child:GetNodes() == 0 then
-			local activity = child:GetData()
-
 			activity.hasChild = false
 
-			if Options:IsHidden(activity, now, hide) and not frame:NeedsToAnimatePendingComplete(activity.ID) then
+			if (not matched or Options:IsHidden(activity, now, hide))
+				and not frame:NeedsToAnimatePendingComplete(activity.ID) then
 				node:Remove(child, true)
 				removed = removed + 1
 			end
@@ -94,7 +105,7 @@ function List:OnActivitiesSet(frame)
 	end
 
 	local now = GetServerTime()
-	local removed = Prune(frame, provider:GetRootNode(), HideChoices(), now)
+	local removed = Prune(frame, provider:GetRootNode(), HideChoices(), now, self.query, false)
 	local comparator = Options:Comparator(AUI.Profile:Get(Options.SORT_PATH), now, function(activityID)
 		return frame:IsActivityPendingComplete(activityID)
 	end)
@@ -107,7 +118,63 @@ function List:OnActivitiesSet(frame)
 		provider:Invalidate()
 	end
 
+	self.message:SetText(self.query ~= "" and QUEST_LOG_NO_RESULTS or L["Everything here is hidden."])
 	self.message:SetShown(removed > 0 and provider:IsEmpty())
+end
+
+---Rebuilds the list the way Blizzard's category buttons do, while it is on screen. Otherwise the next time it opens
+---builds it.
+---@param retainScroll boolean
+function List:Rebuild(retainScroll)
+	local frame = LogFrame()
+
+	if frame and frame:IsVisible() and frame.ScrollBox:GetDataProvider() then
+		frame:SetActivities(C_PerksActivities.GetPerksActivitiesInfo().activities, retainScroll)
+	end
+end
+
+---@param text string the search box's
+function List:OnSearchChanged(text)
+	local query = Options:NormalizeQuery(text)
+
+	if query == self.query then
+		return
+	end
+
+	self.query = query
+	AUI.Events:Coalesce("travelersLogSearch", function()
+		List:Rebuild(ScrollBoxConstants.DiscardScrollPosition)
+	end)
+end
+
+---Empties the search without rebuilding the list.
+function List:ClearSearch()
+	AUI.Events:Cancel("travelersLogSearch")
+	self.query = ""
+
+	if self.searchBox then
+		self.searchBox:SetText("")
+	end
+end
+
+---After Blizzard looks for an activity to scroll to, as the objective tracker's links do: when the search left it out,
+---the search goes and the scroll runs again.
+---@param frame table the log's frame
+---@param activityID number
+function List:OnScrolledTo(frame, activityID)
+	if self.query == "" then
+		return
+	end
+
+	local found = frame.ScrollBox:GetDataProvider():FindElementDataByPredicate(function(node)
+		return node:GetData().ID == activityID
+	end, TreeDataProviderConstants.IncludeCollapsed)
+
+	if not found then
+		self:ClearSearch()
+		self:Rebuild(ScrollBoxConstants.RetainScrollPosition)
+		frame:ScrollToPerksActivityID(activityID)
+	end
 end
 
 ---@param root table the menu's root description
@@ -140,7 +207,21 @@ local function BuildMenu(_, root)
 	end
 end
 
----Hooks the list's build and makes the dropdown and message, once Blizzard's addon has loaded.
+---Makes the search box between the month's name and the dropdown, so a long name narrows it.
+---@param frame table the log's frame
+function List:BuildSearchBox(frame)
+	self.searchBox = CreateFrame("EditBox", nil, frame, "SearchBoxTemplate")
+	self.searchBox:SetHeight(SEARCH_HEIGHT)
+	self.searchBox:SetPoint("LEFT", frame.HeaderContainer.Month, "RIGHT", MONTH_GAP, 0)
+	self.searchBox:SetPoint("RIGHT", self.dropdown, "LEFT", -SEARCH_GAP, 0)
+	self.searchBox:SetFrameLevel(CONTROL_LEVEL)
+	self.searchBox:SetAutoFocus(false)
+	self.searchBox:HookScript("OnTextChanged", function(box)
+		self:OnSearchChanged(box:GetText())
+	end)
+end
+
+---Hooks the list's build and makes the dropdown, search box and message, once Blizzard's addon has loaded.
 function List:Hook()
 	local frame = LogFrame()
 
@@ -153,21 +234,29 @@ function List:Hook()
 	self.dropdown = CreateFrame("DropdownButton", nil, frame, "WowStyle1DropdownTemplate")
 	self.dropdown:SetWidth(DROPDOWN_WIDTH)
 	self.dropdown:SetPoint("RIGHT", frame.HeaderContainer.TimeLeft, "LEFT", -DROPDOWN_GAP, 0)
-	self.dropdown:SetFrameLevel(DROPDOWN_LEVEL)
+	self.dropdown:SetFrameLevel(CONTROL_LEVEL)
 	self.dropdown:SetupMenu(BuildMenu)
 
 	self.message = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 	self.message:SetPoint("CENTER", frame.ScrollBox, "CENTER", 0, 0)
-	self.message:SetText(L["Everything here is hidden."])
 	self.message:Hide()
+
+	if not C_AddOns.IsAddOnLoaded(SEARCH_ADDON) then
+		self:BuildSearchBox(frame)
+		frame:HookScript("OnHide", function()
+			self:ClearSearch()
+		end)
+		hooksecurefunc(frame, "ScrollToPerksActivityID", function(owner, activityID)
+			self:OnScrolledTo(owner, activityID)
+		end)
+	end
 
 	hooksecurefunc(frame, "SetActivities", function(owner)
 		self:OnActivitiesSet(owner)
 	end)
 end
 
----Follows the settings: the dropdown's look, and the list rebuilt the way Blizzard's category buttons rebuild it, while
----it is on screen. Otherwise the next time it opens builds it.
+---Follows the settings: the controls, and the list rebuilt.
 function List:Apply()
 	local frame = LogFrame()
 
@@ -179,11 +268,15 @@ function List:Apply()
 
 	self.dropdown:SetShown(on)
 
-	if on then
-		self.dropdown:OverrideText(SORT_LABELS[AUI.Profile:Get(Options.SORT_PATH)])
+	if self.searchBox then
+		self.searchBox:SetShown(on)
 	end
 
-	if frame:IsVisible() and frame.ScrollBox:GetDataProvider() then
-		frame:SetActivities(C_PerksActivities.GetPerksActivitiesInfo().activities, ScrollBoxConstants.RetainScrollPosition)
+	if on then
+		self.dropdown:OverrideText(SORT_LABELS[AUI.Profile:Get(Options.SORT_PATH)])
+	else
+		self:ClearSearch()
 	end
+
+	self:Rebuild(ScrollBoxConstants.RetainScrollPosition)
 end

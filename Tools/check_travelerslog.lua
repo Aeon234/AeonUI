@@ -3,7 +3,7 @@
 -- client without it, Blizzard's addon never loaded from here, the wait for it to load, the bar on each kind of row, rows
 -- left bare, a pooled row reused, a fill set on opening and moved on live progress, Reduce Motion, every setting, off and
 -- on again; which activities are hidden, each sort's order, the list pass on a tree that caches its row order as
--- Blizzard's does, the dropdown; and the settings page. Drawing and the real list are not exercised.
+-- Blizzard's does, the dropdown, search and its stand-down; and the settings page. Drawing and the real list are not exercised.
 -- Run from any directory with Lua 5.1: lua Tools/check_travelerslog.lua
 -- Loads the real files against stubbed globals. Widgets are modeled by type. Exits non-zero on the first failed check.
 
@@ -17,13 +17,17 @@ StaticPopupDialogs = {}
 NONE = "None"
 MONTHLY_ACTIVITIES_TAB = "Traveler's Log"
 
-local journalLoaded = false
+local journalLoaded, searcherLoaded = false, false
 local loadRequests = 0
 C_AddOns = {
 	GetAddOnMetadata = function(_, field)
 		return field == "Version" and "dev" or "AeonUI"
 	end,
 	IsAddOnLoaded = function(name)
+		if name == "TravelersLogSearcher" then
+			return searcherLoaded
+		end
+
 		assert(name == "Blizzard_EncounterJournal", "unexpected addon " .. tostring(name))
 
 		return journalLoaded
@@ -165,6 +169,38 @@ function CreateFrame(kind, _, parent, template)
 		return StatusBar(parent)
 	end
 
+	if kind == "EditBox" then
+		assert(template == "SearchBoxTemplate", "unexpected template " .. tostring(template))
+		local box = { parent = parent, shown = true, text = "", points = {}, scripts = {} }
+		box.SetHeight = function(self, height)
+			self.height = height
+		end
+		box.SetPoint = function(self, point, relativeTo, relative, x)
+			self.points[point] = { relativeTo, relative, x }
+		end
+		box.SetFrameLevel = function(self, level)
+			self.level = level
+		end
+		box.SetAutoFocus = function(self, autoFocus)
+			self.autoFocus = autoFocus
+		end
+		box.SetShown = function(self, shown)
+			self.shown = shown
+		end
+		box.GetText = function(self)
+			return self.text
+		end
+		box.SetText = function(self, text)
+			self.text = text
+			self.scripts.OnTextChanged(self)
+		end
+		box.HookScript = function(self, script, handler)
+			self.scripts[script] = handler
+		end
+
+		return box
+	end
+
 	if kind == "DropdownButton" then
 		assert(template == "WowStyle1DropdownTemplate", "unexpected template " .. tostring(template))
 		local dropdown = { parent = parent, shown = true, level = 0 }
@@ -228,6 +264,9 @@ AUI.L = setmetatable({}, { __index = function(_, key)
 	return key
 end })
 DEFAULT, HIDE, UNAVAILABLE, RAID_FRAME_SORT_LABEL = "Default", "Hide", "Unavailable", "Sort By"
+QUEST_LOG_NO_RESULTS = "No results found"
+ScrollBoxConstants = { RetainScrollPosition = true, DiscardScrollPosition = false }
+TreeDataProviderConstants = { IncludeCollapsed = false }
 AUI.Profile = {
 	Set = function(_, path, value)
 		values[path] = value
@@ -378,12 +417,20 @@ local scrollBox = { ForEachFrame = function(_, callback)
 end }
 local logFrame = {
 	ScrollBox = scrollBox,
-	HeaderContainer = { TimeLeft = {} },
+	HeaderContainer = { TimeLeft = {}, Month = {} },
 	visible = false,
 	pending = {},
 	animating = {},
 	HookScript = function(_, script, handler)
-		hooks[script] = handler
+		local earlier = hooks[script]
+
+		hooks[script] = function()
+			if earlier then
+				earlier()
+			end
+
+			handler()
+		end
 	end,
 	CreateFontString = function(_, _, _, template)
 		assert(template == "GameFontNormal", "unexpected font " .. tostring(template))
@@ -410,7 +457,15 @@ end
 
 local setActivitiesHook
 function hooksecurefunc(owner, method, hook)
-	assert(owner == logFrame and method == "SetActivities" and not setActivitiesHook, "unexpected hook")
+	assert(owner == logFrame, "unexpected hook")
+
+	if method == "ScrollToPerksActivityID" then
+		logFrame.scrollHook = hook
+
+		return
+	end
+
+	assert(method == "SetActivities" and not setActivitiesHook, "unexpected hook")
 	setActivitiesHook = hook
 end
 ScrollUtil = { AddInitializedFrameCallback = function(box, callback, owner, iterateExisting)
@@ -601,6 +656,9 @@ local function Named(id, name, points, fields)
 	fields.name, fields.points = name, points
 	fields.areAllConditionsMet = true
 
+	fields.tagNames, fields.conditions = fields.tagNames or {}, fields.conditions or {}
+	fields.activityName, fields.description = name, fields.description or ""
+
 	return Activity(id, fields.requirements or { Requirement("- 0 / 10 Quests") }, fields)
 end
 
@@ -716,6 +774,22 @@ function Provider:IsEmpty()
 end
 
 ---What the view would draw: the cached order, built when first asked for.
+function Provider:FindElementDataByPredicate(predicate, excludeCollapsed)
+	assert(excludeCollapsed == TreeDataProviderConstants.IncludeCollapsed, "a collapsed child must be found")
+
+	for _, node in ipairs(self.root.nodes) do
+		if predicate(node) then
+			return node
+		end
+
+		for _, child in ipairs(node.nodes) do
+			if predicate(child) then
+				return child
+			end
+		end
+	end
+end
+
 function Provider:Drawn()
 	if not self.linearized then
 		local linearized = {}
@@ -773,7 +847,6 @@ end
 C_PerksActivities = { GetPerksActivitiesInfo = function()
 	return { activities = latest }
 end }
-ScrollBoxConstants = { RetainScrollPosition = true }
 MenuResponse = { Refresh = 2 }
 
 Equal("hooked with the row callback", setActivitiesHook ~= nil, true)
@@ -898,6 +971,144 @@ Equal("one dropdown ever", #dropdowns, 1)
 Equal("the sort returns", scrollBox.provider:Drawn(), "1 5 2")
 Set(Options.SORT_PATH, "DEFAULT")
 logFrame.visible = false
+
+-- Search -------------------------------------------------------------------------------------------------
+
+Equal("trims and lowers", Options:NormalizeQuery("  Ärger ÉTÉ "), ("Ärger ÉTÉ"):lower())
+Equal("blank is no search", Options:NormalizeQuery("   "), "")
+
+local function Searchable(fields)
+	return Named(1, fields.name or "Name", 100, fields)
+end
+
+Equal("no query matches", Options:Matches(Searchable({}), ""), true)
+Equal("the name, any case", Options:Matches(Searchable({ name = "Defeat Bosses" }), "bosses"), true)
+Equal("the description", Options:Matches(Searchable({ description = "Find Treats" }), "treats"), true)
+Equal("the event", Options:Matches(Searchable({ eventName = "Darkmoon Faire" }), "darkmoon"), true)
+Equal("a tag", Options:Matches(Searchable({ tagNames = { "Pet Battles" } }), "pet"), true)
+Equal("a condition", Options:Matches(Searchable({ conditions = { { text = "Requires level 80" } } }), "level 80"), true)
+Equal("a requirement", Options:Matches(Searchable({ requirements = { Requirement("- Thorm'belan") } }), "thorm"), true)
+Equal("nothing", Options:Matches(Searchable({}), "absent"), false)
+Equal("not a pattern", Options:Matches(Searchable({ name = "Name" }), "n.me"), false)
+Equal("a pattern's characters are text", Options:Matches(Searchable({ name = "Name (A)" }), "(a"), true)
+Equal("not a checkmark's markup", Options:Matches(Searchable({ requirements = {
+	Requirement("|A:activities-icon-checkmark:0:0:0:0|a 5 / 5 Horseman defeated", true),
+} }), "checkmark"), false)
+Equal("the words after a checkmark", Options:Matches(Searchable({ requirements = {
+	Requirement("|A:activities-icon-checkmark:0:0:0:0|a 5 / 5 Horseman defeated", true),
+} }), "horseman"), true)
+
+local box = List.searchBox
+Equal("a search box", box ~= nil, true)
+Equal("after the month's name", box.points.LEFT[1], logFrame.HeaderContainer.Month)
+Equal("before the dropdown", box.points.RIGHT[1], List.dropdown)
+Equal("not taking the keyboard", box.autoFocus, false)
+Equal("above the header", box.level, 560)
+
+local SEARCHED = {
+	Named(21, "Quests in Draenor", 100),
+	Named(22, "Pet Tamers", 100),
+	Named(23, "Parent One", 100, { children = { Named(24, "Hidden Child", 100) } }),
+	Named(25, "Darkmoon Tickets", 100, { children = { Named(26, "More Tickets", 100) } }),
+	Named(27, "Finished Quests", 100, { completed = true }),
+}
+logFrame.SetActivities = function()
+	Build(SEARCHED)
+end
+logFrame.visible = true
+Build(SEARCHED)
+Equal("no search keeps all but the hidden", scrollBox.provider:Drawn(), "21 22 23 24 25 26")
+
+local replaced = 0
+local realSetActivities = logFrame.SetActivities
+logFrame.SetActivities = function(_, _, retainScroll)
+	replaced = replaced + 1
+	logFrame.lastRetain = retainScroll
+	realSetActivities()
+end
+
+box:SetText("Draenor")
+Equal("typing narrows the list", scrollBox.provider:Drawn(), "21")
+Equal("once for the change", replaced, 1)
+Equal("from the top of the list", logFrame.lastRetain, false)
+box:SetText(" draenor ")
+Equal("the same search does not rebuild", replaced, 1)
+
+box:SetText("finished")
+Equal("a hidden row stays hidden when it matches", scrollBox.provider:Drawn(), "")
+
+box:SetText("hidden child")
+Equal("a matching child keeps its parent", scrollBox.provider:Drawn(), "23 24")
+Equal("which still expands", SEARCHED[3].hasChild, true)
+box:SetText("darkmoon")
+Equal("a matching parent keeps its child", scrollBox.provider:Drawn(), "25 26")
+box:SetText("absent")
+Equal("nothing matches", scrollBox.provider:Drawn(), "")
+Equal("the message shows", List.message.shown, true)
+Equal("says so", List.message.value, "No results found")
+box:SetText("")
+Equal("cleared, the list returns", scrollBox.provider:Drawn(), "21 22 23 24 25 26")
+Equal("the message goes", List.message.shown, false)
+
+values[Options.SORT_PATH] = "NAME"
+box:SetText("t")
+Equal("search and sort together", scrollBox.provider:Drawn(), "25 26 23 24 22 21")
+box:SetText("")
+values[Options.SORT_PATH] = nil
+
+-- The objective tracker's link to an activity the search left out.
+local scrolled = {}
+logFrame.ScrollToPerksActivityID = function(self, id)
+	scrolled[#scrolled + 1] = id
+	self.scrollHook(self, id)
+end
+box:SetText("darkmoon")
+logFrame:ScrollToPerksActivityID(25)
+Equal("a shown activity leaves the search", box.text, "darkmoon")
+Equal("scrolled once", #scrolled, 1)
+logFrame:ScrollToPerksActivityID(26)
+Equal("a collapsed child found too", box.text, "darkmoon")
+logFrame:ScrollToPerksActivityID(22)
+Equal("one left out clears the search", box.text, "")
+Equal("and its query", List.query, "")
+Equal("and rebuilds", scrollBox.provider:Drawn(), "21 22 23 24 25 26")
+Equal("and scrolls again", scrolled[#scrolled], 22)
+Equal("once more", #scrolled, 4)
+logFrame:ScrollToPerksActivityID(22)
+Equal("no search, nothing to do", #scrolled, 5)
+
+box:SetText("darkmoon")
+hooks.OnHide()
+Equal("closing the log empties the search", box.text .. List.query, "")
+Set(Options.ENABLED_PATH, true)
+
+box:SetText("darkmoon")
+Set(Options.ENABLED_PATH, false)
+Equal("turned off, the box hides", box.shown, false)
+Equal("and empties", box.text, "")
+Equal("and Blizzard's list returns", scrollBox.provider:Drawn(), "21 22 23 24 25 26 27")
+Set(Options.ENABLED_PATH, true)
+Equal("on again, the box shows", box.shown, true)
+logFrame.visible = false
+logFrame.SetActivities = realSetActivities
+
+-- Standing down for TravelersLogSearcher, which has its own box and replaces the list's build method.
+searcherLoaded = true
+setActivitiesHook = nil
+logFrame.scrollHook = nil
+assert(loadfile(root .. "AeonUI_QoL/TravelersLog/ActivityList.lua"))("AeonUI", AUI)
+local standing = AUI.TravelersLogList
+standing:Hook()
+Equal("no box beside it", standing.searchBox, nil)
+Equal("the dropdown stays", standing.dropdown ~= nil, true)
+Equal("the list pass stays", setActivitiesHook ~= nil, true)
+Equal("no scroll hook", logFrame.scrollHook, nil)
+standing:Apply()
+Equal("following the settings works without a box", standing.dropdown.shown, true)
+standing:ClearSearch()
+Equal("nothing to empty", standing.query, "")
+searcherLoaded = false
+AUI.TravelersLogList = List
 
 -- Settings page -------------------------------------------------------------------------------------------
 

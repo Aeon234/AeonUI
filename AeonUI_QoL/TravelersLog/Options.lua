@@ -10,7 +10,7 @@ local Schema = AUI.Schema
 ---@field width number the row's text column, which the bar and its label share
 
 ---The Traveler's Log settings and their frame-free rules: which activities show progress, how far along an activity
----is, its label, which activities are hidden and each sort's order.
+---is, its label, which activities are hidden, each sort's order and what a search matches.
 ---@class AUITravelersLogOptions
 ---@field ENABLED_PATH string the page's switch
 ---@field BARS_PATH string rows draw a bar
@@ -257,6 +257,52 @@ local ORDERS = {
 		return ByPoints(a, b)
 	end,
 }
+
+---What a search box's text searches for: trimmed and in lower case.
+---@param text string
+---@return string query empty for no search
+function Options:NormalizeQuery(text)
+	return text:match("^%s*(.-)%s*$"):lower()
+end
+
+---@param text string? client text, which may hold a texture's markup
+---@param query string
+---@return boolean
+local function Holds(text, query)
+	return text ~= nil and text:gsub("|A.-|a", ""):lower():find(query, 1, true) ~= nil
+end
+
+---Whether an activity's name, description, event, tags, conditions or requirements hold the query. No query matches
+---every activity.
+---@param activity table a `PerksActivityInfo`
+---@param query string from `NormalizeQuery`
+---@return boolean
+function Options:Matches(activity, query)
+	if query == "" or Holds(activity.activityName, query) or Holds(activity.description, query)
+		or Holds(activity.eventName, query) then
+		return true
+	end
+
+	for _, tag in ipairs(activity.tagNames) do
+		if Holds(tag, query) then
+			return true
+		end
+	end
+
+	for _, condition in ipairs(activity.conditions) do
+		if Holds(condition.text, query) then
+			return true
+		end
+	end
+
+	for _, requirement in ipairs(activity.requirementsList) do
+		if Holds(requirement.requirementText, query) then
+			return true
+		end
+	end
+
+	return false
+end
 
 ---A tree-node comparator for a sort, nil for Blizzard's own order. In every sort a completion still animating comes
 ---first, as Blizzard scrolls to the top to show it, and finished activities come last. Each activity's progress is
