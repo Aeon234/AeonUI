@@ -30,10 +30,7 @@ function SettingsAllFrames.BorderOptions()
 		options[#options + 1] = { title = true, text = L["Shared Media"] }
 
 		for _, name in ipairs(names) do
-			-- Forever Minimal above takes this border's place.
-			if AUI.Media:BorderFile(name) ~= AUI.Media.FOREVER_MINIMAL_BORDER then
-				options[#options + 1] = { value = name, text = name }
-			end
+			options[#options + 1] = { value = name, text = name }
 		end
 	end
 

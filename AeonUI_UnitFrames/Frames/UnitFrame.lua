@@ -71,16 +71,11 @@ function UnitFrame:BarLook(key)
 	-- A border that is no longer registered, or a style frames do not offer, draws the default.
 	if not Options:IsOwnBorderStyle(style) then
 		edgeFile = AUI.Media:BorderFile(style)
-
-		if edgeFile == AUI.Media.FOREVER_MINIMAL_BORDER then
-			style = "FOREVER_MINIMAL"
-		else
-			style = edgeFile and "EDGE" or "THIN_LINE"
-		end
+		style = edgeFile and "EDGE" or "THIN_LINE"
 	end
 
 	if style == "FOREVER_MINIMAL" then
-		style, edgeFile, hover = "FOREVER_MINIMAL_SHADED", nil, "lighten"
+		style, hover = "FOREVER_MINIMAL_SHADED", "lighten"
 	elseif style == "FOREVER" then
 		hover = "lit"
 	end

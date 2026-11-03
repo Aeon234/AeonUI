@@ -1152,6 +1152,7 @@ function CastBar:Apply()
 			end
 
 			AUI.Events:Register("PLAYER_ENTERING_WORLD", self, self.Update)
+			AUI.Events:Register("UI_SCALE_CHANGED", self, self.Place)
 		else
 			AUI.Events:UnregisterAll(self)
 		end

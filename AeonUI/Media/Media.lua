@@ -3,7 +3,6 @@ local AUI = select(2, ...)
 local LSM = LibStub("LibSharedMedia-3.0")
 
 local MEDIA = "Interface\\AddOns\\AeonUI\\Media\\"
-local FOREVER_MINIMAL_BORDER = MEDIA .. "Borders\\ForeverMinimal.tga"
 -- The flat look every AeonUI bar uses: a plain bar texture recolored to solid white, then tinted.
 local FLAT_BASE = "Interface\\TargetingFrame\\UI-StatusBar"
 -- The client's role icons, the DEFAULT role style.
@@ -29,7 +28,6 @@ end
 ---@field STRIPED string LibSharedMedia's name for AeonUI's thin stripes
 ---@field SHIELD string LibSharedMedia's name for Blizzard's shield fill
 ---@field TOOLTIP_BAR string LibSharedMedia's name for the fill of Blizzard's tooltip health bar
----@field FOREVER_MINIMAL_BORDER string the Forever Minimal border's edge file
 ---@field shared table<string, table<string, string>> the files AeonUI registers with LibSharedMedia, by media type,
 ---then by name
 ---@field ROLE_STYLES string[] the role icon styles, in the order a setting lists them; DEFAULT is the client's
@@ -40,10 +38,8 @@ local Media = {
 	STRIPED = "AeonUI Thin Stripes",
 	SHIELD = "Blizzard Shield",
 	TOOLTIP_BAR = "Blizzard Tooltip",
-	FOREVER_MINIMAL_BORDER = FOREVER_MINIMAL_BORDER,
 	shared = {
 		[LSM.MediaType.BORDER] = {
-			["AeonUI Forever Minimal"] = FOREVER_MINIMAL_BORDER,
 			["border thick 1 s16 o0"] = MEDIA .. "Borders\\BorderThick1S16O0.tga",
 			["border thick 1 s16 o4"] = MEDIA .. "Borders\\BorderThick1S16O4.tga",
 			["border thick 2 s16 o4"] = MEDIA .. "Borders\\BorderThick2S16O4.tga",

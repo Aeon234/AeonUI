@@ -323,7 +323,6 @@ AUI.Border = {
 	end,
 }
 AUI.Media = {
-	FOREVER_MINIMAL_BORDER = "forever minimal file",
 	Font = function(_, name)
 		return name
 	end,
@@ -334,10 +333,6 @@ AUI.Media = {
 		bar.texture = texture
 	end,
 	BorderFile = function(_, name)
-		if name == "AeonUI Forever Minimal" then
-			return "forever minimal file"
-		end
-
 		return name == "Blizzard Tooltip" and "tooltip file" or nil
 	end,
 }
@@ -532,10 +527,6 @@ Equal("hovering lightens its color", frame.Border.color.r, 0.5 + 0.5 * 0.4)
 Equal("without lighting art", frame.Border.lit, false)
 frame:OnLeave()
 Equal("and leaving restores it", frame.Border.color.r, 0.5)
-
-Schema:Write(config, Options.ALL .. "bars.borderStyle", "AeonUI Forever Minimal")
-registered.Profile(Frames, Options.ALL .. "bars.borderStyle")
-Equal("its LibSharedMedia name draws the same", frame.Border.look.style, "FOREVER_MINIMAL_SHADED")
 
 Schema:Write(config, Options.ALL .. "bars.borderStyle", "FOREVER")
 registered.Profile(Frames, Options.ALL .. "bars.borderStyle")

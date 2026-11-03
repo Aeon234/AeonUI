@@ -102,6 +102,8 @@ local SAME = 0.002
 
 ---@alias AUIBorderStyle "METAL" | "FOREVER_MINIMAL" | "FOREVER_MINIMAL_SHADED" | "FOREVER" | "SLATE" | "THIN_LINE" | "NONE" | "EDGE"
 
+---@alias AUITextures Texture[]
+
 ---@class AUIColor
 ---@field r number
 ---@field g number
@@ -125,27 +127,29 @@ local SAME = 0.002
 
 ---A frame's border and background. The metal frame and the thin lines are drawn on `over`, which the owner raises above
 ---its content. The Forever styles' art is drawn either on the owner itself, behind its children, with its own dark
----middle as the background, or, for content that should run under the band, on `over` with its middle cleared.
+---middle as the background, or, for content that should run under the band, on `over` with its middle cleared. Only
+---`over` and the background exist from the start; a style's pieces are made the first time it is applied, and kept.
 ---@class AUIBorder
 ---@field owner Frame
 ---@field overContent boolean the Forever art is drawn above the content, band only
 ---@field over Frame
 ---@field background Texture
----@field pieces Texture[] the Forever art in nine pieces: four corners at a fixed size, the edges and middle between
+---@field frameLevel integer? the level `SetFrameLevel` last set
+---@field pieces Texture[]? the Forever art in nine pieces: four corners at a fixed size, the edges and middle between
 ---@field art AUIBorderArt? the Forever art drawn
 ---@field artScale number? its scale, UI units per texel
 ---@field thickness number the Metal and Forever styles' size, in percent
----@field metal Frame the metal frame's pieces
+---@field metal Frame? the metal frame's pieces
 ---@field metalCorner { width: number, height: number }? the metal corner atlas's size
----@field metalPieces Texture[]
----@field metalParts AUIBorderMetal
+---@field metalPieces Texture[]?
+---@field metalParts AUIBorderMetal?
 ---@field style AUIBorderStyle?
 ---@field top AUIBorderSide?
 ---@field bottom AUIBorderSide?
----@field rules table<string, table<string, Texture>> per side, the Forever band or thin line under the rows
----(`separator`) and between two rows (`divider`)
----@field rowBackgrounds table<string, Texture> per side, the Forever art's dark middle behind the rows
----@field lines Texture[]
+---@field rules table<string, table<string, Texture>> per side that has needed them, the Forever band or thin line under
+---the rows (`separator`) and between two rows (`divider`)
+---@field rowBackgrounds table<string, Texture> per side that has needed one, the Forever art's dark middle behind the rows
+---@field lines Texture[]?
 local BorderMixin = {}
 
 ---@class AUIBorderFactory
@@ -395,41 +399,27 @@ local function CreateArtPieces(parent)
 	return pieces
 end
 
----@param owner Frame the bordered frame; its size is the content's
----@param overContent boolean? draw the Forever art above the content, band only, so the content runs under the band
----@return AUIBorder
-function Border:Create(owner, overContent)
-	local border = Mixin({ owner = owner, overContent = overContent == true, thickness = 100 },
-		BorderMixin)
-	local over = CreateFrame("Frame", nil, owner)
+---@param over Frame
+---@return table<string, Texture> rules the band or line under one side's rows and between two of them
+local function CreateRules(over)
+	local rules = {}
 
-	over:SetAllPoints()
-	border.over = over
+	for _, name in ipairs({ "separator", "divider" }) do
+		local rule = over:CreateTexture(nil, "BORDER", nil, -1)
 
-	border.background = owner:CreateTexture(nil, "BACKGROUND")
-	border.background:SetAllPoints()
-	border.pieces = CreateArtPieces(overContent and over or owner)
-	border.metal, border.metalPieces, border.metalParts = CreateMetal(over)
-	border.metalCorner = C_Texture.GetAtlasInfo(METAL.cornerLeft)
-	border.rules, border.rowBackgrounds = {}, {}
-
-	for _, side in ipairs({ "top", "bottom" }) do
-		local rules = {}
-
-		for _, name in ipairs({ "separator", "divider" }) do
-			local rule = over:CreateTexture(nil, "BORDER", nil, -1)
-
-			rule:SetSnapToPixelGrid(false)
-			rule:SetTexelSnappingBias(0)
-			rule:Hide()
-			rules[name] = rule
-		end
-
-		border.rules[side] = rules
-		border.rowBackgrounds[side] = owner:CreateTexture(nil, "BACKGROUND", nil, 1)
+		rule:SetSnapToPixelGrid(false)
+		rule:SetTexelSnappingBias(0)
+		rule:Hide()
+		rules[name] = rule
 	end
 
-	border.lines = {}
+	return rules
+end
+
+---@param over Frame
+---@return Texture[] lines top, bottom, left and right
+local function CreateLines(over)
+	local lines = {}
 
 	for index, points in ipairs({ { "TOPLEFT", "TOPRIGHT" }, { "BOTTOMLEFT", "BOTTOMRIGHT" },
 		{ "TOPLEFT", "BOTTOMLEFT" }, { "TOPRIGHT", "BOTTOMRIGHT" } }) do
@@ -441,8 +431,25 @@ function Border:Create(owner, overContent)
 		line:SetPoint(points[1])
 		line:SetPoint(points[2])
 		line.horizontal = index <= 2
-		border.lines[index] = line
+		lines[index] = line
 	end
+
+	return lines
+end
+
+---@param owner Frame the bordered frame; its size is the content's
+---@param overContent boolean? draw the Forever art above the content, band only, so the content runs under the band
+---@return AUIBorder
+function Border:Create(owner, overContent)
+	local border = Mixin({ owner = owner, overContent = overContent == true, thickness = 100, rules = {},
+		rowBackgrounds = {} }, BorderMixin)
+	local over = CreateFrame("Frame", nil, owner)
+
+	over:SetAllPoints()
+	border.over = over
+
+	border.background = owner:CreateTexture(nil, "BACKGROUND")
+	border.background:SetAllPoints()
 
 	over:SetScript("OnSizeChanged", function()
 		border:Layout()
@@ -451,8 +458,8 @@ function Border:Create(owner, overContent)
 	return border
 end
 
----Places everything that depends on the owner's size or position: the Forever art, the metal frame's scale and the
----thin lines' pixel width. Called when the owner is resized and after it is moved.
+---Places what the current style draws and depends on the owner's size or position: the Forever art, the metal frame's
+---scale or the thin lines' pixel width. Called when the owner is resized and after it is moved.
 function BorderMixin:Layout()
 	local width, height = self.owner:GetSize()
 	local art = self.art
@@ -466,31 +473,35 @@ function BorderMixin:Layout()
 		self:PlaceArt()
 	end
 
-	local reach = AUI.can.foreverArt and METAL_REACH.forever or METAL_REACH.retail
-	local metal, top, bottom, corner = self.metal, self.top, self.bottom, self.metalCorner
-	local scale = self.thickness / 100
+	if self.style == "METAL" then
+		local reach = AUI.can.foreverArt and METAL_REACH.forever or METAL_REACH.retail
+		local metal, top, bottom, corner = self.metal --[[@as Frame]], self.top, self.bottom, self.metalCorner
+		local scale = self.thickness / 100
 
-	-- A frame too small for two of the metal corners at this scale draws them smaller, as the Forever art does.
-	if corner and not (top or bottom) then
-		scale = Border:FitScale(corner.width, (reach.left + reach.right) / 2, width, scale)
-		scale = Border:FitScale(corner.height, (reach.top + reach.bottom) / 2, height, scale)
+		-- A frame too small for two of the metal corners at this scale draws them smaller, as the Forever art does.
+		if corner and not (top or bottom) then
+			scale = Border:FitScale(corner.width, (reach.left + reach.right) / 2, width, scale)
+			scale = Border:FitScale(corner.height, (reach.top + reach.bottom) / 2, height, scale)
+		end
+
+		metal:SetScale(scale)
+		metal:ClearAllPoints()
+		metal:SetPoint("TOPLEFT", self.owner, "TOPLEFT", -reach.left, top and TITLE.heights[1] or reach.top)
+		metal:SetPoint("BOTTOMRIGHT", self.owner, "BOTTOMRIGHT", reach.right, -(bottom and TITLE.heights[1] or reach.bottom))
+		self:LayoutMetal(scale)
 	end
-
-	metal:SetScale(scale)
-	metal:ClearAllPoints()
-	metal:SetPoint("TOPLEFT", self.owner, "TOPLEFT", -reach.left, top and TITLE.heights[1] or reach.top)
-	metal:SetPoint("BOTTOMRIGHT", self.owner, "BOTTOMRIGHT", reach.right, -(bottom and TITLE.heights[1] or reach.bottom))
-	self:LayoutMetal(scale)
 
 	local pixel = AUI:Pixel(self.owner)
 
 	self:LayoutRows(pixel)
 
-	for _, line in ipairs(self.lines) do
-		if line.horizontal then
-			line:SetHeight(pixel)
-		else
-			line:SetWidth(pixel)
+	if self.style == "THIN_LINE" then
+		for _, line in ipairs(self.lines) do
+			if line.horizontal then
+				line:SetHeight(pixel)
+			else
+				line:SetWidth(pixel)
+			end
 		end
 	end
 end
@@ -498,7 +509,7 @@ end
 ---Shows the plain frame or the title bar on each side and anchors the sides' edges between them.
 ---@param scale number the metal frame's scale
 function BorderMixin:LayoutMetal(scale)
-	local parts = self.metalParts
+	local parts = self.metalParts --[[@as AUIBorderMetal]]
 
 	for _, side in ipairs({ "top", "bottom" }) do
 		local rows, title, divider = self[side], parts.titles[side], parts.dividers[side]
@@ -565,16 +576,24 @@ function BorderMixin:LayoutRows(pixel)
 			region:SetHeight(size)
 		end
 
-		rules.separator:SetShown(ruled and rows ~= nil)
-		rules.divider:SetShown(ruled and rows ~= nil and rows.divider ~= nil)
-		background:SetShown(art ~= nil and rows ~= nil)
+		if rules then
+			rules.separator:SetShown(ruled and rows ~= nil)
+			rules.divider:SetShown(ruled and rows ~= nil and rows.divider ~= nil)
 
-		if rows then
-			Place(rules.separator, rows.height, separator, extend)
-			Place(background, 0, rows.height, 0)
+			if rows then
+				Place(rules.separator, rows.height, separator, extend)
 
-			if rows.divider then
-				Place(rules.divider, rows.divider, dividerGap, extend)
+				if rows.divider then
+					Place(rules.divider, rows.divider, dividerGap, extend)
+				end
+			end
+		end
+
+		if background then
+			background:SetShown(art ~= nil and rows ~= nil)
+
+			if rows then
+				Place(background, 0, rows.height, 0)
 			end
 		end
 	end
@@ -615,7 +634,7 @@ function BorderMixin:PlaceArt()
 	local width, height = art.across * scale, art.down * scale
 
 	for index = 1, 4 do
-		local piece = self.pieces[index]
+		local piece = (self.pieces --[[@as AUITextures]])[index]
 		local onLeft, onTop = piece.column == 1, piece.row == 1
 		local point = (onTop and "TOP" or "BOTTOM") .. (onLeft and "LEFT" or "RIGHT")
 
@@ -650,8 +669,12 @@ end
 ---draws on both `over` and the metal frame, so they share it.
 ---@param level integer
 function BorderMixin:SetFrameLevel(level)
+	self.frameLevel = level
 	self.over:SetFrameLevel(level)
-	self.metal:SetFrameLevel(level)
+
+	if self.metal then
+		self.metal:SetFrameLevel(level)
+	end
 
 	if self.edge then
 		self.edge:SetFrameLevel(level + 1)
@@ -742,7 +765,15 @@ function BorderMixin:ApplyRows(art, color)
 	local rules = {}
 
 	for _, side in ipairs({ "top", "bottom" }) do
-		for _, rule in pairs(self.rules[side]) do
+		if self[side] and (art or self.style == "THIN_LINE") and not self.rules[side] then
+			self.rules[side] = CreateRules(self.over)
+		end
+
+		if self[side] and art and not self.rowBackgrounds[side] then
+			self.rowBackgrounds[side] = self.owner:CreateTexture(nil, "BACKGROUND", nil, 1)
+		end
+
+		for _, rule in pairs(self.rules[side] or {}) do
 			rules[#rules + 1] = rule
 		end
 	end
@@ -787,7 +818,11 @@ function BorderMixin:Apply(look)
 	self.background:SetColorTexture(Unpack(look.background))
 	self.background:SetShown(art == nil or self.overContent)
 
-	for _, piece in ipairs(self.pieces) do
+	if art and not self.pieces then
+		self.pieces = CreateArtPieces(self.overContent and self.over or self.owner)
+	end
+
+	for _, piece in ipairs(self.pieces or {}) do
 		piece:SetShown(art ~= nil)
 
 		if art then
@@ -796,19 +831,40 @@ function BorderMixin:Apply(look)
 	end
 
 	if art then
-		Tint(self.pieces, look.color, art.tinted == true, art.white)
+		Tint(self.pieces --[[@as AUITextures]], look.color, art.tinted == true, art.white)
 		self:SetArtCoords()
 	end
 
-	self.metal:SetShown(metal)
-	Tint(self.metalPieces, look.color, true)
+	if metal and not self.metal then
+		self.metal, self.metalPieces, self.metalParts = CreateMetal(self.over)
+		self.metalCorner = C_Texture.GetAtlasInfo(METAL.cornerLeft)
+
+		if self.frameLevel then
+			self.metal:SetFrameLevel(self.frameLevel)
+		end
+	end
+
+	if self.metal then
+		self.metal:SetShown(metal)
+	end
+
+	if metal then
+		Tint(self.metalPieces --[[@as AUITextures]], look.color, true)
+	end
 
 	local thin = look.style == "THIN_LINE"
-	local r, g, b, a = Unpack(look.color)
 
-	for _, line in ipairs(self.lines) do
-		line:SetVertexColor(r, g, b, a)
-		line:SetShown(thin)
+	if thin and not self.lines then
+		self.lines = CreateLines(self.over)
+	end
+
+	if self.lines then
+		local r, g, b, a = Unpack(look.color)
+
+		for _, line in ipairs(self.lines) do
+			line:SetVertexColor(r, g, b, a)
+			line:SetShown(thin)
+		end
 	end
 
 	self:ApplyEdge(look)
@@ -856,15 +912,19 @@ function BorderMixin:SetColor(color)
 	self.color = color
 
 	if art then
-		Tint(self.pieces, color, art.tinted == true, art.white)
+		Tint(self.pieces --[[@as AUITextures]], color, art.tinted == true, art.white)
 	end
 
-	Tint(self.metalPieces, color, true)
+	if self.style == "METAL" then
+		Tint(self.metalPieces --[[@as AUITextures]], color, true)
+	end
 
 	local r, g, b, a = Unpack(color)
 
-	for _, line in ipairs(self.lines) do
-		line:SetVertexColor(r, g, b, a)
+	if self.style == "THIN_LINE" then
+		for _, line in ipairs(self.lines) do
+			line:SetVertexColor(r, g, b, a)
+		end
 	end
 
 	if self.edge and self.edge:IsShown() then
@@ -910,7 +970,7 @@ function BorderMixin:SetLit(lit)
 
 	for index, copy in ipairs(glow) do
 		copy:SetTexture(self.overContent and art.band or art.file)
-		copy:SetTexCoord(self.pieces[index]:GetTexCoord())
+		copy:SetTexCoord((self.pieces --[[@as AUITextures]])[index]:GetTexCoord())
 		copy:Show()
 	end
 
