@@ -179,11 +179,13 @@ function UnitFrame.Style(frame, unit)
 
 	local health = frame.Bar
 
+	-- `UpdateColor` paints the bar; these switch on the events oUF repaints it for.
 	health.colorDisconnected = true
 	health.colorTapping = true
 	health.colorClass = true
 	health.colorReaction = true
 	health.colorHealth = true
+	health.UpdateColor = AUI.HealthColor.UpdateColor
 	frame.Health = health
 
 	frame:RegisterForClicks("AnyUp")
@@ -222,7 +224,7 @@ function UnitFrameMixin:ApplyLayout()
 	self.Border:Layout()
 end
 
----Bar look, fill direction and text. None is protected, so this also runs in combat.
+---Bar look, health colors, fill direction and text. None is protected, so this also runs in combat.
 function UnitFrameMixin:ApplyAppearance()
 	local reverse = AUI.Profile:Get(Options:Path(self.key, "reverse")) == true
 
@@ -235,8 +237,9 @@ function UnitFrameMixin:ApplyAppearance()
 	self.Bar:SetReverseFill(reverse)
 	UnitFrame:AnchorBackground(self.Bar, self.Background, reverse)
 	AUI.Text:Apply(self, self.key)
+	AUI.HealthColor:Apply(self, AUI.HealthColor:Resolve(self.key))
 
-	-- Redraws the bar with the new settings, in the color oUF gives it.
+	-- Redraws the bar with the new settings.
 	if self.Health:IsVisible() then
 		(self.Health --[[@as table]]):ForceUpdate()
 	end

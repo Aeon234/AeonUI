@@ -34,6 +34,14 @@ local Options = {
 	COLOR_MODES = { "custom", "class", "power", "difficulty" },
 	NAME_FORMATS = { "first", "full" },
 	PRECISIONS = { "default", "decimal" },
+	HEALTH_MODES = { "classReaction", "custom", "classic", "stops", "classFade" },
+	HEALTH_BACKGROUNDS = { "custom", "classReaction" },
+	ORIENTATIONS = { "HORIZONTAL", "VERTICAL" },
+	-- The health colors a frame can change, as paths under its `health.`.
+	HEALTH_LOOK = {
+		"mode", "color", "stops.full", "stops.half", "stops.empty", "gradient", "gradientDirection", "gradientColor",
+		"background", "fillAlpha", "deadBackground", "deadColor", "dark", "darkFill", "darkBackground",
+	},
 	ALL = "frames.all.",
 	MIN_WIDTH = 80,
 	MAX_WIDTH = 600,
@@ -99,6 +107,9 @@ Schema:Choices("unitFramePlacement", Options.PLACEMENTS)
 Schema:Choices("unitFrameColorMode", Options.COLOR_MODES)
 Schema:Choices("unitFrameNameFormat", Options.NAME_FORMATS)
 Schema:Choices("unitFramePrecision", Options.PRECISIONS)
+Schema:Choices("unitFrameHealthMode", Options.HEALTH_MODES)
+Schema:Choices("unitFrameHealthBackground", Options.HEALTH_BACKGROUNDS)
+Schema:Choices("unitFrameOrientation", Options.ORIENTATIONS)
 
 Schema:String(Options.ALL .. "bars.texture", "Solid", 64)
 Schema:Color(Options.ALL .. "bars.background", { r = 0.067, g = 0.067, b = 0.067, a = 1 })
@@ -114,6 +125,28 @@ Schema:Choice(Options.ALL .. "text.outline", "fontOutline", "SLUG")
 Schema:Color(Options.ALL .. "text.color", { r = 1, g = 1, b = 1 })
 Schema:Choice(Options.ALL .. "numbers.precision", "unitFramePrecision", "default")
 Schema:Number(Options.ALL .. "numbers.percentDecimals", 0, 0, 1, true)
+Schema:Choice(Options.ALL .. "health.mode", "unitFrameHealthMode", "classReaction")
+Schema:Color(Options.ALL .. "health.color", { r = 0.192, g = 0.812, b = 0.145 })
+Schema:Color(Options.ALL .. "health.stops.full", { r = 0, g = 1, b = 0 })
+Schema:Color(Options.ALL .. "health.stops.half", { r = 0.925, g = 0.925, b = 0.196 })
+Schema:Color(Options.ALL .. "health.stops.empty", { r = 0.890, g = 0.188, b = 0.188 })
+Schema:Boolean(Options.ALL .. "health.gradient", false)
+Schema:Choice(Options.ALL .. "health.gradientDirection", "unitFrameOrientation", "HORIZONTAL")
+Schema:Color(Options.ALL .. "health.gradientColor", { r = 0.1, g = 0.1, b = 0.1, a = 1 })
+Schema:Choice(Options.ALL .. "health.background", "unitFrameHealthBackground", "custom")
+Schema:Number(Options.ALL .. "health.fillAlpha", 100, 0, 100, true)
+Schema:Boolean(Options.ALL .. "health.deadBackground", false)
+Schema:Color(Options.ALL .. "health.deadColor", { r = 0.35, g = 0.05, b = 0.05, a = 1 })
+Schema:Boolean(Options.ALL .. "health.dark", false)
+Schema:Color(Options.ALL .. "health.darkFill", { r = 0.067, g = 0.067, b = 0.067, a = 0.9 })
+Schema:Color(Options.ALL .. "health.darkBackground", { r = 0.31, g = 0.31, b = 0.31, a = 1 })
+Schema:Boolean(Options.ALL .. "health.tapped", true)
+Schema:Color(Options.ALL .. "health.tappedColor", { r = 0.6, g = 0.6, b = 0.6 })
+Schema:Boolean(Options.ALL .. "health.disconnected", true)
+Schema:Color(Options.ALL .. "health.disconnectedColor", { r = 0.6, g = 0.6, b = 0.6 })
+Schema:Color(Options.ALL .. "health.reaction.hostile", nil)
+Schema:Color(Options.ALL .. "health.reaction.neutral", nil)
+Schema:Color(Options.ALL .. "health.reaction.friendly", nil)
 
 ---@class AUITextSlotDefault
 ---@field content string
@@ -165,6 +198,10 @@ local function DeclareFrame(spec, width, height, status, slots)
 
 	for _, field in ipairs({ "precision", "percentDecimals" }) do
 		Schema:Inherit(Options:Path(key, "numbers." .. field), Options.ALL .. "numbers." .. field)
+	end
+
+	for _, field in ipairs(Options.HEALTH_LOOK) do
+		Schema:Inherit(Options:Path(key, "health." .. field), Options.ALL .. "health." .. field)
 	end
 
 	Schema:Number(Options:Path(key, "text.status"), status, 0, spec.slots, true)

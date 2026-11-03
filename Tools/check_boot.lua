@@ -354,6 +354,14 @@ end
 -- The boot ------------------------------------------------------------------------------------------------------
 
 local AUI = LoadAddon("AeonUI")
+
+-- oUF's reaction colors, which the health settings show until set.
+AUI.oUF = { colors = { reaction = {} } }
+
+for level = 1, 8 do
+	AUI.oUF.colors.reaction[level] = { r = level / 10, g = 0, b = 0 }
+end
+
 local loaded = { AeonUI = true }
 
 for addon in chosen:gmatch("[^,]+") do

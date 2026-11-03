@@ -8,6 +8,8 @@ local FULL, DAMAGED, HOVER = L["Full"], L["Damaged"], L["Hover"]
 -- The sample's maximum health, and each state's share of it.
 local MAX_HEALTH = 412000
 local SHARES = { [FULL] = 1, [DAMAGED] = 0.55, [DEAD] = 0, [HOVER] = 1 }
+-- The reaction level a sample without a class takes.
+local FRIENDLY = 5
 
 ---A still sample of a frame, styled as the live frame is, with its bar and text slots as clickable parts.
 ---@class AUIFramePreview
@@ -79,7 +81,14 @@ function FramePreview:Refresh(state, preview)
 	local share = SHARES[label]
 	local sample = Sample(share, label == DEAD)
 	local bar = self.bar
-	local color = sample.classColor
+	local HealthColor = AUI.HealthColor
+	local settings = HealthColor:Resolve(key)
+	local fill, backdrop = HealthColor:Sample(settings, {
+		connected = true,
+		tapDenied = false,
+		classColor = sample.classColor,
+		reaction = FRIENDLY,
+	}, share, label == DEAD)
 
 	self.holder:SetSize(width, height)
 	UnitFrame:StyleBar(bar, self.background, self.border, UnitFrame:BarLook(key))
@@ -87,11 +96,7 @@ function FramePreview:Refresh(state, preview)
 	bar:SetReverseFill(reverse)
 	bar:SetValue(share)
 	UnitFrame:AnchorBackground(bar, self.background, reverse)
-
-	if color then
-		bar:SetStatusBarColor(color.r, color.g, color.b)
-	end
-
+	HealthColor:Paint(bar, self.background, settings, fill, backdrop)
 	preview:Part(bar, "width")
 
 	local slots, widths, contexts = AUI.Text:Layout(key, self.spec.slots)

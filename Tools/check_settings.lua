@@ -412,6 +412,13 @@ AUI.L = setmetatable({}, { __index = function(_, key)
 	return key
 end })
 -- The pages load in Settings.xml's order, which sets the order they register in.
+-- oUF's reaction colors, which the health settings show until set.
+AUI.oUF = { colors = { reaction = {} } }
+
+for level = 1, 8 do
+	AUI.oUF.colors.reaction[level] = { r = level / 10, g = 0, b = 0 }
+end
+
 for _, file in ipairs({ "AeonUI/Core/Callbacks.lua", "AeonUI/Core/Capabilities.lua", "AeonUI/Core/Modules.lua", "AeonUI/Core/Broker.lua",
 	"AeonUI/Profile/Schema.lua", "AeonUI/Profile/Store.lua", "AeonUI/Profile/Profile.lua", "AeonUI/Media/Media.lua", "AeonUI/UI/Border.lua",
 	"AeonUI_Maps/Minimap/Layout.lua", "AeonUI_Maps/Minimap/Elements.lua", "AeonUI_Maps/Minimap/Rows.lua", "AeonUI_Maps/Minimap/Fade.lua", "AeonUI_Maps/Minimap/Text.lua",
@@ -419,7 +426,7 @@ for _, file in ipairs({ "AeonUI/Core/Callbacks.lua", "AeonUI/Core/Capabilities.l
 	"AeonUI_Tooltip/Tooltip/Options.lua", "AeonUI_Tooltip/Tooltip/Tooltip.lua", "AeonUI/Interface/UIScale.lua", "AeonUI/Interface/GameMenuScale.lua",
 	"AeonUI_QoL/Automation/Options.lua", "AeonUI_QoL/Automation/GameSettings.lua", "AeonUI_QoL/Menus/Options.lua", "AeonUI_QoL/Input/Options.lua",
 	"AeonUI_QoL/Input/FocusShortcut.lua", "AeonUI_QoL/Alerts/Options.lua", "AeonUI_QoL/Interface/Options.lua", "AeonUI_QoL/ScreenText/Options.lua",
-	"AeonUI_QoL/ScreenText/ScreenText.lua", "AeonUI_QoL/Cursor/Options.lua", "AeonUI_QoL/Cursor/CursorRing.lua", "AeonUI_UnitFrames/Frames/Options.lua", "AeonUI_UnitFrames/Frames/Tags.lua", "AeonUI_UnitFrames/Frames/Text.lua", "AeonUI_UnitFrames/Frames/UnitFrame.lua", "AeonUI_UnitFrames/Frames/Frames.lua", "AeonUI_UnitFrames/CastBar/Options.lua",
+	"AeonUI_QoL/ScreenText/ScreenText.lua", "AeonUI_QoL/Cursor/Options.lua", "AeonUI_QoL/Cursor/CursorRing.lua", "AeonUI_UnitFrames/Frames/Options.lua", "AeonUI_UnitFrames/Frames/Tags.lua", "AeonUI_UnitFrames/Frames/Text.lua", "AeonUI_UnitFrames/Frames/HealthColor.lua", "AeonUI_UnitFrames/Frames/UnitFrame.lua", "AeonUI_UnitFrames/Frames/Frames.lua", "AeonUI_UnitFrames/CastBar/Options.lua",
 	"AeonUI_UnitFrames/CastBar/TickData.lua", "AeonUI_UnitFrames/CastBar/BlizzardBar.lua", "AeonUI_UnitFrames/CastBar/CastBar.lua", "AeonUI_QoL/Notifications/Options.lua",
 	"AeonUI_QoL/Notifications/Notifications.lua", "AeonUI_QoL/Markers/Options.lua", "AeonUI_QoL/Markers/Bar.lua", "AeonUI_QoL/Markers/Cycler.lua",
 	"AeonUI_QoL/Markers/Markers.lua", "AeonUI_QoL/DeleteCheapestItem/Options.lua", "AeonUI/Core/AuctionPrices.lua",

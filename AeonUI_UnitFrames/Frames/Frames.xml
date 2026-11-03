@@ -2,6 +2,7 @@
 	<Script file="Options.lua" />
 	<Script file="Tags.lua" />
 	<Script file="Text.lua" />
+	<Script file="HealthColor.lua" />
 	<Script file="UnitFrame.lua" />
 	<Script file="Frames.lua" />
 </Ui>

@@ -245,6 +245,52 @@ function FramePage:DeclareBars(page)
 	}))
 end
 
+---The frame's health color, with its other colors in one row; all follow All Frames until changed.
+---@param page table
+function FramePage:DeclareHealth(page)
+	local key = self.spec.key
+	local card = page:Section(key .. "Health", L["Health"])
+	local details = key .. "HealthColors"
+	local declared = false
+
+	local function Own(field)
+		return Options:Path(key, "health." .. field)
+	end
+
+	local function Make(id, label, field, extra)
+		return Inherited(id, label, Own(field), Options.ALL .. "health." .. field, L["All Frames"], extra)
+	end
+
+	local function Read(field)
+		return AUI.Profile:Get(Own(field))
+	end
+
+	local function Group()
+		if not declared then
+			declared = true
+			card:Details({
+				id = details,
+				label = L["Colors"],
+				summary = function()
+					local paths = {}
+
+					for _, field in ipairs(Options.HEALTH_LOOK) do
+						if field ~= "mode" then
+							paths[#paths + 1] = Own(field)
+						end
+					end
+
+					return InheritSummary(paths)
+				end,
+			})
+		end
+
+		return details
+	end
+
+	AUI.SettingsAllFrames:DeclareHealthColors(card, Make, Read, Group)
+end
+
 ---A slot's row, opening to what the slot shows and where.
 ---@param card table
 ---@param index integer
@@ -449,6 +495,7 @@ function FramePage:Declare(window)
 
 	self:DeclareSize(page)
 	self:DeclareBars(page)
+	self:DeclareHealth(page)
 	self:DeclareText(page)
 end
 

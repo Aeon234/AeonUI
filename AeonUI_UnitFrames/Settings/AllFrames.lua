@@ -7,10 +7,28 @@ local Options = AUI.UnitFrameOptions
 ---The All Frames page: what every frame follows until its own page changes it.
 ---@class AUISettingsAllFrames
 ---@field PRECISION_LABELS table<string, string>
+---@field HEALTH_MODE_LABELS table<string, string>
+---@field HEALTH_BACKGROUND_LABELS table<string, string>
+---@field ORIENTATION_LABELS table<string, string>
 local SettingsAllFrames = {
 	PRECISION_LABELS = {
 		default = L["Short"],
 		decimal = L["Short With One Decimal"],
+	},
+	HEALTH_MODE_LABELS = {
+		classReaction = L["Class / Reaction"],
+		custom = L["Custom"],
+		classic = L["Classic"],
+		stops = L["Custom Stops"],
+		classFade = L["Class Fade"],
+	},
+	HEALTH_BACKGROUND_LABELS = {
+		custom = L["Bar Background"],
+		classReaction = L["Class / Reaction"],
+	},
+	ORIENTATION_LABELS = {
+		HORIZONTAL = L["Horizontal"],
+		VERTICAL = L["Vertical"],
 	},
 }
 AUI.SettingsAllFrames = SettingsAllFrames
@@ -35,6 +53,167 @@ function SettingsAllFrames.BorderOptions()
 	end
 
 	return options
+end
+
+---@param values string[]
+---@param labels table<string, string>
+---@return table[] options
+local function ChoiceOptions(values, labels)
+	local options = {}
+
+	for index, value in ipairs(values) do
+		options[index] = { value = value, text = labels[value] }
+	end
+
+	return options
+end
+
+---Declares the health color rows All Frames and a frame's Health card share.
+---@param card table
+---@param make fun(id: string, label: string, field: string, extra: table?): table builds a setting for a field under `health.`
+---@param read fun(field: string): any the current value of a field under `health.`
+---@param group fun(name: string, label: string?, summary: (fun(): string)?): string? the detail row a named group of settings goes in, nil for the card itself
+function SettingsAllFrames:DeclareHealthColors(card, make, read, group)
+	local function FillBlocked()
+		if read("dark") then
+			return L["Dark Mode sets the fill."]
+		end
+	end
+
+	local function OnOff(field)
+		return function()
+			return read(field) and L["On"] or OFF
+		end
+	end
+
+	local function ModeColor(id, label, field, modes, details)
+		card:Color(make(id, label, field, {
+			details = details,
+			show = function()
+				return modes[read("mode")] == true
+			end,
+			blocked = FillBlocked,
+		}))
+	end
+
+	card:Dropdown(make("healthMode", L["Health Color"], "mode", {
+		options = ChoiceOptions(Options.HEALTH_MODES, self.HEALTH_MODE_LABELS),
+		blocked = FillBlocked,
+	}))
+
+	local colors = group("colors")
+
+	ModeColor("healthCustom", L["Custom Color"], "color", { custom = true }, colors)
+	ModeColor("healthFull", L["Full Health Color"], "stops.full", { stops = true }, colors)
+	ModeColor("healthHalf", L["Half Health Color"], "stops.half", { stops = true, classFade = true }, colors)
+	ModeColor("healthEmpty", L["Empty Health Color"], "stops.empty", { stops = true, classFade = true }, colors)
+
+	local background = group("background", L["Background"], function()
+		return self.HEALTH_BACKGROUND_LABELS[read("background")]
+	end)
+
+	card:Dropdown(make("healthBackground", L["Background Color"], "background", {
+		details = background,
+		options = ChoiceOptions(Options.HEALTH_BACKGROUNDS, self.HEALTH_BACKGROUND_LABELS),
+	}))
+	card:Slider(make("healthFillAlpha", L["Fill Opacity"], "fillAlpha", {
+		details = background,
+		min = 0,
+		max = 100,
+		step = 5,
+		format = "percent",
+	}))
+
+	local gradient = group("gradient", L["Gradient"], OnOff("gradient"))
+
+	card:Checkbox(make("healthGradient", L["Gradient"], "gradient", { details = gradient }))
+	card:Dropdown(make("healthGradientDirection", L["Gradient Direction"], "gradientDirection", {
+		details = gradient,
+		depends = "healthGradient",
+		options = ChoiceOptions(Options.ORIENTATIONS, self.ORIENTATION_LABELS),
+	}))
+	card:Color(make("healthGradientColor", L["Gradient End Color"], "gradientColor", {
+		details = gradient,
+		depends = "healthGradient",
+		hasOpacity = true,
+	}))
+
+	local dark = group("dark", L["Dark Mode"], OnOff("dark"))
+
+	card:Checkbox(make("healthDark", L["Dark Mode"], "dark", { details = dark }))
+	card:Color(make("healthDarkFill", L["Dark Fill"], "darkFill", {
+		details = dark,
+		depends = "healthDark",
+		hasOpacity = true,
+	}))
+	card:Color(make("healthDarkBackground", L["Dark Background"], "darkBackground", {
+		details = dark,
+		depends = "healthDark",
+		hasOpacity = true,
+	}))
+
+	local dead = group("dead", L["Dead Background"], OnOff("deadBackground"))
+
+	card:Checkbox(make("healthDead", L["Dead Background"], "deadBackground", { details = dead }))
+	card:Color(make("healthDeadColor", L["Dead Background Color"], "deadColor", {
+		details = dead,
+		depends = "healthDead",
+		hasOpacity = true,
+	}))
+end
+
+---The health colors every frame shares and none overrides: reactions, tapped and disconnected.
+---@param card table
+---@param make fun(id: string, label: string, field: string, extra: table?): table
+---@param read fun(field: string): any
+---@param group fun(name: string, label: string?, summary: (fun(): string)?): string?
+function SettingsAllFrames:DeclareHealthStates(card, make, read, group)
+	local names = { "hostile", "neutral", "friendly" }
+	local reactions = group("reactions", L["Reaction Colors"], function()
+		local changed = 0
+
+		for _, name in ipairs(names) do
+			if read("reaction." .. name) then
+				changed = changed + 1
+			end
+		end
+
+		return changed > 0 and L["%d changed"]:format(changed) or DEFAULT
+	end)
+
+	for _, reaction in ipairs({
+		{ name = "hostile", label = FACTION_STANDING_LABEL2, level = 2 },
+		{ name = "neutral", label = FACTION_STANDING_LABEL4, level = 4 },
+		{ name = "friendly", label = FACTION_STANDING_LABEL5, level = 5 },
+	}) do
+		local field = "reaction." .. reaction.name
+		local color = AUI.oUF.colors.reaction[reaction.level]
+		local blizzard = { r = color.r, g = color.g, b = color.b }
+		local setting = make("reaction" .. reaction.name, reaction.label, field, {
+			details = reactions,
+			get = function()
+				return read(field) or blizzard
+			end,
+		})
+
+		setting.default = blizzard
+		card:Color(setting)
+	end
+
+	local states = group("states", L["Tapped and Disconnected"], function()
+		return (read("tapped") or read("disconnected")) and L["On"] or OFF
+	end)
+
+	card:Checkbox(make("healthTapped", L["Tapped"], "tapped", { details = states }))
+	card:Color(make("healthTappedColor", L["Tapped Color"], "tappedColor", {
+		details = states,
+		depends = "healthTapped",
+	}))
+	card:Checkbox(make("healthDisconnected", L["Disconnected"], "disconnected", { details = states }))
+	card:Color(make("healthDisconnectedColor", L["Disconnected Color"], "disconnectedColor", {
+		details = states,
+		depends = "healthDisconnected",
+	}))
 end
 
 ---@param style string a border style
@@ -134,6 +313,29 @@ function SettingsAllFrames:Declare(window)
 	text:Slider(Field("size", L["Size"], "text.size", { min = Options.MIN_TEXT, max = Options.MAX_TEXT, step = 1 }))
 	text:Dropdown(Field("outline", L["Outline"], "text.outline", { options = lib.OUTLINES }))
 	text:Color(Field("color", COLOR, "text.color"))
+
+	local health = page:Section("allFramesHealth", L["Health Colors"])
+
+	local function HealthField(id, label, field, extra)
+		return Field(id, label, "health." .. field, extra)
+	end
+
+	local function HealthRead(field)
+		return AUI.Profile:Get(Options.ALL .. "health." .. field)
+	end
+
+	local function HealthGroup(name, label, summary)
+		if label then
+			local id = "allFramesHealth" .. name
+
+			health:Details({ id = id, label = label, summary = summary })
+
+			return id
+		end
+	end
+
+	self:DeclareHealthColors(health, HealthField, HealthRead, HealthGroup)
+	self:DeclareHealthStates(health, HealthField, HealthRead, HealthGroup)
 
 	local numbers = page:Section("allFramesNumbers", L["Numbers"])
 	local precision = {}
