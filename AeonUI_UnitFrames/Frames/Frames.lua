@@ -155,5 +155,5 @@ function Frames:OnMediaRegistered(_, kind)
 end
 
 function Frames:OnScaleChanged()
-	self:ApplyAll(false)
+	self:ApplyAll(true)
 end

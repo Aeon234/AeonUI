@@ -173,10 +173,12 @@ function FramePreview:DrawAuras(width, preview)
 						frame = frame,
 						texture = frame:CreateTexture(nil, "ARTWORK"),
 						border = frame:CreateTexture(nil, "BACKGROUND"),
+						edge = frame:CreateTexture(nil, "BACKGROUND", nil, 1),
 						count = frame:CreateFontString(nil, "OVERLAY"),
 						time = frame:CreateFontString(nil, "OVERLAY"),
 					}
-					icon.texture:SetAllPoints()
+					icon.edge:SetAllPoints()
+					icon.edge:SetColorTexture(0, 0, 0, 1)
 					icon.texture:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 					-- The border is a colored backing one unit wider than the icon on each side.
 					icon.border:SetPoint("TOPLEFT", -1, 1)
@@ -187,7 +189,12 @@ function FramePreview:DrawAuras(width, preview)
 				local frame = icon.frame
 				local dispel = DISPEL_COLORS[(index - 1) % #DISPEL_COLORS + 1]
 
+				local pixel = AUI:Pixel(frame)
+
 				frame:SetSize(settings.size, settings.size)
+				icon.texture:ClearAllPoints()
+				icon.texture:SetPoint("TOPLEFT", frame, "TOPLEFT", pixel, -pixel)
+				icon.texture:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -pixel, pixel)
 				frame:ClearAllPoints()
 				frame:SetPoint(placement.point, self.holder, placement.relative, placement.x + offset.x,
 					placement.y + offset.y)

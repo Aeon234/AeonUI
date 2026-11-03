@@ -294,9 +294,13 @@ end
 ---@param widgets AUIAuraWidgets
 ---@param button table a client aura button
 function Auras:CreateButton(widgets, button)
+	local edge = button:CreateTexture(nil, "BACKGROUND")
+
+	edge:SetAllPoints()
+	edge:SetColorTexture(0, 0, 0, 1)
+
 	local cooldown = CreateFrame("Cooldown", nil, button, "CooldownFrameTemplate")
 
-	cooldown:SetAllPoints()
 	cooldown:SetReverse(true)
 	cooldown:SetDrawEdge(false)
 	cooldown:SetHideCountdownNumbers(true)
@@ -305,10 +309,10 @@ function Auras:CreateButton(widgets, button)
 
 	local icon = button:CreateTexture(nil, "BORDER")
 
-	icon:SetAllPoints()
 	icon:SetTexCoord(ICON_CROP, 1 - ICON_CROP, ICON_CROP, 1 - ICON_CROP)
 	button.Icon = icon
 	button:SetIcon(icon)
+	cooldown:SetAllPoints(icon)
 
 	-- Text sits above the cooldown swipe.
 	local text = CreateFrame("Frame", nil, button)
@@ -363,7 +367,8 @@ function Auras:CreateButton(widgets, button)
 	self:StyleButton(widgets, button)
 end
 
----Applies a display's settings to one of its buttons: size, mouse, swipe, text and border.
+---Applies a display's settings to one of its buttons: size, mouse, swipe, text and border. The icon sits one screen
+---pixel inside the button, showing the black behind it as an edge.
 ---@param widgets AUIAuraWidgets
 ---@param button table
 function Auras:StyleButton(widgets, button)
@@ -373,7 +378,12 @@ function Auras:StyleButton(widgets, button)
 		return
 	end
 
+	local pixel = AUI:Pixel(button)
+
 	button:SetSize(settings.size, settings.size)
+	button.Icon:ClearAllPoints()
+	button.Icon:SetPoint("TOPLEFT", button, "TOPLEFT", pixel, -pixel)
+	button.Icon:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -pixel, pixel)
 	button:SetMouseMotionEnabled(settings.tooltips)
 	button:SetMouseClickEnabled(settings.clicks)
 	button.Cooldown:SetDrawSwipe(settings.swipe)
