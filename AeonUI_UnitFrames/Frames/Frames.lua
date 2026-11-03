@@ -5,11 +5,11 @@ local Options = AUI.UnitFrameOptions
 -- Settings that change a secure frame or an aura container, which wait for combat to end.
 local LAYOUT = {
 	width = true, height = true, position = true, text = true, buffs = true, debuffs = true, auras = true, enabled = true,
-	attach = true, extraMana = true, extraManaHeight = true, spacing = true,
+	attach = true, attachX = true, attachY = true, extraMana = true, extraManaHeight = true, spacing = true,
 }
 
--- The player's resource frames, by key.
-local RESOURCES = {}
+-- The keys of the player's resources' settings.
+local RESOURCES = { resources = true }
 
 for _, spec in ipairs(Options.RESOURCES) do
 	RESOURCES[spec.key] = spec
@@ -65,9 +65,7 @@ function Frames:Start()
 		any = any or self:IsOn(spec.key)
 	end
 
-	for _, spec in ipairs(Options.RESOURCES) do
-		any = any or Options:ResourceOn(spec.key)
-	end
+	any = any or Options:ResourcesOn()
 
 	if not any then
 		return
@@ -115,14 +113,18 @@ function Frames:Start()
 	AUI.Fading:Start()
 end
 
----Spawns the resource frames turned on and not yet made; in combat, waits for combat to end. They stand beside whatever
+---Spawns the resource frames once they are turned on; in combat, waits for combat to end. They stand beside whatever
 ---shows the player: oUF would hide Blizzard's player frame as it spawns another frame for the unit, so that step is
 ---skipped for them, and Blizzard's frame goes only with AeonUI's.
 function Frames:SpawnResources()
 	local oUF = AUI.oUF
 
+	if not Options:ResourcesOn() then
+		return
+	end
+
 	for _, spec in ipairs(Options.RESOURCES) do
-		if Options:ResourceOn(spec.key) and not self.objects[spec.key] then
+		if not self.objects[spec.key] then
 			if InCombatLockdown() then
 				self.layoutPending = true
 

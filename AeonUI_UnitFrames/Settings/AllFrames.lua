@@ -186,10 +186,8 @@ end
 ---@param make fun(id: string, label: string, field: string, extra: table?): table builds a setting for a field under `powerColors.`
 ---@param read fun(field: string): any the current value of a field under `powerColors.`
 ---@param group fun(name: string, label: string?, summary: (fun(): string)?): string? the detail row a named group goes in, nil for the card itself
----@param depends string? what the mode row depends on
-function SettingsAllFrames:DeclarePowerColors(card, make, read, group, depends)
+function SettingsAllFrames:DeclarePowerColors(card, make, read, group)
 	card:Dropdown(make("powerMode", L["Power Color"], "mode", {
-		depends = depends,
 		options = ChoiceOptions(Options.POWER_MODES, self.POWER_MODE_LABELS),
 	}))
 
@@ -197,7 +195,6 @@ function SettingsAllFrames:DeclarePowerColors(card, make, read, group, depends)
 
 	card:Color(make("powerCustom", L["Custom Color"], "color", {
 		details = colors,
-		depends = not colors and depends or nil,
 		show = function()
 			return read("mode") == "custom"
 		end,

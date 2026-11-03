@@ -12,6 +12,8 @@ local Options = AUI.UnitFrameOptions
 ---@field Background Texture
 ---@field Border AUIBorder
 ---@field TextSlots FontString[]
+---@field drawn boolean? its elements have run once
+---@field UpdateAllElements fun(self: AUIPlayerPowerFrame, event: string) oUF: run every element
 local PlayerPowerMixin = {}
 
 ---@class AUIPlayerPower
@@ -48,8 +50,18 @@ function PlayerPowerMixin:ApplyLayout()
 	self:SetPoint(position.point, UIParent, position.point, position.x, position.y)
 	self.Border:Layout()
 
-	if Profile:Get(Options:Path(self.key, "enabled")) then
+	local on = Options:ResourcesOn()
+
+	AUI.Indicators:SetElement(self, "Power", on, self.Power)
+
+	if on then
 		self:Enable()
+
+		-- A frame spawned after the login shows no change and sees no loading screen, so nothing else draws it first.
+		if not self.drawn then
+			self.drawn = true
+			self:UpdateAllElements("ApplyLayout")
+		end
 	else
 		self:Disable()
 	end
@@ -65,6 +77,7 @@ function PlayerPowerMixin:ApplyAppearance()
 	UnitFrame:AnchorBackground(self.Bar, self.Background, reverse)
 	AUI.PowerColor:ApplyPalette()
 	AUI.PowerColor:Apply(self, AUI.PowerColor:Resolve(self.key), self.Background)
+	self.Power.smoothing = AUI.ClassPower:Smoothing()
 	AUI.Text:Apply(self, self.key)
 
 	-- Redraws the bar with the new settings.

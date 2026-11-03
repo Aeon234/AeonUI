@@ -14,6 +14,12 @@ C_AddOns = {
 	GetAddOnMetadata = function() end,
 }
 UIParent = {}
+Enum = { StatusBarInterpolation = { Immediate = 0, ExponentialEaseOut = 1 }, PowerType = { Essence = 19 } }
+C_SpecializationInfo = {
+	GetSpecialization = function()
+		return 2
+	end,
+}
 
 function issecretvalue()
 	return false
@@ -86,6 +92,27 @@ local function Region()
 		return 0, 1
 	end
 
+	function region:IsElementEnabled(element)
+		return self.elements ~= nil and self.elements[element] == true
+	end
+
+	function region:GetFrameLevel()
+		return 1
+	end
+
+	function region:GetWidth()
+		return self.width or 0
+	end
+
+	function region:GetHeight()
+		return self.height or 0
+	end
+
+	function region:SetSize(width, height)
+		self.last.SetSize = { width, height }
+		self.width, self.height = width, height
+	end
+
 	function region:GetValue()
 		return self.value or 0
 	end
@@ -124,7 +151,18 @@ end })
 AUI.Pixel = function()
 	return 0.5
 end
-AUI.Border = { ART_COLOR = { r = 0.5, g = 0.4, b = 0.3 } }
+AUI.Border = {
+	ART_COLOR = { r = 0.5, g = 0.4, b = 0.3 },
+	Create = function()
+		return Region()
+	end,
+	CellDividerWidth = function()
+		return nil
+	end,
+	StyleCellDivider = function()
+		return false
+	end,
+}
 AUI.Media = {
 	FLAT = "flat",
 	SetBarTexture = function() end,
@@ -138,6 +176,7 @@ AUI.Media = {
 AUI.Tags = { Register = function() end }
 AUI.UnitFrame = {
 	specs = {},
+	BORDER_LEVEL = 6,
 	Style = function() end,
 	CreateBar = function()
 		local border = Region()
@@ -175,7 +214,12 @@ AUI.Callbacks = {
 }
 
 function LibStub()
-	return { RegisterCallback = function() end }
+	return {
+		RegisterCallback = function() end,
+		ReduceMotion = function()
+			return false
+		end,
+	}
 end
 
 local spawned, disabledBlizzard = {}, 0
@@ -298,12 +342,10 @@ Equal("spaced", spots[2].x, 21)
 Equal("ending at the width", spots[5].x + spots[5].w, 100)
 Equal("no count, no segments", #ClassPower:Segments(100, 0, 5), 0)
 
-settings = { enabled = true, extraMana = false, height = 10, extraManaHeight = 4 }
+settings = { extraMana = false, height = 10, extraManaHeight = 4 }
 Equal("the resource alone", ClassPower:Height(settings), 10)
 settings.extraMana = true
 Equal("with extra mana", ClassPower:Height(settings), 16)
-settings.enabled = false
-Equal("extra mana alone", ClassPower:Height(settings), 4)
 
 local r = ClassPower:Shade({ r = 1, g = 1, b = 1 }, true)
 Equal("a partial segment is darker", r, 0.6)
@@ -318,72 +360,105 @@ Equal("nothing started", Frames.started, false)
 Equal("settings are followed", handlers.Profile ~= nil, true)
 Equal("no reload needed", Frames:ReloadNeeded(), false)
 
-Set(Options:Path("playerPower", "enabled"), true)
-handlers.Profile(Frames, Options:Path("playerPower", "enabled"))
-Equal("turning on starts", Frames.started, true)
-Equal("the power bar spawns", spawned[1], "AeonUIPlayerPower")
-Equal("the class resource does not", #spawned, 1)
+combat = true
+Set(Options.RESOURCES_PATH, true)
+handlers.Profile(Frames, Options.RESOURCES_PATH)
+Equal("in combat it waits", #spawned, 0)
+combat = false
+Frames:Start()
+Equal("then both spawn", table.concat(spawned, " "), "AeonUIPlayerPower AeonUIClassPower")
 Equal("Blizzard's player frame stays", disabledBlizzard, 0)
-Equal("the step is restored", type(AUI.oUF.DisableBlizzard), "function")
 AUI.oUF:DisableBlizzard()
-Equal("for what comes after", disabledBlizzard, 1)
+Equal("the step is restored for what comes after", disabledBlizzard, 1)
 disabledBlizzard = 0
 
-local power = Frames.objects.playerPower
+local power, resource = Frames.objects.playerPower, Frames.objects.classPower
 
 Equal("its size", power.last.SetSize[1], 360)
 Equal("its place", power.points[1][5], -184)
 Equal("it shows", power.last.Enable ~= nil, true)
+Equal("the power element runs", power.elements.Power, true)
 Equal("oUF's power element on its bar", power.Power, power.Bar)
 Equal("in power colors", power.Power.colorPower, true)
 Equal("repainted by the palette's step", power.Power.PostUpdateColor, PowerColor.PostUpdateColor)
-Equal("no reload for a resource", Frames:ReloadNeeded(), false)
-
-combat = true
-Set(Options:Path("classPower", "enabled"), true)
-handlers.Profile(Frames, Options:Path("classPower", "enabled"))
-Equal("in combat it waits", #spawned, 1)
-combat = false
-Frames:OnCombatEnded()
-Equal("then spawns", spawned[2], "AeonUIClassPower")
-
-local resource = Frames.objects.classPower
-
+Equal("no reload for the resources", Frames:ReloadNeeded(), false)
+Equal("the power bar does not fade by default", AUI.Profile:Get(Options:Path("playerPower", "fade.idle.enabled")), false)
+Equal("nor the class resource", AUI.Profile:Get(Options:Path("classPower", "fade.idle.enabled")), false)
+Equal("no hover on a bar with no mouse", Schema.fields[Options:Path("playerPower", "bars.hover")], nil)
 Equal("stands on the power bar", resource.points[1][2], power)
 Equal("its top", resource.points[1][3], "TOP")
+Equal("touching it by default", resource.points[1][5], 0)
+Equal("no class resource, no empty border", resource.Holder.shown, resource.elements.Runes == true)
+resource.ClassPower.PostVisibility(resource.ClassPower, true)
+Equal("a resource shows the holder", resource.Holder.shown, true)
+Equal("the rest of the segments in the holder", resource.ClassPower[1].parent, resource.Holder)
+Equal("attached", ClassPower:IsAttached(), true)
 Equal("the resource runs", resource.elements.ClassPower, true)
 Equal("runes too", resource.elements.Runes, true)
+Equal("filled runes stand on the left", resource.Runes.sortOrder, "asc")
+Equal("drawn as it spawns", resource.last.UpdateAllElements ~= nil, true)
+Equal("the power bar too", power.last.UpdateAllElements ~= nil, true)
+Equal("read again once the client knows the specialization", resource.last.RegisterEvent ~= nil, true)
 Equal("extra mana does not", resource.elements.AdditionalPower, false)
-Equal("no mover while attached", ClassPower:IsAttached(), true)
 
 Set(Options:Path("classPower", "extraMana"), true)
 handlers.Profile(Frames, Options:Path("classPower", "extraMana"))
 Equal("extra mana turns on", resource.elements.AdditionalPower, true)
 Equal("the frame grows", resource.last.SetSize[2], 16)
-Equal("extra mana under the resource", resource.AdditionalPower.points[1][4], 0)
-Equal("past its height", resource.AdditionalPower.points[1][5], -12)
+Equal("extra mana under the resource", resource.ExtraHolder.points[1][4], 0)
+Equal("past its height", resource.ExtraHolder.points[1][5], -12)
 
-Set(Options:Path("classPower", "enabled"), false)
-resource.ClassPower[1]:Show()
-handlers.Profile(Frames, Options:Path("classPower", "enabled"))
-Equal("extra mana keeps the frame", resource.last.Disable, nil)
-Equal("the resource stops", resource.elements.ClassPower, false)
-Equal("and its segments hide", resource.ClassPower[1].shown, false)
-Equal("extra mana moves up", resource.AdditionalPower.points[1][5], -0)
+Set(Options:Path("classPower", "attachY"), -3)
+handlers.Profile(Frames, Options:Path("classPower", "attachY"))
+Equal("it can overlap the power bar", resource.points[1][5], -3)
 
-Set(Options:Path("classPower", "extraMana"), false)
-handlers.Profile(Frames, Options:Path("classPower", "extraMana"))
-Equal("both off stops the frame", resource.last.Disable ~= nil, true)
+-- Colors, dividers and smooth fill on the live frame.
+settings = ClassPower:Resolve()
+Equal("Spec by default", settings.colorMode, "spec")
+Equal("a specialization's rune color", ClassPower:BaseColor(settings, "RUNES", base), settings["palette.RUNES_FROST"])
+Equal("Spec without its own color is the type's", ClassPower:BaseColor(settings, "CHI", base), settings["palette.CHI"])
+Equal("oUF's for a resource with none", ClassPower:BaseColor(settings, "ICICLES", base), base)
+settings.colorMode = "type"
+Equal("Power Type's rune color", ClassPower:BaseColor(settings, "RUNES", base), settings["palette.RUNES"])
+settings.colorMode = "class"
+Equal("Class", ClassPower:BaseColor(settings, "RUNES", base), AUI.oUF.colors.class.MAGE)
+settings.colorMode = "custom"
+Equal("Custom", ClassPower:BaseColor(settings, "RUNES", base), settings.color)
+settings.recharge = true
+Equal("the recharge color for a filling segment", ClassPower:SegmentColor(settings, base, false, true), 0.5)
+settings.recharge = false
+Equal("or darker", ClassPower:SegmentColor(settings, { r = 1, g = 1, b = 1 }, false, true), 0.6)
+Equal("charged", ClassPower:SegmentColor(settings, base, true, false), settings.chargedColor.r)
+Equal("dividers between the segments", resource.Holder.Dividers[1] ~= nil, true)
+Equal("Spacing is the divider's width", resource.Holder.Dividers[1].width, 1)
+Equal("the dividers of what runs last", resource.Holder.count, 6)
+resource.ClassPower.PostUpdate(resource.ClassPower, nil, nil)
+Equal("a resource turned off clears without an error", resource.Holder.count, 6)
+Equal("smooth fill off by default", power.Power.smoothing, 0)
+Set(Options.RESOURCES_SMOOTH, true)
+handlers.Profile(Frames, Options.RESOURCES_SMOOTH)
+Equal("smooth fill on", power.Power.smoothing, 1)
+Equal("extra mana too", resource.AdditionalPower.smoothing, 1)
+Set(Options.RESOURCES_SMOOTH, false)
 
-Set(Options:Path("playerPower", "enabled"), false)
-Set(Options:Path("classPower", "enabled"), true)
-handlers.Profile(Frames, Options:Path("playerPower", "enabled"))
-Equal("no power bar, its own place", resource.points[1][2], UIParent)
-Equal("a mover then", ClassPower:IsAttached(), false)
-Equal("the power bar stops", power.last.Disable ~= nil, true)
-Set(Options:Path("playerPower", "enabled"), true)
 Set(Options:Path("classPower", "attach"), "screen")
 handlers.Profile(Frames, Options:Path("classPower", "attach"))
 Equal("Screen keeps its own place", resource.points[1][2], UIParent)
+Equal("a mover then", ClassPower:IsAttached(), false)
+
+Set(Options.RESOURCES_PATH, false)
+resource.ClassPower[1]:Show()
+handlers.Profile(Frames, Options.RESOURCES_PATH)
+Equal("off stops the power bar", power.last.Disable ~= nil, true)
+Equal("its element", power.elements.Power, false)
+Equal("off stops the class resource", resource.last.Disable ~= nil, true)
+Equal("its elements", resource.elements.ClassPower, false)
+Equal("and extra mana", resource.elements.AdditionalPower, false)
+Equal("and its segments hide", resource.ClassPower[1].shown, false)
+
+Set(Options.RESOURCES_PATH, true)
+handlers.Profile(Frames, Options.RESOURCES_PATH)
+Equal("on again runs them", resource.elements.ClassPower, true)
+Equal("no second spawn", #spawned, 2)
 
 io.stdout:write(("check_resources: %d checks passed\n"):format(checks))

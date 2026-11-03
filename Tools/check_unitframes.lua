@@ -113,6 +113,8 @@ METHODS.Texture = {
 	SetAtlas = function() end,
 	SetTexCoord = function() end,
 	SetDesaturated = function() end,
+	SetSnapToPixelGrid = function() end,
+	SetTexelSnappingBias = function() end,
 	SetTexture = function(self, file)
 		self.file = file
 	end,
@@ -801,25 +803,26 @@ AUI.oUF.colors.power.MANA = { r = 0, g = 0, b = 1 }
 
 local Resource = AUI.ResourcePreview
 local parts, resourcePreview = {}, Resource:New()
-local sampleTarget = { Part = function(_, _, id)
+local partRegions = {}
+local sampleTarget = { Part = function(_, region, id)
 	parts[#parts + 1] = id
+	partRegions[id] = region
 end }
 
 resourcePreview:Create(New("Frame"))
 
 local width, height = resourcePreview:Refresh(nil, sampleTarget)
 
-Equal("all off: nothing drawn", #parts, 0)
-Equal("all off: a size all the same", width .. "x" .. height, "1x1")
-Schema:Write(config, Options:Path("playerPower", "enabled"), true)
-Schema:Write(config, Options:Path("classPower", "enabled"), true)
+Equal("both bars drawn with the switch off", table.concat(parts, " "), "classWidth powerWidth")
+Equal("without extra mana", width .. "x" .. height, "360x22")
+Equal("the whole class resource is the part", partRegions.classWidth, resourcePreview.resource)
 Schema:Write(config, Options:Path("classPower", "extraMana"), true)
 
 for _, state in ipairs(Resource.STATES) do
 	parts = {}
 	width, height = resourcePreview:Refresh(state, sampleTarget)
-	Equal(state .. ": every part marked", table.concat(parts, " "), "classEnabled extraMana powerEnabled")
-	Equal(state .. ": stacked", width .. "x" .. height, "360x30")
+	Equal(state .. ": every part marked", table.concat(parts, " "), "classWidth extraMana powerWidth")
+	Equal(state .. ": stacked", width .. "x" .. height, "360x28")
 end
 
 print(("check_unitframes: %d checks passed"):format(checks))

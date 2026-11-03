@@ -17,6 +17,10 @@ RAID_TARGET_8 = "Skull"
 APPLY = "Apply"
 RELOADUI = "Reload UI"
 TRACKING = "Tracking"
+function issecretvalue()
+	return false
+end
+
 function UnitClass()
 	return "Hunter", "HUNTER"
 end
@@ -2032,6 +2036,19 @@ CheckMacrosPage()
 -- In its own function: this chunk is at Lua 5.1's limit of local variables.
 ;(function()
 	local unitPages = Load(nil).pages
+
+	for _, pageID in ipairs({ "unitFramePlayer", "unitFrameResources" }) do
+		local switch = unitPages[pageID].info.switch
+
+		Equal(pageID .. " has its switch above the preview", switch ~= nil, true)
+
+		for _, section in ipairs(unitPages[pageID].sections) do
+			for _, setting in ipairs(section.settings) do
+				Equal(pageID .. "/" .. tostring(setting.id) .. " is not the page's switch again",
+					setting.path ~= switch.path, true)
+			end
+		end
+	end
 
 	for _, pageID in ipairs({ "unitFramesAll", "unitFramePlayer", "unitFrameResources" }) do
 		for _, section in ipairs(unitPages[pageID].sections) do

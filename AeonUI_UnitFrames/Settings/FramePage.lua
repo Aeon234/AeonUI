@@ -237,9 +237,10 @@ AUI.SettingsFramePage = FramePage
 FramePage.ChoiceOptions = ChoiceOptions
 
 ---@param spec AUIFrameSpec
+---@param prefix string? starts its Bars settings' ids, where a page holds two such cards
 ---@return AUISettingsFramePage page
-function FramePage:New(spec)
-	return setmetatable({ spec = spec }, self)
+function FramePage:New(spec, prefix)
+	return setmetatable({ spec = spec, prefix = prefix or "" }, self)
 end
 
 ---@param id string
@@ -304,9 +305,8 @@ function FramePage:PowerMaker()
 end
 
 ---@param card table
----@param depends string the switch the row depends on
 ---@return fun(): string group the one Colors row every group of power colors goes in, declared when first asked for
-function FramePage:PowerGroup(card, depends)
+function FramePage:PowerGroup(card)
 	local key = self.spec.key
 	local details = key .. "PowerColors"
 	local declared = false
@@ -317,7 +317,6 @@ function FramePage:PowerGroup(card, depends)
 			card:Details({
 				id = details,
 				label = L["Colors"],
-				depends = depends,
 				summary = function()
 					local paths = {}
 
@@ -356,13 +355,16 @@ end
 
 ---The frame's border and bars, which follow All Frames until changed.
 ---@param page table
----@param options table? the card's section options
-function FramePage:DeclareBars(page, options)
+---@param title string? the card's title, when not Bars
+---@return table card
+function FramePage:DeclareBars(page, title)
 	local key = self.spec.key
 	local AllFrames = AUI.SettingsAllFrames
-	local card = page:Section(key .. "Bars", L["Bars"], options)
+	local card = page:Section(key .. "Bars", title or L["Bars"])
 	local details = key .. "BarsLook"
 	local from = L["All Frames"]
+	local look = { "texture", "background", "borderColor", "lineColor", "borderThickness" }
+	local hover = not self.spec.passive
 
 	local function Own(field)
 		return Options:Path(key, "bars." .. field)
@@ -376,7 +378,9 @@ function FramePage:DeclareBars(page, options)
 		return AUI.Profile:Get(Own("borderStyle"))
 	end
 
-	card:Dropdown(Inherited("borderStyle", L["Border Style"], Own("borderStyle"), Shared("borderStyle"), from, {
+	local prefix = self.prefix or ""
+
+	card:Dropdown(Inherited(prefix .. "borderStyle", L["Border Style"], Own("borderStyle"), Shared("borderStyle"), from, {
 		options = AllFrames.BorderOptions,
 		titleCase = false,
 	}))
@@ -384,34 +388,42 @@ function FramePage:DeclareBars(page, options)
 		id = details,
 		label = L["Look"],
 		summary = function()
-			return InheritSummary({
-				Own("texture"), Own("background"), Own("borderColor"), Own("lineColor"), Own("borderThickness"),
-				Own("hover"), Own("hoverColor"),
-			})
+			local paths = {}
+
+			for index, field in ipairs(look) do
+				paths[index] = Own(field)
+			end
+
+			if hover then
+				paths[#paths + 1] = Own("hover")
+				paths[#paths + 1] = Own("hoverColor")
+			end
+
+			return InheritSummary(paths)
 		end,
 	})
-	card:Dropdown(Inherited("barTexture", L["Bar Texture"], Own("texture"), Shared("texture"), from, {
+	card:Dropdown(Inherited(prefix .. "barTexture", L["Bar Texture"], Own("texture"), Shared("texture"), from, {
 		details = details,
 		picker = "texture",
 	}))
-	card:Color(Inherited("barBackground", L["Background"], Own("background"), Shared("background"), from, {
+	card:Color(Inherited(prefix .. "barBackground", L["Background"], Own("background"), Shared("background"), from, {
 		details = details,
 		hasOpacity = true,
 	}))
-	card:Color(Inherited("borderColor", L["Border Color"], Own("borderColor"), Shared("borderColor"), from, {
+	card:Color(Inherited(prefix .. "borderColor", L["Border Color"], Own("borderColor"), Shared("borderColor"), from, {
 		details = details,
 		show = function()
 			return AllFrames:HasTint(Style())
 		end,
 	}))
-	card:Color(Inherited("lineColor", L["Border Color"], Own("lineColor"), Shared("lineColor"), from, {
+	card:Color(Inherited(prefix .. "lineColor", L["Border Color"], Own("lineColor"), Shared("lineColor"), from, {
 		details = details,
 		hasOpacity = true,
 		show = function()
 			return Style() == "THIN_LINE"
 		end,
 	}))
-	card:Slider(Inherited("borderThickness", L["Border Thickness"], Own("borderThickness"), Shared("borderThickness"),
+	card:Slider(Inherited(prefix .. "borderThickness", L["Border Thickness"], Own("borderThickness"), Shared("borderThickness"),
 		from, {
 			details = details,
 			min = Options.MIN_BORDER_THICKNESS,
@@ -422,6 +434,11 @@ function FramePage:DeclareBars(page, options)
 				return AllFrames:HasThickness(Style())
 			end,
 		}))
+
+	if not hover then
+		return card
+	end
+
 	card:Checkbox(Inherited("hover", L["Highlight on Hover"], Own("hover"), Shared("hover"), from, {
 		details = details,
 		show = function()
@@ -435,6 +452,8 @@ function FramePage:DeclareBars(page, options)
 			return AllFrames:HasHoverColor(Style())
 		end,
 	}))
+
+	return card
 end
 
 ---The frame's health color, with its other colors in one row; all follow All Frames until changed.
@@ -1222,10 +1241,9 @@ function FramePage:DeclareStyle(card)
 end
 
 ---@param page table
----@param options table? the card's section options
-function FramePage:DeclareText(page, options)
+function FramePage:DeclareText(page)
 	local key = self.spec.key
-	local card = page:Section(key .. "Text", L["Text"], options)
+	local card = page:Section(key .. "Text", L["Text"])
 
 	for index = 1, self.spec.slots do
 		self:DeclareSlot(card, index)

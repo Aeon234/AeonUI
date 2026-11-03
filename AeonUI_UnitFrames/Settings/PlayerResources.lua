@@ -10,8 +10,45 @@ local ATTACH_LABELS = {
 	screen = L["Screen"],
 }
 
----The Player Resources page: the power bar, the class resource and extra mana, each with its own switch, since they
----are their own frames, usable without AeonUI's player frame.
+local COLOR_MODE_LABELS = {
+	spec = SPECIALIZATION,
+	class = CLASS,
+	type = L["Power Type"],
+	custom = L["Custom"],
+}
+
+-- The palette colors each class's resources use.
+local CLASS_TOKENS = {
+	DEATHKNIGHT = { "RUNES_BLOOD", "RUNES_FROST", "RUNES_UNHOLY", "RUNES" },
+	DRUID = { "COMBO_POINTS" },
+	EVOKER = { "ESSENCE" },
+	MAGE = { "ARCANE_CHARGES" },
+	MONK = { "CHI", "STAGGER_LIGHT", "STAGGER_MODERATE", "STAGGER_HEAVY" },
+	PALADIN = { "HOLY_POWER" },
+	ROGUE = { "COMBO_POINTS" },
+	SHAMAN = { "MAELSTROM" },
+	WARLOCK = { "SOUL_SHARDS" },
+}
+
+local TOKEN_LABELS = {
+	RUNES_BLOOD = L["Blood"],
+	RUNES_FROST = L["Frost"],
+	RUNES_UNHOLY = L["Unholy"],
+	RUNES = RUNES,
+	COMBO_POINTS = L["Combo Points"],
+	ESSENCE = POWER_TYPE_ESSENCE,
+	ARCANE_CHARGES = L["Arcane Charges"],
+	CHI = CHI,
+	STAGGER_LIGHT = L["Light Stagger"],
+	STAGGER_MODERATE = L["Moderate Stagger"],
+	STAGGER_HEAVY = L["Heavy Stagger"],
+	HOLY_POWER = HOLY_POWER,
+	MAELSTROM = MAELSTROM,
+	SOUL_SHARDS = SOUL_SHARDS_POWER,
+}
+
+---The Player Resources page: the power bar, the class resource and extra mana under one switch, usable without AeonUI's
+---player frame.
 ---@class AUISettingsPlayerResources
 local Page = {}
 AUI.SettingsPlayerResources = Page
@@ -27,33 +64,40 @@ function Page:DeclarePower(page)
 		return Options:Path(key, field)
 	end
 
-	local function On()
-		return AUI.Profile:Get(Own("enabled")) == true
-	end
-
-	card:Toggle(Field("powerEnabled", L["Show Power Bar"], Own("enabled")))
 	card:Slider(Field("powerWidth", L["Width"], Own("width"), {
-		depends = "powerEnabled",
 		min = Options.MIN_RESOURCE_WIDTH,
 		max = Options.MAX_RESOURCE_WIDTH,
 		step = 1,
 	}))
 	card:Slider(Field("powerHeight", L["Height"], Own("height"), {
-		depends = "powerEnabled",
 		min = Options.MIN_POWER_HEIGHT,
 		max = Options.MAX_HEIGHT,
 		step = 1,
 	}))
-	card:Checkbox(Field("powerReverse", L["Reverse Fill"], Own("reverse"), { depends = "powerEnabled" }))
+	card:Checkbox(Field("powerReverse", L["Reverse Fill"], Own("reverse")))
+	card:Checkbox(Field("powerSmooth", L["Smooth Animation"], Options.RESOURCES_SMOOTH))
 
 	local spec = Options:Spec(key) --[[@as AUIFrameSpec]]
 	local rows = FramePage:New(spec)
 
 	AUI.SettingsAllFrames:DeclarePowerColors(card, rows:PowerMaker(), function(field)
 		return AUI.Profile:Get(Own("powerColors." .. field))
-	end, rows:PowerGroup(card, "powerEnabled"), "powerEnabled")
-	rows:DeclareBars(page, { show = On })
-	rows:DeclareText(page, { show = On })
+	end, rows:PowerGroup(card))
+
+	local visibility = "powerVisibility"
+
+	card:Details({ id = visibility, label = L["Visibility"] })
+	card:Checkbox(Field("powerIdle", L["Idle Fade"], Own("fade.idle.enabled"), { details = visibility }))
+	card:Slider(Field("powerIdleAlpha", L["Idle Fade Opacity"], Own("fade.idle.alpha"), {
+		details = visibility,
+		depends = "powerIdle",
+		min = 0,
+		max = 100,
+		step = 5,
+		format = "percent",
+	}))
+	rows:DeclareBars(page)
+	rows:DeclareText(page)
 end
 
 ---@param page table
@@ -67,46 +111,67 @@ function Page:DeclareClassResource(page)
 		return Options:Path(key, field)
 	end
 
-	local function On(extra)
-		extra.depends = extra.depends or (not extra.details and "classEnabled") or nil
-
-		return extra
+	local function Attached()
+		return AUI.Profile:Get(Own("attach")) == "power"
 	end
 
-	card:Toggle(Field("classEnabled", L["Show Class Resource"], Own("enabled")))
-	card:Dropdown(Field("classAttach", L["Attach To"], Own("attach"), On({
+	card:Dropdown(Field("classAttach", L["Attach To"], Own("attach"), {
 		options = FramePage.ChoiceOptions(Options.RESOURCE_ATTACHES, ATTACH_LABELS),
-	})))
-	card:Slider(Field("classWidth", L["Width"], Own("width"), On({
+	}))
+	card:Slider(Field("classAttachX", L["X Offset"], Own("attachX"), {
+		min = -Options.MAX_RESOURCE_OFFSET,
+		max = Options.MAX_RESOURCE_OFFSET,
+		step = 1,
+		show = Attached,
+	}))
+	card:Slider(Field("classAttachY", L["Y Offset"], Own("attachY"), {
+		min = -Options.MAX_RESOURCE_OFFSET,
+		max = Options.MAX_RESOURCE_OFFSET,
+		step = 1,
+		show = Attached,
+	}))
+	card:Slider(Field("classWidth", L["Width"], Own("width"), {
 		min = Options.MIN_RESOURCE_WIDTH,
 		max = Options.MAX_RESOURCE_WIDTH,
 		step = 1,
-	})))
-	card:Slider(Field("classHeight", L["Height"], Own("height"), On({
+	}))
+	card:Slider(Field("classHeight", L["Height"], Own("height"), {
 		min = Options.MIN_POWER_HEIGHT,
 		max = Options.MAX_RESOURCE_HEIGHT,
 		step = 1,
-	})))
-	card:Slider(Field("classSpacing", L["Spacing"], Own("spacing"), On({
-		min = 0,
-		max = Options.MAX_RESOURCE_SPACING,
-		step = 1,
-	})))
+	}))
+	card:Dropdown(Field("classColorMode", COLOR, Own("colorMode"), {
+		options = FramePage.ChoiceOptions(Options.CLASS_COLOR_MODES, COLOR_MODE_LABELS),
+	}))
+	card:Color(Field("classCustomColor", L["Custom Color"], Own("color"), {
+		show = function()
+			return AUI.Profile:Get(Own("colorMode")) == "custom"
+		end,
+	}))
 
-	local look = "classLook"
+	local colors = "classColors"
 
-	card:Details({ id = look, label = L["Look"], depends = "classEnabled" })
-	card:Checkbox(Field("classBorder", L["Segment Borders"], Own("border"), { details = look }))
-	card:Checkbox(Field("classColor", L["Class-Colored Fill"], Own("classColor"), { details = look }))
-	card:Color(Field("classCharged", L["Charged Color"], Own("chargedColor"), { details = look }))
-	card:Checkbox(Field("classPartial", L["Darken Partial Segments"], Own("darkenPartial"), { details = look }))
+	card:Details({ id = colors, label = L["Colors"] })
+
+	local _, class = UnitClass("player")
+
+	for _, token in ipairs(CLASS_TOKENS[AUI:Readable(class) or ""] or {}) do
+		card:Color(Field("class" .. token, TOKEN_LABELS[token] or token, Own("palette." .. token), { details = colors }))
+	end
+
+	card:Color(Field("classCharged", L["Charged Color"], Own("chargedColor"), { details = colors }))
+	card:Checkbox(Field("classPartial", L["Darken Partial Segments"], Own("darkenPartial"), { details = colors }))
+	card:Checkbox(Field("classRecharge", L["Recharge Color"], Own("recharge"), { details = colors }))
+	card:Color(Field("classRechargeColor", L["Recharge Color"], Own("rechargeColor"), {
+		details = colors,
+		depends = "classRecharge",
+	}))
 
 	local text = "classText"
 
 	card:Details({
 		id = text,
 		label = L["Text"],
-		depends = "classEnabled",
 		summary = function()
 			return AUI.Profile:Get(Own("text")) and L["On"] or OFF
 		end,
@@ -122,7 +187,7 @@ function Page:DeclareClassResource(page)
 
 	local visibility = "classVisibility"
 
-	card:Details({ id = visibility, label = L["Visibility"], depends = "classEnabled" })
+	card:Details({ id = visibility, label = L["Visibility"] })
 	card:Checkbox(Field("classHide", L["Hide Out of Combat"], Own("hideOutOfCombat"), { details = visibility }))
 	card:Checkbox(Field("classIdle", L["Idle Fade"], Own("fade.idle.enabled"), { details = visibility }))
 	card:Slider(Field("classIdleAlpha", L["Idle Fade Opacity"], Own("fade.idle.alpha"), {
@@ -132,6 +197,28 @@ function Page:DeclareClassResource(page)
 		max = 100,
 		step = 5,
 		format = "percent",
+	}))
+
+	local spec = Options:Spec(key) --[[@as AUIFrameSpec]]
+	local bars = FramePage:New(spec, "class"):DeclareBars(page, L["Class Resource Bars"])
+	local dividers = "classDividers"
+
+	local function Plain()
+		local look = AUI.UnitFrame:BarLook(key)
+
+		return AUI.Border:CellDividerWidth(look.borderStyle, look.borderThickness) == nil
+	end
+
+	bars:Details({ id = dividers, label = L["Dividers"], show = Plain })
+	bars:Slider(Field("classSpacing", L["Spacing"], Own("spacing"), {
+		details = dividers,
+		min = 0,
+		max = Options.MAX_RESOURCE_SPACING,
+		step = 1,
+	}))
+	bars:Color(Field("classDividerColor", L["Divider Color"], Own("dividerColor"), {
+		details = dividers,
+		hasOpacity = true,
 	}))
 end
 
@@ -158,6 +245,11 @@ function Page:Declare(window)
 		under = "unitFramesHeader",
 		icon = AUI.Media.sidebar.playerResources,
 		iconTint = true,
+		switch = {
+			path = Options.RESOURCES_PATH,
+			default = AUI.Settings:Default(Options.RESOURCES_PATH),
+			label = L["Show Player Resources"],
+		},
 	})
 
 	if not page then
@@ -193,7 +285,7 @@ AUI.Modules:Register({
 			target = function()
 				local frame = AUI.Frames.objects.playerPower
 
-				if frame and AUI.Frames:IsOn("playerPower") then
+				if frame and Options:ResourcesOn() then
 					return {
 						label = L["Power"],
 						frame = frame,
@@ -210,7 +302,7 @@ AUI.Modules:Register({
 				local frame = AUI.Frames.objects.classPower
 
 				-- Attached to the power bar, it moves with that bar.
-				if frame and Options:ResourceOn("classPower") and not AUI.ClassPower:IsAttached() then
+				if frame and Options:ResourcesOn() and not AUI.ClassPower:IsAttached() then
 					return {
 						label = L["Class Resource"],
 						frame = frame,
