@@ -7,6 +7,7 @@ local Schema = AUI.Schema
 ---@field unit string
 ---@field name string the frame's global name
 ---@field page string the frame's settings page
+---@field style string? the oUF style it spawns with, when not the unit frames'
 ---@field slots integer how many text slots it has
 ---@field overlays boolean? it shows shields, heal absorbs and heal prediction
 ---@field auras { buffs: table, debuffs: table }? its aura displays' defaults: `anchor`, `limit` and `filter`
@@ -21,6 +22,7 @@ local Schema = AUI.Schema
 ---The unit frames' settings: every frame's, and the shared ones they follow. Holds no frame code.
 ---@class AUIUnitFrameOptions
 ---@field FRAMES AUIFrameSpec[] in creation order
+---@field RESOURCES AUIFrameSpec[] the player's resource frames, spawned when first turned on
 local Options = {
 	FRAMES = {
 		{
@@ -47,6 +49,28 @@ local Options = {
 			totems = { anchor = "BOTTOMRIGHT", placement = "outside", y = -4, growth = "left" },
 			idleFade = true,
 			position = { point = "CENTER", x = -330, y = -200 },
+		},
+	},
+	RESOURCES = {
+		{
+			key = "playerPower",
+			unit = "player",
+			name = "AeonUIPlayerPower",
+			page = "unitFrameResources",
+			style = "AeonUIPlayerPower",
+			slots = 2,
+			idleFade = true,
+			position = { point = "CENTER", x = 0, y = -184 },
+		},
+		{
+			key = "classPower",
+			unit = "player",
+			name = "AeonUIClassPower",
+			page = "unitFrameResources",
+			style = "AeonUIClassPower",
+			slots = 0,
+			idleFade = true,
+			position = { point = "CENTER", x = 0, y = -168 },
 		},
 	},
 	CONTENTS = {
@@ -111,6 +135,18 @@ local Options = {
 	MIN_INDICATOR = 6,
 	MAX_INDICATOR = 64,
 	MAX_THREAT_SIZE = 6,
+	POWER_MODES = { "type", "class", "custom" },
+	POWER_BACKGROUNDS = { "custom", "power" },
+	POWER_TOKENS = { "MANA", "RAGE", "ENERGY", "FOCUS", "RUNIC_POWER", "LUNAR_POWER", "MAELSTROM", "INSANITY", "FURY", "PAIN" },
+	-- The power colors a bar can change, as paths under its `powerColors.`.
+	POWER_LOOK = { "mode", "color", "gradient", "gradientDirection", "gradientColor", "background", "fillAlpha" },
+	RESOURCE_ATTACHES = { "power", "screen" },
+	MIN_RESOURCE_WIDTH = 40,
+	MAX_RESOURCE_WIDTH = 800,
+	MIN_POWER_HEIGHT = 4,
+	MAX_RESOURCE_HEIGHT = 40,
+	MAX_RESOURCE_SPACING = 10,
+	MAX_EXTRA_MANA = 20,
 	RESTING_ICONS = {
 		"animated", "still", "classic", "portrait", "resting0", "resting1", "resting2", "resting3", "resting4", "resting5",
 		"resting6", "resting7",
@@ -156,11 +192,25 @@ end
 ---@param key string
 ---@return AUIFrameSpec? spec
 function Options:Spec(key)
-	for _, spec in ipairs(self.FRAMES) do
-		if spec.key == key then
-			return spec
+	for _, list in ipairs({ self.FRAMES, self.RESOURCES }) do
+		for _, spec in ipairs(list) do
+			if spec.key == key then
+				return spec
+			end
 		end
 	end
+end
+
+---@param key string a resource frame's key
+---@return boolean on the frame has something to show: extra mana shares the class resource's frame
+function Options:ResourceOn(key)
+	local Profile = AUI.Profile
+
+	if Profile:Get(self:Path(key, "enabled")) == true then
+		return true
+	end
+
+	return key == "classPower" and Profile:Get(self:Path(key, "extraMana")) == true
 end
 
 ---@param key string
@@ -199,6 +249,9 @@ Schema:Choices("unitFrameAuraSort", Options.AURA_SORTS)
 Schema:Choices("unitFrameAuraCorner", Options.AURA_CORNERS)
 Schema:Choices("unitFramePortraitMode", Options.PORTRAIT_MODES)
 Schema:Choices("unitFrameRestingIcon", Options.RESTING_ICONS)
+Schema:Choices("unitFramePowerMode", Options.POWER_MODES)
+Schema:Choices("unitFramePowerBackground", Options.POWER_BACKGROUNDS)
+Schema:Choices("unitFrameResourceAttach", Options.RESOURCE_ATTACHES)
 Schema:Choices("unitFramePortraitStyle", Options.PORTRAIT_STYLES)
 Schema:Choices("unitFramePortraitSide", Options.PORTRAIT_SIDES)
 
@@ -244,6 +297,18 @@ Schema:Color(Options.ALL .. "overlays.colors.healPrediction", { r = 0.251, g = 1
 
 for _, kind in ipairs(Options.OVERLAY_KINDS) do
 	Schema:String(Options.ALL .. "overlays.textures." .. kind, "Solid", 64)
+end
+
+Schema:Choice(Options.ALL .. "powerColors.mode", "unitFramePowerMode", "type")
+Schema:Color(Options.ALL .. "powerColors.color", { r = 0.2, g = 0.6, b = 1 })
+Schema:Boolean(Options.ALL .. "powerColors.gradient", false)
+Schema:Choice(Options.ALL .. "powerColors.gradientDirection", "unitFrameOrientation", "HORIZONTAL")
+Schema:Color(Options.ALL .. "powerColors.gradientColor", { r = 0.1, g = 0.1, b = 0.1, a = 1 })
+Schema:Choice(Options.ALL .. "powerColors.background", "unitFramePowerBackground", "custom")
+Schema:Number(Options.ALL .. "powerColors.fillAlpha", 100, 0, 100, true)
+
+for _, token in ipairs(Options.POWER_TOKENS) do
+	Schema:Color(Options.ALL .. "powerColors.palette." .. token, nil)
 end
 
 Schema:Boolean(Options.ALL .. "auras.swipe", true)
@@ -462,6 +527,70 @@ local function DeclareFrame(spec, width, height, status, slots)
 	end
 end
 
+---The player's power bar.
+---@param spec AUIFrameSpec
+local function DeclarePower(spec)
+	local key = spec.key
+
+	Schema:Boolean(Options:Path(key, "enabled"), false)
+	Schema:Position(Options:Path(key, "position"))
+	Schema:Number(Options:Path(key, "width"), 360, Options.MIN_RESOURCE_WIDTH, Options.MAX_RESOURCE_WIDTH)
+	Schema:Number(Options:Path(key, "height"), 12, Options.MIN_POWER_HEIGHT, Options.MAX_HEIGHT)
+	Schema:Boolean(Options:Path(key, "reverse"), false)
+
+	for _, field in ipairs({ "texture", "background", "borderStyle", "borderThickness", "borderColor", "lineColor", "hover", "hoverColor" }) do
+		Schema:Inherit(Options:Path(key, "bars." .. field), Options.ALL .. "bars." .. field)
+	end
+
+	for _, field in ipairs({ "font", "size", "outline", "color" }) do
+		Schema:Inherit(Options:Path(key, "text." .. field), Options.ALL .. "text." .. field)
+	end
+
+	for _, field in ipairs({ "precision", "percentDecimals" }) do
+		Schema:Inherit(Options:Path(key, "numbers." .. field), Options.ALL .. "numbers." .. field)
+	end
+
+	for _, field in ipairs(Options.POWER_LOOK) do
+		Schema:Inherit(Options:Path(key, "powerColors." .. field), Options.ALL .. "powerColors." .. field)
+	end
+
+	Schema:Number(Options:Path(key, "text.status"), 0, 0, spec.slots, true)
+	Schema:Choice(Options:Path(key, "text.nameFormat"), "unitFrameNameFormat", "first")
+	DeclareSlot(key, 1, { content = "power", anchor = "CENTER", placement = "inside" })
+	DeclareSlot(key, 2)
+	Schema:Boolean(Options:Path(key, "fade.idle.enabled"), true)
+	Schema:Number(Options:Path(key, "fade.idle.alpha"), 50, 0, 100, true)
+end
+
+---The player's class resource and extra mana, which share a frame.
+---@param key string
+local function DeclareClassPower(key)
+	local function Path(field)
+		return Options:Path(key, field)
+	end
+
+	Schema:Boolean(Path("enabled"), false)
+	Schema:Position(Path("position"))
+	Schema:Choice(Path("attach"), "unitFrameResourceAttach", "power")
+	Schema:Number(Path("width"), 360, Options.MIN_RESOURCE_WIDTH, Options.MAX_RESOURCE_WIDTH, true)
+	Schema:Number(Path("height"), 10, Options.MIN_POWER_HEIGHT, Options.MAX_RESOURCE_HEIGHT, true)
+	Schema:Number(Path("spacing"), 2, 0, Options.MAX_RESOURCE_SPACING, true)
+	Schema:Boolean(Path("border"), true)
+	Schema:Boolean(Path("classColor"), false)
+	Schema:Color(Path("chargedColor"), { r = 0.4, g = 0.8, b = 1 })
+	Schema:Boolean(Path("darkenPartial"), true)
+	Schema:Boolean(Path("text"), false)
+	Schema:Number(Path("textSize"), 10, Options.MIN_AURA_TEXT, Options.MAX_AURA_TEXT, true)
+	Schema:Boolean(Path("runeTimers"), false)
+	Schema:Boolean(Path("hideOutOfCombat"), false)
+	Schema:Boolean(Path("extraMana"), false)
+	Schema:Number(Path("extraManaHeight"), 4, 2, Options.MAX_EXTRA_MANA, true)
+	Schema:Boolean(Path("fade.idle.enabled"), true)
+	Schema:Number(Path("fade.idle.alpha"), 50, 0, 100, true)
+end
+
+DeclarePower(Options:Spec("playerPower") --[[@as AUIFrameSpec]])
+DeclareClassPower("classPower")
 DeclareFrame(Options:Spec("player") --[[@as AUIFrameSpec]], 270, 36, 1, {
 	{ content = "healthAndPercent", anchor = "TOPRIGHT", placement = "edge", x = -4 },
 })

@@ -11,6 +11,8 @@ local Options = AUI.UnitFrameOptions
 ---@field HEALTH_BACKGROUND_LABELS table<string, string>
 ---@field ORIENTATION_LABELS table<string, string>
 ---@field CORNER_LABELS table<string, string>
+---@field POWER_MODE_LABELS table<string, string>
+---@field POWER_BACKGROUND_LABELS table<string, string>
 local SettingsAllFrames = {
 	PRECISION_LABELS = {
 		default = L["Short"],
@@ -30,6 +32,15 @@ local SettingsAllFrames = {
 	ORIENTATION_LABELS = {
 		HORIZONTAL = L["Horizontal"],
 		VERTICAL = L["Vertical"],
+	},
+	POWER_MODE_LABELS = {
+		type = L["Power Type"],
+		class = CLASS,
+		custom = L["Custom"],
+	},
+	POWER_BACKGROUND_LABELS = {
+		custom = L["Bar Background"],
+		power = L["Power Color"],
 	},
 	CORNER_LABELS = {
 		BOTTOMRIGHT = L["Bottom Right"],
@@ -168,6 +179,97 @@ function SettingsAllFrames:DeclareHealthColors(card, make, read, group)
 		depends = "healthDead",
 		hasOpacity = true,
 	}))
+end
+
+---Declares the power color rows All Frames and a power bar's card share.
+---@param card table
+---@param make fun(id: string, label: string, field: string, extra: table?): table builds a setting for a field under `powerColors.`
+---@param read fun(field: string): any the current value of a field under `powerColors.`
+---@param group fun(name: string, label: string?, summary: (fun(): string)?): string? the detail row a named group goes in, nil for the card itself
+---@param depends string? what the mode row depends on
+function SettingsAllFrames:DeclarePowerColors(card, make, read, group, depends)
+	card:Dropdown(make("powerMode", L["Power Color"], "mode", {
+		depends = depends,
+		options = ChoiceOptions(Options.POWER_MODES, self.POWER_MODE_LABELS),
+	}))
+
+	local colors = group("colors")
+
+	card:Color(make("powerCustom", L["Custom Color"], "color", {
+		details = colors,
+		depends = not colors and depends or nil,
+		show = function()
+			return read("mode") == "custom"
+		end,
+	}))
+
+	local background = group("background", L["Background"], function()
+		return self.POWER_BACKGROUND_LABELS[read("background")]
+	end)
+
+	card:Dropdown(make("powerBackground", L["Background Color"], "background", {
+		details = background,
+		options = ChoiceOptions(Options.POWER_BACKGROUNDS, self.POWER_BACKGROUND_LABELS),
+	}))
+	card:Slider(make("powerFillAlpha", L["Fill Opacity"], "fillAlpha", {
+		details = background,
+		min = 0,
+		max = 100,
+		step = 5,
+		format = "percent",
+	}))
+
+	local gradient = group("gradient", L["Gradient"], function()
+		return read("gradient") and L["On"] or OFF
+	end)
+
+	card:Checkbox(make("powerGradient", L["Gradient"], "gradient", { details = gradient }))
+	card:Dropdown(make("powerGradientDirection", L["Gradient Direction"], "gradientDirection", {
+		details = gradient,
+		depends = "powerGradient",
+		options = ChoiceOptions(Options.ORIENTATIONS, self.ORIENTATION_LABELS),
+	}))
+	card:Color(make("powerGradientColor", L["Gradient End Color"], "gradientColor", {
+		details = gradient,
+		depends = "powerGradient",
+		hasOpacity = true,
+	}))
+end
+
+---The power type colors every bar shares, each only where the client has it and Blizzard's until set.
+---@param card table
+---@param make fun(id: string, label: string, field: string, extra: table?): table
+---@param read fun(field: string): any
+---@param group fun(name: string, label: string?, summary: (fun(): string)?): string?
+function SettingsAllFrames:DeclarePowerPalette(card, make, read, group)
+	local palette = group("palette", L["Palette"], function()
+		local changed = 0
+
+		for _, token in ipairs(Options.POWER_TOKENS) do
+			if read("palette." .. token) then
+				changed = changed + 1
+			end
+		end
+
+		return changed > 0 and L["%d changed"]:format(changed) or DEFAULT
+	end)
+
+	for _, token in ipairs(Options.POWER_TOKENS) do
+		local blizzard = AUI.PowerColor:Blizzard(token)
+
+		if blizzard then
+			local field = "palette." .. token
+			local setting = make("power" .. token, _G[token] or token, field, {
+				details = palette,
+				get = function()
+					return read(field) or blizzard
+				end,
+			})
+
+			setting.default = blizzard
+			card:Color(setting)
+		end
+	end
 end
 
 ---The health colors every frame shares and none overrides: reactions, tapped and disconnected.
@@ -344,6 +446,29 @@ function SettingsAllFrames:Declare(window)
 
 	self:DeclareHealthColors(health, HealthField, HealthRead, HealthGroup)
 	self:DeclareHealthStates(health, HealthField, HealthRead, HealthGroup)
+
+	local power = page:Section("allFramesPower", L["Power Colors"])
+
+	local function PowerField(id, label, field, extra)
+		return Field(id, label, "powerColors." .. field, extra)
+	end
+
+	local function PowerRead(field)
+		return AUI.Profile:Get(Options.ALL .. "powerColors." .. field)
+	end
+
+	local function PowerGroup(name, label, summary)
+		if label then
+			local id = "allFramesPower" .. name
+
+			power:Details({ id = id, label = label, summary = summary })
+
+			return id
+		end
+	end
+
+	self:DeclarePowerColors(power, PowerField, PowerRead, PowerGroup)
+	self:DeclarePowerPalette(power, PowerField, PowerRead, PowerGroup)
 
 	local overlays = page:Section("allFramesAbsorbs", L["Absorbs and Heals"])
 	local kinds = {

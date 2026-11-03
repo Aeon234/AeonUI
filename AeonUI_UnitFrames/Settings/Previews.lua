@@ -29,6 +29,22 @@ local DISPEL_COLORS = {
 	{ r = 0, g = 0.6, b = 0 },
 	{ r = 0.6, g = 0.4, b = 0 },
 }
+local PARTIAL, EMPTY, CHARGED = L["Partial"], L["Empty"], L["Charged"]
+-- The power bar's share of its maximum in each resource state.
+local POWER_SHARES = { [FULL] = 1, [PARTIAL] = 0.55, [EMPTY] = 0, [CHARGED] = 1 }
+local RESOURCE_MAX_POWER = 12400
+-- The sample's segments and the class resource each class shows; any other class shows combo points.
+local SAMPLE_SEGMENTS = 5
+local CLASS_RESOURCES = {
+	DEATHKNIGHT = "RUNES",
+	EVOKER = "ESSENCE",
+	MAGE = "ARCANE_CHARGES",
+	MONK = "CHI",
+	PALADIN = "HOLY_POWER",
+	WARLOCK = "SOUL_SHARDS",
+}
+-- Space between the sample's bars.
+local RESOURCE_GAP = 2
 -- What each sample indicator shows.
 local INDICATOR_ART = {
 	raid = { texture = "Interface\\TargetingFrame\\UI-RaidTargetingIcons", coords = { 0.75, 1, 0.25, 0.5 } },
@@ -101,6 +117,15 @@ function FramePreview:Create(canvas)
 		self.indicatorLayer:SetAllPoints()
 		self.indicatorLayer:SetFrameLevel(self.bar:GetFrameLevel() + AUI.UnitFrame.TEXT_LEVEL + 1)
 	end
+end
+
+---@return table? color the player's class color, unless it cannot be read
+local function SampleClassColor()
+	local _, class = UnitClass("player")
+
+	class = AUI:Readable(class)
+
+	return class and AUI.oUF.colors.class[class] or nil
 end
 
 ---@param share number the sample's share of its maximum health
@@ -379,4 +404,181 @@ function FramePreview:Refresh(state, preview)
 	self.holder:SetPoint("CENTER", (left - right) / 2, (below - above) / 2)
 
 	return width + left + right, height + above + below
+end
+
+---A still sample of the player's resources, stacked as they stand on screen, with those that are on.
+---@class AUIResourcePreview
+---@field holder Frame
+---@field powerHolder Frame
+---@field bar StatusBar
+---@field background Texture
+---@field border AUIBorder
+---@field TextSlots FontString[]
+---@field segments AUIClassPowerSegment[]
+---@field extra AUIClassPowerSegment
+local ResourcePreview = {}
+ResourcePreview.__index = ResourcePreview
+ResourcePreview.STATES = { FULL, PARTIAL, EMPTY, CHARGED }
+AUI.ResourcePreview = ResourcePreview
+
+---@return AUIResourcePreview preview
+function ResourcePreview:New()
+	return setmetatable({ segments = {} }, self)
+end
+
+---@param canvas Frame
+function ResourcePreview:Create(canvas)
+	local holder = CreateFrame("Frame", nil, canvas)
+
+	holder:SetPoint("CENTER")
+	self.holder = holder
+	self.powerHolder = CreateFrame("Frame", nil, holder)
+	self.bar, self.background, self.border = AUI.UnitFrame:CreateBar(self.powerHolder)
+	AUI.Text:Create(self, self.bar, (Options:Spec("playerPower") --[[@as AUIFrameSpec]]).slots)
+	self.bar:SetMinMaxValues(0, 1)
+
+	for index = 1, SAMPLE_SEGMENTS do
+		self.segments[index] = AUI.ClassPower:CreateSegment(holder)
+	end
+
+	self.extra = AUI.ClassPower:CreateSegment(holder)
+end
+
+---@return table color the sample segments' color: the player's own resource where the class has one
+local function ResourceColor()
+	local _, class = UnitClass("player")
+
+	class = AUI:Readable(class)
+
+	return AUI.oUF.colors.power[class and CLASS_RESOURCES[class] or "COMBO_POINTS"] or AUI.oUF.colors.power.COMBO_POINTS
+		or { r = 1, g = 0.96, b = 0.41 }
+end
+
+---Draws the class resource's segments in a state.
+---@param settings table
+---@param state string
+---@param y number from the holder's top
+---@param preview table the library's preview
+function ResourcePreview:DrawSegments(settings, state, y, preview)
+	local ClassPower = AUI.ClassPower
+	local base = settings.classColor and SampleClassColor() or ResourceColor()
+	local filled = state == EMPTY and 0 or state == PARTIAL and 3 or SAMPLE_SEGMENTS
+	local pixel = AUI:Pixel(self.holder)
+
+	for index, spot in ipairs(ClassPower:Segments(settings.width, SAMPLE_SEGMENTS, settings.spacing)) do
+		local segment = self.segments[index]
+		local partial = state == PARTIAL and index == filled + 1
+		local charged = state == CHARGED and (index == 2 or index == 3)
+		local color = charged and settings.chargedColor or base
+
+		ClassPower:PlaceSegment(segment, self.holder, spot.x, y, spot.w, settings.height, settings, pixel)
+		segment:SetValue(index <= filled and 1 or partial and 0.5 or 0)
+		segment:SetStatusBarColor(ClassPower:Shade(color, partial and settings.darkenPartial))
+		segment.Text:SetText("")
+		segment:Show()
+	end
+
+	preview:Part(self.segments[1], "classEnabled")
+end
+
+---Draws the power bar in a state.
+---@param state string
+---@param width number
+---@param height number
+---@param y number from the holder's top
+---@param preview table the library's preview
+function ResourcePreview:DrawPower(state, width, height, y, preview)
+	local UnitFrame, PowerColor = AUI.UnitFrame, AUI.PowerColor
+	local key = "playerPower"
+	local share = POWER_SHARES[state]
+	local bar = self.bar
+	local reverse = AUI.Profile:Get(Options:Path(key, "reverse")) == true
+
+	self.powerHolder:ClearAllPoints()
+	self.powerHolder:SetPoint("TOPLEFT", self.holder, "TOPLEFT", (self.holder:GetWidth() - width) / 2, -y)
+	self.powerHolder:SetSize(width, height)
+	UnitFrame:StyleBar(bar, self.background, self.border, UnitFrame:BarLook(key))
+	UnitFrame:ShowHover(self.border, key, false)
+	bar:SetReverseFill(reverse)
+	bar:SetValue(share)
+	UnitFrame:AnchorBackground(bar, self.background, reverse)
+	PowerColor:ApplyPalette()
+
+	local settings = PowerColor:Resolve(key)
+	local fill = PowerColor:Fill(settings, AUI.oUF.colors.power.MANA, SampleClassColor())
+
+	AUI.HealthColor:Paint(bar, self.background, settings, fill, PowerColor:Background(settings, fill))
+	preview:Part(bar, "powerEnabled")
+
+	local slots, widths, contexts = AUI.Text:Layout(key, #self.TextSlots)
+	local sample = Sample(1, false, NO_OVERLAYS)
+
+	sample.power = RESOURCE_MAX_POWER * share
+	sample.powerPercent = share * 100
+
+	for index, slot in ipairs(slots) do
+		local text = self.TextSlots[index]
+		local shown = AUI.Tags:Sample(slot, contexts[index], sample)
+
+		if shown then
+			AUI.Text:Place(text, bar, slot, widths[index])
+			text:SetText(shown)
+			text:Show()
+		else
+			text:Hide()
+		end
+	end
+end
+
+---@param state string? a state's label
+---@param preview table the library's preview
+---@return number width
+---@return number height
+function ResourcePreview:Refresh(state, preview)
+	local Profile = AUI.Profile
+	local ClassPower = AUI.ClassPower
+	local label = state or FULL
+	local settings = ClassPower:Resolve()
+	local powerOn = Profile:Get(Options:Path("playerPower", "enabled")) == true
+	local powerWidth = Profile:Get(Options:Path("playerPower", "width"))
+	local powerHeight = Profile:Get(Options:Path("playerPower", "height"))
+	local classOn, extraOn = settings.enabled, settings.extraMana
+	local width = math.max(powerOn and powerWidth or 0, (classOn or extraOn) and settings.width or 0, 1)
+	local y = 0
+
+	self.holder:SetWidth(width)
+
+	for _, segment in ipairs(self.segments) do
+		segment:SetShown(false)
+	end
+
+	if classOn then
+		self:DrawSegments(settings, label, y, preview)
+		y = y + settings.height + RESOURCE_GAP
+	end
+
+	self.extra:SetShown(extraOn)
+
+	if extraOn then
+		ClassPower:PlaceSegment(self.extra, self.holder, 0, y, settings.width, settings.extraManaHeight, settings,
+			AUI:Pixel(self.holder))
+		self.extra:SetValue(POWER_SHARES[label])
+		self.extra:SetStatusBarColor(ClassPower:Shade(AUI.oUF.colors.power.MANA))
+		self.extra.Text:SetText("")
+		preview:Part(self.extra, "extraMana")
+		y = y + settings.extraManaHeight + RESOURCE_GAP
+	end
+
+	self.powerHolder:SetShown(powerOn)
+
+	if powerOn then
+		self:DrawPower(label, powerWidth, powerHeight, y, preview)
+		y = y + powerHeight + RESOURCE_GAP
+	end
+
+	local height = math.max(y - RESOURCE_GAP, 1)
+
+	self.holder:SetHeight(height)
+
+	return width, height
 end

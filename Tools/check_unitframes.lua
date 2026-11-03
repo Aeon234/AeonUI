@@ -503,6 +503,9 @@ Load("AeonUI_UnitFrames/Frames/Auras.lua")
 Load("AeonUI_UnitFrames/Frames/Portrait.lua")
 Load("AeonUI_UnitFrames/Frames/Indicators.lua")
 Load("AeonUI_UnitFrames/Frames/Fading.lua")
+Load("AeonUI_UnitFrames/Frames/PowerColor.lua")
+Load("AeonUI_UnitFrames/Frames/PlayerPower.lua")
+Load("AeonUI_UnitFrames/Frames/ClassPower.lua")
 Load("AeonUI_UnitFrames/Frames/UnitFrame.lua")
 Load("AeonUI_UnitFrames/Frames/Frames.lua")
 
@@ -584,7 +587,8 @@ registered = {}
 Frames:Start()
 Equal("all off: nothing spawned", #spawned, 0)
 Equal("all off: no style", next(styles), nil)
-Equal("all off: no events", next(registered), nil)
+Equal("all off: only settings are followed", next(registered), "Profile")
+Equal("all off: no events", next(registered, "Profile"), nil)
 Equal("no reload needed", Frames:ReloadNeeded(), false)
 
 Schema:Write(config, Path("enabled"), true)
@@ -775,5 +779,47 @@ Equal("a saved place", table.concat({ frame.point[1], frame.point[4], frame.poin
 
 Schema:Write(config, Path("enabled"), false)
 Equal("turning it off asks for a reload", Frames:ReloadNeeded(), true)
+
+-- The resource preview ---------------------------------------------------------------------------------------------
+
+Load("AeonUI_UnitFrames/Settings/Previews.lua")
+
+function UnitClass()
+	return "Mage", "MAGE"
+end
+
+function UnitName()
+	return "Alex"
+end
+
+function UnitLevel()
+	return 80
+end
+
+RAID_CLASS_COLORS = {}
+AUI.oUF.colors.power.MANA = { r = 0, g = 0, b = 1 }
+
+local Resource = AUI.ResourcePreview
+local parts, resourcePreview = {}, Resource:New()
+local sampleTarget = { Part = function(_, _, id)
+	parts[#parts + 1] = id
+end }
+
+resourcePreview:Create(New("Frame"))
+
+local width, height = resourcePreview:Refresh(nil, sampleTarget)
+
+Equal("all off: nothing drawn", #parts, 0)
+Equal("all off: a size all the same", width .. "x" .. height, "1x1")
+Schema:Write(config, Options:Path("playerPower", "enabled"), true)
+Schema:Write(config, Options:Path("classPower", "enabled"), true)
+Schema:Write(config, Options:Path("classPower", "extraMana"), true)
+
+for _, state in ipairs(Resource.STATES) do
+	parts = {}
+	width, height = resourcePreview:Refresh(state, sampleTarget)
+	Equal(state .. ": every part marked", table.concat(parts, " "), "classEnabled extraMana powerEnabled")
+	Equal(state .. ": stacked", width .. "x" .. height, "360x30")
+end
 
 print(("check_unitframes: %d checks passed"):format(checks))

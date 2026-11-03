@@ -21,6 +21,7 @@ local CAST_EVENTS = {
 ---@field spring table the opacity at full health, on the settings library's spring
 ---@field curve table full health to that opacity, anything less to full opacity
 ---@field value number? the opacity the curve holds
+---@field plain boolean? the spring's value applies at any health
 
 ---Frame opacity: the idle fade, while the player is out of combat, has no target and is not casting, at full health and
 ---with the mouse away. Health can be secret, so the client applies that rule: the opacity goes through a step curve
@@ -48,6 +49,13 @@ function Fading:IdleAlpha(key)
 	end
 
 	return AUI.Profile:Get(Options:Path(key, "fade.idle.alpha")) / 100
+end
+
+---@param key string
+---@return boolean hidden the class resource's Hide Out of Combat applies
+function Fading:Hidden(key)
+	return key == "classPower" and not self.inCombat
+		and AUI.Profile:Get(Options:Path(key, "hideOutOfCombat")) == true
 end
 
 ---@param inCombat boolean
@@ -99,6 +107,12 @@ local function Paint(frame, fade, value)
 		return
 	end
 
+	if fade.plain then
+		frame:SetAlpha(value)
+
+		return
+	end
+
 	if fade.value ~= value then
 		fade.value = value
 		fade.curve:ClearPoints()
@@ -131,7 +145,8 @@ end
 ---Moves a frame toward the opacity it should have now.
 ---@param frame table
 function Fading:Update(frame)
-	local target = self:Target(self.idle, frame.hovered, self:IdleAlpha(frame.key))
+	local hidden = self:Hidden(frame.key)
+	local target = hidden and 0 or self:Target(self.idle, frame.hovered, self:IdleAlpha(frame.key))
 
 	if target >= FULL and not frame.idleFade then
 		frame:SetAlpha(1)
@@ -139,8 +154,10 @@ function Fading:Update(frame)
 		return
 	end
 
-	local spring = Fade(frame).spring
+	local fade = Fade(frame)
+	local spring = fade.spring
 
+	fade.plain = hidden
 	spring.response = self:Response(target, spring.value)
 	spring:To(target)
 end
@@ -207,7 +224,9 @@ function Fading:UpdateAll()
 	local needed = false
 
 	for key in pairs(AUI.Frames.objects) do
-		needed = needed or self:IdleAlpha(key) ~= nil
+		local hideable = key == "classPower" and AUI.Profile:Get(Options:Path(key, "hideOutOfCombat")) == true
+
+		needed = needed or hideable or self:IdleAlpha(key) ~= nil
 	end
 
 	self:Follow(needed)

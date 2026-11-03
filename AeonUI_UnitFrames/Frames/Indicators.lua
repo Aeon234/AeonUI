@@ -333,7 +333,7 @@ end
 ---@param element string
 ---@param on boolean
 ---@param widget table the element's widget, or its list of widgets
-local function SetElement(frame, element, on, widget)
+function Indicators:SetElement(frame, element, on, widget)
 	if on then
 		if not frame:IsElementEnabled(element) then
 			frame:EnableElement(element)
@@ -367,7 +367,7 @@ function Indicators:Apply(frame)
 		local settings = self:Resolve(key, name)
 		local on, size = settings.enabled, settings.size
 
-		SetElement(frame, element, on, widget)
+		self:SetElement(frame, element, on, widget)
 		self:Place(widget, frame.Bar, settings)
 		widget:SetSize(size, size)
 
@@ -376,7 +376,7 @@ function Indicators:Apply(frame)
 		end
 
 		if name == "leader" then
-			SetElement(frame, "AssistantIndicator", on, frame.AssistantIndicator)
+			self:SetElement(frame, "AssistantIndicator", on, frame.AssistantIndicator)
 			self:Place(frame.AssistantIndicator, frame.Bar, settings)
 			frame.AssistantIndicator:SetSize(size, size)
 		end
@@ -387,7 +387,7 @@ function Indicators:Apply(frame)
 	if threat then
 		local on = Get("indicators.threat.enabled")
 
-		SetElement(frame, "ThreatIndicator", on, threat)
+		self:SetElement(frame, "ThreatIndicator", on, threat)
 		PlaceOutside(threat.Edges, frame, Get("indicators.threat.size") * AUI:Pixel(frame))
 		self:ShowThreat(frame, on and threat.threatColor or nil)
 	end
@@ -400,7 +400,7 @@ function Indicators:Apply(frame)
 		local point, relative = AUI.Text:Points(Get("totems.anchor"), Get("totems.placement"))
 		local x, y, growth = Get("totems.x"), Get("totems.y"), Get("totems.growth")
 
-		SetElement(frame, "Totems", on, totems)
+		self:SetElement(frame, "Totems", on, totems)
 
 		for index, totem in ipairs(totems) do
 			if not on then

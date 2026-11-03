@@ -12,7 +12,7 @@ local windows = package.config:sub(1, 1) == "\\"
 local CLIENT_PAGES = { worldMap = "forever", movementAlert = "retail", travelersLog = "retail" }
 
 local PAGES = {
-	AeonUI_UnitFrames = { "unitFramesAll", "unitFramePlayer", "castBar" },
+	AeonUI_UnitFrames = { "unitFramesAll", "unitFramePlayer", "unitFrameResources", "castBar" },
 	AeonUI_Tooltip = { "tooltipGeneral", "tooltipUnits", "tooltipItems" },
 	AeonUI_Maps = { "minimap", "worldMap" },
 	AeonUI_QoL = { "automation", "deleteCheapestItem", "merchantWindow", "travelersLog", "hiddenSettings", "macros", "playerMenu", "input",
@@ -356,7 +356,7 @@ end
 local AUI = LoadAddon("AeonUI")
 
 -- oUF's reaction colors, which the health settings show until set.
-AUI.oUF = { colors = { reaction = {} } }
+AUI.oUF = { colors = { reaction = {}, power = {} } }
 
 for level = 1, 8 do
 	AUI.oUF.colors.reaction[level] = { r = level / 10, g = 0, b = 0 }

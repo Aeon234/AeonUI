@@ -233,6 +233,14 @@ end
 ---@field spec AUIFrameSpec
 local FramePage = {}
 FramePage.__index = FramePage
+AUI.SettingsFramePage = FramePage
+FramePage.ChoiceOptions = ChoiceOptions
+
+---@param spec AUIFrameSpec
+---@return AUISettingsFramePage page
+function FramePage:New(spec)
+	return setmetatable({ spec = spec }, self)
+end
 
 ---@param id string
 ---@param label string
@@ -246,6 +254,8 @@ local function Field(id, label, path, extra)
 
 	return setting
 end
+
+FramePage.Field = Field
 
 ---A setting that follows a shared one until changed.
 ---@param id string
@@ -283,6 +293,49 @@ local function InheritSummary(paths)
 	return changed > 0 and L["%d changed"]:format(changed) or L["All Frames"]
 end
 
+---@return fun(id: string, label: string, field: string, extra: table?): table make a power color setting that follows All Frames
+function FramePage:PowerMaker()
+	local key = self.spec.key
+
+	return function(id, label, field, extra)
+		return Inherited(id, label, Options:Path(key, "powerColors." .. field), Options.ALL .. "powerColors." .. field,
+			L["All Frames"], extra)
+	end
+end
+
+---@param card table
+---@param depends string the switch the row depends on
+---@return fun(): string group the one Colors row every group of power colors goes in, declared when first asked for
+function FramePage:PowerGroup(card, depends)
+	local key = self.spec.key
+	local details = key .. "PowerColors"
+	local declared = false
+
+	return function()
+		if not declared then
+			declared = true
+			card:Details({
+				id = details,
+				label = L["Colors"],
+				depends = depends,
+				summary = function()
+					local paths = {}
+
+					for _, field in ipairs(Options.POWER_LOOK) do
+						if field ~= "mode" then
+							paths[#paths + 1] = Options:Path(key, "powerColors." .. field)
+						end
+					end
+
+					return InheritSummary(paths)
+				end,
+			})
+		end
+
+		return details
+	end
+end
+
 ---@param page table
 function FramePage:DeclareSize(page)
 	local key = self.spec.key
@@ -303,10 +356,11 @@ end
 
 ---The frame's border and bars, which follow All Frames until changed.
 ---@param page table
-function FramePage:DeclareBars(page)
+---@param options table? the card's section options
+function FramePage:DeclareBars(page, options)
 	local key = self.spec.key
 	local AllFrames = AUI.SettingsAllFrames
-	local card = page:Section(key .. "Bars", L["Bars"])
+	local card = page:Section(key .. "Bars", L["Bars"], options)
 	local details = key .. "BarsLook"
 	local from = L["All Frames"]
 
@@ -1168,9 +1222,10 @@ function FramePage:DeclareStyle(card)
 end
 
 ---@param page table
-function FramePage:DeclareText(page)
+---@param options table? the card's section options
+function FramePage:DeclareText(page, options)
 	local key = self.spec.key
-	local card = page:Section(key .. "Text", L["Text"])
+	local card = page:Section(key .. "Text", L["Text"], options)
 
 	for index = 1, self.spec.slots do
 		self:DeclareSlot(card, index)

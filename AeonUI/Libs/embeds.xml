@@ -27,6 +27,11 @@
 	<Script file="oUF\elements\pvpindicator.lua" />
 	<Script file="oUF\elements\threatindicator.lua" />
 	<Script file="oUF\elements\totems.lua" />
+	<Script file="oUF\elements\power.lua" />
+	<Script file="oUF\elements\classpower.lua" />
+	<Script file="oUF\elements\runes.lua" />
+	<Script file="oUF\elements\stagger.lua" />
+	<Script file="oUF\elements\additionalpower.lua" />
 	<Script file="oUF\elements\tags.lua" />
 	<Script file="oUF\finalize.lua" />
 </Ui>

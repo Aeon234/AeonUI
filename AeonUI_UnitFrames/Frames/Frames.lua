@@ -3,7 +3,17 @@ local AUI = select(2, ...)
 local Options = AUI.UnitFrameOptions
 
 -- Settings that change a secure frame or an aura container, which wait for combat to end.
-local LAYOUT = { width = true, height = true, position = true, text = true, buffs = true, debuffs = true, auras = true }
+local LAYOUT = {
+	width = true, height = true, position = true, text = true, buffs = true, debuffs = true, auras = true, enabled = true,
+	attach = true, extraMana = true, extraManaHeight = true, spacing = true,
+}
+
+-- The player's resource frames, by key.
+local RESOURCES = {}
+
+for _, spec in ipairs(Options.RESOURCES) do
+	RESOURCES[spec.key] = spec
+end
 
 ---Owns AeonUI's oUF frames: spawns those switched on when the session starts, applies the active profile, and holds
 ---back changes to secure frames until combat ends, keeping only the latest. oUF hides a unit's Blizzard frame as it
@@ -12,6 +22,7 @@ local LAYOUT = { width = true, height = true, position = true, text = true, buff
 ---@field objects table<string, AUIUnitFrame> frames spawned this session, by key
 ---@field started boolean
 ---@field layoutPending boolean a layout change waits for combat to end
+---@field watching boolean? settings changes are followed
 local Frames = {
 	objects = {},
 	started = false,
@@ -36,17 +47,26 @@ function Frames:ReloadNeeded()
 	return false
 end
 
----Spawns the frames that are on. With none on, this does nothing else: no style, no tags, no events. In combat, waits
----for combat to end first.
+---Spawns the frames that are on. With none on, this only listens for a resource being turned on: no style, no tags, no
+---events. In combat, waits for combat to end first.
 function Frames:Start()
 	if self.started then
 		return
+	end
+
+	if not self.watching then
+		self.watching = true
+		AUI.Callbacks:Register("Profile", self, self.OnProfileChanged)
 	end
 
 	local any = false
 
 	for _, spec in ipairs(Options.FRAMES) do
 		any = any or self:IsOn(spec.key)
+	end
+
+	for _, spec in ipairs(Options.RESOURCES) do
+		any = any or Options:ResourceOn(spec.key)
 	end
 
 	if not any then
@@ -66,6 +86,8 @@ function Frames:Start()
 
 	AUI.Tags:Register()
 	oUF:RegisterStyle("AeonUI", UnitFrame.Style)
+	oUF:RegisterStyle("AeonUIPlayerPower", AUI.PlayerPower.Style)
+	oUF:RegisterStyle("AeonUIClassPower", AUI.ClassPower.Style)
 	oUF:SetActiveStyle("AeonUI")
 
 	ClickCastFrames = ClickCastFrames or {}
@@ -81,7 +103,7 @@ function Frames:Start()
 		end
 	end
 
-	AUI.Callbacks:Register("Profile", self, self.OnProfileChanged)
+	self:SpawnResources()
 	AUI.Events:Register("PLAYER_REGEN_ENABLED", self, self.OnCombatEnded)
 	AUI.Events:Register("UI_SCALE_CHANGED", self, self.OnScaleChanged)
 
@@ -91,6 +113,30 @@ function Frames:Start()
 
 	self:ApplyAll(true)
 	AUI.Fading:Start()
+end
+
+---Spawns the resource frames turned on and not yet made; in combat, waits for combat to end. They stand beside whatever
+---shows the player: oUF would hide Blizzard's player frame as it spawns another frame for the unit, so that step is
+---skipped for them, and Blizzard's frame goes only with AeonUI's.
+function Frames:SpawnResources()
+	local oUF = AUI.oUF
+
+	for _, spec in ipairs(Options.RESOURCES) do
+		if Options:ResourceOn(spec.key) and not self.objects[spec.key] then
+			if InCombatLockdown() then
+				self.layoutPending = true
+
+				return
+			end
+
+			local disable = oUF.DisableBlizzard
+
+			oUF.DisableBlizzard = function() end
+			oUF:SetActiveStyle(spec.style)
+			self.objects[spec.key] = oUF:Spawn(spec.unit, spec.name)
+			oUF.DisableBlizzard = disable
+		end
+	end
 end
 
 ---@param key string
@@ -122,7 +168,14 @@ end
 
 ---@param path string? the changed setting, or nil when the whole profile may differ
 function Frames:OnProfileChanged(path)
+	if not self.started then
+		self:Start()
+
+		return
+	end
+
 	if not path then
+		self:SpawnResources()
 		self:ApplyAll(true)
 
 		return
@@ -130,7 +183,11 @@ function Frames:OnProfileChanged(path)
 
 	local key, setting = path:match("^frames%.(%a+)%.([^.]+)")
 
-	if key == "all" then
+	if key and RESOURCES[key] then
+		-- The class resource stands on the power bar, so a change to one can move the other.
+		self:SpawnResources()
+		self:ApplyAll(LAYOUT[setting] == true)
+	elseif key == "all" then
 		self:ApplyAll(LAYOUT[setting] == true)
 	elseif key then
 		self:Apply(key, LAYOUT[setting] == true)
@@ -140,6 +197,7 @@ end
 function Frames:OnCombatEnded()
 	if self.layoutPending then
 		self.layoutPending = false
+		self:SpawnResources()
 		self:ApplyAll(true)
 	end
 end
