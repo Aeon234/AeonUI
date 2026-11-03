@@ -417,9 +417,6 @@ AUI.Callbacks = {
 	end,
 }
 AUI.Border = {
-	Gaps = function()
-		return 1, 1
-	end,
 	ART_COLOR = { r = 0.5, g = 0.4, b = 0.3 },
 	CellDividerWidth = function() end,
 	StyleCellDivider = function() end,
@@ -868,7 +865,6 @@ Equal("the player has none to turn on", UnitFrame:PowerHeight("player"), 0)
 Equal("classification off by default", Schema:Read(config, TargetPath("indicators.classification.enabled")), false)
 Schema:Write(config, TargetPath("power.enabled"), true)
 Equal("the power bar's height", UnitFrame:PowerHeight("target"), 6)
-Equal("a row of the frame's border", UnitFrame:BarLook("target").bottom.height, 6)
 Equal("the Height stays the health bar's", (UnitFrame:Heights("target")), 36)
 
 local _, targetPower, targetSeparator = UnitFrame:Heights("target")
@@ -890,11 +886,14 @@ liveTarget:ApplyLayout()
 liveTarget:ApplyAppearance()
 Equal("off, the live frame is the health's height", select(2, liveTarget:GetSize()), 36)
 Equal("the power background hidden", liveTarget.PowerBackground:IsShown(), false)
+Equal("and the line", liveTarget.Power.Separator:IsShown(), false)
 Schema:Write(config, TargetPath("power.enabled"), true)
 Schema:Write(config, TargetPath("indicators.classification.enabled"), true)
 liveTarget:ApplyLayout()
 liveTarget:ApplyAppearance()
-Equal("on, the live frame grows", select(2, liveTarget:GetSize()), 43)
+Equal("on, the live frame grows", select(2, liveTarget:GetSize()), UnitFrame:FrameHeight("target"))
+Equal("past the health's height", UnitFrame:FrameHeight("target") > 42, true)
+Equal("a black line above the bar", liveTarget.Power.Separator:IsShown(), true)
 Equal("the power background shows", liveTarget.PowerBackground:IsShown(), true)
 Equal("in its colors", liveTarget.powerBackground, liveTarget.PowerBackground)
 Equal("repainted by the palette's step", liveTarget.Power.PostUpdateColor, AUI.PowerColor.PostUpdateColor)

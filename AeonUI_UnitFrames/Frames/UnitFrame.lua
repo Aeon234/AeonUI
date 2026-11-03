@@ -77,7 +77,7 @@ end
 ---@param key string
 ---@return number health
 ---@return number power 0 when it shows no power bar
----@return number separator the border style's band between them
+---@return number separator the line between them, one screen pixel
 function UnitFrame:Heights(key)
 	local health = AUI.Profile:Get(Options:Path(key, "height"))
 	local power = self:PowerHeight(key)
@@ -86,9 +86,7 @@ function UnitFrame:Heights(key)
 		return health, 0, 0
 	end
 
-	local look = self:BarLook(key)
-
-	return health, power, (AUI.Border:Gaps(look.borderStyle, look.borderThickness, AUI:Pixel()))
+	return health, power, AUI:Pixel()
 end
 
 ---@param key string
@@ -106,7 +104,6 @@ end
 ---@field borderThickness number
 ---@field borderColor table the color the style draws in
 ---@field edgeFile string? the backdrop edge file, for the "EDGE" style
----@field bottom { height: number }? the power bar under the frame's health, a row of the frame's border
 ---@field hover string how hovering shows: "color" takes the Hover Color, "lighten" lightens the color, "lit" the art
 
 ---A frame's bar look, its own values or the shared ones.
@@ -137,10 +134,7 @@ function UnitFrame:BarLook(key)
 		color = Profile:Get(Options:Path(key, "bars.borderColor"))
 	end
 
-	local power = self:PowerHeight(key)
-
 	return {
-		bottom = power > 0 and { height = power } or nil,
 		texture = Profile:Get(Options:Path(key, "bars.texture")),
 		background = Profile:Get(Options:Path(key, "bars.background")),
 		borderStyle = style,
@@ -166,7 +160,6 @@ function UnitFrame:StyleBar(bar, background, border, look)
 		color = look.borderColor,
 		thickness = look.borderThickness,
 		edgeFile = look.edgeFile,
-		bottom = look.bottom,
 		background = NO_FILL,
 	})
 end
@@ -221,10 +214,16 @@ function UnitFrame:CreatePowerBar(parent)
 
 	background:SetColorTexture(1, 1, 1, 1)
 
-	return CreateFrame("StatusBar", nil, parent), background
+	local power = CreateFrame("StatusBar", nil, parent)
+
+	power.Separator = parent:CreateTexture(nil, "ARTWORK")
+	power.Separator:SetColorTexture(0, 0, 0, 1)
+
+	return power, background
 end
 
----Places the power bar along the frame's bottom, or hides it, and gives it the frame's texture and fill direction.
+---Places the power bar along the frame's bottom with its line above it, both beside an attached portrait, or hides
+---them, and gives the bar the frame's texture and fill direction.
 ---@param power StatusBar
 ---@param background Texture
 ---@param parent Frame
@@ -238,11 +237,16 @@ function UnitFrame:PlacePowerBar(power, background, parent, key, left, right, re
 	local shown = height > 0
 
 	background:SetShown(shown)
+	power.Separator:SetShown(shown)
 
 	if not shown then
 		return false
 	end
 
+	power.Separator:ClearAllPoints()
+	power.Separator:SetPoint("BOTTOMLEFT", power, "TOPLEFT")
+	power.Separator:SetPoint("BOTTOMRIGHT", power, "TOPRIGHT")
+	power.Separator:SetHeight(AUI:Pixel())
 	power:ClearAllPoints()
 	power:SetPoint("BOTTOMLEFT", parent, "BOTTOMLEFT", left, 0)
 	power:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", -right, 0)
