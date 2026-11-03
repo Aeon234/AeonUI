@@ -240,7 +240,6 @@ Equal("overshield shown", widgets.overshieldClip.shown, true)
 Equal("overshield fills from the shield's edge", widgets.overshield.last.SetReverseFill[1], true)
 Equal("overshield clip ends at the health edge", widgets.overshieldClip.points[2][2], fill)
 Equal("no glow made by default", widgets.glow, nil)
-Equal("marker shown while attached", widgets.marker.shown, true)
 Equal("overflow on the element", health.incomingHealOverflow, 1)
 Equal("overflow on the calculator", calculator.overflow, 1)
 
@@ -276,7 +275,6 @@ settings.healPrediction.enabled = false
 Overlays:Apply(widgets, settings, false, health)
 Equal("hidden heal prediction", widgets.healing.shown, false)
 Equal("shields start at the health edge without heal prediction", widgets.absorb.points[1][2], fill)
-Equal("no marker without heal prediction", widgets.marker.shown, false)
 
 settings.absorb.overshield = "never"
 Overlays:Apply(widgets, settings, false, health)
@@ -345,16 +343,15 @@ Equal("backing follows heal absorbs", widgets.backing.value, 30000)
 
 -- Sample amounts ------------------------------------------------------------------------------------------
 
-local healing, healAbsorb, absorb, healingExceeds, absorbExceeds = Overlays:SampleAmounts({
+local healing, healAbsorb, absorb, absorbExceeds = Overlays:SampleAmounts({
 	health = 0.6, absorb = 0.25, healAbsorb = 0, healing = 0.15,
 }, 0)
 Near("absorbs: healing", healing, 0.15)
 Equal("absorbs: no heal absorb", healAbsorb, 0)
 Near("absorbs: shield", absorb, 0.25)
-Equal("absorbs: heals fit", healingExceeds, false)
 Equal("absorbs: shield fits", absorbExceeds, false)
 
-healing, healAbsorb, absorb, healingExceeds, absorbExceeds = Overlays:SampleAmounts({
+healing, healAbsorb, absorb, absorbExceeds = Overlays:SampleAmounts({
 	health = 0.3, absorb = 0.9, healAbsorb = 0.5, healing = 0,
 }, 0)
 Equal("overflow: no healing", healing, 0)
@@ -366,9 +363,8 @@ healing, healAbsorb = Overlays:SampleAmounts({ health = 0.5, absorb = 0, healAbs
 Near("heal absorbs cancel incoming heals", healing, 0.1)
 Equal("and are used up by them", healAbsorb, 0)
 
-healing, _, _, healingExceeds = Overlays:SampleAmounts({ health = 0.9, absorb = 0, healAbsorb = 0, healing = 0.3 }, 10)
+healing = Overlays:SampleAmounts({ health = 0.9, absorb = 0, healAbsorb = 0, healing = 0.3 }, 10)
 Near("heals stop at the empty space plus Overheal", healing, 0.2)
-Equal("marker when heals pass that", healingExceeds, true)
 
 _, _, absorb = Overlays:SampleAmounts({ health = 0, absorb = 1.5, healAbsorb = 0, healing = 0 }, 0)
 Equal("shields stop at maximum health", absorb, 1)
@@ -380,7 +376,6 @@ settings.healAbsorb.backing = 50
 Overlays:Apply(widgets, settings, false, nil)
 Overlays:ShowSample(widgets, { health = 0.3, absorb = 0.9, healAbsorb = 0.5, healing = 0 }, 0)
 Equal("sample overshield shown", widgets.overshieldClip.last.SetAlpha[1], 1)
-Equal("sample no marker", widgets.marker.last.SetAlpha[1], 0)
 Near("sample backing follows heal absorbs", widgets.backing.value, 0.5)
 
 io.stdout:write(("check_overlays: %d checks passed\n"):format(checks))

@@ -2,16 +2,10 @@ local AUI = select(2, ...)
 
 local Options = AUI.UnitFrameOptions
 
--- Width of the incoming-heal overflow marker, at the far end of the bar.
-local MARKER_WIDTH = 3
-
 -- Width of the shield glow line, centered on the health edge.
 local GLOW_WIDTH = 16
 
 local GLOW_TEXTURE = "Interface\\RaidFrame\\Shield-Overshield"
-
--- Bar texture for the overflow marker: oUF replaces a texture-less marker with its own art.
-local MARKER_TEXTURE = "Interface\\TargetingFrame\\UI-StatusBar"
 
 -- Edge positions: the bar's side a strip sits on, and whether it fills from the right.
 local FROM_RIGHT = { TOPRIGHT = true, BOTTOMRIGHT = true, RIGHT = true }
@@ -21,7 +15,6 @@ local FROM_RIGHT = { TOPRIGHT = true, BOTTOMRIGHT = true, RIGHT = true }
 ---@class AUIOverlayWidgets
 ---@field bar StatusBar the health bar the overlays belong to
 ---@field healing StatusBar incoming heals, never clipped so Overheal can pass the bar's end
----@field marker Texture the incoming-heal overflow marker
 ---@field clip Frame clips the shield and heal-absorb bars to the health bar
 ---@field absorb StatusBar
 ---@field healAbsorb StatusBar
@@ -84,11 +77,6 @@ function Overlays:Create(bar)
 		overshieldClip = overshieldClip,
 		overshield = NewBar(overshieldClip, bar, 4),
 	}
-
-	local marker = bar:CreateTexture(nil, "OVERLAY", nil, 6)
-
-	marker:SetTexture(MARKER_TEXTURE)
-	widgets.marker = marker
 
 	return widgets
 end
@@ -259,15 +247,6 @@ function Overlays:Apply(widgets, settings, reversed, health)
 		glow:SetShown(glowing)
 	end
 
-	local marker = widgets.marker
-	local markerColor = prediction.color
-
-	marker:ClearAllPoints()
-	marker:SetPoint(reversed and "LEFT" or "RIGHT", bar)
-	marker:SetSize(MARKER_WIDTH, bar:GetHeight() / 2)
-	marker:SetVertexColor(markerColor.r, markerColor.g, markerColor.b, 1)
-	marker:SetShown(prediction.enabled and prediction.position == "attach")
-
 	if health then
 		health.incomingHealOverflow = 1 + (prediction.overheal or 0) / 100
 
@@ -326,7 +305,6 @@ end
 ---@return number healing
 ---@return number healAbsorb
 ---@return number absorb
----@return boolean healingExceeds
 ---@return boolean absorbExceeds the shield is larger than the empty space
 function Overlays:SampleAmounts(sample, overheal)
 	local room = 1 - sample.health
@@ -334,8 +312,7 @@ function Overlays:SampleAmounts(sample, overheal)
 	local healing = math.max(net, 0)
 	local limit = room + overheal / 100
 
-	return math.min(healing, limit), math.min(math.max(-net, 0), 1), math.min(sample.absorb, 1), healing > limit,
-		sample.absorb > room
+	return math.min(healing, limit), math.min(math.max(-net, 0), 1), math.min(sample.absorb, 1), sample.absorb > room
 end
 
 ---Shows sample amounts, for the settings preview: every amount as a share of maximum health, plain numbers.
@@ -343,7 +320,7 @@ end
 ---@param sample table `health`, `absorb`, `healAbsorb` and `healing`, each 0 to 1 of maximum health
 ---@param overheal number 0 to 50, percent of the bar's length heals may pass its end
 function Overlays:ShowSample(widgets, sample, overheal)
-	local healing, healAbsorb, absorb, healingExceeds, absorbExceeds = self:SampleAmounts(sample, overheal)
+	local healing, healAbsorb, absorb, absorbExceeds = self:SampleAmounts(sample, overheal)
 
 	for _, overlay in ipairs({ widgets.healing, widgets.absorb, widgets.healAbsorb, widgets.overshield }) do
 		overlay:SetMinMaxValues(0, 1)
@@ -363,6 +340,4 @@ function Overlays:ShowSample(widgets, sample, overheal)
 	if widgets.glow then
 		widgets.glow:SetValue(absorb)
 	end
-
-	widgets.marker:SetAlpha(healingExceeds and 1 or 0)
 end

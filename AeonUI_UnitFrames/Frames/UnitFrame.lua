@@ -199,7 +199,6 @@ function UnitFrame.Style(frame, unit)
 		health.HealingAll = overlays.healing
 		health.DamageAbsorb = overlays.absorb
 		health.HealAbsorb = overlays.healAbsorb
-		health.OverHealIndicator = overlays.marker
 		health.damageAbsorbClampMode = Enum.UnitDamageAbsorbClampMode.MaximumHealth
 		health.healAbsorbClampMode = Enum.UnitHealAbsorbClampMode.MaximumHealth
 		health.healAbsorbMode = Enum.UnitHealAbsorbMode.ReducedByIncomingHeals
