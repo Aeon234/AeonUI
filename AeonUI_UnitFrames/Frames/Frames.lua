@@ -23,6 +23,8 @@ end
 ---@field started boolean
 ---@field layoutPending boolean a layout change waits for combat to end
 ---@field watching boolean? settings changes are followed
+---@field sampled table<string, boolean>? the frames edit mode has on the player, by key
+---@field samplePending boolean? a sample's change waits for combat to end
 local Frames = {
 	objects = {},
 	started = false,
@@ -197,7 +199,38 @@ function Frames:OnProfileChanged(path)
 	end
 end
 
+---Shows a frame whose unit may not exist on the player while edit mode is open, so it has a mover: the unit watch hides
+---it otherwise, and its unit is a secure attribute. Out of combat only; in combat, waits for combat to end.
+---@param key string
+---@param shown boolean
+function Frames:SampleUnit(key, shown)
+	local frame = self.objects[key]
+
+	self.sampled = self.sampled or {}
+	self.sampled[key] = shown
+
+	if not frame then
+		return
+	end
+
+	if InCombatLockdown() then
+		self.samplePending = true
+
+		return
+	end
+
+	frame:SetAttribute("unit", shown and "player" or frame.spec.unit)
+end
+
 function Frames:OnCombatEnded()
+	if self.samplePending then
+		self.samplePending = false
+
+		for key, shown in pairs(self.sampled) do
+			self:SampleUnit(key, shown)
+		end
+	end
+
 	if self.layoutPending then
 		self.layoutPending = false
 		self:SpawnResources()

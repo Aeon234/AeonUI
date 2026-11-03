@@ -256,6 +256,10 @@ end
 METHODS.Region.GetAlpha = function(self)
 	return self.alpha or 1
 end
+METHODS.Button.SetAttribute = function(self, name, value)
+	self.attributes = self.attributes or {}
+	self.attributes[name] = value
+end
 METHODS.Frame.SetFrameStrata = function(self, strata)
 	self.strata = strata
 end
@@ -990,6 +994,21 @@ Equal("repainted by the palette's step", liveTarget.Power.PostUpdateColor, AUI.P
 Equal("the classification icon exists", liveTarget.AeonClassification ~= nil, true)
 Schema:Write(config, TargetPath("power.enabled"), false)
 Schema:Write(config, TargetPath("indicators.classification.enabled"), false)
+
+Frames.objects.target = liveTarget
+Frames:SampleUnit("target", true)
+Equal("edit mode shows the frame on the player", liveTarget.attributes.unit, "player")
+Frames:SampleUnit("target", false)
+Equal("and gives it back", liveTarget.attributes.unit, "target")
+Frames:SampleUnit("target", true)
+combat = true
+Frames:SampleUnit("target", false)
+Equal("in combat it waits", liveTarget.attributes.unit, "player")
+combat = false
+Frames:OnCombatEnded()
+Equal("then gives it back", liveTarget.attributes.unit, "target")
+Frames.objects.target = nil
+Frames:SampleUnit("target", false)
 
 -- The target's cast bar -----------------------------------------------------------------------------------------------
 

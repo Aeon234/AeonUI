@@ -1494,6 +1494,9 @@ function FramePage.Register(spec)
 							label = TITLES[spec.key],
 							frame = frame,
 							default = spec.position,
+							sample = spec.unit ~= "player" and function(shown)
+								AUI.Frames:SampleUnit(spec.key, shown)
+							end or nil,
 							settings = { page = spec.page, section = spec.key .. "Size" },
 						}
 					end
