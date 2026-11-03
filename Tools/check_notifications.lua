@@ -351,7 +351,7 @@ end
 
 for _, file in ipairs({ "AeonUI_QoL/Notifications/Options.lua", "AeonUI_QoL/Notifications/Notifications.lua", "AeonUI_QoL/Notifications/Combat.lua",
 	"AeonUI_QoL/Notifications/Pet.lua", "AeonUI_QoL/Notifications/Character.lua", "AeonUI_QoL/Notifications/Potion.lua", "AeonUI_QoL/Notifications/Health.lua",
-	"AeonUI_QoL/Notifications/Tracking.lua" }) do
+	"AeonUI_QoL/Notifications/Tracking.lua", "AeonUI_QoL/Notifications/FlightPoint.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 
@@ -404,9 +404,9 @@ for _, notice in ipairs(Options.NOTICES) do
 	defaults[#defaults + 1] = notice.key .. "=" .. tostring(AUI.Profile:Get(Options:Path(notice.key, "enabled")))
 end
 Equal("every notice off by default", table.concat(defaults, " "), "enter=false leave=false lowHealth=false "
-	.. "potion=false petMissing=false petPassive=false petHealth=false talents=false durability=false tracking=false")
+	.. "potion=false petMissing=false petPassive=false petHealth=false talents=false durability=false tracking=false flightPoint=false")
 Equal("Low Health is the stack's last slot, Pet Low Health just above it", Options:SlotOrder("health") .. " "
-	.. Options:SlotOrder("petHealth") .. " " .. #Options.SLOTS, "9 8 9")
+	.. Options:SlotOrder("petHealth") .. " " .. #Options.SLOTS, "10 9 10")
 Equal("Low Health shows below 35% by default", AUI.Profile:Get(Options.LOW_HEALTH_PATH), 35)
 
 local hunter, dwarfPaladin = {}, {}
@@ -746,6 +746,249 @@ Set(Options:Path("tracking", "enabled"), false)
 Advance(0)
 Equal("off: dismissed and no longer followed", tostring(eventFrame.events.MINIMAP_UPDATE_TRACKING) .. " " .. Shown(),
 	"nil ")
+
+-- Flight Point --------------------------------------------------------------------------------------------
+
+Enum.UIMapType = { Continent = 2, Zone = 3 }
+Enum.FlightPathFaction = { Neutral = 0, Horde = 1, Alliance = 2 }
+Enum.FlightPathState = { Current = 0, Reachable = 1, Unreachable = 2 }
+
+local global = {}
+AUI.Profile.characterID = "Player-1"
+function AUI.Profile:Global()
+	return global
+end
+
+local bestMap, playerSpot, subzoneText, faction, combatFlag, taxiMapID = 1411, nil, "", "Horde", false, nil
+local flightNodes, flightMapNodes, gossipOptions = {}, {}, {}
+local MAPS = {
+	[1411] = { mapID = 1411, name = "Durotar", mapType = 3, parentMapID = 1414 },
+	[1414] = { mapID = 1414, name = "Kalimdor", mapType = 2, parentMapID = 947 },
+	[1454] = { mapID = 1454, name = "Orgrimmar", mapType = 3, parentMapID = 1414 },
+	[947] = { mapID = 947, name = "Azeroth", mapType = 1 },
+	[1463] = { mapID = 1463, name = "Kalimdor flights", mapType = 2, parentMapID = 947 },
+}
+local mapReads = 0
+C_Map = {
+	GetMapInfo = function(mapID)
+		return MAPS[mapID]
+	end,
+	GetBestMapForUnit = function()
+		return bestMap
+	end,
+	GetPlayerMapPosition = function()
+		return playerSpot
+	end,
+	GetWorldPosFromMapPos = function(_, position)
+		return 1, { x = position.x * 1000, y = position.y * 1000 }
+	end,
+	GetMapPosFromWorldPos = function(_, world)
+		return 1, { x = world.x / 1000, y = world.y / 1000 }
+	end,
+}
+C_TaxiMap = {
+	GetTaxiNodesForMap = function(mapID)
+		mapReads = mapReads + 1
+
+		return flightNodes[mapID] or {}
+	end,
+	GetAllTaxiNodes = function()
+		return flightMapNodes
+	end,
+}
+function GetTaxiMapID()
+	return taxiMapID
+end
+function GetSubZoneText()
+	return subzoneText
+end
+function UnitFactionGroup()
+	return faction
+end
+function UnitAffectingCombat()
+	return combatFlag
+end
+function GetFileIDFromPath()
+	return 77
+end
+C_GossipInfo = { GetOptions = function()
+	return gossipOptions
+end }
+
+local function Node(nodeID, name, x, y, nodeFaction, undiscovered)
+	return { nodeID = nodeID, name = name, position = { x = x, y = y }, faction = nodeFaction,
+		isUndiscovered = undiscovered }
+end
+
+local function Moved(event)
+	Fire(event)
+	Advance(0)
+end
+
+local function FlightContext(fields)
+	fields.zone, fields.map, fields.zoneName, fields.subzone = fields.zone or 1411, fields.map or 1411,
+		fields.zoneName or "Durotar", fields.subzone or ""
+	fields.side, fields.seen = fields.side or "Horde", fields.seen == true
+
+	return fields
+end
+
+local function Entry(node, inZone)
+	return { node = node, world = { x = node.position.x * 1000, y = node.position.y * 1000 }, inZone = inZone ~= false }
+end
+
+Equal("the place is the name before its comma", Options:FlightPointPlace("Razor Hill, Durotar"), "Razor Hill")
+Equal("a capital's own flight point", tostring(Options:FlightPointOwnCity("Orgrimmar", "Orgrimmar")) .. " "
+	.. tostring(Options:FlightPointOwnCity("Orgrim", "Orgrimmar")) .. " "
+	.. tostring(Options:FlightPointOwnCity("Valley of Orgrimmar", "Orgrimmar")), "true false true")
+Equal("undiscovered is learn; unsettled is ask; seen and unknown is learn; known is nothing",
+	tostring(Options:FlightPointKind(Node(1, "A", 0, 0, 0, true), "Horde", nil, false)) .. " "
+	.. tostring(Options:FlightPointKind(Node(1, "A", 0, 0, 0, false), "Horde", nil, false)) .. " "
+	.. tostring(Options:FlightPointKind(Node(1, "A", 0, 0, 0, false), "Horde", {}, true)) .. " "
+	.. tostring(Options:FlightPointKind(Node(1, "A", 0, 0, 0, true), "Horde", { [1] = true }, true)),
+	"learn ask learn nil")
+Equal("the other faction's and retired nodes count for nothing",
+	tostring(Options:FlightPointKind(Node(1, "A", 0, 0, 2, true), "Horde", nil, false)) .. " "
+	.. tostring(Options:FlightPointKind(Node(1, "A", 0, 0, 1, true), "Alliance", nil, false)) .. " "
+	.. tostring(Options:FlightPointKind(Node(1, "zzOLD A", 0, 0, 0, true), "Horde", nil, false)) .. " "
+	.. tostring(Options:FlightPointKind(Node(1, "[DNT] A", 0, 0, 0, true), "Horde", nil, false)),
+	"nil nil nil nil")
+local near, far = Entry(Node(1, "Near, Durotar", 0.1, 0.1, 0, true)), Entry(Node(2, "Far, Durotar", 0.9, 0.9, 0, true))
+Equal("the nearest within range", (Options:FlightPointNearest({ far, near },
+	FlightContext({ player = { x = 300, y = 100 }, zoneWide = false }))), "Near")
+Equal("none beyond 400 yards", (Options:FlightPointNearest({ far, near },
+	FlightContext({ player = { x = 501, y = 100 }, zoneWide = false }))), nil)
+Equal("the subzone named after it, at any distance", (Options:FlightPointNearest({ far },
+	FlightContext({ player = { x = 0, y = 0 }, subzone = "Far", zoneWide = false }))), "Far")
+Equal("zone-wide takes any on the zone's map", (Options:FlightPointNearest({ far },
+	FlightContext({ player = { x = 0, y = 0 }, zoneWide = true }))), "Far")
+Equal("but not one off it", (Options:FlightPointNearest({ Entry(far.node, false) },
+	FlightContext({ player = { x = 0, y = 0 }, zoneWide = true }))), nil)
+Equal("a capital takes only its own", (Options:FlightPointNearest({ near,
+	Entry(Node(3, "Orgrimmar, Durotar", 0.2, 0.2, 0, true)) }, FlightContext({ zone = 1454, map = 1454,
+	zoneName = "Orgrimmar", player = { x = 100, y = 100 }, zoneWide = false }))), "Orgrimmar")
+local learnPlace, askToo = Options:FlightPointNearest({ Entry(Node(4, "Ask", 0.1, 0.1, 0, false)), far },
+	FlightContext({ zoneWide = true }))
+Equal("learn outranks ask, and reports both", tostring(learnPlace) .. " " .. tostring(askToo), "Far true")
+Equal("its line and fallback", Options:FlightPointText("Ratchet") .. " | " .. Options:FlightPointText(),
+	"Learn Flight Point: Ratchet | Open a flight master's map to save the points you know")
+
+for _, event in ipairs({ "ZONE_CHANGED", "TAXIMAP_OPENED", "GOSSIP_SHOW" }) do
+	Equal("off: " .. event .. " not followed", tostring(eventFrame.events[event]), "nil")
+end
+On("flightPoint")
+Advance(0)
+Equal("a client without it: still not followed", tostring(eventFrame.events.ZONE_CHANGED), "nil")
+AUI.can.flightPointNotice = true
+flightNodes[1411] = { Node(10, "Razor Hill, Durotar", 0.5, 0.5, 0, true), Node(11, "Sen'jin, Durotar", 0.9, 0.1, 0, false) }
+playerSpot = { x = 0.1, y = 0.9 }
+Set(Options:Path("flightPoint", "text"), "")
+Advance(0)
+Equal("entering a zone shows its flight point, far off", Shown(), "Learn Flight Point: Razor Hill")
+Equal("followed now", tostring(eventFrame.events.ZONE_CHANGED ~= nil), "true")
+Advance(9)
+Equal("still at 9 seconds", Shown(), "Learn Flight Point: Razor Hill")
+Advance(2)
+Equal("gone after 10", Shown(), "")
+Moved("ZONE_CHANGED_NEW_AREA")
+Equal("the zone's entry reminder runs once", Shown(), "")
+playerSpot = { x = 0.5, y = 0.6 }
+Moved("PLAYER_STOPPED_MOVING")
+Equal("within 400 yards it stays", Shown(), "Learn Flight Point: Razor Hill")
+Advance(30)
+Equal("with no time limit", Shown(), "Learn Flight Point: Razor Hill")
+playerSpot = { x = 0.1, y = 0.9 }
+Moved("PLAYER_STOPPED_MOVING")
+Equal("gone on leaving", Shown(), "")
+subzoneText = "Razor Hill"
+Moved("ZONE_CHANGED")
+Equal("back in its subzone", Shown(), "Learn Flight Point: Razor Hill")
+Moved("PLAYER_REGEN_DISABLED")
+Equal("hidden in combat", Shown(), "")
+Moved("PLAYER_REGEN_ENABLED")
+Equal("back after combat", Shown(), "Learn Flight Point: Razor Hill")
+taxi = true
+Moved("PLAYER_CONTROL_LOST")
+Equal("hidden on a taxi", Shown(), "")
+taxi = false
+Moved("PLAYER_CONTROL_GAINED")
+Equal("back after landing", Shown(), "Learn Flight Point: Razor Hill")
+
+local reads = mapReads
+Moved("PLAYER_STOPPED_MOVING")
+Equal("standing still reads no flight points", mapReads, reads)
+Moved("ZONE_CHANGED")
+Equal("a new subzone reads them again", mapReads > reads, true)
+
+gossipOptions = { { icon = 5 } }
+Moved("GOSSIP_SHOW")
+Equal("other gossip saves nothing", tostring(global.flightPoints), "nil")
+gossipOptions = { { icon = 77 } }
+Moved("GOSSIP_SHOW")
+Equal("a flight master's gossip saves the node as known", global.flightPoints["Player-1"].nodes[10], true)
+Equal("and ends the reminder", Shown(), "")
+
+global.flightPoints = nil
+taxiMapID = 1463
+flightMapNodes = { { nodeID = 10, state = 1 }, { nodeID = 11, state = 2 } }
+Moved("TAXIMAP_OPENED")
+local saved = global.flightPoints["Player-1"]
+Equal("a flight map saves its nodes and maps", tostring(saved.nodes[10]) .. " " .. tostring(saved.nodes[11]) .. " "
+	.. tostring(saved.seenMaps[1463]) .. " " .. tostring(saved.seenMaps[1414]), "true false true true")
+Equal("and a node it lists as known reminds of nothing", Shown(), "")
+subzoneText = "Sen'jin"
+Moved("ZONE_CHANGED")
+Equal("a seen continent's unknown node is learn, not ask", Shown(), "Learn Flight Point: Sen'jin")
+subzoneText = ""
+
+global.flightPoints = nil
+flightNodes[1411] = { Node(11, "Sen'jin, Durotar", 0.1, 0.8, 0, false) }
+playerSpot = { x = 0.1, y = 0.9 }
+Moved("ZONE_CHANGED")
+Equal("an unsettled node asks for a flight map", Shown(), "Open a flight master's map to save the points you know")
+Equal("its sample", Notifications:SampleText("flightPoint"), "Learn Flight Point: Ratchet")
+
+flightNodes[1411], flightNodes[1414] = nil, { Node(12, "Far Hill, Durotar", 0.1, 0.8, 0, true) }
+Moved("ZONE_CHANGED")
+Equal("a zone listing none falls back to its parent's", Shown(), "Learn Flight Point: Far Hill")
+flightNodes[1414] = nil
+
+local nameDurotar = MAPS[1411].name
+bestMap = nil
+Moved("ZONE_CHANGED_NEW_AREA")
+Equal("nowhere: nothing", Shown(), "")
+bestMap = 1411
+MAPS[1411].name = nameDurotar
+
+local realReadable = AUI.Readable
+function AUI:Readable(value, fallback)
+	if value == 0.25 then
+		return fallback
+	end
+
+	return realReadable(self, value, fallback)
+end
+flightNodes[1411] = { Node(13, "Hidden, Durotar", 0.25, 0.25, 0, true) }
+Moved("ZONE_CHANGED")
+Equal("a secret position: nothing", Shown(), "")
+AUI.Readable = realReadable
+flightNodes[1411] = { Node(10, "Razor Hill, Durotar", 0.1, 0.85, 0, true) }
+Moved("ZONE_CHANGED")
+Equal("readable again: shown", Shown(), "Learn Flight Point: Razor Hill")
+
+Set(Options:Path("flightPoint", "enabled"), false)
+Advance(0)
+Equal("off: dismissed and no longer followed", tostring(eventFrame.events.GOSSIP_SHOW) .. " " .. Shown(), "nil ")
+reads = mapReads
+Fire("ZONE_CHANGED")
+Advance(0)
+Equal("off: reads nothing", mapReads, reads)
+On("flightPoint")
+Advance(0)
+Equal("on again: shown", Shown(), "Learn Flight Point: Razor Hill")
+Set(Options:Path("flightPoint", "enabled"), false)
+Advance(0)
+AUI.can.flightPointNotice = nil
 
 Equal("no Lua error in the run", errors[1], nil)
 

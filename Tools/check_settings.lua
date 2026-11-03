@@ -877,6 +877,14 @@ for _, flag in ipairs({ "potionNotice", "petNotices", "petHealthNotice", "talent
 end
 window = Load(nil)
 notificationsPage = window.pages.notifications
+AUI.can.flightPointNotice = true
+window = Load(nil)
+notificationsPage = window.pages.notifications
+Equal("Forever's Flight Points after Tracking", NoticeCards(notificationsPage):match("tracking%+ .*$"),
+	"tracking+ trackingText flightPoint+ flightPointText")
+AUI.can.flightPointNotice = nil
+window = Load(nil)
+notificationsPage = window.pages.notifications
 Equal("every card, a line only for a constraint", NoticeCards(notificationsPage),
 	"Text: font size outline | Combat: enter enterText leave leaveText lowHealth lowHealthText potion potionText "
 	.. "duration | Pet: petMissing+ petMissingText petPassive+ petPassiveText petHealth+ petHealthText | "

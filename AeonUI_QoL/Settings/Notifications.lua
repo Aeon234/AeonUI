@@ -17,6 +17,7 @@ local LABELS = {
 	talents = L["Unspent Talent Points"],
 	durability = L["Low Durability"],
 	tracking = TRACKING,
+	flightPoint = L["Flight Points"],
 }
 local LINES = {
 	petMissing = L["In combat or in instances."],
@@ -25,6 +26,7 @@ local LINES = {
 	talents = L["Out of combat."],
 	durability = L["Out of combat."],
 	tracking = L["Outside instances."],
+	flightPoint = L["Out of combat."],
 }
 
 ---The Notifications page, under the Quality of Life header: a sample of the notices turned on as its preview, the Text
@@ -254,7 +256,7 @@ end
 function SettingsNotifications:DeclareCharacter(page)
 	local can = AUI.can
 
-	if not (can.talentNotice or can.durabilityNotice or can.trackingNotice) then
+	if not (can.talentNotice or can.durabilityNotice or can.trackingNotice or can.flightPointNotice) then
 		return
 	end
 
@@ -270,6 +272,10 @@ function SettingsNotifications:DeclareCharacter(page)
 
 	if can.trackingNotice then
 		DeclareNotice(card, "tracking", RemindAbout())
+	end
+
+	if can.flightPointNotice then
+		DeclareNotice(card, "flightPoint")
 	end
 end
 

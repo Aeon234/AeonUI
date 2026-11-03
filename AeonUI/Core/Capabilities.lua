@@ -65,6 +65,7 @@ AUI.Capabilities = Capabilities
 ---@field durabilityNotice boolean equipped items' durability can be read
 ---@field lowHealthNotice boolean the player's health can be drawn through a curve
 ---@field trackingNotice boolean the minimap's trackings and the player's shapeshift form can be read
+---@field flightPointNotice boolean the zone's flight points and the flight map's can be read (Forever)
 ---@field potionNotice boolean the bags' potions, their use spells and their cooldown can be read
 ---@field movementAlert boolean spell cooldowns give duration objects for text bindings and curves (Retail)
 ---@field raidMarkers boolean a bar of secure marker buttons can follow a visibility driver and start a role check
@@ -171,6 +172,10 @@ function Capabilities:Resolve()
 	can.lowHealthNotice = can.petHealthNotice
 	can.trackingNotice = C_Minimap ~= nil and C_Minimap.GetNumTrackingTypes ~= nil and C_Minimap.GetTrackingInfo ~= nil
 		and GetShapeshiftFormID ~= nil
+	can.flightPointNotice = WOW_PROJECT_ID == WOW_PROJECT_CAMELOT and C_TaxiMap ~= nil
+		and C_TaxiMap.GetTaxiNodesForMap ~= nil and C_TaxiMap.GetAllTaxiNodes ~= nil and GetTaxiMapID ~= nil
+		and C_GossipInfo ~= nil and C_GossipInfo.GetOptions ~= nil and GetFileIDFromPath ~= nil
+		and Enum.FlightPathFaction ~= nil and Enum.FlightPathState ~= nil
 	can.potionNotice = C_Container ~= nil and C_Container.GetItemCooldown ~= nil
 		and C_Container.GetContainerItemID ~= nil and C_Item ~= nil and C_Item.GetItemSpell ~= nil
 		and C_Item.GetItemInfoInstant ~= nil and Enum.ItemConsumableSubclass ~= nil

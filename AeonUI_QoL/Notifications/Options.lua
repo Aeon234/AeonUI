@@ -14,7 +14,7 @@ local Schema = AUI.Schema
 
 ---The Notifications settings and their frame-free rules: the notices, their paths and texts, the stack's order, the
 ---timings, who should have a pet and when pet reminders apply, the health curve, the lowest durability, when a used
----potion is ready again, and which trackings are off.
+---potion is ready again, which trackings are off, and which flight point the player is reminded to learn.
 ---@class AUINotificationOptions
 ---@field NOTICES AUINotice[] every notice, in the order the page lists them
 ---@field SLOTS string[] the slots, top of the stack first
@@ -50,10 +50,13 @@ local Options = {
 		{ key = "talents", slot = "talents", text = L["Unspent Talent Points"], color = { r = 1, g = 0.82, b = 0 } },
 		{ key = "durability", slot = "durability", text = L["Low Durability"], color = { r = 1, g = 0.27, b = 0.27 } },
 		{ key = "tracking", slot = "tracking", text = L["Not Tracking"], color = { r = 1, g = 0.6, b = 0.2 } },
+		{ key = "flightPoint", slot = "flightPoint", text = L["Learn Flight Point"], color = { r = 0.4, g = 0.8, b = 1 } },
 	},
 	-- Pet Low Health and Low Health come last: their lines stay shown at no opacity while health is above the mark, so
 	-- they hold no room between other lines. The player's own is the very last, the one that never leaves a gap.
-	SLOTS = { "combat", "potion", "pet", "petStance", "talents", "durability", "tracking", "petHealth", "health" },
+	SLOTS = {
+		"combat", "potion", "pet", "petStance", "talents", "durability", "tracking", "flightPoint", "petHealth", "health",
+	},
 	FONT_PATH = "notifications.font",
 	SIZE_PATH = "notifications.size",
 	OUTLINE_PATH = "notifications.outline",
@@ -370,4 +373,199 @@ end
 ---@return string text Tracking's text followed by the missing trackings
 function Options:TrackingText(labels)
 	return ("%s: %s"):format(self:Text("tracking"), table.concat(labels, ", "))
+end
+
+-- Flight points ----------------------------------------------------------------------------------------------
+
+-- Yards from a flight point within which the reminder stays shown.
+Options.FLIGHT_POINT_RANGE = 400
+-- Seconds the reminder stays after entering a zone with a flight point to learn.
+Options.FLIGHT_POINT_HOLD = 10
+-- Capital cities' maps, where only the city's own flight point counts.
+Options.FLIGHT_POINT_CAPITALS = {
+	[1453] = true, [1454] = true, [1455] = true, [1456] = true, [1457] = true, [1458] = true, [2482] = true,
+	[2521] = true,
+}
+-- A map that shares another map's flight points.
+Options.FLIGHT_POINT_SAME_MAPS = { [2665] = 2521 }
+-- A continent's map, and the flight map that stands for it.
+Options.FLIGHT_POINT_TAXI_MAPS = { [1415] = 1463, [1414] = 1464 }
+
+-- Marks in the names of nodes the client still lists but no flight master serves.
+local RETIRED_FLIGHT_POINTS = { "zzOLD", "Quest Path", "[DNT]", "DEPRECATED" }
+
+---@class AUIFlightPointEntry
+---@field node table a `MapTaxiNodeInfo`
+---@field world { x: number, y: number }? its world position
+---@field inZone boolean it lies on the zone's map
+
+---What the reminder looks at.
+---@class AUIFlightPointContext
+---@field zone number the player's zone
+---@field map number the map the entries came from
+---@field zoneName string
+---@field player { x: number, y: number }? the player's world position
+---@field subzone string
+---@field side string? the player's faction group
+---@field known table<number, boolean>? nodes the character knows
+---@field seen boolean a flight map of this continent has saved the character's nodes
+---@field zoneWide boolean every flight point on the zone's map counts, near or not
+
+---@param name string a node's name, as "Town, Zone"
+---@return string place
+function Options:FlightPointPlace(name)
+	local comma = name:find(",", 1, true)
+
+	return comma and name:sub(1, comma - 1) or name
+end
+
+---@param text string
+---@param at number
+---@return boolean edge the position is outside the text or not a letter
+local function WordEdge(text, at)
+	return at < 1 or at > #text or not text:sub(at, at):match("%a")
+end
+
+---@param text string
+---@param word string
+---@return boolean found `word` appears in `text` as whole words
+local function HasWord(text, word)
+	if word == "" then
+		return false
+	end
+
+	local from = 1
+
+	while true do
+		local at = text:find(word, from, true)
+
+		if not at then
+			return false
+		end
+
+		if WordEdge(text, at - 1) and WordEdge(text, at + #word) then
+			return true
+		end
+
+		from = at + 1
+	end
+end
+
+---@param place string
+---@param zoneName string
+---@return boolean own the place is the capital the zone is named after
+function Options:FlightPointOwnCity(place, zoneName)
+	if zoneName == "" then
+		return false
+	end
+
+	return place == zoneName or HasWord(zoneName, place) or HasWord(place, zoneName)
+end
+
+---@param node table a `MapTaxiNodeInfo`
+---@param side string? the player's faction group
+---@return boolean counts a live node the player's faction can use
+local function FlightPointCounts(node, side)
+	local factions = Enum.FlightPathFaction
+	local faction = node.faction
+
+	if not node.name then
+		return false
+	end
+
+	for _, mark in ipairs(RETIRED_FLIGHT_POINTS) do
+		if node.name:find(mark, 1, true) then
+			return false
+		end
+	end
+
+	return faction == factions.Neutral or (side == "Horde" and faction == factions.Horde)
+		or (side == "Alliance" and faction == factions.Alliance)
+end
+
+---@param node table a `MapTaxiNodeInfo`
+---@param side string? the player's faction group
+---@param known table<number, boolean>? nodes the character knows
+---@param seen boolean a flight map of this continent has saved the character's nodes
+---@return "learn"|"ask"|nil kind `learn`: not learned; `ask`: not known until a flight map is opened; nil: nothing to do
+function Options:FlightPointKind(node, side, known, seen)
+	if not FlightPointCounts(node, side) or (known and known[node.nodeID] == true) then
+		return nil
+	end
+
+	return (node.isUndiscovered or seen) and "learn" or "ask"
+end
+
+---@param a { x: number, y: number }
+---@param b { x: number, y: number }
+---@return number yards
+function Options:FlightPointYards(a, b)
+	local dx, dy = a.x - b.x, a.y - b.y
+
+	return math.sqrt(dx * dx + dy * dy)
+end
+
+---@param entry AUIFlightPointEntry
+---@param context AUIFlightPointContext
+---@return "learn"|"ask"|nil kind
+---@return string place
+---@return number yards from the player, `math.huge` when unknown
+local function FlightPointCandidate(entry, context)
+	local kind = Options:FlightPointKind(entry.node, context.side, context.known, context.seen)
+
+	if not kind then
+		return nil, "", math.huge
+	end
+
+	local yards = context.player and entry.world and Options:FlightPointYards(context.player, entry.world)
+	local place = Options:FlightPointPlace(entry.node.name)
+
+	if Options.FLIGHT_POINT_CAPITALS[context.zone] and (context.map == context.zone or context.zoneWide) then
+		if not Options:FlightPointOwnCity(place, context.zoneName) then
+			return nil, "", math.huge
+		end
+	elseif context.zoneWide then
+		if not entry.inZone then
+			return nil, "", math.huge
+		end
+	elseif context.subzone == "" or context.subzone ~= place then
+		if not (yards and yards <= Options.FLIGHT_POINT_RANGE) then
+			return nil, "", math.huge
+		end
+	end
+
+	return kind, place, yards or math.huge
+end
+
+---The nearest flight point to learn, or failing that the nearest whose state a flight map must settle.
+---@param entries AUIFlightPointEntry[]
+---@param context AUIFlightPointContext
+---@return string? place the nearest flight point to learn
+---@return boolean ask a flight point here is unsettled
+---@return table? node the node the answer is about
+function Options:FlightPointNearest(entries, context)
+	local place, placeNode, askNode
+	local placeYards, askYards = math.huge, math.huge
+
+	for _, entry in ipairs(entries) do
+		local kind, candidate, yards = FlightPointCandidate(entry, context)
+
+		if kind == "learn" and (not place or yards < placeYards) then
+			place, placeYards, placeNode = candidate, yards, entry.node
+		elseif kind == "ask" and (not askNode or yards < askYards) then
+			askYards, askNode = yards, entry.node
+		end
+	end
+
+	return place, askNode ~= nil, placeNode or askNode
+end
+
+---@param place string?
+---@return string text the notice's text followed by the place, or what to do when no place is known
+function Options:FlightPointText(place)
+	if place then
+		return ("%s: %s"):format(self:Text("flightPoint"), place)
+	end
+
+	return L["Open a flight master's map to save the points you know"]
 end

@@ -7,4 +7,5 @@
 	<Script file="Potion.lua" />
 	<Script file="Health.lua" />
 	<Script file="Tracking.lua" />
+	<Script file="FlightPoint.lua" />
 </Ui>
