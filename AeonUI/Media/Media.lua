@@ -103,6 +103,8 @@ local Media = {
 		WHITE = RoleFiles("White", "png"),
 	},
 	sidebar = {
+		allFrames = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarAllFrames.tga",
+		unitPlayer = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarUnitPlayer.tga",
 		general = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarGeneral.tga",
 		castBar = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarCastBar.tga",
 		minimap = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarMinimap.tga",
@@ -172,6 +174,25 @@ end
 ---@return string flags `SetFont` flags
 function Media:FontFlags(outline)
 	return OUTLINE_FLAGS[outline] or ""
+end
+
+---@return string[] names LibSharedMedia's borders, sorted, without its empty "None"
+function Media:BorderNames()
+	local names = {}
+
+	for _, name in ipairs(LSM:List(LSM.MediaType.BORDER)) do
+		if name ~= "None" then
+			names[#names + 1] = name
+		end
+	end
+
+	return names
+end
+
+---@param name string
+---@return string? file the LibSharedMedia border by that name, or nil when none is registered
+function Media:BorderFile(name)
+	return LSM:Fetch(LSM.MediaType.BORDER, name, true)
 end
 
 ---Gives a status bar a texture choice: AeonUI's flat fill, or a LibSharedMedia bar texture.

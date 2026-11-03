@@ -1,7 +1,8 @@
-"""Builds the Forever Minimal LibSharedMedia border from the Forever Minimal art.
+"""Builds the Forever Minimal LibSharedMedia border, and the shaded art, from the Forever Minimal art.
 
-    python Tools/forever-border.py          write AeonUI/Media/Borders/ForeverMinimal.tga
-    python Tools/forever-border.py --check  change nothing; fail if the border is missing or stale
+    python Tools/forever-border.py          write AeonUI/Media/Borders/ForeverMinimal.tga and
+                                            AeonUI/Media/Textures/ForeverMinimalShaded.tga
+    python Tools/forever-border.py --check  change nothing; fail if either is missing or stale
 
 The result is a 256x32 backdrop edge file, an uncompressed 32-bit TGA: eight 32-texel cells
 holding the left, right, top and bottom edges, then the top-left, top-right, bottom-left and bottom-right corners. The
@@ -11,6 +12,9 @@ art, so at an edgeSize of 14 the art keeps its scale of 2 texels per UI unit.
 The band is white for tinting; 110,89,71 restores its own color. Black stays black. Edges come from the middle of each
 side, every row of an edge cell being identical so that it tiles, which drops the color variation along the art's left
 and right sides. The inner shadow fades to nothing 4 texels inside the band, and the art's dark middle is not kept.
+
+The shaded art is the same band and shadow in the art's own 110-texel layout, for the nine pieces `AUI.Border` places
+on whole pixels.
 
 Needs Pillow.
 """
@@ -25,6 +29,7 @@ from PIL import Image
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 TEXTURES = ROOT / "AeonUI" / "Media" / "Textures"
 OUTPUT = ROOT / "AeonUI" / "Media" / "Borders" / "ForeverMinimal.tga"
+SHADED = TEXTURES / "ForeverMinimalShaded.tga"
 
 SIZE = 110
 MIDDLE = SIZE // 2
@@ -146,16 +151,31 @@ def build():
     return buffer.getvalue()
 
 
+def build_shaded():
+    art = tintable_art()
+    image = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
+    pixels = image.load()
+
+    for y in range(SIZE):
+        for x in range(SIZE):
+            pixels[x, y] = art[x, y]
+
+    buffer = io.BytesIO()
+    image.save(buffer, format="TGA")
+
+    return buffer.getvalue()
+
+
 def main():
     check = "--check" in sys.argv[1:]
-    data = build()
 
-    if check:
-        if not OUTPUT.exists() or OUTPUT.read_bytes() != data:
-            print(f"stale or missing: {OUTPUT.name}")
-            sys.exit(1)
-    else:
-        OUTPUT.write_bytes(data)
+    for path, data in ((OUTPUT, build()), (SHADED, build_shaded())):
+        if check:
+            if not path.exists() or path.read_bytes() != data:
+                print(f"stale or missing: {path.name}")
+                sys.exit(1)
+        else:
+            path.write_bytes(data)
 
     print(f"forever border: {'current' if check else 'written'}")
 

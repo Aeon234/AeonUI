@@ -23,13 +23,16 @@ local BORDER_LINES = {
 	{ "TOPLEFT", -1, 1, "BOTTOMLEFT", -1, -1, false },
 	{ "TOPRIGHT", 1, 1, "BOTTOMRIGHT", 1, -1, false },
 }
+-- The bar keeps its own background, so the Forever Minimal border draws no fill.
+local NO_FILL = { r = 0, g = 0, b = 0, a = 0 }
+
 -- An icon's own border, cut from each edge.
 local ICON_CROP = 0.08
 local LATENCY_TEXT_SIZE = 10
 
 ---@class AUICastBarFrame : Frame
 ---@field lines Texture[] the Pixel border, `BORDER_LINES` in order
----@field edge Frame? the Forever Minimal border, created when first chosen
+---@field edge AUIBorder? the Forever Minimal border, created when first chosen
 ---@field icon Texture
 ---@field bar StatusBar
 ---@field background Texture
@@ -237,28 +240,25 @@ function CastBar:StyleFill(frame)
 		CreateColor(r2, g2, b2, 1))
 end
 
----Shows or hides the Forever Minimal border. It lies above the bar and its text, so its band covers the corners of the
----rectangular bar and icon and the bar reads as chamfered.
+---Shows or hides the Forever Minimal border, the shaded art on whole pixels. It lies above the bar and its text, so its
+---band covers the corners of the rectangular bar and icon and the bar reads as chamfered.
 ---@param frame AUICastBarFrame
 ---@param shown boolean
 function CastBar:StyleEdge(frame, shown)
 	local edge = frame.edge
 
 	if shown and not edge then
-		local look = Options.FOREVER_MINIMAL
-		local color = look.color
-
-		edge = CreateFrame("Frame", nil, frame, "BackdropTemplate")
+		edge = AUI.Border:Create(frame, true)
 		edge:SetFrameLevel(frame.over:GetFrameLevel() + 1)
-		edge:SetPoint("TOPLEFT", -look.outset, look.outset)
-		edge:SetPoint("BOTTOMRIGHT", look.outset, -look.outset)
-		edge:SetBackdrop({ edgeFile = AUI.Media.FOREVER_MINIMAL_BORDER, edgeSize = look.edgeSize })
-		edge:SetBackdropBorderColor(color.r, color.g, color.b, 1)
 		frame.edge = edge
 	end
 
 	if edge then
-		edge:SetShown(shown)
+		edge:Apply({
+			style = shown and "FOREVER_MINIMAL_SHADED" or "NONE",
+			color = Options.FOREVER_MINIMAL.color,
+			background = NO_FILL,
+		})
 	end
 end
 
@@ -468,6 +468,10 @@ function CastBar:Place()
 
 	frame:ClearAllPoints()
 	frame:SetPoint(position.point, UIParent, position.point, position.x, position.y)
+
+	if frame.edge then
+		frame.edge:Layout()
+	end
 end
 
 ---@return boolean on the page's switch is on where the client can draw the bar

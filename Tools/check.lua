@@ -4,7 +4,7 @@
 
 local SCRIPTS = { "check_manifest.lua", "check_boot.lua", "check_core.lua", "check_media.lua", "check_profile.lua", "check_codec.lua",
 	"check_minimap.lua", "check_worldmap.lua", "check_tooltip.lua", "check_interface.lua", "check_automation.lua",
-	"check_menus.lua", "check_input.lua", "check_alerts.lua", "check_screentext.lua", "check_cursor.lua", "check_castbar.lua", "check_notifications.lua", "check_movementalert.lua",
+	"check_menus.lua", "check_input.lua", "check_alerts.lua", "check_screentext.lua", "check_cursor.lua", "check_unitframes.lua", "check_castbar.lua", "check_notifications.lua", "check_movementalert.lua",
 	"check_markers.lua", "check_dci.lua", "check_merchantwindow.lua", "check_hiddensettings.lua", "check_macros.lua",
 	"check_settings.lua" }
 

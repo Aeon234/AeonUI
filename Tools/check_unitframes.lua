@@ -1,0 +1,599 @@
+-- Checks AeonUI_UnitFrames/Frames/ outside the game: the shared settings and what follows them, tag strings and tag
+-- methods with ordinary and secret values, status priority, slot placement and width sharing; then the owner: nothing
+-- spawned or registered while every frame is off, a frame spawned at its size and place with its look, the reload
+-- notice, a layout change held past combat, and the wait when the session starts in combat.
+-- Run from any directory with Lua 5.1: lua Tools/check_unitframes.lua
+-- Loads the real files against stubbed globals and a stubbed oUF. Widgets are modeled by type and fail on a method
+-- their type lacks. These checks prove logic, not drawing or oUF's behavior in game.
+-- Exits non-zero on the first failed check.
+
+local root = (arg and arg[0] or ""):match("^(.-)[^/\\]*$") .. "../"
+
+local checks = 0
+
+local function Equal(label, got, want)
+	checks = checks + 1
+
+	if got ~= want then
+		io.stderr:write(("FAIL: %s: expected %s, got %s\n"):format(label, tostring(want), tostring(got)))
+		os.exit(1)
+	end
+end
+
+-- Secret values: opaque, raising an error on comparison or arithmetic, secret through concatenation and formatting.
+
+local SECRET = {}
+
+local function Forbidden()
+	error("operation on a secret value", 2)
+end
+
+SECRET.__lt, SECRET.__le, SECRET.__add, SECRET.__sub, SECRET.__mul, SECRET.__div = Forbidden, Forbidden, Forbidden,
+	Forbidden, Forbidden, Forbidden
+SECRET.__concat = function()
+	return setmetatable({}, SECRET)
+end
+
+local function Secret()
+	return setmetatable({}, SECRET)
+end
+
+function issecretvalue(value)
+	return type(value) == "table" and getmetatable(value) == SECRET
+end
+
+local luaFormat = string.format
+
+function string.format(pattern, ...)
+	for index = 1, select("#", ...) do
+		if issecretvalue((select(index, ...))) then
+			return Secret()
+		end
+	end
+
+	return luaFormat(pattern, ...)
+end
+
+-- Widgets, modeled by type.
+
+local METHODS = {}
+
+METHODS.Region = {
+	SetPoint = function(self, ...)
+		self.point = { ... }
+	end,
+	ClearAllPoints = function(self)
+		self.point = nil
+	end,
+	SetAllPoints = function() end,
+	SetSize = function(self, width, height)
+		self.width, self.height = width, height
+	end,
+	SetWidth = function(self, width)
+		self.width = width
+	end,
+	SetHeight = function(self, height)
+		self.height = height
+	end,
+	GetSize = function(self)
+		return self.width, self.height
+	end,
+	Show = function(self)
+		self.shown = true
+	end,
+	Hide = function(self)
+		self.shown = false
+	end,
+	SetShown = function(self, shown)
+		self.shown = shown
+	end,
+	IsVisible = function(self)
+		return self.shown == true
+	end,
+}
+METHODS.Texture = {
+	SetColorTexture = function(self, ...)
+		self.color = { ... }
+	end,
+	SetVertexColor = function(self, ...)
+		self.vertex = { ... }
+	end,
+}
+METHODS.FontString = {
+	SetWordWrap = function() end,
+	SetFont = function(self, font, size, flags)
+		self.font, self.size, self.flags = font, size, flags
+	end,
+	SetTextColor = function() end,
+	SetJustifyH = function(self, justify)
+		self.justify = justify
+	end,
+	SetText = function(self, text)
+		self.text = text
+	end,
+	UpdateTag = function(self)
+		self.updated = true
+	end,
+}
+METHODS.Frame = {
+	CreateTexture = function(self)
+		return New("Texture", self)
+	end,
+	CreateFontString = function(self)
+		return New("FontString", self)
+	end,
+	SetFrameLevel = function() end,
+	GetFrameLevel = function()
+		return 1
+	end,
+}
+METHODS.StatusBar = {
+	GetStatusBarTexture = function(self)
+		self.fill = self.fill or New("Texture", self)
+
+		return self.fill
+	end,
+	SetReverseFill = function(self, reverse)
+		self.reverse = reverse
+	end,
+	ForceUpdate = function(self)
+		self.forced = (self.forced or 0) + 1
+	end,
+}
+METHODS.Button = {
+	RegisterForClicks = function() end,
+	SetScript = function() end,
+	Tag = function(self, text, tag)
+		text.tag = tag
+	end,
+	Untag = function(_, text)
+		text.tag = nil
+	end,
+}
+
+local PARENTS = {
+	Texture = { "Region" },
+	FontString = { "Region" },
+	Frame = { "Region" },
+	StatusBar = { "Frame", "Region" },
+	Button = { "Frame", "Region" },
+}
+
+function New(kind, parent)
+	local widget = { kind = kind, parent = parent }
+
+	return setmetatable(widget, {
+		__index = function(_, method)
+			local own = METHODS[kind][method]
+
+			if own then
+				return own
+			end
+
+			for _, base in ipairs(PARENTS[kind]) do
+				if METHODS[base][method] then
+					return METHODS[base][method]
+				end
+			end
+
+			-- Lowercase names are the stub's own recorded fields; anything else is a method the type lacks.
+			if tostring(method):match("^[%l_]") then
+				return nil
+			end
+
+			error(kind .. " has no method " .. tostring(method), 2)
+		end,
+	})
+end
+
+function CreateFrame(kind, _, parent)
+	return New(kind, parent)
+end
+
+function Mixin(target, source)
+	for name, method in pairs(source) do
+		rawset(target, name, method)
+	end
+
+	return target
+end
+
+-- Client globals the frame code reads.
+
+UIParent = New("Frame")
+DEAD, PLAYER_OFFLINE = "Dead", "Offline"
+UnitFrame_OnEnter, UnitFrame_OnLeave = function() end, function() end
+CurveConstants = { ScaleTo100 = "scale" }
+C_StringUtil = {
+	TruncateWhenZero = function(value)
+		return value
+	end,
+}
+
+function AbbreviateNumbers(value)
+	return value
+end
+
+local unit = { health = 41300, percent = 82, missing = 9100, connected = true, ghost = false, dead = false }
+
+function UnitHealth()
+	return unit.health
+end
+
+function UnitHealthPercent()
+	return unit.percent
+end
+
+function UnitHealthMissing()
+	return unit.missing
+end
+
+function UnitIsConnected()
+	return unit.connected
+end
+
+function UnitIsGhost()
+	return unit.ghost
+end
+
+function UnitIsDead()
+	return unit.dead
+end
+
+local mediaCallback
+
+function LibStub()
+	return {
+		RegisterCallback = function(_, event, method)
+			mediaCallback = event .. " " .. method
+		end,
+	}
+end
+
+-- The addon table, with the real schema and a thin profile over it.
+
+local combat = false
+
+function InCombatLockdown()
+	return combat
+end
+
+local AUI = { L = setmetatable({}, { __index = function(_, key)
+	return key
+end }), can = {} }
+
+function AUI:CopyTable(source)
+	if type(source) ~= "table" then
+		return source
+	end
+
+	local copy = {}
+
+	for key, value in pairs(source) do
+		copy[key] = self:CopyTable(value)
+	end
+
+	return copy
+end
+
+function AUI:Readable(value, fallback)
+	if issecretvalue(value) then
+		return fallback
+	end
+
+	return value
+end
+
+function AUI:Pixel()
+	return 1
+end
+
+local registered = {}
+
+AUI.Events = {
+	Register = function(_, event, _, handler)
+		registered[event] = handler
+	end,
+}
+AUI.Callbacks = {
+	Register = function(_, channel, _, handler)
+		registered[channel] = handler
+	end,
+}
+AUI.Border = {
+	ART_COLOR = { r = 0.5, g = 0.4, b = 0.3 },
+	Create = function()
+		return {
+			SetFrameLevel = function() end,
+			Layout = function(self)
+				self.laidOut = (self.laidOut or 0) + 1
+			end,
+			Apply = function(self, look)
+				self.look = look
+				self.color = look.color
+				self.lit = false
+			end,
+			SetColor = function(self, color)
+				self.color = color
+			end,
+			SetLit = function(self, lit)
+				self.lit = lit
+			end,
+		}
+	end,
+}
+AUI.Media = {
+	FOREVER_MINIMAL_BORDER = "forever minimal file",
+	Font = function(_, name)
+		return name
+	end,
+	FontFlags = function(_, outline)
+		return outline
+	end,
+	SetBarTexture = function(_, bar, texture)
+		bar.texture = texture
+	end,
+	BorderFile = function(_, name)
+		if name == "AeonUI Forever Minimal" then
+			return "forever minimal file"
+		end
+
+		return name == "Blizzard Tooltip" and "tooltip file" or nil
+	end,
+}
+
+local spawned, styles = {}, {}
+
+AUI.oUF = {
+	Tags = { Methods = {}, Events = {}, SharedEvents = {} },
+	colors = { power = {}, class = {}, reaction = {} },
+	RegisterStyle = function(_, name, style)
+		styles[name] = style
+	end,
+	SetActiveStyle = function(self, name)
+		self.active = name
+	end,
+	Spawn = function(self, spawnUnit, name)
+		local frame = New("Button")
+
+		spawned[#spawned + 1] = name
+		styles[self.active](frame, spawnUnit)
+		frame.shown = true
+		frame.__unit = spawnUnit
+
+		return frame
+	end,
+}
+
+local function Load(path)
+	assert(loadfile(root .. path))("AeonUI", AUI)
+end
+
+Load("AeonUI/Profile/Schema.lua")
+
+local Schema = AUI.Schema
+local config
+
+Load("AeonUI_UnitFrames/Frames/Options.lua")
+config = Schema:Defaults()
+AUI.Profile = {
+	Get = function(_, path)
+		return Schema:Read(config, path)
+	end,
+}
+
+Load("AeonUI_UnitFrames/Frames/Tags.lua")
+Load("AeonUI_UnitFrames/Frames/Text.lua")
+Load("AeonUI_UnitFrames/Frames/UnitFrame.lua")
+Load("AeonUI_UnitFrames/Frames/Frames.lua")
+
+local Options, Tags, Text, Frames = AUI.UnitFrameOptions, AUI.Tags, AUI.Text, AUI.Frames
+
+-- Settings ----------------------------------------------------------------------------------------------------------
+
+local function Path(rest)
+	return Options:Path("player", rest)
+end
+
+Equal("off by default", AUI.Profile:Get(Path("enabled")), false)
+Equal("the Player's bars follow All Frames", AUI.Profile:Get(Path("bars.texture")), "Solid")
+Equal("font outlines default to Slug", AUI.Profile:Get(Path("text.outline")), "SLUG")
+Equal("a slot follows its frame", AUI.Profile:Get(Options:SlotPath("player", 1, "size")), 12)
+
+Schema:Write(config, Options.ALL .. "text.size", 14)
+Equal("a slot follows All Frames through its frame", AUI.Profile:Get(Options:SlotPath("player", 1, "size")), 14)
+Schema:Write(config, Path("text.size"), 16)
+Equal("a frame's own value wins over All Frames", AUI.Profile:Get(Options:SlotPath("player", 1, "size")), 16)
+Equal("and counts as custom", Schema:IsCustom(config, Path("text.size")), true)
+Schema:Write(config, Options:SlotPath("player", 1, "size"), 18)
+Equal("a slot's own value wins over its frame", AUI.Profile:Get(Options:SlotPath("player", 1, "size")), 18)
+config = Schema:Defaults()
+
+-- Tags ---------------------------------------------------------------------------------------------------------------
+
+Tags:Register()
+
+local CONTEXT = { primary = true, precision = "default", decimals = 0, nameFormat = "first" }
+local METHOD = AUI.oUF.Tags.Methods
+
+Equal("none shows nothing", Tags:Compile({ content = "none" }, CONTEXT), nil)
+Equal("health and percent", Tags:Compile({ content = "healthAndPercent", separator = "dash", colorMode = "custom" }, CONTEXT),
+	"[aui:health(both,dash,default,0,1)]")
+Equal("a color mode wraps the tag", Tags:Compile({ content = "name", colorMode = "class" }, CONTEXT),
+	"[aui:classcolor][aui:name(first)]|r")
+Equal("a plain health value", METHOD["aui:health"]("player", nil, "cur", "dash", "default", "0", "1"), 41300)
+Equal("a percent", METHOD["aui:health"]("player", nil, "pct", "dash", "default", "0", "1"), "82%")
+
+unit.health, unit.percent, unit.missing = Secret(), Secret(), Secret()
+Equal("a secret health passes through", issecretvalue(METHOD["aui:health"]("player", nil, "cur", "dash", "default", "0",
+	"1")), true)
+Equal("a secret health and percent stay secret", issecretvalue(METHOD["aui:health"]("player", nil, "both", "dash",
+	"default", "0", "1")), true)
+unit.health, unit.percent, unit.missing = 41300, 82, 9100
+
+unit.connected = false
+Equal("offline in the primary slot", METHOD["aui:health"]("player", nil, "cur", "dash", "default", "0", "1"), "Offline")
+Equal("nothing in the others", METHOD["aui:health"]("player", nil, "cur", "dash", "default", "0", "0"), nil)
+unit.connected = true
+unit.dead = Secret()
+Equal("a secret dead state is not tested", METHOD["aui:health"]("player", nil, "cur", "dash", "default", "0", "1"), 41300)
+unit.dead = false
+
+-- Text ---------------------------------------------------------------------------------------------------------------
+
+local function Points(anchor, placement)
+	return table.concat({ Text:Points(anchor, placement) }, " ")
+end
+
+Equal("inside", Points("LEFT", "inside"), "LEFT LEFT LEFT")
+Equal("on an edge", Points("TOPRIGHT", "edge"), "RIGHT TOPRIGHT RIGHT")
+Equal("outside the top", Points("TOP", "outside"), "BOTTOM TOP CENTER")
+Equal("outside the left", Points("LEFT", "outside"), "RIGHT LEFT RIGHT")
+
+local function Slot(content, anchor, width)
+	return { content = content, anchor = anchor, placement = "inside", size = 12, width = width or 100 }
+end
+
+Equal("alone in its row", Text:Widths({ Slot("name", "LEFT") }, 200)[1], 190)
+Equal("an empty slot takes no room", Text:Widths({ Slot("none", "LEFT"), Slot("name", "LEFT") }, 200)[1], 0)
+Equal("sharing leaves room for the other", Text:Widths({ Slot("name", "LEFT"), Slot("health", "RIGHT") }, 200)[1], 152)
+Equal("Width % scales it", Text:Widths({ Slot("name", "LEFT", 50) }, 200)[1], 95)
+
+-- The owner ----------------------------------------------------------------------------------------------------------
+
+registered = {}
+Frames:Start()
+Equal("all off: nothing spawned", #spawned, 0)
+Equal("all off: no style", next(styles), nil)
+Equal("all off: no events", next(registered), nil)
+Equal("no reload needed", Frames:ReloadNeeded(), false)
+
+Schema:Write(config, Path("enabled"), true)
+Equal("turning one on asks for a reload", Frames:ReloadNeeded(), true)
+
+combat = true
+Frames:Start()
+Equal("in combat: waits", #spawned, 0)
+Equal("for combat's end", registered.PLAYER_REGEN_ENABLED, Frames.Start)
+combat = false
+
+Frames:Start()
+
+local frame = Frames.objects.player
+
+Equal("spawned by its global name", spawned[1], "AeonUIPlayer")
+Equal("once", #spawned, 1)
+Equal("no reload needed once spawned", Frames:ReloadNeeded(), false)
+Equal("late media is followed", mediaCallback, "LibSharedMedia_Registered OnMediaRegistered")
+Equal("its width", frame.width, 270)
+Equal("its height", frame.height, 36)
+Equal("its default place", table.concat({ frame.point[1], frame.point[4], frame.point[5] }, " "), "CENTER -330 -200")
+Equal("its texture", frame.Bar.texture, "Solid")
+Equal("in class colors from oUF", frame.Health.colorClass, true)
+Equal("a thin line by default", frame.Border.look.style, "THIN_LINE")
+Equal("in black", frame.Border.look.color.r, 0)
+Equal("drawing no fill of its own", frame.Border.look.background.a, 0)
+Equal("laid out once placed", frame.Border.laidOut, 1)
+Equal("its first slot is tagged", frame.TextSlots[1].tag, "[aui:health(both,dash,default,0,1)]")
+Equal("its second is empty", frame.TextSlots[2].tag, nil)
+Equal("listed for click-casting", ClickCastFrames[frame], true)
+Equal("combat's end now applies held layout", registered.PLAYER_REGEN_ENABLED, Frames.OnCombatEnded)
+
+Schema:Write(config, Path("reverse"), true)
+registered.Profile(Frames, Path("reverse"))
+Equal("an appearance change applies", frame.Bar.reverse, true)
+
+Schema:Write(config, Options.ALL .. "bars.texture", "other")
+registered.Profile(Frames, Options.ALL .. "bars.texture")
+Equal("a shared change reaches the frame", frame.Bar.texture, "other")
+
+frame:OnEnter()
+Equal("hovering takes the Hover Color", frame.Border.color.r, 1)
+Equal("a line is not lit", frame.Border.lit, false)
+Equal("hovering shows the tooltip for oUF's unit", frame.unit, frame.__unit)
+registered.Profile(Frames, Path("reverse"))
+Equal("a change while hovered keeps it", frame.Border.color.r, 1)
+frame:OnLeave()
+Equal("leaving restores the line color", frame.Border.color.r, 0)
+
+Schema:Write(config, Options.ALL .. "bars.hover", false)
+frame:OnEnter()
+Equal("with the highlight off, nothing changes", frame.Border.color.r, 0)
+frame:OnLeave()
+Schema:Write(config, Options.ALL .. "bars.hover", true)
+
+Schema:Write(config, Options.ALL .. "bars.borderStyle", "FOREVER_MINIMAL")
+registered.Profile(Frames, Options.ALL .. "bars.borderStyle")
+Equal("Forever Minimal draws the shaded art", frame.Border.look.style, "FOREVER_MINIMAL_SHADED")
+Equal("in the Border Color", frame.Border.look.color.r, 0.5)
+Equal("with no edge file", frame.Border.look.edgeFile, nil)
+frame:OnEnter()
+Equal("hovering lightens its color", frame.Border.color.r, 0.5 + 0.5 * 0.4)
+Equal("without lighting art", frame.Border.lit, false)
+frame:OnLeave()
+Equal("and leaving restores it", frame.Border.color.r, 0.5)
+
+Schema:Write(config, Options.ALL .. "bars.borderStyle", "AeonUI Forever Minimal")
+registered.Profile(Frames, Options.ALL .. "bars.borderStyle")
+Equal("its LibSharedMedia name draws the same", frame.Border.look.style, "FOREVER_MINIMAL_SHADED")
+
+Schema:Write(config, Options.ALL .. "bars.borderStyle", "FOREVER")
+registered.Profile(Frames, Options.ALL .. "bars.borderStyle")
+frame:OnEnter()
+Equal("Forever lights its art", frame.Border.lit, true)
+frame:OnLeave()
+Equal("and stops when the mouse leaves", frame.Border.lit, false)
+
+Schema:Write(config, Options.ALL .. "bars.borderStyle", "Blizzard Tooltip")
+registered.Profile(Frames, Options.ALL .. "bars.borderStyle")
+Equal("a LibSharedMedia border draws as an edge", frame.Border.look.style, "EDGE")
+Equal("from its file", frame.Border.look.edgeFile, "tooltip file")
+Equal("in the Border Color", frame.Border.look.color.r, AUI.Border.ART_COLOR.r)
+frame:OnEnter()
+Equal("it takes the Hover Color", frame.Border.color.r, 1)
+Equal("unlit", frame.Border.lit, false)
+frame:OnLeave()
+
+Schema:Write(config, Options.ALL .. "bars.borderStyle", "Unregistered")
+registered.Profile(Frames, Options.ALL .. "bars.borderStyle")
+Equal("a border no longer registered draws the default", frame.Border.look.style, "THIN_LINE")
+Equal("with no edge file", frame.Border.look.edgeFile, nil)
+
+Schema:Write(config, Options.ALL .. "bars.borderStyle", "METAL")
+registered.Profile(Frames, Options.ALL .. "bars.borderStyle")
+Equal("so does Metal, which frames do not offer", frame.Border.look.style, "THIN_LINE")
+
+Schema:Write(config, Options.ALL .. "bars.borderStyle", "SLATE")
+registered.Profile(Frames, Options.ALL .. "bars.borderStyle")
+Equal("the frame follows All Frames' style", frame.Border.look.style, "SLATE")
+Equal("a tinted style uses the Border Color", frame.Border.look.color.r, AUI.Border.ART_COLOR.r)
+Schema:Write(config, Options.ALL .. "bars.borderColor", { r = 1, g = 0, b = 0 })
+registered.Profile(Frames, Options.ALL .. "bars.borderColor")
+Equal("which can change", frame.Border.look.color.r, 1)
+Schema:Write(config, Path("bars.borderStyle"), "FOREVER")
+registered.Profile(Frames, Path("bars.borderStyle"))
+Equal("its own style wins", frame.Border.look.style, "FOREVER")
+Equal("and Forever keeps its own colors", frame.Border.look.color.r, AUI.Border.ART_COLOR.r)
+Schema:Write(config, Path("bars.borderThickness"), 150)
+registered.Profile(Frames, Path("bars.borderThickness"))
+Equal("its thickness", frame.Border.look.thickness, 150)
+
+combat = true
+Schema:Write(config, Path("width"), 300)
+registered.Profile(Frames, Path("width"))
+Equal("in combat a layout change waits", frame.width, 270)
+Schema:Write(config, Path("reverse"), false)
+registered.Profile(Frames, Path("reverse"))
+Equal("while appearance still applies", frame.Bar.reverse, false)
+combat = false
+registered.PLAYER_REGEN_ENABLED(Frames)
+Equal("combat's end applies the latest", frame.width, 300)
+
+Schema:Write(config, Path("position"), { point = "TOPLEFT", x = 10, y = -20 })
+registered.Profile(Frames, Path("position"))
+Equal("a saved place", table.concat({ frame.point[1], frame.point[4], frame.point[5] }, " "), "TOPLEFT 10 -20")
+
+Schema:Write(config, Path("enabled"), false)
+Equal("turning it off asks for a reload", Frames:ReloadNeeded(), true)
+
+print(("check_unitframes: %d checks passed"):format(checks))

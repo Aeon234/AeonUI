@@ -23,11 +23,15 @@ local TEXTURES = "Interface\\AddOns\\" .. AUI.name .. "\\Media\\Textures\\"
 ---@field outset number texels the art reaches outside the owner, so the owner's edge meets the band's inner shadow
 ---@field tinted boolean? Border Color tints a gray copy of it
 ---@field strip boolean? its edges and middle are drawn from a one-texel strip through its middle
+---@field white boolean? its band is white, so it is always tinted, Border Color included at the art's own color
 
 ---@type table<string, AUIBorderArt>
 local ART = {
 	FOREVER_MINIMAL = { file = TEXTURES .. "ForeverMinimal.tga", band = TEXTURES .. "ForeverMinimalBand.tga", size = 110,
 		tinted = true, strip = true, across = 20, down = 20, bandStart = 6, outset = 10.5 },
+	FOREVER_MINIMAL_SHADED = { file = TEXTURES .. "ForeverMinimalShaded.tga",
+		band = TEXTURES .. "ForeverMinimalShaded.tga", size = 110, tinted = true, white = true, strip = true, across = 20,
+		down = 20, bandStart = 6, outset = 10.5 },
 	FOREVER = { file = TEXTURES .. "Forever.tga", band = TEXTURES .. "ForeverBand.tga", size = 110, across = 48,
 		down = 20, bandStart = 6, outset = 10.5 },
 	SLATE = { file = TEXTURES .. "Slate.tga", band = TEXTURES .. "SlateBand.tga", size = 128, tinted = true, strip = true,
@@ -86,11 +90,17 @@ local CELL_DIVIDER = { atlas = "!UI-Frame-Metal-EdgeLeft", left = 22 / 190, righ
 -- bevel, light outside and dark inside, matches the light-over-dark separators cut from its top edge.
 local BAND_DIVIDERS = { FOREVER_MINIMAL = true, FOREVER = true, SLATE = true }
 
+-- A backdrop edge's size at 100% Border Thickness, and how far it reaches outside the owner, as a share of its size.
+local EDGE_SIZE = 16
+local EDGE_OUTSET = 0.25
+-- How strongly `SetLit` adds a second copy of the art over itself.
+local LIT_ALPHA = 0.4
+
 -- Forever Minimal's own band color: at it, the art is drawn as it is.
 local ART_COLOR = { r = 132 / 255, g = 105 / 255, b = 82 / 255 }
 local SAME = 0.002
 
----@alias AUIBorderStyle "METAL" | "FOREVER_MINIMAL" | "FOREVER" | "SLATE" | "THIN_LINE" | "NONE"
+---@alias AUIBorderStyle "METAL" | "FOREVER_MINIMAL" | "FOREVER_MINIMAL_SHADED" | "FOREVER" | "SLATE" | "THIN_LINE" | "NONE" | "EDGE"
 
 ---@class AUIColor
 ---@field r number
@@ -102,7 +112,8 @@ local SAME = 0.002
 ---@field style AUIBorderStyle
 ---@field color AUIColor the band or line color
 ---@field background AUIColor the owner's fill under Metal, Thin Line and None; the Forever styles bring their own
----@field thickness number? the Metal and Forever styles' size, in percent of Blizzard's
+---@field thickness number? the Metal, Forever and edge styles' size, in percent of Blizzard's
+---@field edgeFile string? the backdrop edge file the "EDGE" style draws
 ---@field top AUIBorderSide? information rows along the owner's top edge, inside it
 ---@field bottom AUIBorderSide? information rows along its bottom edge
 
@@ -641,6 +652,10 @@ end
 function BorderMixin:SetFrameLevel(level)
 	self.over:SetFrameLevel(level)
 	self.metal:SetFrameLevel(level)
+
+	if self.edge then
+		self.edge:SetFrameLevel(level + 1)
+	end
 end
 
 ---@param color AUIColor
@@ -664,8 +679,8 @@ end
 ---@param textures Texture[]
 ---@param color AUIColor
 ---@param tintable boolean
-local function Tint(textures, color, tintable)
-	local tint = tintable and not IsArtColor(color)
+local function Tint(textures, color, tintable, always)
+	local tint = tintable and (always or not IsArtColor(color))
 
 	for _, texture in ipairs(textures) do
 		texture:SetDesaturated(tint)
@@ -765,6 +780,7 @@ function BorderMixin:Apply(look)
 	self.style = look.style
 	self.thickness = look.thickness or 100
 	self.top, self.bottom = look.top, look.bottom
+	self.color = look.color
 
 	-- The Forever styles bring their own middle; the background color fills the owner's rectangle under the others.
 	-- Above the content the art has no middle, and the content covers the owner.
@@ -780,7 +796,7 @@ function BorderMixin:Apply(look)
 	end
 
 	if art then
-		Tint(self.pieces, look.color, art.tinted == true)
+		Tint(self.pieces, look.color, art.tinted == true, art.white)
 		self:SetArtCoords()
 	end
 
@@ -795,7 +811,108 @@ function BorderMixin:Apply(look)
 		line:SetShown(thin)
 	end
 
+	self:ApplyEdge(look)
 	self:ApplyRows(art, look.color)
+	self:SetLit(false)
 
 	self:Layout()
+end
+
+---Draws the "EDGE" style, a backdrop edge around the owner, in a frame made the first time it is needed.
+---@param look AUIBorderLook
+function BorderMixin:ApplyEdge(look)
+	local edge = self.edge
+	local shown = look.style == "EDGE" and look.edgeFile ~= nil
+
+	if shown and not edge then
+		edge = CreateFrame("Frame", nil, self.over, "BackdropTemplate")
+		edge:SetFrameLevel(self.over:GetFrameLevel() + 1)
+		self.edge = edge
+	end
+
+	if not edge then
+		return
+	end
+
+	edge:SetShown(shown)
+
+	if shown then
+		local size = EDGE_SIZE * self.thickness / 100
+		local outset = size * EDGE_OUTSET
+
+		edge:ClearAllPoints()
+		edge:SetPoint("TOPLEFT", self.owner, "TOPLEFT", -outset, outset)
+		edge:SetPoint("BOTTOMRIGHT", self.owner, "BOTTOMRIGHT", outset, -outset)
+		edge:SetBackdrop({ edgeFile = look.edgeFile, edgeSize = size })
+		edge:SetBackdropBorderColor(Unpack(look.color))
+	end
+end
+
+---Changes the color the style draws in, until the next `Apply`, without laying anything out.
+---@param color AUIColor
+function BorderMixin:SetColor(color)
+	local art = self.art
+
+	self.color = color
+
+	if art then
+		Tint(self.pieces, color, art.tinted == true, art.white)
+	end
+
+	Tint(self.metalPieces, color, true)
+
+	local r, g, b, a = Unpack(color)
+
+	for _, line in ipairs(self.lines) do
+		line:SetVertexColor(r, g, b, a)
+	end
+
+	if self.edge and self.edge:IsShown() then
+		self.edge:SetBackdropBorderColor(r, g, b, a)
+	end
+end
+
+---Lightens art that cannot simply be tinted lighter by adding a second copy over itself, which keeps its hue and shading where a tint
+---would multiply them darker. The copy is made the first time it is needed. Other styles have no art to light.
+---@param lit boolean
+function BorderMixin:SetLit(lit)
+	local art = self.art
+	local glow = self.glow
+
+	if not lit or not art then
+		if glow then
+			for _, piece in ipairs(glow) do
+				piece:Hide()
+			end
+		end
+
+		return
+	end
+
+	if not glow then
+		glow = {}
+
+		local parent = self.overContent and self.over or self.owner
+
+		for index, piece in ipairs(self.pieces) do
+			local copy = parent:CreateTexture(nil, "BORDER", nil, 1)
+
+			copy:SetAllPoints(piece)
+			copy:SetBlendMode("ADD")
+			copy:SetAlpha(LIT_ALPHA)
+			copy:SetSnapToPixelGrid(false)
+			copy:SetTexelSnappingBias(0)
+			glow[index] = copy
+		end
+
+		self.glow = glow
+	end
+
+	for index, copy in ipairs(glow) do
+		copy:SetTexture(self.overContent and art.band or art.file)
+		copy:SetTexCoord(self.pieces[index]:GetTexCoord())
+		copy:Show()
+	end
+
+	Tint(glow, self.color, art.tinted == true)
 end

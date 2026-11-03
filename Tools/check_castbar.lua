@@ -537,9 +537,26 @@ local function Fire(event, ...)
 	end
 end
 
+AUI.Border = {
+	Create = function(_, owner, overContent)
+		return {
+			owner = owner,
+			overContent = overContent,
+			laidOut = 0,
+			SetFrameLevel = function(self, level)
+				self.level = level
+			end,
+			Apply = function(self, look)
+				self.look = look
+			end,
+			Layout = function(self)
+				self.laidOut = self.laidOut + 1
+			end,
+		}
+	end,
+}
 AUI.Media = {
 	FLAT = "flat",
-	FOREVER_MINIMAL_BORDER = "forever minimal border",
 	Font = function(_, name)
 		return "font:" .. name
 	end,
@@ -685,7 +702,7 @@ Equal("one pixel outside the frame", frame.lines[1].points[1][1] .. " " .. frame
 Equal("on every side", frame.lines[4].points[2][1] .. " " .. frame.lines[4].points[2][2] .. " "
 	.. frame.lines[4].points[2][3] .. " " .. frame.lines[4].width, "BOTTOMRIGHT 0.5 -0.5 0.5")
 Equal("white at half opacity behind the fill", frame.background.color[1] .. " " .. frame.background.color[4], "1 0.5")
-Equal("the flat fill", frame.bar.texture, "flat")
+Equal("the Solid fill", frame.bar.texture, "Solid")
 Equal("no icon", frame.icon.shown, false)
 Equal("the bar fills the frame", frame.bar.allPoints, true)
 Equal("the medium strata", frame.strata, "MEDIUM")
@@ -848,24 +865,26 @@ Set("castBar.height", 10)
 Equal("Pixel draws a short bar", frame.height, 10)
 Set("castBar.borderStyle", "FOREVER_MINIMAL")
 local edge = frame.edge --[[@as table]]
-Equal("Forever Minimal's file and size", edge.backdrop.edgeFile .. " " .. edge.backdrop.edgeSize,
-	"forever minimal border 14")
-Equal("in the art's own color", edge.borderColor[1] .. " " .. edge.borderColor[4], 110 / 255 .. " 1")
-Equal("outside the frame", edge.points[1][1] .. " " .. edge.points[1][2] .. " " .. edge.points[1][3] .. " "
-	.. edge.points[2][1] .. " " .. edge.points[2][2] .. " " .. edge.points[2][3], "TOPLEFT -6 6 BOTTOMRIGHT 6 -6")
+Equal("Forever Minimal draws the shaded art", edge.look.style, "FOREVER_MINIMAL_SHADED")
+Equal("over the bar", edge.owner == frame and edge.overContent, true)
+Equal("in the art's own color", edge.look.color.r, 110 / 255)
+Equal("with no fill of its own", edge.look.background.a, 0)
 Equal("above the text", edge.level, frame.over.level + 1)
 Equal("no Pixel lines beside it", frame.lines[1].shown, false)
-Equal("it shows", edge.shown, true)
+Equal("it shows", edge.look.style, "FOREVER_MINIMAL_SHADED")
 Equal("the short bar is held", frame.height, 16)
 Set("castBar.icon", true)
 Equal("and its icon with it", frame.icon.width, 16)
 Set("castBar.icon", false)
 Set("castBar.borderStyle", "PIXEL")
-Equal("Pixel hides it", edge.shown, false)
+Equal("Pixel hides it", edge.look.style, "NONE")
 Equal("and draws its lines again", frame.lines[1].shown, true)
 Equal("at the Height setting", frame.height, 10)
 Set("castBar.borderStyle", "FOREVER_MINIMAL")
-Equal("choosing it again reuses it", frame.edge == edge and edge.shown, true)
+Equal("choosing it again reuses it", frame.edge == edge and edge.look.style, "FOREVER_MINIMAL_SHADED")
+edge.laidOut = 0
+CastBar:Place()
+Equal("placing the bar puts it back on whole pixels", edge.laidOut, 1)
 Set("castBar.borderStyle", "PIXEL")
 Set("castBar.height", 16)
 Set("castBar.reverse", true)

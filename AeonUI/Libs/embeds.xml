@@ -6,4 +6,17 @@
 	<Script file="LibDataBroker-1.1\LibDataBroker-1.1.lua" />
 	<Script file="LibDBIcon-1.0\LibDBIcon-1.0.lua" />
 	<Script file="LibSpecialization\LibSpecialization\LibSpecialization.lua" />
+
+	<Script file="oUF\init.lua" />
+	<Script file="oUF\enums.lua" />
+	<Script file="oUF\private.lua" />
+	<Script file="oUF\ouf.lua" />
+	<Script file="oUF\events.lua" />
+	<Script file="oUF\factory.lua" />
+	<Script file="oUF\blizzard.lua" />
+	<Script file="oUF\units.lua" />
+	<Script file="oUF\colors.lua" />
+	<Script file="oUF\elements\health.lua" />
+	<Script file="oUF\elements\tags.lua" />
+	<Script file="oUF\finalize.lua" />
 </Ui>

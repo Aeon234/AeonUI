@@ -11,6 +11,9 @@ externals:
   AeonUI/Libs/LibAeonSettings:
     url: https://github.com/Aeon234/LibAeonSettings.git
     tag: 1.3.1
+  AeonUI/Libs/oUF:
+    url: https://github.com/oUF-wow/oUF.git
+    tag: 14.2.0
   AeonUI/Libs/LibSpecialization:
     url: https://github.com/BigWigsMods/LibSpecialization.git
     tag: v12.1.3

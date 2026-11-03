@@ -16,7 +16,7 @@ local ELLIPSIS = "\226\128\166"
 ---@field TIME_FORMATS string[] the Time Format choices
 ---@field BORDER_STYLES string[] the Border Style choices
 ---@field BORDER_COLOR AUIColor
----@field FOREVER_MINIMAL { edgeSize: number, outset: number, minHeight: number, color: AUIColor } how the Forever
+---@field FOREVER_MINIMAL { minHeight: number, color: AUIColor } how the Forever
 ---Minimal border is drawn: outside the frame by `outset`, around a frame at least `minHeight` tall
 ---@field SPARK_TEXTURE string
 ---@field SPARK_WIDTH number
@@ -51,7 +51,7 @@ local Options = {
 	TIME_FORMATS = { "REMAINING", "ELAPSED", "REMAINING_TOTAL", "ELAPSED_TOTAL" },
 	BORDER_STYLES = { "PIXEL", "FOREVER_MINIMAL" },
 	BORDER_COLOR = { r = 0, g = 0, b = 0, a = 1 },
-	FOREVER_MINIMAL = { edgeSize = 14, outset = 6, minHeight = 16, color = { r = 110 / 255, g = 89 / 255, b = 71 / 255 } },
+	FOREVER_MINIMAL = { minHeight = 16, color = { r = 110 / 255, g = 89 / 255, b = 71 / 255 } },
 	SPARK_TEXTURE = "Interface\\CastingBar\\UI-CastingBar-Spark",
 	SPARK_WIDTH = 10,
 	SHADOW = { r = 0, g = 0, b = 0, a = 1 },
@@ -100,7 +100,7 @@ Schema:Boolean("castBar.alwaysShow", false)
 Schema:Number("castBar.width", 386, Options.MIN_WIDTH, Options.MAX_WIDTH, true)
 Schema:Number("castBar.height", 16, Options.MIN_HEIGHT, Options.MAX_HEIGHT, true)
 Schema:Choice("castBar.strata", "castBarStrata", "MEDIUM")
-Schema:String("castBar.texture", "flat", 64)
+Schema:String("castBar.texture", "Solid", 64)
 Schema:Color("castBar.color", { r = 1, g = 0.71, b = 0.19 })
 Schema:Boolean("castBar.classColor", false)
 Schema:Boolean("castBar.gradient", true)

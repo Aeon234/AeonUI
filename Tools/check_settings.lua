@@ -406,6 +406,7 @@ MACROS, HEALTH = "Macros", "Health"
 RAID_TARGET_1, RAID_TARGET_8 = "Star", "Skull"
 
 local AUI = {}
+DEAD, PLAYER, NONE = "Dead", "Player", "None"
 assert(loadfile(root .. "AeonUI/Core/Core.lua"))("AeonUI", AUI)
 AUI.L = setmetatable({}, { __index = function(_, key)
 	return key
@@ -418,13 +419,13 @@ for _, file in ipairs({ "AeonUI/Core/Callbacks.lua", "AeonUI/Core/Capabilities.l
 	"AeonUI_Tooltip/Tooltip/Options.lua", "AeonUI_Tooltip/Tooltip/Tooltip.lua", "AeonUI/Interface/UIScale.lua", "AeonUI/Interface/GameMenuScale.lua",
 	"AeonUI_QoL/Automation/Options.lua", "AeonUI_QoL/Automation/GameSettings.lua", "AeonUI_QoL/Menus/Options.lua", "AeonUI_QoL/Input/Options.lua",
 	"AeonUI_QoL/Input/FocusShortcut.lua", "AeonUI_QoL/Alerts/Options.lua", "AeonUI_QoL/Interface/Options.lua", "AeonUI_QoL/ScreenText/Options.lua",
-	"AeonUI_QoL/ScreenText/ScreenText.lua", "AeonUI_QoL/Cursor/Options.lua", "AeonUI_QoL/Cursor/CursorRing.lua", "AeonUI_UnitFrames/CastBar/Options.lua",
+	"AeonUI_QoL/ScreenText/ScreenText.lua", "AeonUI_QoL/Cursor/Options.lua", "AeonUI_QoL/Cursor/CursorRing.lua", "AeonUI_UnitFrames/Frames/Options.lua", "AeonUI_UnitFrames/Frames/Tags.lua", "AeonUI_UnitFrames/Frames/Text.lua", "AeonUI_UnitFrames/Frames/UnitFrame.lua", "AeonUI_UnitFrames/Frames/Frames.lua", "AeonUI_UnitFrames/CastBar/Options.lua",
 	"AeonUI_UnitFrames/CastBar/TickData.lua", "AeonUI_UnitFrames/CastBar/BlizzardBar.lua", "AeonUI_UnitFrames/CastBar/CastBar.lua", "AeonUI_QoL/Notifications/Options.lua",
 	"AeonUI_QoL/Notifications/Notifications.lua", "AeonUI_QoL/Markers/Options.lua", "AeonUI_QoL/Markers/Bar.lua", "AeonUI_QoL/Markers/Cycler.lua",
 	"AeonUI_QoL/Markers/Markers.lua", "AeonUI_QoL/DeleteCheapestItem/Options.lua", "AeonUI/Core/AuctionPrices.lua",
 	"AeonUI_QoL/MerchantWindow/Options.lua", "AeonUI_QoL/MerchantWindow/BottomBar.lua", "AeonUI_QoL/MerchantWindow/MerchantWindow.lua",
 	"AeonUI_QoL/HiddenSettings/Options.lua", "AeonUI_QoL/HiddenSettings/CVarHolder.lua", "AeonUI_QoL/HiddenSettings/HiddenSettings.lua",
-	"AeonUI_QoL/Macros/Options.lua", "AeonUI_QoL/Macros/Macros.lua", "AeonUI/Settings/Window.lua", "AeonUI/Settings/General.lua", "AeonUI_UnitFrames/Settings/CastBar.lua",
+	"AeonUI_QoL/Macros/Options.lua", "AeonUI_QoL/Macros/Macros.lua", "AeonUI/Settings/Window.lua", "AeonUI/Settings/General.lua", "AeonUI_UnitFrames/Settings/AllFrames.lua", "AeonUI_UnitFrames/Settings/Previews.lua", "AeonUI_UnitFrames/Settings/FramePage.lua", "AeonUI_UnitFrames/Settings/CastBar.lua",
 	"AeonUI_Maps/Settings/MinimapEditor.lua", "AeonUI_Maps/Settings/Minimap.lua", "AeonUI_Maps/Settings/WorldMap.lua", "AeonUI_Tooltip/Settings/Tooltip.lua",
 	"AeonUI_QoL/Settings/Automation.lua", "AeonUI_QoL/Settings/DeleteCheapestItem.lua", "AeonUI_QoL/Settings/MerchantWindow.lua",
 	"AeonUI_QoL/Settings/HiddenSettings.lua", "AeonUI_QoL/Settings/Macros.lua", "AeonUI_QoL/Settings/PlayerMenu.lua", "AeonUI_QoL/Settings/Input.lua",
@@ -483,7 +484,7 @@ end
 Equal("the footer's reload notice follows the Minimap and UI Scale", table.concat({ Footer(false, false),
 	Footer(true, false), Footer(false, true) }, " "), "false true true")
 AUI.Minimap.ReloadNeeded, AUI.UIScale.ReloadNeeded = minimapWaits, scaleWaits
-Equal("sidebar order", table.concat(window.order, " "), "general #mapsHeader minimap #tooltipHeader tooltipGeneral " ..
+Equal("sidebar order", table.concat(window.order, " "), "general #unitFramesHeader unitFramesAll unitFramePlayer #mapsHeader minimap #tooltipHeader tooltipGeneral " ..
 	"tooltipUnits tooltipItems #qualityOfLifeHeader automation alerts notifications - profiles")
 Equal("General and Profiles carry their icons, tinted", tostring(window.pages.general.info.icon == AUI.Media.sidebar.general)
 	.. " " .. tostring(window.pages.general.info.iconTint) .. " "
@@ -491,7 +492,7 @@ Equal("General and Profiles carry their icons, tinted", tostring(window.pages.ge
 	.. tostring(window.pages.profiles.info.iconTint), "true true true true")
 AUI.can.playerMenus, AUI.can.guildInvite, AUI.can.raiderIOLinks, AUI.can.warcraftLogsLinks = true, true, true, true
 window = Load(nil)
-Equal("Player Menu follows Automation", table.concat(window.order, " "), "general #mapsHeader minimap " ..
+Equal("Player Menu follows Automation", table.concat(window.order, " "), "general #unitFramesHeader unitFramesAll unitFramePlayer #mapsHeader minimap " ..
 	"#tooltipHeader tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader automation playerMenu alerts notifications - profiles")
 local playerMenuPage = window.pages.playerMenu
 local playerMenuIDs = {}
@@ -513,7 +514,7 @@ window = Load(nil)
 Equal("no Player Menu page without player menus", window.pages.playerMenu, nil)
 AUI.can.clickDown, AUI.can.focusShortcut = true, true
 window = Load(nil)
-Equal("Input follows Player Menu's place", table.concat(window.order, " "), "general #mapsHeader minimap " ..
+Equal("Input follows Player Menu's place", table.concat(window.order, " "), "general #unitFramesHeader unitFramesAll unitFramePlayer #mapsHeader minimap " ..
 	"#tooltipHeader tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader automation input alerts notifications - profiles")
 local inputPage = window.pages.input
 local inputIDs = {}
@@ -603,7 +604,7 @@ Equal("the Group Finder card after Sound Alerts", window.pages.alerts.sections[2
 AUI.can.premadeJoined = nil
 AUI.can.extraActionButton, AUI.can.helpTips, AUI.can.bossBanner, AUI.can.vaultOverlay = true, true, true, true
 window = Load(nil)
-Equal("Interface follows Alerts", table.concat(window.order, " "), "general #mapsHeader minimap #tooltipHeader "
+Equal("Interface follows Alerts", table.concat(window.order, " "), "general #unitFramesHeader unitFramesAll unitFramePlayer #mapsHeader minimap #tooltipHeader "
 	.. "tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader automation alerts notifications interface - profiles")
 local interfacePage = window.pages.interface
 local interfaceIDs = {}
@@ -663,7 +664,7 @@ Equal("Retail: the Trading Post card alone keeps the page", tradingPostCard.titl
 AUI.can.tradingPost = nil
 AUI.can.screenText = true
 window = Load(nil)
-Equal("Screen Text follows Alerts", table.concat(window.order, " "), "general #mapsHeader minimap #tooltipHeader "
+Equal("Screen Text follows Alerts", table.concat(window.order, " "), "general #unitFramesHeader unitFramesAll unitFramePlayer #mapsHeader minimap #tooltipHeader "
 	.. "tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader automation alerts notifications screenText - profiles")
 local screenTextPage = window.pages.screenText
 Equal("under the Quality of Life header", screenTextPage.info.under, "qualityOfLifeHeader")
@@ -751,7 +752,7 @@ window = Load(nil)
 Equal("no Screen Text page without its frames", window.pages.screenText, nil)
 AUI.can.cursorRing, AUI.can.castSwipe = true, true
 window = Load(nil)
-Equal("Cursor follows Alerts", table.concat(window.order, " "), "general #mapsHeader minimap #tooltipHeader "
+Equal("Cursor follows Alerts", table.concat(window.order, " "), "general #unitFramesHeader unitFramesAll unitFramePlayer #mapsHeader minimap #tooltipHeader "
 	.. "tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader automation alerts notifications cursor - profiles")
 local cursorPage = window.pages.cursor
 Equal("under the Quality of Life header, with its icon", cursorPage.info.under .. " "
@@ -795,7 +796,7 @@ Equal("no Cursor page without the cursor ring", window.pages.cursor, nil)
 AUI.can.castBar, AUI.can.castTarget, AUI.can.empoweredCasts = true, true, true
 window = Load(nil)
 Equal("Cast Bar under Unit Frames, after General", table.concat(window.order, " "), "general #unitFramesHeader "
-	.. "castBar #mapsHeader minimap #tooltipHeader tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader "
+	.. "unitFramesAll unitFramePlayer castBar #mapsHeader minimap #tooltipHeader tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader "
 	.. "automation alerts notifications - profiles")
 do
 	local castBarPage = window.pages.castBar
@@ -835,8 +836,8 @@ Equal("no Empowered Casts card or state where the client has none", tostring(
 	"nil Casting,Channeling,Not Interruptible,Interrupted")
 AUI.can.castBar = nil
 window = Load(nil)
-Equal("no Cast Bar page or Unit Frames header without the client's timers", tostring(window.pages.castBar) .. " "
-	.. tostring(window.order[2]), "nil #mapsHeader")
+Equal("no Cast Bar page without the client's timers", tostring(window.pages.castBar) .. " "
+	.. tostring(window.order[2]), "nil #unitFramesHeader")
 local function NoticeCards(page)
 	local cards = {}
 	for _, section in ipairs(page.sections) do
@@ -910,7 +911,7 @@ end
 AUI.can.raidMarkers, AUI.can.worldMarkers = true, true
 window = Load(nil)
 local markersPage = window.pages.raidMarkers
-Equal("Raid Markers follows Notifications", table.concat(window.order, " "), "general #mapsHeader minimap "
+Equal("Raid Markers follows Notifications", table.concat(window.order, " "), "general #unitFramesHeader unitFramesAll unitFramePlayer #mapsHeader minimap "
 	.. "#tooltipHeader tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader automation alerts notifications "
 	.. "raidMarkers - profiles")
 Equal("with its icon, a preview and no switch", markersPage.info.under .. " "
@@ -1745,7 +1746,7 @@ ITEM_QUALITY3_DESC, ITEM_QUALITY4_DESC = "Rare", "Epic"
 AUI.can.mail, AUI.can.expansionFilter, AUI.can.autoDeclineGuildInvites = nil, nil, nil
 AUI.can.deleteCheapestItem = true
 window = Load(nil)
-Equal("Delete Cheapest Item follows Automation", table.concat(window.order, " "), "general #mapsHeader minimap "
+Equal("Delete Cheapest Item follows Automation", table.concat(window.order, " "), "general #unitFramesHeader unitFramesAll unitFramePlayer #mapsHeader minimap "
 	.. "#tooltipHeader tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader automation deleteCheapestItem "
 	.. "alerts notifications - profiles")
 local dci = window.pages.deleteCheapestItem
@@ -1802,7 +1803,7 @@ Equal("no page without the feature's functions", window.pages.deleteCheapestItem
 
 AUI.can.merchantWindow = true
 window = Load(nil)
-Equal("Merchant Window follows Automation", table.concat(window.order, " "), "general #mapsHeader minimap "
+Equal("Merchant Window follows Automation", table.concat(window.order, " "), "general #unitFramesHeader unitFramesAll unitFramePlayer #mapsHeader minimap "
 	.. "#tooltipHeader tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader automation merchantWindow "
 	.. "alerts notifications - profiles")
 local merchantPage = window.pages.merchantWindow
@@ -1864,7 +1865,7 @@ Equal("no page without the merchant window's functions", window.pages.merchantWi
 
 AUI.can.merchantWindow, AUI.can.lootSparkle = true, true
 window = Load(nil)
-Equal("hidden settings after merchant window", table.concat(window.order, " "), "general #mapsHeader minimap "
+Equal("hidden settings after merchant window", table.concat(window.order, " "), "general #unitFramesHeader unitFramesAll unitFramePlayer #mapsHeader minimap "
 	.. "#tooltipHeader tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader automation merchantWindow "
 	.. "hiddenSettings alerts notifications - profiles")
 local hiddenPage = window.pages.hiddenSettings
@@ -1940,7 +1941,7 @@ AUI.can.merchantWindow = nil
 local function CheckMacrosPage()
 	AUI.can.macros = true
 	window = Load(nil)
-	Equal("macros after automation", table.concat(window.order, " "), "general #mapsHeader minimap "
+	Equal("macros after automation", table.concat(window.order, " "), "general #unitFramesHeader unitFramesAll unitFramePlayer #mapsHeader minimap "
 		.. "#tooltipHeader tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader automation macros alerts "
 		.. "notifications - profiles")
 	local macrosPage = window.pages.macros

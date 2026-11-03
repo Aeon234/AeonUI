@@ -6,8 +6,8 @@
   "flavors": ["retail"],
 
   "globals": {
-    "read": ["LibStub", "SlashCmdList", "StaticPopupDialogs", "UISpecialFrames", "WOW_PROJECT_CAMELOT"],
-    "write": ["AeonUI*", "SLASH_AEONUI*", "SlashCmdList", "GetMinimapShape", "BINDING_HEADER_AEONUI", "BINDING_NAME_AEONUI_*"]
+    "read": ["LibStub", "SlashCmdList", "StaticPopupDialogs", "UISpecialFrames", "WOW_PROJECT_CAMELOT", "ClickCastFrames"],
+    "write": ["AeonUI*", "SLASH_AEONUI*", "SlashCmdList", "GetMinimapShape", "BINDING_HEADER_AEONUI", "BINDING_NAME_AEONUI_*", "ClickCastFrames"]
   },
 
   "diagnostics": {

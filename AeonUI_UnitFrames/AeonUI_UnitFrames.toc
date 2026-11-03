@@ -1,6 +1,6 @@
 ## Interface: 120100, 120105, 16001
 ## Title: |cff00a3e3Aeon|r|cfff2e6c8UI|r Unit Frames
-## Notes: The player cast bar for |cff00a3e3Aeon|r|cfff2e6c8UI|r.
+## Notes: The unit frames and player cast bar for |cff00a3e3Aeon|r|cfff2e6c8UI|r.
 ## IconTexture: Interface\AddOns\AeonUI\Media\Textures\Logo.png
 ## Author: Aeon
 ## Version: @project-version@
@@ -11,7 +11,11 @@
 
 Namespace.lua
 Locale\Locale.xml
+Frames\Frames.xml
 CastBar\CastBar.xml
+Settings\AllFrames.lua
+Settings\Previews.lua
+Settings\FramePage.lua
 Settings\CastBar.lua
 
 #@do-not-package@

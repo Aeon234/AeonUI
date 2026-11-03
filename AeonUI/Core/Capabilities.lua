@@ -17,6 +17,7 @@ AUI.Capabilities = Capabilities
 ---@field worldMapMarkers boolean the world map takes data providers and AeonUI has marker data for this world (Forever)
 ---@field mythicPlus boolean players have a Mythic+ rating (Retail)
 ---@field auraCasterNames boolean the client can name an aura's caster in its tooltip (`tooltipShowAuraCasterNames`)
+---@field abbreviationConfig boolean number abbreviation can take custom breakpoints
 ---@field surnames boolean player names carry a surname instead of a realm (Forever)
 ---@field expansions boolean items name the expansion they come from (Retail)
 ---@field auraSpellIDs boolean the client can draw aura spell IDs in their tooltips (`tooltipShowAuraSpellIDs`)
@@ -96,6 +97,7 @@ function Capabilities:Resolve()
 	can.mythicPlus = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE and C_PlayerInfo ~= nil
 		and C_PlayerInfo.GetPlayerMythicPlusRatingSummary ~= nil and C_ChallengeMode ~= nil
 	can.auraCasterNames = C_CVar.GetCVar("tooltipShowAuraCasterNames") ~= nil
+	can.abbreviationConfig = CreateAbbreviateConfig ~= nil
 	can.surnames = WOW_PROJECT_ID == WOW_PROJECT_CAMELOT and Constants.CharacterNameSeparatorConsts ~= nil
 	can.expansions = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE
 	can.auraSpellIDs = C_CVar.GetCVar("tooltipShowAuraSpellIDs") ~= nil
