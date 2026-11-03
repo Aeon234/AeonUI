@@ -29,6 +29,13 @@ local DISPEL_COLORS = {
 	{ r = 0, g = 0.6, b = 0 },
 	{ r = 0.6, g = 0.4, b = 0 },
 }
+-- What each sample indicator shows.
+local INDICATOR_ART = {
+	raid = { texture = "Interface\\TargetingFrame\\UI-RaidTargetingIcons", coords = { 0.75, 1, 0.25, 0.5 } },
+	combat = { atlas = "UI-HUD-UnitFrame-Player-CombatIcon" },
+	leader = { atlas = "UI-HUD-UnitFrame-Player-Group-LeaderIcon" },
+	pvp = { atlas = "UI-HUD-UnitFrame-Player-PVP-AllianceIcon" },
+}
 -- Where a sample icon's corner sits, as a rectangle against its own point (y up).
 local CORNER_RECTS = {
 	BOTTOMLEFT = { 0, 1, 0, 1 },
@@ -56,6 +63,9 @@ local FRIENDLY = 5
 ---@field TextSlots FontString[]
 ---@field overlays AUIOverlayWidgets?
 ---@field auraIcons table<string, table[]> the sample icons made so far, by kind
+---@field portrait AUIPortraitWidgets?
+---@field indicators table<string, Region> the sample indicators made so far, by name
+---@field indicatorLayer Frame?
 local FramePreview = {}
 FramePreview.__index = FramePreview
 FramePreview.STATES = { FULL, DAMAGED, DEAD, HOVER }
@@ -65,7 +75,7 @@ AUI.FramePreview = FramePreview
 ---@param spec AUIFrameSpec
 ---@return AUIFramePreview preview
 function FramePreview:New(spec)
-	return setmetatable({ spec = spec, auraIcons = { buffs = {}, debuffs = {} } }, self)
+	return setmetatable({ spec = spec, auraIcons = { buffs = {}, debuffs = {} }, indicators = {} }, self)
 end
 
 ---@param canvas Frame
@@ -80,6 +90,16 @@ function FramePreview:Create(canvas)
 
 	if self.spec.overlays then
 		self.overlays = AUI.Overlays:Create(self.bar)
+	end
+
+	if self.spec.portrait then
+		self.portrait = AUI.Portrait:Create(holder, self.bar)
+	end
+
+	if self.spec.indicators then
+		self.indicatorLayer = CreateFrame("Frame", nil, holder)
+		self.indicatorLayer:SetAllPoints()
+		self.indicatorLayer:SetFrameLevel(self.bar:GetFrameLevel() + AUI.UnitFrame.TEXT_LEVEL + 1)
 	end
 end
 
@@ -107,6 +127,51 @@ local function Sample(share, dead, overlays)
 		level = level,
 		classColor = class and RAID_CLASS_COLORS[class],
 	}
+end
+
+---Draws the indicators that are on, where the live frame shows them.
+---@param preview table the library's preview
+function FramePreview:DrawIndicators(preview)
+	local key = self.spec.key
+	local layer = self.indicatorLayer --[[@as Frame]]
+
+	for _, indicator in ipairs(self.spec.indicators or {}) do
+		local name = indicator.name
+		local region = self.indicators[name]
+		local settings = AUI.Indicators:Resolve(key, name)
+		local on, size = settings.enabled, settings.size
+
+		if not region then
+			local art = INDICATOR_ART[name]
+
+			region = layer:CreateTexture(nil, "OVERLAY")
+
+			if art and art.atlas then
+				region:SetAtlas(art.atlas)
+			elseif art then
+				region:SetTexture(art.texture)
+				region:SetTexCoord(art.coords[1], art.coords[2], art.coords[3], art.coords[4])
+			end
+
+			self.indicators[name] = region
+		end
+
+		region:SetShown(on)
+		AUI.Indicators:Place(region, self.bar, settings)
+
+		region:SetSize(size, size)
+
+		if name == "resting" then
+			local texture = region --[[@as Texture]]
+
+			AUI.Indicators:StyleResting(texture, AUI.Profile:Get(Options:Path(key, "indicators.resting.icon")))
+			AUI.Indicators:PlayResting(texture, on)
+		end
+
+		if on then
+			preview:Part(region, name .. "Indicator")
+		end
+	end
 end
 
 ---How far the frame's aura displays reach past its edges at their limits.
@@ -251,6 +316,22 @@ function FramePreview:Refresh(state, preview)
 	self.holder:SetSize(width, height)
 	UnitFrame:StyleBar(bar, self.background, self.border, UnitFrame:BarLook(key))
 	UnitFrame:ShowHover(self.border, key, label == HOVER)
+
+	if self.portrait then
+		AUI.Portrait:DrawSample(self.portrait, key, self.holder)
+
+		if self.portrait.border then
+			UnitFrame:ShowHover(self.portrait.border, key, label == HOVER)
+		end
+
+		if self.portrait.holder:IsShown() then
+			preview:Part(self.portrait.holder, "portraitEnabled")
+		end
+	end
+
+	local inLeft, inRight = AUI.Portrait:Inset(key)
+
+	UnitFrame:PlaceBar(bar, self.holder, inLeft, inRight)
 	bar:SetReverseFill(reverse)
 	bar:SetValue(share)
 	UnitFrame:AnchorBackground(bar, self.background, reverse)
@@ -281,14 +362,19 @@ function FramePreview:Refresh(state, preview)
 		end
 	end
 
-	if not self.spec.auras then
-		return width, height
+	self:DrawIndicators(preview)
+
+	local above, below, left, right = 0, 0, 0, 0
+
+	if self.spec.auras then
+		self:DrawAuras(width, preview)
+		above, below, left, right = self:AuraSpace(width, height)
 	end
 
-	self:DrawAuras(width, preview)
+	local reachAbove, reachBelow, reachLeft, reachRight = AUI.Portrait:Reach(key)
 
-	local above, below, left, right = self:AuraSpace(width, height)
-
+	above, below = math.max(above, reachAbove), math.max(below, reachBelow)
+	left, right = math.max(left, reachLeft), math.max(right, reachRight)
 	self.holder:ClearAllPoints()
 	self.holder:SetPoint("CENTER", (left - right) / 2, (below - above) / 2)
 

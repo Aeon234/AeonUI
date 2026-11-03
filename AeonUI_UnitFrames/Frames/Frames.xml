@@ -6,6 +6,9 @@
 	<Script file="Overlays.lua" />
 	<Script file="AuraCategories.lua" />
 	<Script file="Auras.lua" />
+	<Script file="Portrait.lua" />
+	<Script file="Indicators.lua" />
+	<Script file="Fading.lua" />
 	<Script file="UnitFrame.lua" />
 	<Script file="Frames.lua" />
 </Ui>

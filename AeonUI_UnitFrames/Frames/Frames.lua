@@ -90,6 +90,7 @@ function Frames:Start()
 	media.RegisterCallback(self, "LibSharedMedia_Registered", "OnMediaRegistered")
 
 	self:ApplyAll(true)
+	AUI.Fading:Start()
 end
 
 ---@param key string

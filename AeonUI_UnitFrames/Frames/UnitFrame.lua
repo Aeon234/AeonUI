@@ -19,6 +19,9 @@ local NO_FILL = { r = 0, g = 0, b = 0, a = 0 }
 ---@field TextSlots FontString[]
 ---@field Overlays AUIOverlayWidgets?
 ---@field AuraDisplays table<string, AUIAuraWidgets>? by kind
+---@field PortraitWidgets AUIPortraitWidgets?
+---@field idleFade AUIFrameFade?
+---@field threatColor table? the color threat gives the border, over any hover
 local UnitFrameMixin = {}
 
 ---Builds the oUF style for AeonUI's frames, and the bars the settings previews share with them.
@@ -152,6 +155,17 @@ function UnitFrame:ShowHover(border, key, hovered)
 	end
 end
 
+---Places a bar in its frame, leaving room at each side for an attached portrait.
+---@param bar StatusBar
+---@param parent Region
+---@param left number
+---@param right number
+function UnitFrame:PlaceBar(bar, parent, left, right)
+	bar:ClearAllPoints()
+	bar:SetPoint("TOPLEFT", parent, "TOPLEFT", left, 0)
+	bar:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", -right, 0)
+end
+
 ---Places a bar's background over the part its fill leaves empty, so a translucent fill shows its own color.
 ---@param bar StatusBar
 ---@param background Texture
@@ -218,23 +232,64 @@ function UnitFrame.Style(frame, unit)
 		}
 	end
 
+	if spec.portrait then
+		frame.PortraitWidgets = AUI.Portrait:Create(frame, health)
+	end
+
+	AUI.Indicators:Create(frame)
+
 	frame:RegisterForClicks("AnyUp")
 	frame:SetScript("OnEnter", frame.OnEnter)
 	frame:SetScript("OnLeave", frame.OnLeave)
 end
 
----Shows the border as hovered and Blizzard's unit tooltip. The tooltip's update reads `self.unit`, which oUF does not
----keep; oUF's current unit (`__unit`, which follows vehicles) is copied there first.
+---@param hovered boolean
+function UnitFrameMixin:ShowHovered(hovered)
+	self:ShowBorder(self.Border, hovered)
+
+	if self.PortraitWidgets and self.PortraitWidgets.border then
+		self:ShowBorder(self.PortraitWidgets.border, hovered)
+	end
+end
+
+---Shows one of the frame's borders as hovered or not, in the threat color while there is one.
+---@param border AUIBorder
+---@param hovered boolean
+function UnitFrameMixin:ShowBorder(border, hovered)
+	UnitFrame:ShowHover(border, self.key, hovered)
+
+	if self.threatColor then
+		border:SetColor(self.threatColor, true)
+		border:SetLit(false)
+	end
+end
+
+---Shows the border as hovered, brings the frame back from any fade and, unless Tooltip or Hide Tooltip in Combat keeps it away, Blizzard's unit tooltip. The
+---tooltip's update reads `self.unit`, which oUF does not keep; oUF's current unit (`__unit`, which follows vehicles) is
+---copied there first.
 function UnitFrameMixin:OnEnter()
+	local Profile = AUI.Profile
+
 	self.hovered = true
-	UnitFrame:ShowHover(self.Border, self.key, true)
+	self:ShowHovered(true)
+	AUI.Fading:Update(self)
+
+	if not Profile:Get(Options:Path(self.key, "tooltip.enabled")) then
+		return
+	end
+
+	if Profile:Get(Options:Path(self.key, "tooltip.hideInCombat")) and InCombatLockdown() then
+		return
+	end
+
 	self.unit = self.__unit
 	UnitFrame_OnEnter(self)
 end
 
 function UnitFrameMixin:OnLeave()
 	self.hovered = false
-	UnitFrame:ShowHover(self.Border, self.key, false)
+	self:ShowHovered(false)
+	AUI.Fading:Update(self)
 	UnitFrame_OnLeave(self)
 end
 
@@ -265,10 +320,17 @@ function UnitFrameMixin:ApplyAppearance()
 
 	UnitFrame:StyleBar(self.Bar, self.Background, self.Border, UnitFrame:BarLook(self.key))
 
-	if self.hovered then
-		UnitFrame:ShowHover(self.Border, self.key, true)
+	if self.PortraitWidgets then
+		AUI.Portrait:Apply(self)
 	end
 
+	if self.hovered or self.threatColor then
+		self:ShowHovered(self.hovered == true)
+	end
+
+	local left, right = AUI.Portrait:Inset(self.key)
+
+	UnitFrame:PlaceBar(self.Bar, self, left, right)
 	self.Bar:SetReverseFill(reverse)
 	UnitFrame:AnchorBackground(self.Bar, self.Background, reverse)
 	AUI.Text:Apply(self, self.key)
@@ -286,6 +348,8 @@ function UnitFrameMixin:ApplyAppearance()
 			AUI.Auras:Place(display, AUI.Auras:Resolve(self.key, kind), width, above, below)
 		end
 	end
+
+	AUI.Indicators:Apply(self)
 
 	-- Redraws the bar with the new settings.
 	if self.Health:IsVisible() then

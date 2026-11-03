@@ -88,7 +88,7 @@ local TITLE_SEPARATOR = 6
 local CELL_DIVIDER = { atlas = "!UI-Frame-Metal-EdgeLeft", left = 22 / 190, right = 40 / 190, width = 9 }
 -- The Forever styles whose band also divides cells, drawn from a straight stretch of the band's left side: Forever's
 -- bevel, light outside and dark inside, matches the light-over-dark separators cut from its top edge.
-local BAND_DIVIDERS = { FOREVER_MINIMAL = true, FOREVER = true, SLATE = true }
+local BAND_DIVIDERS = { FOREVER_MINIMAL = true, FOREVER_MINIMAL_SHADED = true, FOREVER = true, SLATE = true }
 
 -- A backdrop edge's size at 100% Border Thickness, and how far it reaches outside the owner, as a share of its size.
 local EDGE_SIZE = 16
@@ -733,7 +733,7 @@ function Border:StyleCellDivider(texture, style, color)
 			(size / 2 + 0.5) / size)
 		texture:SetHorizTile(false)
 		texture:SetVertTile(false)
-		Tint({ texture }, color, art.tinted == true)
+		Tint({ texture }, color, art.tinted == true, art.white)
 
 		return true
 	end
@@ -906,13 +906,14 @@ end
 
 ---Changes the color the style draws in, until the next `Apply`, without laying anything out.
 ---@param color AUIColor
-function BorderMixin:SetColor(color)
+---@param force boolean? tint art that otherwise keeps its own colors
+function BorderMixin:SetColor(color, force)
 	local art = self.art
 
 	self.color = color
 
 	if art then
-		Tint(self.pieces --[[@as AUITextures]], color, art.tinted == true, art.white)
+		Tint(self.pieces --[[@as AUITextures]], color, art.tinted == true or force == true, art.white or force)
 	end
 
 	if self.style == "METAL" then

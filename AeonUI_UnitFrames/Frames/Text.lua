@@ -228,7 +228,9 @@ function Text:Layout(key, count)
 		}
 	end
 
-	return slots, self:Widths(slots, Profile:Get(Options:Path(key, "width"))), contexts
+	local left, right = AUI.Portrait:Inset(key)
+
+	return slots, self:Widths(slots, Profile:Get(Options:Path(key, "width")) - left - right), contexts
 end
 
 ---Creates a frame's slots' font strings on a layer above its bar.

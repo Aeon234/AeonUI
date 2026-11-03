@@ -234,6 +234,17 @@ border:SetColor({ r = 0.7, g = 0.7, b = 0.7 })
 Equal("a color change touches only the art", counts.calls, 18)
 Equal("and colors it", border.pieces[1].red, 0.7)
 
+local colored = Fresh(true)
+
+colored:Apply(Look("FOREVER"))
+colored:SetColor({ r = 0.7 })
+Equal("art with its own colors keeps them", colored.pieces[1].desaturated, false)
+colored:SetColor({ r = 0.7 }, true)
+Equal("unless the color is forced", colored.pieces[1].desaturated, true)
+Equal("in that color", colored.pieces[1].red, 0.7)
+colored:SetColor({ r = 0.2 })
+Equal("and it comes back", colored.pieces[1].desaturated, false)
+
 local behind = Fresh(false)
 behind:Apply(Look("FOREVER"))
 Equal("behind the content on the owner", behind.pieces[1].parent, behind.owner)

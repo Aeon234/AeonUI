@@ -153,6 +153,52 @@ local AURA_SORT_LABELS = {
 	name = L["Name"],
 }
 
+local PORTRAIT_MODE_LABELS = {
+	["2d"] = L["2D"],
+	["3d"] = L["3D"],
+	class = L["Class Icon"],
+}
+
+local PORTRAIT_STYLE_LABELS = {
+	attached = L["Attached"],
+	detached = L["Detached"],
+}
+
+local SIDE_LABELS = {
+	LEFT = L["Left"],
+	RIGHT = L["Right"],
+}
+
+local INDICATOR_LABELS = {
+	raid = L["Raid Marker"],
+	resting = L["Resting"],
+	combat = COMBAT,
+	leader = L["Leader and Assistant"],
+	pvp = PVP,
+}
+
+local RESTING_ICON_LABELS = {
+	animated = L["Animated"],
+	still = L["Resting Art, Still"],
+	classic = L["Classic"],
+	portrait = L["Portrait"],
+}
+
+---@return table[] options the resting icons this client has: by name, or the art itself
+local function RestingIconOptions()
+	local options = {}
+
+	for _, icon in ipairs(Options.RESTING_ICONS) do
+		if AUI.Indicators:HasRestingIcon(icon) then
+			local file = AUI.Indicators:RestingFile(icon)
+
+			options[#options + 1] = { value = icon, text = file and ("|T%s:16:16|t"):format(file) or RESTING_ICON_LABELS[icon] }
+		end
+	end
+
+	return options
+end
+
 local COLOR_MODE_LABELS = {
 	custom = L["Custom"],
 	class = L["Class / Reaction"],
@@ -487,6 +533,261 @@ function FramePage:DeclareOverlays(card)
 		max = Options.MAX_OVERHEAL,
 		step = 1,
 		format = "percent",
+	}))
+end
+
+---The portrait's card: its switch, mode and side, then its placement in a row.
+---@param page table
+function FramePage:DeclarePortrait(page)
+	local key = self.spec.key
+	local card = page:Section(key .. "Portrait", L["Portrait"])
+	local details = key .. "PortraitPlacement"
+
+	local function Own(field)
+		return Options:Path(key, "portrait." .. field)
+	end
+
+	local function Detached()
+		return AUI.Profile:Get(Own("style")) == "detached"
+	end
+
+	card:Toggle(Field("portraitEnabled", L["Show Portrait"], Own("enabled")))
+	card:Dropdown(Field("portraitMode", L["Mode"], Own("mode"), {
+		depends = "portraitEnabled",
+		description = L["Class Icon shows a player's class; other units show their 2D portrait."],
+		options = ChoiceOptions(Options.PORTRAIT_MODES, PORTRAIT_MODE_LABELS),
+	}))
+	card:Dropdown(Field("portraitSide", L["Side"], Own("side"), {
+		depends = "portraitEnabled",
+		options = ChoiceOptions(Options.PORTRAIT_SIDES, SIDE_LABELS),
+	}))
+	card:Details({
+		id = details,
+		label = L["Placement"],
+		depends = "portraitEnabled",
+		summary = function()
+			return PORTRAIT_STYLE_LABELS[AUI.Profile:Get(Own("style"))]
+		end,
+	})
+	card:Dropdown(Field("portraitStyle", L["Placement"], Own("style"), {
+		details = details,
+		options = ChoiceOptions(Options.PORTRAIT_STYLES, PORTRAIT_STYLE_LABELS),
+	}))
+	card:Slider(Field("portraitSize", L["Size"], Own("size"), {
+		details = details,
+		min = Options.MIN_PORTRAIT,
+		max = Options.MAX_PORTRAIT,
+		step = 1,
+		show = Detached,
+	}))
+	card:Slider(Field("portraitX", L["X Offset"], Own("x"), {
+		details = details,
+		min = -Options.MAX_OFFSET,
+		max = Options.MAX_OFFSET,
+		step = 1,
+		show = Detached,
+	}))
+	card:Slider(Field("portraitY", L["Y Offset"], Own("y"), {
+		details = details,
+		min = -Options.MAX_OFFSET,
+		max = Options.MAX_OFFSET,
+		step = 1,
+		show = Detached,
+	}))
+end
+
+---The rows a placed element shares: where it attaches and how far it moves from there.
+---@param card table
+---@param prefix string
+---@param details string its row's id
+---@param depends string its switch's id
+---@param Own fun(field: string): string
+local function DeclarePlacement(card, prefix, details, depends, Own)
+	card:Dropdown(Field(prefix .. "Anchor", L["Anchor"], Own("anchor"), {
+		details = details,
+		depends = depends,
+		options = ChoiceOptions(Options.ANCHORS, ANCHOR_LABELS),
+	}))
+	card:Dropdown(Field(prefix .. "Placement", L["Placement"], Own("placement"), {
+		details = details,
+		depends = depends,
+		options = ChoiceOptions(Options.PLACEMENTS, PLACEMENT_LABELS),
+	}))
+	card:Slider(Field(prefix .. "X", L["X Offset"], Own("x"), {
+		details = details,
+		depends = depends,
+		min = -Options.MAX_OFFSET,
+		max = Options.MAX_OFFSET,
+		step = 1,
+	}))
+	card:Slider(Field(prefix .. "Y", L["Y Offset"], Own("y"), {
+		details = details,
+		depends = depends,
+		min = -Options.MAX_OFFSET,
+		max = Options.MAX_OFFSET,
+		step = 1,
+	}))
+end
+
+---@param Own fun(field: string): string
+---@return string summary "Off", or where it attaches
+local function PlacementSummary(Own)
+	if not AUI.Profile:Get(Own("enabled")) then
+		return OFF
+	end
+
+	return ("%s, %s"):format(ANCHOR_LABELS[AUI.Profile:Get(Own("anchor"))],
+		PLACEMENT_LABELS[AUI.Profile:Get(Own("placement"))])
+end
+
+---The indicators' card: a row for each, opening to its switch, size and place.
+---@param page table
+function FramePage:DeclareIndicators(page)
+	local spec = self.spec
+	local key = spec.key
+	local card = page:Section(key .. "Indicators", L["Indicators"])
+
+	for _, indicator in ipairs(spec.indicators or {}) do
+		local name = indicator.name
+		local details = key .. name .. "Indicator"
+		local show = name .. "Indicator"
+
+		local function Own(field)
+			return Options:Path(key, "indicators." .. name .. "." .. field)
+		end
+
+		card:Details({
+			id = details,
+			label = INDICATOR_LABELS[name],
+			summary = function()
+				return PlacementSummary(Own)
+			end,
+		})
+		card:Checkbox(Field(show, SHOW, Own("enabled"), { details = details }))
+
+		if name == "resting" then
+			card:Dropdown(Field("restingIcon", L["Icon"], Own("icon"), {
+				details = details,
+				depends = show,
+				titleCase = false,
+				options = RestingIconOptions,
+			}))
+		end
+
+		card:Slider(Field(name .. "Size", L["Size"], Own("size"), {
+			details = details,
+			depends = show,
+			min = Options.MIN_INDICATOR,
+			max = Options.MAX_INDICATOR,
+			step = 1,
+		}))
+		DeclarePlacement(card, name, details, show, Own)
+	end
+
+	if spec.threat then
+		local details = key .. "ThreatIndicator"
+
+		card:Details({
+			id = details,
+			label = L["Threat Border"],
+			summary = function()
+				return AUI.Profile:Get(Options:Path(key, "indicators.threat.enabled")) and L["On"] or OFF
+			end,
+		})
+		card:Checkbox(Field("threatIndicator", SHOW, Options:Path(key, "indicators.threat.enabled"), {
+			details = details,
+			description = L["Shows your threat in group instances: gold near aggro, orange with aggro."],
+		}))
+		card:Slider(Field("threatSize", L["Size"], Options:Path(key, "indicators.threat.size"), {
+			details = details,
+			depends = "threatIndicator",
+			min = 1,
+			max = Options.MAX_THREAT_SIZE,
+			step = 1,
+			show = function()
+				return AUI.Indicators:UsesThreatRing(key)
+			end,
+		}))
+	end
+
+	if spec.totems then
+		local details = key .. "TotemsIndicator"
+
+		local function Own(field)
+			return Options:Path(key, "totems." .. field)
+		end
+
+		card:Details({
+			id = details,
+			label = L["Totems"],
+			summary = function()
+				return PlacementSummary(Own)
+			end,
+		})
+		card:Checkbox(Field("totemsIndicator", SHOW, Own("enabled"), { details = details }))
+		card:Slider(Field("totemSize", L["Size"], Own("size"), {
+			details = details,
+			depends = "totemsIndicator",
+			min = Options.MIN_AURA_SIZE,
+			max = Options.MAX_AURA_SIZE,
+			step = 1,
+		}))
+		card:Slider(Field("totemSpacing", L["Spacing"], Own("spacing"), {
+			details = details,
+			depends = "totemsIndicator",
+			min = 0,
+			max = Options.MAX_AURA_SPACING,
+			step = 1,
+		}))
+		card:Dropdown(Field("totemGrowth", L["Growth Direction"], Own("growth"), {
+			details = details,
+			depends = "totemsIndicator",
+			options = ChoiceOptions(Options.AURA_GROWTHS, AURA_GROWTH_LABELS),
+		}))
+		DeclarePlacement(card, "totem", details, "totemsIndicator", Own)
+	end
+end
+
+---The fading card: the idle fade, then how strong it is in a row.
+---@param page table
+function FramePage:DeclareFading(page)
+	local key = self.spec.key
+	local card = page:Section(key .. "Fading", L["Fading"])
+	local details = key .. "FadeStrength"
+
+	local function Own(field)
+		return Options:Path(key, "fade.idle." .. field)
+	end
+
+	card:Checkbox(Field("idleFade", L["Idle Fade"], Own("enabled"), {
+		description = L["Fades the frame while you are out of combat, have no target and are not casting."],
+	}))
+	card:Details({
+		id = details,
+		label = L["Strength"],
+		depends = "idleFade",
+		summary = function()
+			return ("%d%%"):format(AUI.Profile:Get(Own("alpha")))
+		end,
+	})
+	card:Slider(Field("idleAlpha", L["Idle Fade Opacity"], Own("alpha"), {
+		details = details,
+		min = 0,
+		max = 100,
+		step = 5,
+		format = "percent",
+	}))
+end
+
+---The interaction card: the unit tooltip.
+---@param page table
+function FramePage:DeclareInteraction(page)
+	local key = self.spec.key
+	local card = page:Section(key .. "Interaction", L["Interaction"])
+
+	card:Checkbox(Field("tooltip", L["Tooltip"], Options:Path(key, "tooltip.enabled")))
+	card:Checkbox(Field("tooltipCombat", L["Hide Tooltip in Combat"], Options:Path(key, "tooltip.hideInCombat"), {
+		depends = "tooltip",
 	}))
 end
 
@@ -928,12 +1229,27 @@ function FramePage:Declare(window)
 	self:DeclareSize(page)
 	self:DeclareBars(page)
 	self:DeclareHealth(page)
+
+	if spec.portrait then
+		self:DeclarePortrait(page)
+	end
+
 	self:DeclareText(page)
 
 	if spec.auras then
 		self:DeclareAuraDisplay(page, "buffs")
 		self:DeclareAuraDisplay(page, "debuffs")
 	end
+
+	if spec.indicators then
+		self:DeclareIndicators(page)
+	end
+
+	if spec.idleFade then
+		self:DeclareFading(page)
+	end
+
+	self:DeclareInteraction(page)
 end
 
 for _, spec in ipairs(Options.FRAMES) do

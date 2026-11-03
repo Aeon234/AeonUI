@@ -11,6 +11,11 @@ local Schema = AUI.Schema
 ---@field overlays boolean? it shows shields, heal absorbs and heal prediction
 ---@field auras { buffs: table, debuffs: table }? its aura displays' defaults: `anchor`, `limit` and `filter`
 ---@field buffCategories boolean? its buffs offer the curated categories
+---@field portrait { side: string }? it can show a portrait, at this side by default
+---@field indicators table[]? its indicators: `name`, `enabled`, `size`, `anchor`, `placement`, `x` and `y`
+---@field threat boolean? it has a threat border
+---@field totems table? its totems' place until moved: `anchor`, `placement`, `x`, `y` and `growth`
+---@field idleFade boolean? it fades while the player is idle
 ---@field position { point: string, x: number, y: number } its place until moved
 
 ---The unit frames' settings: every frame's, and the shared ones they follow. Holds no frame code.
@@ -30,6 +35,17 @@ local Options = {
 				debuffs = { anchor = "belowLeft", limit = 10, filter = "all" },
 			},
 			buffCategories = true,
+			portrait = { side = "LEFT" },
+			indicators = {
+				{ name = "raid", enabled = true, size = 18, anchor = "CENTER", placement = "inside" },
+				{ name = "resting", enabled = true, size = 18, anchor = "TOPLEFT", placement = "inside", x = 3, y = -2 },
+				{ name = "combat", enabled = false, size = 16, anchor = "BOTTOMLEFT", placement = "inside" },
+				{ name = "leader", enabled = true, size = 16, anchor = "TOPLEFT", placement = "edge" },
+				{ name = "pvp", enabled = false, size = 24, anchor = "TOPRIGHT", placement = "outside" },
+			},
+			threat = true,
+			totems = { anchor = "BOTTOMRIGHT", placement = "outside", y = -4, growth = "left" },
+			idleFade = true,
 			position = { point = "CENTER", x = -330, y = -200 },
 		},
 	},
@@ -87,6 +103,18 @@ local Options = {
 	MIN_AURA_TEXT = 6,
 	MAX_AURA_TEXT = 32,
 	MAX_SPELL_LIST = 1000,
+	PORTRAIT_MODES = { "2d", "3d", "class" },
+	PORTRAIT_STYLES = { "attached", "detached" },
+	PORTRAIT_SIDES = { "LEFT", "RIGHT" },
+	MIN_PORTRAIT = 8,
+	MAX_PORTRAIT = 120,
+	MIN_INDICATOR = 6,
+	MAX_INDICATOR = 64,
+	MAX_THREAT_SIZE = 6,
+	RESTING_ICONS = {
+		"animated", "still", "classic", "portrait", "resting0", "resting1", "resting2", "resting3", "resting4", "resting5",
+		"resting6", "resting7",
+	},
 	-- The health colors a frame can change, as paths under its `health.`.
 	HEALTH_LOOK = {
 		"mode", "color", "stops.full", "stops.half", "stops.empty", "gradient", "gradientDirection", "gradientColor",
@@ -169,6 +197,10 @@ Schema:Choices("unitFrameDebuffFilter", Options.DEBUFF_FILTERS)
 Schema:Choices("unitFrameListCaster", Options.LIST_CASTERS)
 Schema:Choices("unitFrameAuraSort", Options.AURA_SORTS)
 Schema:Choices("unitFrameAuraCorner", Options.AURA_CORNERS)
+Schema:Choices("unitFramePortraitMode", Options.PORTRAIT_MODES)
+Schema:Choices("unitFrameRestingIcon", Options.RESTING_ICONS)
+Schema:Choices("unitFramePortraitStyle", Options.PORTRAIT_STYLES)
+Schema:Choices("unitFramePortraitSide", Options.PORTRAIT_SIDES)
 
 Schema:String(Options.ALL .. "bars.texture", "Solid", 64)
 Schema:Color(Options.ALL .. "bars.background", { r = 0.067, g = 0.067, b = 0.067, a = 1 })
@@ -264,6 +296,68 @@ local function DeclareAuraDisplay(key, kind, defaults)
 	end
 end
 
+---A frame's portrait: off until enabled, attached inside the frame at a side, or detached outside it.
+---@param key string
+---@param side string
+local function DeclarePortrait(key, side)
+	local function Path(field)
+		return Options:Path(key, "portrait." .. field)
+	end
+
+	Schema:Boolean(Path("enabled"), false)
+	Schema:Choice(Path("mode"), "unitFramePortraitMode", "2d")
+	Schema:Choice(Path("style"), "unitFramePortraitStyle", "attached")
+	Schema:Choice(Path("side"), "unitFramePortraitSide", side)
+	Schema:Number(Path("size"), 36, Options.MIN_PORTRAIT, Options.MAX_PORTRAIT, true)
+	Schema:Number(Path("x"), 0, -Options.MAX_OFFSET, Options.MAX_OFFSET)
+	Schema:Number(Path("y"), 0, -Options.MAX_OFFSET, Options.MAX_OFFSET)
+end
+
+---A frame's indicators, totems, fade and tooltip.
+---@param spec AUIFrameSpec
+local function DeclareIndicators(spec)
+	local key = spec.key
+
+	for _, indicator in ipairs(spec.indicators or {}) do
+		local path = Options:Path(key, "indicators." .. indicator.name .. ".")
+
+		Schema:Boolean(path .. "enabled", indicator.enabled)
+		Schema:Number(path .. "size", indicator.size, Options.MIN_INDICATOR, Options.MAX_INDICATOR, true)
+		Schema:Choice(path .. "anchor", "unitFrameAnchor", indicator.anchor)
+		Schema:Choice(path .. "placement", "unitFramePlacement", indicator.placement)
+		Schema:Number(path .. "x", indicator.x or 0, -Options.MAX_OFFSET, Options.MAX_OFFSET)
+		Schema:Number(path .. "y", indicator.y or 0, -Options.MAX_OFFSET, Options.MAX_OFFSET)
+
+		if indicator.name == "resting" then
+			Schema:Choice(path .. "icon", "unitFrameRestingIcon", "animated")
+		end
+	end
+
+	if spec.threat then
+		Schema:Boolean(Options:Path(key, "indicators.threat.enabled"), true)
+		Schema:Number(Options:Path(key, "indicators.threat.size"), 2, 1, Options.MAX_THREAT_SIZE, true)
+	end
+
+	if spec.totems then
+		Schema:Boolean(Options:Path(key, "totems.enabled"), true)
+		Schema:Number(Options:Path(key, "totems.size"), 22, Options.MIN_AURA_SIZE, Options.MAX_AURA_SIZE, true)
+		Schema:Number(Options:Path(key, "totems.spacing"), 2, 0, Options.MAX_AURA_SPACING, true)
+		Schema:Choice(Options:Path(key, "totems.anchor"), "unitFrameAnchor", spec.totems.anchor)
+		Schema:Choice(Options:Path(key, "totems.placement"), "unitFramePlacement", spec.totems.placement)
+		Schema:Choice(Options:Path(key, "totems.growth"), "unitFrameAuraGrowth", spec.totems.growth)
+		Schema:Number(Options:Path(key, "totems.x"), spec.totems.x or 0, -Options.MAX_OFFSET, Options.MAX_OFFSET)
+		Schema:Number(Options:Path(key, "totems.y"), spec.totems.y or 0, -Options.MAX_OFFSET, Options.MAX_OFFSET)
+	end
+
+	if spec.idleFade then
+		Schema:Boolean(Options:Path(key, "fade.idle.enabled"), true)
+		Schema:Number(Options:Path(key, "fade.idle.alpha"), 50, 0, 100, true)
+	end
+
+	Schema:Boolean(Options:Path(key, "tooltip.enabled"), true)
+	Schema:Boolean(Options:Path(key, "tooltip.hideInCombat"), false)
+end
+
 ---A frame's shields, heal absorbs and heal prediction.
 ---@param key string
 local function DeclareOverlays(key)
@@ -347,6 +441,12 @@ local function DeclareFrame(spec, width, height, status, slots)
 		DeclareAuraDisplay(key, "buffs", spec.auras.buffs)
 		DeclareAuraDisplay(key, "debuffs", spec.auras.debuffs)
 	end
+
+	if spec.portrait then
+		DeclarePortrait(key, spec.portrait.side)
+	end
+
+	DeclareIndicators(spec)
 
 	if spec.buffCategories then
 		for _, category in ipairs(Options.BUFF_CATEGORIES) do

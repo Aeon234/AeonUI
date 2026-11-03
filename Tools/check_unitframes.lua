@@ -102,8 +102,17 @@ METHODS.Region = {
 	SetAlpha = function(self, alpha)
 		self.alpha = alpha
 	end,
+	ForceUpdate = function() end,
+}
+METHODS.Cooldown = {
+	SetReverse = function() end,
+	SetDrawEdge = function() end,
 }
 METHODS.Texture = {
+	ForceUpdate = function() end,
+	SetAtlas = function() end,
+	SetTexCoord = function() end,
+	SetDesaturated = function() end,
 	SetTexture = function(self, file)
 		self.file = file
 	end,
@@ -170,6 +179,17 @@ METHODS.StatusBar = {
 	end,
 }
 METHODS.Button = {
+	IsElementEnabled = function(self, element)
+		return self.elementsOn ~= nil and self.elementsOn[element] == true
+	end,
+	EnableElement = function(self, element)
+		self.elementsOn = self.elementsOn or {}
+		self.elementsOn[element] = true
+	end,
+	DisableElement = function(self, element)
+		self.elementsOn = self.elementsOn or {}
+		self.elementsOn[element] = false
+	end,
 	-- oUF's aura element: every method records its last call.
 	CreateAuras = function(self)
 		self.auraElements = (self.auraElements or 0) + 1
@@ -201,11 +221,28 @@ METHODS.Button = {
 }
 
 Enum = {
+	LuaCurveType = { Step = 1 },
 	UnitDamageAbsorbClampMode = { MaximumHealth = 2 },
 	UnitHealAbsorbClampMode = { MaximumHealth = 1 },
 	UnitHealAbsorbMode = { ReducedByIncomingHeals = 0 },
 	UnitIncomingHealClampMode = { MissingHealth = 0 },
 }
+
+C_CurveUtil = {
+	CreateCurve = function()
+		return { SetType = function() end, ClearPoints = function() end, AddPoint = function() end }
+	end,
+}
+
+C_Texture = {
+	GetAtlasInfo = function() end,
+}
+
+function UnitCastingInfo() end
+
+function UnitChannelInfo() end
+
+function UnitExists() end
 
 AnchorUtil = { FlowLayoutAxis = { Horizontal = 0 } }
 AuraContainerSortMethod = { AuraInstanceIDOnly = 8 }
@@ -216,6 +253,7 @@ local PARENTS = {
 	FontString = { "Region" },
 	Frame = { "Region" },
 	StatusBar = { "Frame", "Region" },
+	Cooldown = { "Frame", "Region" },
 	Button = { "Frame", "Region" },
 }
 
@@ -237,7 +275,7 @@ function New(kind, parent)
 			end
 
 			-- Lowercase names are the stub's own recorded fields; anything else is a method the type lacks.
-			if tostring(method):match("^[%l_]") then
+			if tostring(method):match("^[%l_]") or method == "Portrait" then
 				return nil
 			end
 
@@ -307,6 +345,15 @@ function LibStub()
 		RegisterCallback = function(_, event, method)
 			mediaCallback = event .. " " .. method
 		end,
+		CreateSpring = function(_, value, onUpdate)
+			return {
+				value = value,
+				To = function(self, target)
+					self.value = target
+					onUpdate(target)
+				end,
+			}
+		end,
 	}
 end
 
@@ -350,18 +397,26 @@ end
 
 local registered = {}
 
+-- What the frames' owner follows; the idle fade has its own check.
 AUI.Events = {
-	Register = function(_, event, _, handler)
-		registered[event] = handler
+	Register = function(_, event, owner, handler)
+		if owner == AUI.Frames then
+			registered[event] = handler
+		end
 	end,
+	UnregisterAll = function() end,
 }
 AUI.Callbacks = {
-	Register = function(_, channel, _, handler)
-		registered[channel] = handler
+	Register = function(_, channel, owner, handler)
+		if owner == AUI.Frames then
+			registered[channel] = handler
+		end
 	end,
 }
 AUI.Border = {
 	ART_COLOR = { r = 0.5, g = 0.4, b = 0.3 },
+	CellDividerWidth = function() end,
+	StyleCellDivider = function() end,
 	Create = function()
 		return {
 			SetFrameLevel = function() end,
@@ -373,8 +428,9 @@ AUI.Border = {
 				self.color = look.color
 				self.lit = false
 			end,
-			SetColor = function(self, color)
+			SetColor = function(self, color, force)
 				self.color = color
+				self.forced = force
 			end,
 			SetLit = function(self, lit)
 				self.lit = lit
@@ -444,6 +500,9 @@ Load("AeonUI_UnitFrames/Frames/HealthColor.lua")
 Load("AeonUI_UnitFrames/Frames/Overlays.lua")
 Load("AeonUI_UnitFrames/Frames/AuraCategories.lua")
 Load("AeonUI_UnitFrames/Frames/Auras.lua")
+Load("AeonUI_UnitFrames/Frames/Portrait.lua")
+Load("AeonUI_UnitFrames/Frames/Indicators.lua")
+Load("AeonUI_UnitFrames/Frames/Fading.lua")
 Load("AeonUI_UnitFrames/Frames/UnitFrame.lua")
 Load("AeonUI_UnitFrames/Frames/Frames.lua")
 
@@ -560,6 +619,12 @@ Equal("each shown", frame.Overlays.absorb.shown, true)
 Equal("the overlays get their settings", frame.Overlays.settings.absorb.position, "attach")
 Equal("no glow made while off", frame.Overlays.glow, nil)
 Equal("a display for buffs and for debuffs", frame.auraElements, 2)
+Equal("its portrait made and hidden", frame.PortraitWidgets.holder.shown ~= true, true)
+Equal("its bar fills the frame", frame.Bar.point[4], 0)
+Equal("its raid marker runs", frame.elementsOn.RaidTargetIndicator, true)
+Equal("combat waits for its switch", frame.elementsOn.CombatIndicator, false)
+Equal("its totems run", frame.elementsOn.Totems, true)
+Equal("idle at half", frame.idleFade.spring.value, 0.5)
 Equal("its debuffs hold their filter", frame.AuraDisplays.debuffs.element.filter, "HARMFUL")
 Equal("disabled until shown", frame.AuraDisplays.buffs.element.last.SetEnabled[1], false)
 Equal("placed against the frame", frame.AuraDisplays.buffs.element.last.SetFlowLayoutAnchorPoint[1], "BOTTOMLEFT")
@@ -589,6 +654,15 @@ Equal("a shared health color reaches the frame", frame.healthColors.dark, true)
 Schema:Write(config, Path("overlays.absorb.enabled"), false)
 registered.Profile(Frames, Path("overlays.absorb.enabled"))
 Equal("a frame's shields turn off", frame.Overlays.absorb.shown, false)
+Schema:Write(config, Path("portrait.enabled"), true)
+Schema:Write(config, Path("portrait.side"), "RIGHT")
+registered.Profile(Frames, Path("portrait.enabled"))
+Equal("an attached portrait narrows the bar", frame.Bar.point[4], -36)
+Equal("the portrait runs", frame.elementsOn.Portrait, true)
+Schema:Write(config, Path("portrait.enabled"), false)
+Schema:Write(config, Path("portrait.side"), nil)
+registered.Profile(Frames, Path("portrait.enabled"))
+Equal("and gives the room back", frame.Bar.point[4], 0)
 local notInCombat = InCombatLockdown
 InCombatLockdown = function()
 	return true
@@ -610,6 +684,13 @@ Schema:Write(config, Path("health.dark"), nil)
 Schema:Write(config, Options.ALL .. "health.dark", nil)
 registered.Profile(Frames, Options.ALL .. "health.dark")
 
+frame.threatColor = { r = 0.3 }
+frame:ShowHovered(true)
+Equal("threat beats hover", frame.Border.color.r, 0.3)
+Equal("on art of any color", frame.Border.forced, true)
+frame.threatColor = nil
+frame:ShowHovered(false)
+Equal("and hands the border back", frame.Border.forced, nil)
 frame:OnEnter()
 Equal("hovering takes the Hover Color", frame.Border.color.r, 1)
 Equal("a line is not lit", frame.Border.lit, false)
