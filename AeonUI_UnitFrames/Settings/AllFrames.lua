@@ -10,6 +10,7 @@ local Options = AUI.UnitFrameOptions
 ---@field HEALTH_MODE_LABELS table<string, string>
 ---@field HEALTH_BACKGROUND_LABELS table<string, string>
 ---@field ORIENTATION_LABELS table<string, string>
+---@field CORNER_LABELS table<string, string>
 local SettingsAllFrames = {
 	PRECISION_LABELS = {
 		default = L["Short"],
@@ -29,6 +30,13 @@ local SettingsAllFrames = {
 	ORIENTATION_LABELS = {
 		HORIZONTAL = L["Horizontal"],
 		VERTICAL = L["Vertical"],
+	},
+	CORNER_LABELS = {
+		BOTTOMRIGHT = L["Bottom Right"],
+		BOTTOMLEFT = L["Bottom Left"],
+		TOPRIGHT = L["Top Right"],
+		TOPLEFT = L["Top Left"],
+		CENTER = L["Center"],
 	},
 }
 AUI.SettingsAllFrames = SettingsAllFrames
@@ -370,6 +378,47 @@ function SettingsAllFrames:Declare(window)
 			picker = "texture",
 		}))
 	end
+
+	local auras = page:Section("allFramesAuras", AURAS)
+
+	local function AuraRead(field)
+		return AUI.Profile:Get(Options.ALL .. "auras." .. field)
+	end
+
+	auras:Checkbox(Field("auraSwipe", L["Cooldown Swipe"], "auras.swipe"))
+	auras:Checkbox(Field("auraBorder", L["Aura Borders"], "auras.border"))
+	auras:Details({
+		id = "allFramesAuraDuration",
+		label = L["Duration Text"],
+		summary = function()
+			return AuraRead("duration") and L["On"] or OFF
+		end,
+	})
+	auras:Checkbox(Field("auraDuration", L["Show Duration"], "auras.duration", { details = "allFramesAuraDuration" }))
+	auras:Slider(Field("auraDurationSize", L["Duration Size"], "auras.durationSize", {
+		details = "allFramesAuraDuration",
+		depends = "auraDuration",
+		min = Options.MIN_AURA_TEXT,
+		max = Options.MAX_AURA_TEXT,
+		step = 1,
+	}))
+	auras:Details({
+		id = "allFramesAuraStack",
+		label = L["Stack Text"],
+		summary = function()
+			return self.CORNER_LABELS[AuraRead("countCorner")]
+		end,
+	})
+	auras:Dropdown(Field("auraCountCorner", L["Stack Position"], "auras.countCorner", {
+		details = "allFramesAuraStack",
+		options = ChoiceOptions(Options.AURA_CORNERS, self.CORNER_LABELS),
+	}))
+	auras:Slider(Field("auraCountSize", L["Stack Size"], "auras.countSize", {
+		details = "allFramesAuraStack",
+		min = Options.MIN_AURA_TEXT,
+		max = Options.MAX_AURA_TEXT,
+		step = 1,
+	}))
 
 	local numbers = page:Section("allFramesNumbers", L["Numbers"])
 	local precision = {}

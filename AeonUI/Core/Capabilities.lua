@@ -12,6 +12,7 @@ AUI.Capabilities = Capabilities
 ---@field gameMenu boolean the game menu lays out pooled buttons from a template it names (`GameMenuFrame.buttonPool`)
 ---@field minimapConfig boolean the minimap cluster re-applies its own mask when rotation changes (Forever)
 ---@field foreverArt boolean the client draws Forever's art for shared atlases, which places some differently
+---@field retailSpells boolean the client is Retail, whose classes' spells the current buff categories list
 ---@field dielCycle boolean the client reports day and night itself (`C_DateAndTime.IsDayTime`, Forever)
 ---@field craftingOrders boolean the minimap shows personal crafting orders (Retail)
 ---@field worldMapMarkers boolean the world map takes data providers and AeonUI has marker data for this world (Forever)
@@ -89,6 +90,7 @@ function Capabilities:Resolve()
 		and GameMenuFrame.Layout ~= nil
 	can.minimapConfig = MinimapCluster ~= nil and MinimapCluster.UpdateMinimapConfig ~= nil
 	can.foreverArt = WOW_PROJECT_ID == WOW_PROJECT_CAMELOT
+	can.retailSpells = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE
 	can.dielCycle = C_DateAndTime ~= nil and C_DateAndTime.IsDayTime ~= nil
 	can.craftingOrders = MinimapCluster ~= nil and MinimapCluster.IndicatorFrame ~= nil
 		and MinimapCluster.IndicatorFrame.CraftingOrderFrame ~= nil and C_CraftingOrders ~= nil

@@ -77,6 +77,82 @@ local OVERSHIELD_LABELS = {
 	fromLeft = L["From Left"],
 }
 
+local AURA_ANCHOR_LABELS = {
+	aboveLeft = L["Above Left"],
+	aboveRight = L["Above Right"],
+	belowLeft = L["Below Left"],
+	belowRight = L["Below Right"],
+	left = L["Left Side"],
+	right = L["Right Side"],
+}
+
+local AURA_GROWTH_LABELS = {
+	right = L["Right"],
+	left = L["Left"],
+}
+
+-- Category names, shared by the filter modes and Hide Categories.
+local AURA_CATEGORY_LABELS = {
+	important = L["Important"],
+	bigDefensive = L["Big Defensive"],
+	externalDefensive = L["External Defensive"],
+	raidInCombat = L["Raid In Combat"],
+	crowdControl = L["Crowd Control"],
+	dispellableByYou = L["Dispellable by You"],
+	anyDispellable = L["Any Dispellable"],
+	yours = L["Yours"],
+	notYours = L["Not Yours"],
+	boss = BOSS,
+	role = ROLE,
+	stealable = L["Stealable"],
+	classCanApply = L["Your Class Can Apply"],
+	magic = L["Magic"],
+	curse = L["Curse"],
+	disease = L["Disease"],
+	poison = L["Poison"],
+}
+
+local AURA_FILTER_LABELS = {
+	all = ALL,
+	own = L["Yours"],
+	importantOwn = L["Important and Yours"],
+	hasDuration = L["Has Duration"],
+	tracked = L["Tracked Spells"],
+	categories = L["Categories"],
+}
+
+for value, label in pairs(AURA_CATEGORY_LABELS) do
+	AURA_FILTER_LABELS[value] = AURA_FILTER_LABELS[value] or label
+end
+
+local BUFF_CATEGORY_LABELS = {
+	defensives = L["Defensives"],
+	activeMitigation = L["Active Mitigation"],
+	raidCooldowns = L["Raid Cooldowns"],
+	externals = L["Externals"],
+	coreHealing = L["Core Healing"],
+	lesserHealing = L["Lesser Healing"],
+	support = L["Support"],
+	offensive = L["Offensive Cooldowns"],
+	movement = L["Movement"],
+	utility = L["Utility"],
+	consumables = L["Consumables"],
+}
+
+local LIST_CASTER_LABELS = {
+	anyone = L["Anyone's"],
+	yours = L["Yours"],
+}
+
+local AURA_SORT_LABELS = {
+	stable = L["Stable Order"],
+	shortest = L["Shortest First"],
+	yours = L["Yours First"],
+	blizzard = L["Blizzard Debuff Order"],
+	importance = L["Importance"],
+	name = L["Name"],
+}
+
 local COLOR_MODE_LABELS = {
 	custom = L["Custom"],
 	class = L["Class / Reaction"],
@@ -414,6 +490,236 @@ function FramePage:DeclareOverlays(card)
 	}))
 end
 
+---One aura display's card: its switch, size and limits, then its layout, filter, text and interaction in rows.
+---@param page table
+---@param kind "buffs"|"debuffs"
+function FramePage:DeclareAuraDisplay(page, kind)
+	local key = self.spec.key
+	local buffs = kind == "buffs"
+	local prefix = buffs and "buff" or "debuff"
+	local show = prefix .. "Enabled"
+	local card = page:Section(key .. kind, buffs and L["Buffs"] or L["Debuffs"])
+
+	local function Own(field)
+		return Options:Path(key, kind .. "." .. field)
+	end
+
+	local function Read(field)
+		return AUI.Profile:Get(Own(field))
+	end
+
+	local function On(extra)
+		extra.depends = extra.depends or show
+
+		return extra
+	end
+
+	local function Detail(name, label, summary)
+		local id = key .. kind .. name
+
+		card:Details(On({ id = id, label = label, summary = summary }))
+
+		return id
+	end
+
+	card:Toggle(Field(show, buffs and L["Show Buffs"] or L["Show Debuffs"], Own("enabled")))
+	card:Slider(Field(prefix .. "Size", L["Icon Size"], Own("size"), On({
+		min = Options.MIN_AURA_SIZE,
+		max = Options.MAX_AURA_SIZE,
+		step = 1,
+	})))
+	card:Slider(Field(prefix .. "Limit", L["Limit"], Own("limit"), On({ min = 1, max = Options.MAX_AURA_LIMIT, step = 1 })))
+	card:Slider(Field(prefix .. "PerRow", L["Icons Per Row"], Own("perRow"), On({
+		description = L["0 fits as many icons as the frame is wide."],
+		min = 0,
+		max = Options.MAX_AURA_LIMIT,
+		step = 1,
+	})))
+
+	local layout = Detail("Layout", L["Layout"], function()
+		return AURA_ANCHOR_LABELS[Read("anchor")]
+	end)
+
+	card:Dropdown(Field(prefix .. "Anchor", L["Position"], Own("anchor"), On({
+		details = layout,
+		options = ChoiceOptions(Options.AURA_ANCHORS, AURA_ANCHOR_LABELS),
+	})))
+	card:Dropdown(Field(prefix .. "Growth", L["Growth Direction"], Own("growth"), On({
+		details = layout,
+		options = ChoiceOptions(Options.AURA_GROWTHS, AURA_GROWTH_LABELS),
+	})))
+	card:Slider(Field(prefix .. "Spacing", L["Spacing"], Own("spacing"), On({
+		details = layout,
+		min = 0,
+		max = Options.MAX_AURA_SPACING,
+		step = 1,
+	})))
+	card:Slider(Field(prefix .. "X", L["X Offset"], Own("x"), On({
+		details = layout,
+		min = -Options.MAX_OFFSET,
+		max = Options.MAX_OFFSET,
+		step = 1,
+	})))
+	card:Slider(Field(prefix .. "Y", L["Y Offset"], Own("y"), On({
+		details = layout,
+		min = -Options.MAX_OFFSET,
+		max = Options.MAX_OFFSET,
+		step = 1,
+	})))
+
+	local filter = Detail("Filter", FILTER, function()
+		return AURA_FILTER_LABELS[Read("filter")]
+	end)
+	local filters = {}
+
+	for _, value in ipairs(buffs and Options.BUFF_FILTERS or Options.DEBUFF_FILTERS) do
+		if value ~= "categories" or self.spec.buffCategories then
+			filters[#filters + 1] = { value = value, text = AURA_FILTER_LABELS[value] }
+		end
+	end
+
+	card:Dropdown(Field(prefix .. "Filter", FILTER, Own("filter"), On({ details = filter, options = filters })))
+
+	if buffs and self.spec.buffCategories then
+		local available, chosen = {}, {}
+
+		for _, category in ipairs(AUI.AuraCategories:Available()) do
+			available[#available + 1] = category
+			chosen[category] = true
+		end
+
+		card:Dropdown(On({
+			id = prefix .. "Categories",
+			label = L["Categories"],
+			path = Own("categories"),
+			default = chosen,
+			details = filter,
+			multiple = true,
+			options = ChoiceOptions(available, BUFF_CATEGORY_LABELS),
+			show = function()
+				return Read("filter") == "categories"
+			end,
+		}))
+	end
+
+	local hides = buffs and Options.BUFF_HIDE or Options.DEBUFF_HIDE
+	local hidden = {}
+
+	for _, category in ipairs(hides) do
+		hidden[category] = false
+	end
+
+	card:Dropdown(On({
+		id = prefix .. "Hide",
+		label = L["Hide Categories"],
+		path = Own("hide"),
+		default = hidden,
+		details = filter,
+		multiple = true,
+		options = ChoiceOptions(hides, AURA_CATEGORY_LABELS),
+	}))
+
+	local function CheckList(text)
+		return AUI.Auras:CheckSpellList(text)
+	end
+
+	local function Tracked()
+		return Read("filter") == "tracked"
+	end
+
+	card:TextInput(Field(prefix .. "Include", L["Tracked Spells"], Own("include"), On({
+		details = filter,
+		allowEmpty = true,
+		maxLetters = Options.MAX_SPELL_LIST,
+		validate = CheckList,
+		description = L["Spell IDs separated by commas. Applies only to buffs on you, your group and your pets, and to debuffs on enemies."],
+		show = Tracked,
+	})))
+	card:Dropdown(Field(prefix .. "ListCaster", L["Tracked Caster"], Own("listCaster"), On({
+		details = filter,
+		options = ChoiceOptions(Options.LIST_CASTERS, LIST_CASTER_LABELS),
+		show = Tracked,
+	})))
+	card:TextInput(Field(prefix .. "Exclude", L["Never Show"], Own("exclude"), On({
+		details = filter,
+		allowEmpty = true,
+		maxLetters = Options.MAX_SPELL_LIST,
+		validate = CheckList,
+		description = L["Spell IDs separated by commas. Applies only to buffs on you, your group and your pets, and to debuffs on enemies."],
+	})))
+	card:Dropdown(Field(prefix .. "Sort", L["Sort"], Own("sort"), On({
+		details = filter,
+		options = ChoiceOptions(Options.AURA_SORTS, AURA_SORT_LABELS),
+	})))
+	card:Checkbox(Field(prefix .. "Reverse", L["Reverse Sort"], Own("reverse"), On({ details = filter })))
+
+	local text = Detail("Text", L["Text and Borders"], function()
+		local paths = {}
+
+		for _, field in ipairs(Options.AURA_LOOK) do
+			paths[#paths + 1] = Own(field)
+		end
+
+		return InheritSummary(paths)
+	end)
+
+	local function Look(id, label, field, extra)
+		extra.details = text
+
+		return Inherited(prefix .. id, label, Own(field), Options.ALL .. "auras." .. field, L["All Frames"], On(extra))
+	end
+
+	card:Checkbox(Look("Swipe", L["Cooldown Swipe"], "swipe", {}))
+	card:Checkbox(Look("Border", buffs and L["Stealable Glow"] or L["Dispel Type Border"], "border", {}))
+	card:Checkbox(Look("Duration", L["Show Duration"], "duration", {}))
+
+	local duration = prefix .. "Duration"
+
+	card:Slider(Look("DurationSize", L["Duration Size"], "durationSize", {
+		depends = duration,
+		min = Options.MIN_AURA_TEXT,
+		max = Options.MAX_AURA_TEXT,
+		step = 1,
+	}))
+
+	local function Shift(id, label, field, depends)
+		card:Slider(Field(prefix .. id, label, Own(field), On({
+			details = text,
+			depends = depends,
+			min = -Options.MAX_AURA_SHIFT,
+			max = Options.MAX_AURA_SHIFT,
+			step = 1,
+		})))
+	end
+
+	Shift("DurationX", L["Duration X"], "durationX", duration)
+	Shift("DurationY", L["Duration Y"], "durationY", duration)
+	card:Dropdown(Look("CountCorner", L["Stack Position"], "countCorner", {
+		options = ChoiceOptions(Options.AURA_CORNERS, AUI.SettingsAllFrames.CORNER_LABELS),
+	}))
+	card:Slider(Look("CountSize", L["Stack Size"], "countSize", {
+		min = Options.MIN_AURA_TEXT,
+		max = Options.MAX_AURA_TEXT,
+		step = 1,
+	}))
+	Shift("CountX", L["Stack X"], "countX")
+	Shift("CountY", L["Stack Y"], "countY")
+
+	local interaction = Detail("Interaction", L["Interaction"], function()
+		if Read("clicks") then
+			return L["Clicks"]
+		end
+
+		return Read("tooltips") and L["Tooltips"] or NONE
+	end)
+
+	card:Checkbox(Field(prefix .. "Tooltips", L["Tooltips"], Own("tooltips"), On({ details = interaction })))
+	card:Checkbox(Field(prefix .. "Clicks", L["Clicks"], Own("clicks"), On({
+		details = interaction,
+		description = buffs and key == "player" and L["On, right-click cancels the buff."] or nil,
+	})))
+end
+
 ---A slot's row, opening to what the slot shows and where.
 ---@param card table
 ---@param index integer
@@ -620,6 +926,11 @@ function FramePage:Declare(window)
 	self:DeclareBars(page)
 	self:DeclareHealth(page)
 	self:DeclareText(page)
+
+	if spec.auras then
+		self:DeclareAuraDisplay(page, "buffs")
+		self:DeclareAuraDisplay(page, "debuffs")
+	end
 end
 
 for _, spec in ipairs(Options.FRAMES) do

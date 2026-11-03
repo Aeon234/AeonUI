@@ -18,6 +18,7 @@ local NO_FILL = { r = 0, g = 0, b = 0, a = 0 }
 ---@field Border AUIBorder
 ---@field TextSlots FontString[]
 ---@field Overlays AUIOverlayWidgets?
+---@field AuraDisplays table<string, AUIAuraWidgets>? by kind
 local UnitFrameMixin = {}
 
 ---Builds the oUF style for AeonUI's frames, and the bars the settings previews share with them.
@@ -210,6 +211,13 @@ function UnitFrame.Style(frame, unit)
 		frame.Overlays = overlays
 	end
 
+	if spec.auras then
+		frame.AuraDisplays = {
+			buffs = AUI.Auras:Create(frame, "buffs"),
+			debuffs = AUI.Auras:Create(frame, "debuffs"),
+		}
+	end
+
 	frame:RegisterForClicks("AnyUp")
 	frame:SetScript("OnEnter", frame.OnEnter)
 	frame:SetScript("OnLeave", frame.OnLeave)
@@ -235,7 +243,8 @@ function UnitFrameMixin:Position()
 	return AUI.Profile:Get(Options:Path(self.key, "position")) or self.spec.position
 end
 
----Size and position. These touch a secure frame, so they run only out of combat.
+---Size, position and what the aura containers hold. These run only out of combat: the first two touch a secure frame,
+---and aura access can be restricted in it.
 function UnitFrameMixin:ApplyLayout()
 	local Profile = AUI.Profile
 	local position = self:Position()
@@ -244,6 +253,10 @@ function UnitFrameMixin:ApplyLayout()
 	self:ClearAllPoints()
 	self:SetPoint(position.point, UIParent, position.point, position.x, position.y)
 	self.Border:Layout()
+
+	for kind, display in pairs(self.AuraDisplays or {}) do
+		AUI.Auras:Configure(display, AUI.Auras:Resolve(self.key, kind))
+	end
 end
 
 ---Bar look, health colors, fill direction and text. None is protected, so this also runs in combat.
@@ -263,6 +276,15 @@ function UnitFrameMixin:ApplyAppearance()
 
 	if self.Overlays then
 		AUI.Overlays:Apply(self.Overlays, AUI.Overlays:Resolve(self.key), reverse, self.Health)
+	end
+
+	if self.AuraDisplays then
+		local above, below = AUI.Auras:Clearance(self.key)
+		local width = AUI.Profile:Get(Options:Path(self.key, "width"))
+
+		for kind, display in pairs(self.AuraDisplays) do
+			AUI.Auras:Place(display, AUI.Auras:Resolve(self.key, kind), width, above, below)
+		end
 	end
 
 	-- Redraws the bar with the new settings.

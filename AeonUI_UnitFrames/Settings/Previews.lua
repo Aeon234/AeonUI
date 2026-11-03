@@ -14,6 +14,35 @@ local OVERLAY_SAMPLES = {
 	[OVERFLOW] = { health = 0.3, absorb = 0.9, healAbsorb = 0.5, healing = 0 },
 }
 local NO_OVERLAYS = { health = 0, absorb = 0, healAbsorb = 0, healing = 0 }
+local AURA_ICONS = {
+	"Interface\\Icons\\Spell_Nature_Rejuvenation",
+	"Interface\\Icons\\Spell_Holy_PowerWordShield",
+	"Interface\\Icons\\Spell_Shadow_ShadowWordPain",
+	"Interface\\Icons\\Spell_Fire_Immolation",
+	"Interface\\Icons\\Spell_Frost_FrostNova",
+	"Interface\\Icons\\Ability_Rogue_Rupture",
+}
+-- The sample debuffs' border colors.
+local DISPEL_COLORS = {
+	{ r = 0.2, g = 0.6, b = 1 },
+	{ r = 0.6, g = 0, b = 1 },
+	{ r = 0, g = 0.6, b = 0 },
+	{ r = 0.6, g = 0.4, b = 0 },
+}
+-- Where a sample icon's corner sits, as a rectangle against its own point (y up).
+local CORNER_RECTS = {
+	BOTTOMLEFT = { 0, 1, 0, 1 },
+	TOPLEFT = { 0, 1, -1, 0 },
+	TOPRIGHT = { -1, 0, -1, 0 },
+	BOTTOMRIGHT = { -1, 0, 0, 1 },
+}
+-- Each frame point against the frame's top left (y up), as shares of its width and height.
+local FRAME_POINTS = {
+	TOPLEFT = { 0, 0 },
+	TOPRIGHT = { 1, 0 },
+	BOTTOMLEFT = { 0, -1 },
+	BOTTOMRIGHT = { 1, -1 },
+}
 -- The reaction level a sample without a class takes.
 local FRIENDLY = 5
 
@@ -26,6 +55,7 @@ local FRIENDLY = 5
 ---@field border AUIBorder
 ---@field TextSlots FontString[]
 ---@field overlays AUIOverlayWidgets?
+---@field auraIcons table<string, table[]> the sample icons made so far, by kind
 local FramePreview = {}
 FramePreview.__index = FramePreview
 FramePreview.STATES = { FULL, DAMAGED, DEAD, HOVER }
@@ -35,7 +65,7 @@ AUI.FramePreview = FramePreview
 ---@param spec AUIFrameSpec
 ---@return AUIFramePreview preview
 function FramePreview:New(spec)
-	return setmetatable({ spec = spec }, self)
+	return setmetatable({ spec = spec, auraIcons = { buffs = {}, debuffs = {} } }, self)
 end
 
 ---@param canvas Frame
@@ -77,6 +107,113 @@ local function Sample(share, dead, overlays)
 		level = level,
 		classColor = class and RAID_CLASS_COLORS[class],
 	}
+end
+
+---How far the frame's aura displays reach past its edges at their limits.
+---@param width number
+---@param height number
+---@return number above
+---@return number below
+---@return number left
+---@return number right
+function FramePreview:AuraSpace(width, height)
+	local above, below, left, right = 0, 0, 0, 0
+	local key = self.spec.key
+	local clearAbove, clearBelow = AUI.Auras:Clearance(key)
+
+	for _, kind in ipairs({ "buffs", "debuffs" }) do
+		local settings = AUI.Auras:Resolve(key, kind)
+
+		if settings.enabled then
+			local placement = AUI.Auras:Placement(settings, width, clearAbove, clearBelow)
+			local frame = FRAME_POINTS[placement.relative] or FRAME_POINTS.TOPLEFT
+			local corner = CORNER_RECTS[placement.point] or CORNER_RECTS.TOPLEFT
+			local size = settings.size
+
+			for _, offset in ipairs(AUI.Auras:IconOffsets(settings, placement, settings.limit)) do
+				local x = frame[1] * width + placement.x + offset.x
+				local y = frame[2] * height + placement.y + offset.y
+
+				left = math.max(left, -(x + corner[1] * size))
+				right = math.max(right, x + corner[2] * size - width)
+				above = math.max(above, y + corner[4] * size)
+				below = math.max(below, -height - (y + corner[3] * size))
+			end
+		end
+	end
+
+	return above, below, left, right
+end
+
+---Draws the aura displays at their limits, with the rules the client's containers follow.
+---@param width number
+---@param preview table the library's preview
+function FramePreview:DrawAuras(width, preview)
+	local key = self.spec.key
+	local clearAbove, clearBelow = AUI.Auras:Clearance(key)
+
+	for kind, icons in pairs(self.auraIcons) do
+		local settings = AUI.Auras:Resolve(key, kind)
+		local count = 0
+
+		if settings.enabled then
+			local placement = AUI.Auras:Placement(settings, width, clearAbove, clearBelow)
+			local font = AUI.Media:Font(settings.font)
+			local flags = AUI.Media:FontFlags(settings.outline)
+
+			count = settings.limit
+
+			for index, offset in ipairs(AUI.Auras:IconOffsets(settings, placement, count)) do
+				local icon = icons[index]
+
+				if not icon then
+					local frame = CreateFrame("Frame", nil, self.holder)
+
+					icon = {
+						frame = frame,
+						texture = frame:CreateTexture(nil, "ARTWORK"),
+						border = frame:CreateTexture(nil, "BACKGROUND"),
+						count = frame:CreateFontString(nil, "OVERLAY"),
+						time = frame:CreateFontString(nil, "OVERLAY"),
+					}
+					icon.texture:SetAllPoints()
+					icon.texture:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+					-- The border is a colored backing one unit wider than the icon on each side.
+					icon.border:SetPoint("TOPLEFT", -1, 1)
+					icon.border:SetPoint("BOTTOMRIGHT", 1, -1)
+					icons[index] = icon
+				end
+
+				local frame = icon.frame
+				local dispel = DISPEL_COLORS[(index - 1) % #DISPEL_COLORS + 1]
+
+				frame:SetSize(settings.size, settings.size)
+				frame:ClearAllPoints()
+				frame:SetPoint(placement.point, self.holder, placement.relative, placement.x + offset.x,
+					placement.y + offset.y)
+				icon.texture:SetTexture(AURA_ICONS[(index - 1) % #AURA_ICONS + 1])
+				icon.border:SetColorTexture(dispel.r, dispel.g, dispel.b, 1)
+				icon.border:SetShown(kind == "debuffs" and settings.border)
+				icon.count:SetFont(font, settings.countSize, flags)
+				icon.count:ClearAllPoints()
+				icon.count:SetPoint(settings.countCorner, frame, settings.countCorner, settings.countX, settings.countY)
+				icon.count:SetText(index % 3 == 0 and "2" or "")
+				icon.time:SetFont(font, settings.durationSize, flags)
+				icon.time:ClearAllPoints()
+				icon.time:SetPoint("CENTER", frame, "CENTER", settings.durationX, settings.durationY)
+				icon.time:SetText(settings.duration and tostring(4 * index) or "")
+				frame:Show()
+
+				if index == 1 then
+					preview:Part(frame, kind == "buffs" and "buffEnabled" or "debuffEnabled")
+				end
+			end
+		end
+
+		for index = count + 1, #icons do
+			icons[index].frame:Hide()
+		end
+	end
 end
 
 ---@param state string? a state's label
@@ -137,5 +274,16 @@ function FramePreview:Refresh(state, preview)
 		end
 	end
 
-	return width, height
+	if not self.spec.auras then
+		return width, height
+	end
+
+	self:DrawAuras(width, preview)
+
+	local above, below, left, right = self:AuraSpace(width, height)
+
+	self.holder:ClearAllPoints()
+	self.holder:SetPoint("CENTER", (left - right) / 2, (below - above) / 2)
+
+	return width + left + right, height + above + below
 end

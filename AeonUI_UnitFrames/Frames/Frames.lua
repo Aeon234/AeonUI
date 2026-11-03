@@ -2,8 +2,8 @@ local AUI = select(2, ...)
 
 local Options = AUI.UnitFrameOptions
 
--- Settings that change a secure frame, which waits for combat to end.
-local LAYOUT = { width = true, height = true, position = true }
+-- Settings that change a secure frame or an aura container, which wait for combat to end.
+local LAYOUT = { width = true, height = true, position = true, text = true, buffs = true, debuffs = true, auras = true }
 
 ---Owns AeonUI's oUF frames: spawns those switched on when the session starts, applies the active profile, and holds
 ---back changes to secure frames until combat ends, keeping only the latest. oUF hides a unit's Blizzard frame as it
@@ -130,7 +130,7 @@ function Frames:OnProfileChanged(path)
 	local key, setting = path:match("^frames%.(%a+)%.([^.]+)")
 
 	if key == "all" then
-		self:ApplyAll(false)
+		self:ApplyAll(LAYOUT[setting] == true)
 	elseif key then
 		self:Apply(key, LAYOUT[setting] == true)
 	end

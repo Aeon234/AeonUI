@@ -170,6 +170,26 @@ METHODS.StatusBar = {
 	end,
 }
 METHODS.Button = {
+	-- oUF's aura element: every method records its last call.
+	CreateAuras = function(self)
+		self.auraElements = (self.auraElements or 0) + 1
+
+		return setmetatable({ last = {} }, {
+			__index = function(_, method)
+				if method == "AddGroup" then
+					return function(element, filter)
+						element.filter = filter
+
+						return "Group1"
+					end
+				end
+
+				return function(element, ...)
+					element.last[method] = { ... }
+				end
+			end,
+		})
+	end,
 	RegisterForClicks = function() end,
 	SetScript = function() end,
 	Tag = function(self, text, tag)
@@ -186,6 +206,10 @@ Enum = {
 	UnitHealAbsorbMode = { ReducedByIncomingHeals = 0 },
 	UnitIncomingHealClampMode = { MissingHealth = 0 },
 }
+
+AnchorUtil = { FlowLayoutAxis = { Horizontal = 0 } }
+AuraContainerSortMethod = { AuraInstanceIDOnly = 8 }
+AuraContainerSortDirection = { Normal = 0 }
 
 local PARENTS = {
 	Texture = { "Region" },
@@ -418,6 +442,8 @@ Load("AeonUI_UnitFrames/Frames/Tags.lua")
 Load("AeonUI_UnitFrames/Frames/Text.lua")
 Load("AeonUI_UnitFrames/Frames/HealthColor.lua")
 Load("AeonUI_UnitFrames/Frames/Overlays.lua")
+Load("AeonUI_UnitFrames/Frames/AuraCategories.lua")
+Load("AeonUI_UnitFrames/Frames/Auras.lua")
 Load("AeonUI_UnitFrames/Frames/UnitFrame.lua")
 Load("AeonUI_UnitFrames/Frames/Frames.lua")
 
@@ -533,6 +559,10 @@ Equal("and its heal absorbs", frame.Health.HealAbsorb, frame.Overlays.healAbsorb
 Equal("each shown", frame.Overlays.absorb.shown, true)
 Equal("the overlays get their settings", frame.Overlays.settings.absorb.position, "attach")
 Equal("no glow made while off", frame.Overlays.glow, nil)
+Equal("a display for buffs and for debuffs", frame.auraElements, 2)
+Equal("its debuffs hold their filter", frame.AuraDisplays.debuffs.element.filter, "HARMFUL")
+Equal("disabled until shown", frame.AuraDisplays.buffs.element.last.SetEnabled[1], false)
+Equal("placed against the frame", frame.AuraDisplays.buffs.element.last.SetFlowLayoutAnchorPoint[1], "BOTTOMLEFT")
 Equal("no backing made while off", frame.Overlays.backing, nil)
 Equal("the border sits above the overlays", AUI.UnitFrame.BORDER_LEVEL > 5, true)
 Equal("and the text above the border's edge", AUI.UnitFrame.TEXT_LEVEL > AUI.UnitFrame.BORDER_LEVEL + 1, true)
@@ -559,6 +589,18 @@ Equal("a shared health color reaches the frame", frame.healthColors.dark, true)
 Schema:Write(config, Path("overlays.absorb.enabled"), false)
 registered.Profile(Frames, Path("overlays.absorb.enabled"))
 Equal("a frame's shields turn off", frame.Overlays.absorb.shown, false)
+local notInCombat = InCombatLockdown
+InCombatLockdown = function()
+	return true
+end
+Schema:Write(config, Path("buffs.enabled"), true)
+registered.Profile(Frames, Path("buffs.enabled"))
+Equal("a display waits for combat to end", frame.AuraDisplays.buffs.element.last.SetEnabled[1], false)
+InCombatLockdown = notInCombat
+Frames:OnCombatEnded()
+Equal("and then turns on", frame.AuraDisplays.buffs.element.last.SetEnabled[1], true)
+Schema:Write(config, Path("buffs.enabled"), false)
+registered.Profile(Frames, Path("buffs.enabled"))
 Schema:Write(config, Path("overlays.absorb.enabled"), true)
 registered.Profile(Frames, Path("overlays.absorb.enabled"))
 Schema:Write(config, Path("health.dark"), false)

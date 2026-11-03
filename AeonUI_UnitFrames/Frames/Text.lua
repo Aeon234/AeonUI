@@ -177,6 +177,33 @@ function Text:Resolve(key, index)
 	return slot
 end
 
+---How far a frame's text reaches past its top and bottom: half a line for a slot on an edge, a whole line for one outside
+---it, moved by its vertical offset. Empty slots reach nowhere.
+---@param key string
+---@return number above
+---@return number below
+function Text:Overhang(key)
+	local above, below = 0, 0
+	local spec = Options:Spec(key) --[[@as AUIFrameSpec]]
+
+	for index = 1, spec.slots do
+		local slot = self:Resolve(key, index)
+		local vertical = Split(slot.anchor)
+
+		if slot.content ~= "none" and slot.placement ~= "inside" and vertical ~= "" then
+			local reach = slot.placement == "edge" and slot.size / 2 or slot.size
+
+			if vertical == "TOP" then
+				above = math.max(above, reach + slot.y)
+			else
+				below = math.max(below, reach - slot.y)
+			end
+		end
+	end
+
+	return above, below
+end
+
 ---Resolves every slot of a frame and works out what each needs: its width and its tag context.
 ---@param key string the frame's key under `frames`
 ---@param count integer the frame's slot count

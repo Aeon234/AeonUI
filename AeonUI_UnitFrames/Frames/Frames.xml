@@ -4,6 +4,8 @@
 	<Script file="Text.lua" />
 	<Script file="HealthColor.lua" />
 	<Script file="Overlays.lua" />
+	<Script file="AuraCategories.lua" />
+	<Script file="Auras.lua" />
 	<Script file="UnitFrame.lua" />
 	<Script file="Frames.lua" />
 </Ui>
