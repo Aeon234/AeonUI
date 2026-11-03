@@ -55,6 +55,9 @@ local INDICATOR_ART = {
 	pvp = { atlas = "UI-HUD-UnitFrame-Player-PVP-AllianceIcon" },
 	classification = { texture = "Interface\\AddOns\\AeonUI\\Media\\Textures\\Classification\\Elite.png", coords = { 0, 1, 0, 1 } },
 }
+-- The states that draw the sample cast bar as themselves.
+local CASTING, CHANNELING, NOT_INTERRUPTIBLE, INTERRUPTED_STATE = L["Casting"], L["Channeling"], L["Not Interruptible"],
+	INTERRUPTED
 -- The setting a click on the sample power bar lands on.
 local POWER_SWITCH = "powerEnabled"
 -- The sample power bar's share of its maximum.
@@ -93,6 +96,7 @@ local FramePreview = {}
 FramePreview.__index = FramePreview
 FramePreview.STATES = { FULL, DAMAGED, DEAD, HOVER }
 FramePreview.OVERLAY_STATES = { FULL, DAMAGED, DEAD, HOVER, ABSORBS, OVERFLOW }
+FramePreview.CAST_STATES = { FULL, DAMAGED, DEAD, HOVER, ABSORBS, OVERFLOW, CASTING, CHANNELING, NOT_INTERRUPTIBLE, INTERRUPTED_STATE }
 AUI.FramePreview = FramePreview
 
 ---@param spec AUIFrameSpec
@@ -113,6 +117,10 @@ function FramePreview:Create(canvas)
 	if self.spec.power then
 		self.power, self.powerBackground = AUI.UnitFrame:CreatePowerBar(holder)
 		self.power:SetMinMaxValues(0, 1)
+	end
+
+	if AUI.UnitCastBar:Has(self.spec) then
+		self.cast = AUI.CastBar:Build(holder, nil, AUI.UnitCastBar:Owner(self.spec))
 	end
 	self.bar:SetMinMaxValues(0, 1)
 
@@ -337,7 +345,7 @@ function FramePreview:Refresh(state, preview)
 	local height = UnitFrame:FrameHeight(key)
 	local reverse = Profile:Get(Options:Path(key, "reverse")) == true
 	local label = state or FULL
-	local share = SHARES[label]
+	local share = SHARES[label] or 1
 	local amounts = OVERLAY_SAMPLES[label] or NO_OVERLAYS
 	local sample = Sample(share, label == DEAD, amounts)
 	local bar = self.bar
@@ -429,12 +437,47 @@ function FramePreview:Refresh(state, preview)
 
 	local reachAbove, reachBelow, reachLeft, reachRight = AUI.Portrait:Reach(key)
 
+	if self.cast then
+		reachBelow = math.max(reachBelow, self:DrawCast(label, preview))
+	end
+
 	above, below = math.max(above, reachAbove), math.max(below, reachBelow)
 	left, right = math.max(left, reachLeft), math.max(right, reachRight)
 	self.holder:ClearAllPoints()
 	self.holder:SetPoint("CENTER", (left - right) / 2, (below - above) / 2)
 
 	return width + left + right, height + above + below
+end
+
+---Draws the sample cast bar under the frame, in the state or casting, while it is on.
+---@param label string the preview's state
+---@param preview table the library's preview
+---@return number reach how far below the frame it reaches
+function FramePreview:DrawCast(label, preview)
+	local Profile, CastBar = AUI.Profile, AUI.CastBar
+	local view = self.cast
+	local base = view.base
+	local STATES = AUI.CastBarOptions.STATES
+	local states = {
+		[CHANNELING] = STATES.CHANNELING,
+		[NOT_INTERRUPTIBLE] = STATES.NOT_INTERRUPTIBLE,
+		[INTERRUPTED_STATE] = STATES.INTERRUPTED,
+	}
+	local on = Profile:Get(base .. "enabled") == true
+
+	view:SetShown(on)
+
+	if not on then
+		return 0
+	end
+
+	CastBar:Style(view)
+	view:ClearAllPoints()
+	view:SetPoint("TOP", self.holder, "BOTTOM", Profile:Get(base .. "x"), Profile:Get(base .. "y"))
+	CastBar:DrawSample(view, states[label] or STATES.CASTING, states[label] and label or CASTING)
+	preview:Part(view.bar, "castEnabled")
+
+	return AUI.UnitCastBar:Extent(self.spec.key)
 end
 
 ---A still sample of the player's resources, stacked as they stand on screen.

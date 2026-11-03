@@ -250,6 +250,85 @@ AnchorUtil = { FlowLayoutAxis = { Horizontal = 0 } }
 AuraContainerSortMethod = { AuraInstanceIDOnly = 8 }
 AuraContainerSortDirection = { Normal = 0 }
 
+METHODS.Region.SetAlphaFromBoolean = function(self, value, shown, hidden)
+	self.alpha = value and shown or hidden
+end
+METHODS.Region.GetAlpha = function(self)
+	return self.alpha or 1
+end
+METHODS.Frame.SetFrameStrata = function(self, strata)
+	self.strata = strata
+end
+METHODS.Frame.EnableMouse = function() end
+METHODS.Frame.SetIsFrameBuffer = function(self, on)
+	self.buffered = on
+end
+METHODS.Frame.SetScript = function(self, name, script)
+	self.scripts = self.scripts or {}
+	self.scripts[name] = script
+end
+METHODS.Frame.GetScript = function(self, name)
+	return self.scripts and self.scripts[name]
+end
+METHODS.Frame.CreateAnimationGroup = function()
+	local group = { playing = false }
+
+	function group.CreateAnimation()
+		local stub = {}
+
+		function stub.SetFromAlpha() end
+		function stub.SetToAlpha() end
+		function stub.SetDuration() end
+
+		return stub
+	end
+
+	function group:SetScript(_, script)
+		self.finished = script
+	end
+
+	function group:Play()
+		self.playing = true
+	end
+
+	function group:Stop()
+		self.playing = false
+	end
+
+	return group
+end
+METHODS.StatusBar.SetTimerDuration = function(self, duration)
+	self.duration = duration
+end
+METHODS.StatusBar.SetToTargetValue = function() end
+METHODS.FontString.SetShadowColor = function() end
+METHODS.FontString.SetShadowOffset = function() end
+METHODS.FontString.SetFormattedText = function() end
+METHODS.Texture.SetGradient = function() end
+METHODS.Texture.SetHorizTile = function() end
+METHODS.Texture.SetVertTile = function() end
+
+function CreateColor(r, g, b, a)
+	return { r = r, g = g, b = b, a = a }
+end
+
+C_DurationUtil = {
+	CreateDurationTextBinding = function()
+		local binding = {}
+
+		function binding.SetFontString() end
+		function binding.SetTextFormat() end
+		function binding.SetDuration() end
+		function binding:SetEnabled(on)
+			self.enabled = on
+		end
+
+		return binding
+	end,
+}
+Enum.DurationTextBindingProperty = { RemainingDuration = 1, ElapsedDuration = 2, TotalDuration = 3 }
+Enum.StatusBarInterpolation = Enum.StatusBarInterpolation or { Immediate = 0, ExponentialEaseOut = 1 }
+
 local PARENTS = {
 	Texture = { "Region" },
 	FontString = { "Region" },
@@ -417,6 +496,7 @@ AUI.Callbacks = {
 	end,
 }
 AUI.Border = {
+	ART = {},
 	ART_COLOR = { r = 0.5, g = 0.4, b = 0.3 },
 	CellDividerWidth = function() end,
 	StyleCellDivider = function() end,
@@ -512,6 +592,14 @@ Load("AeonUI_UnitFrames/Frames/PlayerPower.lua")
 Load("AeonUI_UnitFrames/Frames/ClassPower.lua")
 Load("AeonUI_UnitFrames/Frames/UnitFrame.lua")
 Load("AeonUI_UnitFrames/Frames/Frames.lua")
+C_StringUtil.CreateNumericRuleFormatter = function()
+	return { SetBreakpoints = function() end }
+end
+
+AUI.can.castBar = true
+Load("AeonUI_UnitFrames/CastBar/Options.lua")
+Load("AeonUI_UnitFrames/CastBar/CastBar.lua")
+Load("AeonUI_UnitFrames/CastBar/UnitCastBar.lua")
 
 local Options, Tags, Text, Frames = AUI.UnitFrameOptions, AUI.Tags, AUI.Text, AUI.Frames
 
@@ -786,6 +874,8 @@ Equal("turning it off asks for a reload", Frames:ReloadNeeded(), true)
 
 -- The resource preview ---------------------------------------------------------------------------------------------
 
+INTERRUPTED = "Interrupted"
+
 Load("AeonUI_UnitFrames/Settings/Previews.lua")
 
 function UnitClass()
@@ -900,5 +990,97 @@ Equal("repainted by the palette's step", liveTarget.Power.PostUpdateColor, AUI.P
 Equal("the classification icon exists", liveTarget.AeonClassification ~= nil, true)
 Schema:Write(config, TargetPath("power.enabled"), false)
 Schema:Write(config, TargetPath("indicators.classification.enabled"), false)
+
+-- The target's cast bar -----------------------------------------------------------------------------------------------
+
+local CastBar, UnitCastBar = AUI.CastBar, AUI.UnitCastBar
+local castBase = UnitCastBar:Base("target")
+local view = liveTarget.CastBarView
+local castBar = view.bar
+
+AUI.can.castBar = false
+Equal("none where the client cannot draw one", UnitCastBar:Has(Options:Spec("target")), false)
+AUI.can.castBar = true
+Equal("off by default", Schema:Read(config, castBase .. "enabled"), false)
+Equal("no room taken while off", UnitCastBar:Extent("target"), 0)
+Equal("the player's frame has none", UnitCastBar:Extent("player"), 0)
+Equal("below the frame by four", Schema:Read(config, castBase .. "y"), -4)
+Equal("its icon on", Schema:Read(config, castBase .. "icon"), true)
+Equal("the standalone bar's icon stays off", Schema:Read(config, "castBar.icon"), false)
+Equal("oUF's element is the view's bar", liveTarget.Castbar, castBar)
+Equal("the view reads its own settings", view.base, castBase)
+Equal("no aids on a frame's bar", view.aids, false)
+Equal("the standalone bar's look stays its own", Schema:Read(config, "castBar.texture"),
+	Schema:Read(config, Options.ALL .. "castBars.texture"))
+
+Schema:Write(config, Options.ALL .. "castBars.name.size", 20)
+Equal("the look follows All Frames", Schema:Read(config, castBase .. "name.size"), 20)
+Equal("not the standalone bar", Schema:Read(config, "castBar.name.size"), 14)
+Schema:Write(config, Options.ALL .. "castBars.name.size", 14)
+Schema:Write(config, TargetPath("bars.borderStyle"), "THIN_LINE")
+Equal("the border follows the frame's", UnitFrame:BarLook("target", "castBar.bars").borderStyle, "THIN_LINE")
+Schema:Write(config, TargetPath("bars.borderStyle"), nil)
+
+Schema:Write(config, castBase .. "enabled", true)
+Equal("its reach below the frame", UnitCastBar:Extent("target"), 20)
+Equal("the auras clear it", select(2, AUI.Auras:Clearance("target")) >= 20, true)
+liveTarget:ApplyAppearance()
+Equal("the width matches the frame", select(1, view:GetSize()), 270)
+Schema:Write(config, castBase .. "matchWidth", false)
+Schema:Write(config, castBase .. "width", 300)
+liveTarget:ApplyAppearance()
+Equal("or its own", select(1, view:GetSize()), 300)
+Schema:Write(config, castBase .. "matchWidth", true)
+Equal("the hold comes from the look", castBar.timeToHold, 0.6)
+
+castBar.Show(castBar)
+Equal("oUF's show shows the view", view:IsShown(), true)
+castBar.PostCastStart(castBar, "target", 1, false, "Frostbolt")
+Equal("the time runs", view.binding.enabled, true)
+castBar.PostCastInterrupted(castBar)
+Equal("feedback covers the fill", view.failed:GetAlpha(), 1)
+Equal("the time hides", view.time:IsShown(), false)
+castBar.Hide(castBar)
+Equal("oUF's hide hides the view", view:IsShown(), false)
+Equal("the feedback clears", view.failed:GetAlpha(), 0)
+
+Schema:Write(config, castBase .. "alwaysShow", true)
+castBar.Show(castBar)
+castBar:SetScript("OnUpdate", print)
+castBar.Hide(castBar)
+Equal("Always Show keeps the view", view:IsShown(), true)
+Equal("and stops the update script", castBar:GetScript("OnUpdate"), nil)
+castBar.Show(castBar)
+Equal("a cast gives it back", castBar:GetScript("OnUpdate"), print)
+castBar.Hide(castBar)
+Schema:Write(config, castBase .. "alwaysShow", false)
+
+Schema:Write(config, Options.ALL .. "castBars.fade", true)
+castBar.Show(castBar)
+castBar.Hide(castBar)
+Equal("Fade Out keeps the view while fading", view:IsShown(), true)
+Equal("as one image", view.buffered, true)
+Equal("playing", view.fade.playing, true)
+castBar.Hide(castBar)
+Equal("a second hide changes nothing", view.fading, true)
+view.fade.finished()
+Equal("then it hides", view:IsShown(), false)
+Equal("drawn normally again", view.buffered, false)
+castBar.Show(castBar)
+castBar.Hide(castBar)
+castBar.Show(castBar)
+Equal("a new cast stops the fade", view.fade.playing, false)
+Equal("at full opacity", view:GetAlpha(), 1)
+castBar.Hide(castBar)
+view.fade.finished()
+Schema:Write(config, Options.ALL .. "castBars.fade", false)
+
+parts = {}
+targetPreview:Refresh(AUI.FramePreview.CAST_STATES[#AUI.FramePreview.CAST_STATES], sampleTarget)
+Equal("the sample bar is a part", partRegions.castEnabled, targetPreview.cast.bar)
+Equal("Interrupted draws its cover", targetPreview.cast.failed:GetAlpha(), 1)
+Schema:Write(config, castBase .. "enabled", false)
+targetPreview:Refresh(nil, sampleTarget)
+Equal("off, no sample bar", targetPreview.cast:IsShown(), false)
 
 print(("check_unitframes: %d checks passed"):format(checks))

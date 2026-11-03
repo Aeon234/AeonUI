@@ -31,6 +31,12 @@ local ICON_CROP = 0.08
 local LATENCY_TEXT_SIZE = 10
 
 ---@class AUICastBarFrame : Frame
+---@field base string the start of its settings' paths
+---@field aids boolean it is the player's bar, with latency, pushback, stages, ticks and the cast target
+---@field key string? the unit frame it belongs to
+---@field unit string? that frame's unit
+---@field fading boolean? a unit frame's bar is fading out
+---@field update function? a unit frame's bar's held update script
 ---@field lines Texture[] the Pixel border, `BORDER_LINES` in order
 ---@field edge AUIBorder? the Forever Minimal border, created when first chosen
 ---@field icon Texture
@@ -130,10 +136,15 @@ end
 ---Builds a bar, unplaced, hidden and without its look; `Style` gives it that.
 ---@param parent Frame
 ---@param name string? a global name, for the root frame only
+---@param owner { base: string, key: string, unit: string }? the unit frame it belongs to, when not the player's own bar
 ---@return AUICastBarFrame frame
-function CastBar:Build(parent, name)
+function CastBar:Build(parent, name, owner)
 	local frame = CreateFrame("Frame", name, parent) --[[@as AUICastBarFrame]]
 	local border = Options.BORDER_COLOR
+
+	frame.base = owner and owner.base or "castBar."
+	frame.aids = owner == nil
+	frame.key, frame.unit = owner and owner.key, owner and owner.unit
 
 	frame:Hide()
 	frame.lines = {}
@@ -214,21 +225,38 @@ function CastBar:Build(parent, name)
 	return frame
 end
 
----Colors the fill: the player's class color, or the fill color with its gradient.
+---@param frame AUICastBarFrame
+---@return table? color the class color of the player, or of a unit frame's unit while that is a player and readable
+local function ClassFill(frame)
+	local unit = frame.unit
+
+	if not unit then
+		local _, class = UnitClass("player")
+
+		return class and C_ClassColor.GetClassColor(class)
+	end
+
+	local _, class = UnitClass(unit)
+
+	class = AUI:Readable(class)
+
+	return class and AUI:Readable(UnitIsPlayer(unit)) == true and C_ClassColor.GetClassColor(class) or nil
+end
+
+---Colors the fill: the class color, or the fill color with its gradient.
 ---@param frame AUICastBarFrame
 function CastBar:StyleFill(frame)
 	local Profile = AUI.Profile
-	local first, last = Profile:Get("castBar.color"), Profile:Get("castBar.gradientColor")
+	local first, last = Profile:Get(frame.base .. "color"), Profile:Get(frame.base .. "gradientColor")
 	local r, g, b = first.r, first.g, first.b
 	local r2, g2, b2 = last.r, last.g, last.b
 
-	if not Profile:Get("castBar.gradient") then
+	if not Profile:Get(frame.base .. "gradient") then
 		r2, g2, b2 = r, g, b
 	end
 
-	if Profile:Get("castBar.classColor") then
-		local _, class = UnitClass("player")
-		local color = class and C_ClassColor.GetClassColor(class)
+	if Profile:Get(frame.base .. "classColor") then
+		local color = ClassFill(frame)
 
 		if color then
 			r, g, b = color:GetRGB()
@@ -236,7 +264,7 @@ function CastBar:StyleFill(frame)
 		end
 	end
 
-	frame.bar:GetStatusBarTexture():SetGradient(Profile:Get("castBar.gradientDirection"), CreateColor(r, g, b, 1),
+	frame.bar:GetStatusBarTexture():SetGradient(Profile:Get(frame.base .. "gradientDirection"), CreateColor(r, g, b, 1),
 		CreateColor(r2, g2, b2, 1))
 end
 
@@ -254,9 +282,13 @@ function CastBar:StyleEdge(frame, shown)
 	end
 
 	if edge then
+		local look = frame.key and AUI.UnitFrame:BarLook(frame.key, "castBar.bars")
+
 		edge:Apply({
-			style = shown and "FOREVER_MINIMAL_SHADED" or "NONE",
-			color = Options.FOREVER_MINIMAL.color,
+			style = look and look.borderStyle or (shown and "FOREVER_MINIMAL_SHADED" or "NONE"),
+			color = look and look.borderColor or Options.FOREVER_MINIMAL.color,
+			thickness = look and look.borderThickness or nil,
+			edgeFile = look and look.edgeFile or nil,
 			background = NO_FILL,
 		})
 	end
@@ -268,10 +300,10 @@ end
 function CastBar:StyleLayout(frame, height)
 	local Profile = AUI.Profile
 	local bar, icon = frame.bar, frame.icon
-	local showIcon = Profile:Get("castBar.icon") == true
-	local right = Profile:Get("castBar.iconSide") == "RIGHT"
-	local pixelBorder = Profile:Get("castBar.borderStyle") == "PIXEL"
-	local thickness = pixelBorder and Profile:Get("castBar.border") * AUI:Pixel(frame) or 0
+	local showIcon = Profile:Get(frame.base .. "icon") == true
+	local right = Profile:Get(frame.base .. "iconSide") == "RIGHT"
+	local pixelBorder = not frame.key and Profile:Get(frame.base .. "borderStyle") == "PIXEL"
+	local thickness = pixelBorder and Profile:Get(frame.base .. "border") * AUI:Pixel(frame) or 0
 
 	bar:ClearAllPoints()
 	icon:ClearAllPoints()
@@ -306,16 +338,17 @@ function CastBar:StyleLayout(frame, height)
 end
 
 ---Gives a font string its size and color, and the text's shared outline and shadow.
+---@param frame AUICastBarFrame
 ---@param region FontString
 ---@param size number
 ---@param color AUIColor
-function CastBar:StyleText(region, size, color)
+function CastBar:StyleText(frame, region, size, color)
 	local Profile = AUI.Profile
 	local shadow = Options.SHADOW
 
-	region:SetFont(AUI.Media:Font(Profile:Get("castBar.font")), size, AUI.Media:FontFlags(Profile:Get("castBar.outline")))
+	region:SetFont(AUI.Media:Font(Profile:Get(frame.base .. "font")), size, AUI.Media:FontFlags(Profile:Get(frame.base .. "outline")))
 	region:SetTextColor(color.r, color.g, color.b)
-	region:SetShadowColor(shadow.r, shadow.g, shadow.b, Profile:Get("castBar.shadow") and shadow.a or 0)
+	region:SetShadowColor(shadow.r, shadow.g, shadow.b, Profile:Get(frame.base .. "shadow") and shadow.a or 0)
 	region:SetShadowOffset(1, -1)
 end
 
@@ -326,13 +359,13 @@ function CastBar:AnchorName(frame)
 	local text, over = frame.text, frame.over
 
 	text:ClearAllPoints()
-	text:SetPoint("LEFT", over, "LEFT", TEXT_PADDING + Profile:Get("castBar.name.x"), Profile:Get("castBar.name.y"))
+	text:SetPoint("LEFT", over, "LEFT", TEXT_PADDING + Profile:Get(frame.base .. "name.x"), Profile:Get(frame.base .. "name.y"))
 
 	if frame.target:IsShown() then
 		text:SetPoint("RIGHT", frame.target, "LEFT", -TEXT_GAP, 0)
-	elseif Profile:Get("castBar.pushback") then
+	elseif Profile:Get(frame.base .. "pushback") then
 		text:SetPoint("RIGHT", frame.pushback, "LEFT", -TEXT_GAP, 0)
-	elseif Profile:Get("castBar.time.enabled") then
+	elseif Profile:Get(frame.base .. "time.enabled") then
 		text:SetPoint("RIGHT", frame.time, "LEFT", -TEXT_GAP, 0)
 	else
 		text:SetPoint("RIGHT", over, "RIGHT", -TEXT_PADDING, 0)
@@ -344,47 +377,49 @@ end
 function CastBar:StyleTexts(frame)
 	local Profile = AUI.Profile
 	local text, time, over = frame.text, frame.time, frame.over
-	local timeShown = Profile:Get("castBar.time.enabled") == true
+	local timeShown = Profile:Get(frame.base .. "time.enabled") == true
 
-	self:StyleText(text, Profile:Get("castBar.name.size"), Profile:Get("castBar.name.color"))
-	self:StyleText(time, Profile:Get("castBar.time.size"), Profile:Get("castBar.time.color"))
-	text:SetShown(Profile:Get("castBar.name.enabled") == true)
+	self:StyleText(frame, text, Profile:Get(frame.base .. "name.size"), Profile:Get(frame.base .. "name.color"))
+	self:StyleText(frame, time, Profile:Get(frame.base .. "time.size"), Profile:Get(frame.base .. "time.color"))
+	text:SetShown(Profile:Get(frame.base .. "name.enabled") == true)
 	time:SetShown(timeShown)
 
 	time:ClearAllPoints()
-	time:SetPoint("RIGHT", over, "RIGHT", Profile:Get("castBar.time.x") - TEXT_PADDING, Profile:Get("castBar.time.y"))
+	time:SetPoint("RIGHT", over, "RIGHT", Profile:Get(frame.base .. "time.x") - TEXT_PADDING, Profile:Get(frame.base .. "time.y"))
 
-	local pushback = frame.pushback
-	local pushbackShown = Profile:Get("castBar.pushback") == true
+	if frame.aids then
+		local pushback = frame.pushback
+		local pushbackShown = Profile:Get(frame.base .. "pushback") == true
 
-	self:StyleText(pushback, Profile:Get("castBar.time.size"), Profile:Get("castBar.pushbackColor"))
-	self:StyleText(frame.latencyText, LATENCY_TEXT_SIZE, { r = 1, g = 1, b = 1 })
-	pushback:SetShown(pushbackShown)
-	pushback:ClearAllPoints()
+		self:StyleText(frame, pushback, Profile:Get(frame.base .. "time.size"), Profile:Get(frame.base .. "pushbackColor"))
+		self:StyleText(frame, frame.latencyText, LATENCY_TEXT_SIZE, { r = 1, g = 1, b = 1 })
+		pushback:SetShown(pushbackShown)
+		pushback:ClearAllPoints()
 
-	if timeShown then
-		pushback:SetPoint("RIGHT", time, "LEFT", -TEXT_GAP, 0)
-	else
-		pushback:SetPoint("RIGHT", over, "RIGHT", -TEXT_PADDING, 0)
-	end
+		if timeShown then
+			pushback:SetPoint("RIGHT", time, "LEFT", -TEXT_GAP, 0)
+		else
+			pushback:SetPoint("RIGHT", over, "RIGHT", -TEXT_PADDING, 0)
+		end
 
-	local target = frame.target
-	local targetX, targetY = Profile:Get("castBar.target.x"), Profile:Get("castBar.target.y")
+		local target = frame.target
+		local targetX, targetY = Profile:Get(frame.base .. "target.x"), Profile:Get(frame.base .. "target.y")
 
-	self:StyleText(target, Profile:Get("castBar.target.size"), Profile:Get("castBar.target.color"))
-	target:ClearAllPoints()
+		self:StyleText(frame, target, Profile:Get(frame.base .. "target.size"), Profile:Get(frame.base .. "target.color"))
+		target:ClearAllPoints()
 
-	if pushbackShown then
-		target:SetPoint("RIGHT", pushback, "LEFT", targetX - TEXT_GAP, targetY)
-	elseif timeShown then
-		target:SetPoint("RIGHT", time, "LEFT", targetX - TEXT_GAP, targetY)
-	else
-		target:SetPoint("RIGHT", over, "RIGHT", targetX - TEXT_PADDING, targetY)
+		if pushbackShown then
+			target:SetPoint("RIGHT", pushback, "LEFT", targetX - TEXT_GAP, targetY)
+		elseif timeShown then
+			target:SetPoint("RIGHT", time, "LEFT", targetX - TEXT_GAP, targetY)
+		else
+			target:SetPoint("RIGHT", over, "RIGHT", targetX - TEXT_PADDING, targetY)
+		end
 	end
 
 	self:AnchorName(frame)
 
-	local format, properties = Options:TimeSpec(Profile:Get("castBar.time.format"))
+	local format, properties = Options:TimeSpec(Profile:Get(frame.base .. "time.format"))
 	local components = {}
 
 	for index, property in ipairs(properties) do
@@ -394,23 +429,42 @@ function CastBar:StyleTexts(frame)
 	frame.binding:SetTextFormat(format, components)
 end
 
+---@param base string the start of the bar's settings' paths
+---@param key string? a unit frame's key, whose bar borders with any style
+---@return number height the bar's, at least what its border's art needs
+function CastBar:DrawnHeight(base, key)
+	local Profile = AUI.Profile
+	local height = Profile:Get(base .. "height")
+
+	if key then
+		local art = AUI.Border.ART[AUI.UnitFrame:BarLook(key, "castBar.bars").borderStyle]
+
+		return art and math.max(height, Options.FOREVER_MINIMAL.minHeight) or height
+	end
+
+	return Options:DrawnHeight(Profile:Get(base .. "borderStyle"), height)
+end
+
 ---Gives a bar its look from the settings; the settings page's preview styles its own the same way.
 ---@param frame AUICastBarFrame
 function CastBar:Style(frame)
 	local Profile = AUI.Profile
-	local height = Options:DrawnHeight(Profile:Get("castBar.borderStyle"), Profile:Get("castBar.height"))
-	local reverse = Profile:Get("castBar.reverse") == true
+	local height = self:DrawnHeight(frame.base, frame.key)
+	local reverse = Profile:Get(frame.base .. "reverse") == true
 	local bar = frame.bar
 
-	frame:SetSize(Profile:Get("castBar.width"), height)
-	AUI.Media:SetBarTexture(bar, Profile:Get("castBar.texture"))
+	local matched = frame.key and Profile:Get(frame.base .. "matchWidth") == true
+
+	frame:SetSize(matched and Profile:Get(AUI.UnitFrameOptions:Path(frame.key --[[@as string]], "width")) or Profile:Get(frame.base .. "width"),
+		height)
+	AUI.Media:SetBarTexture(bar, Profile:Get(frame.base .. "texture"))
 	bar:SetReverseFill(reverse)
 	self:StyleFill(frame)
 	self:StyleLayout(frame, height)
 
 	local fill = bar:GetStatusBarTexture()
-	local background, locked = Profile:Get("castBar.background"), Profile:Get("castBar.notInterruptible")
-	local interrupted, latency = Profile:Get("castBar.interrupted"), Profile:Get("castBar.latencyColor")
+	local background, locked = Profile:Get(frame.base .. "background"), Profile:Get(frame.base .. "notInterruptible")
+	local interrupted, latency = Profile:Get(frame.base .. "interrupted"), Profile:Get(frame.base .. "latencyColor")
 
 	frame.background:SetColorTexture(background.r, background.g, background.b, background.a or 1)
 	frame.locked:ClearAllPoints()
@@ -421,7 +475,11 @@ function CastBar:Style(frame)
 	frame.failedFill:SetColorTexture(interrupted.r, interrupted.g, interrupted.b, 1)
 	frame.zones:ClearAllPoints()
 	frame.zones:SetAllPoints(fill)
-	frame.latency:SetColorTexture(latency.r, latency.g, latency.b, latency.a or 1)
+
+	if frame.aids then
+		frame.latency:SetColorTexture(latency.r, latency.g, latency.b, latency.a or 1)
+	end
+
 
 	frame.spark:ClearAllPoints()
 	frame.spark:SetPoint("CENTER", fill, reverse and "LEFT" or "RIGHT")
@@ -430,23 +488,31 @@ function CastBar:Style(frame)
 	self:StyleTexts(frame)
 end
 
-function CastBar:CreateFrame()
-	if self.frame then
-		return
-	end
-
-	local frame = self:Build(UIParent, "AeonUICastBar")
+---@param frame AUICastBarFrame
+---@param finished function
+---@return AnimationGroup fade Fade Out
+function CastBar:CreateFade(frame, finished)
 	local fade = frame:CreateAnimationGroup()
 	local alpha = fade:CreateAnimation("Alpha")
 
 	alpha:SetFromAlpha(1)
 	alpha:SetToAlpha(0)
 	alpha:SetDuration(Options.FADE_SECONDS)
-	fade:SetScript("OnFinished", function()
+	fade:SetScript("OnFinished", finished)
+
+	return fade
+end
+
+function CastBar:CreateFrame()
+	if self.frame then
+		return
+	end
+
+	local frame = self:Build(UIParent, "AeonUICastBar")
+
+	frame.fade = self:CreateFade(frame, function()
 		self:OnFaded()
 	end)
-
-	frame.fade = fade
 	frame:EnableMouse(false)
 	self.frame = frame
 end
@@ -520,14 +586,15 @@ function CastBar:Current()
 	return cast
 end
 
+---@param frame AUICastBarFrame
 ---@param name string? possibly secret, which keeps it whole
 ---@return string? name as the bar shows it
-function CastBar:SpellName(name)
+function CastBar:SpellName(frame, name)
 	if issecretvalue(name) or name == nil then
 		return name
 	end
 
-	return Options:Shorten(name, AUI.Profile:Get("castBar.name.maxLength"))
+	return Options:Shorten(name, AUI.Profile:Get(frame.base .. "name.maxLength"))
 end
 
 ---Shades the end of the bar a cast of that kind finishes at, with the latency's text above it while that is on.
@@ -790,7 +857,7 @@ function CastBar:Draw(frame, cast)
 	frame.binding:SetDuration(cast.duration)
 	frame.binding:SetEnabled(true)
 	frame.time:SetShown(Profile:Get("castBar.time.enabled") == true)
-	frame.text:SetText(self:SpellName(cast.name))
+	frame.text:SetText(self:SpellName(frame, cast.name))
 	frame.icon:SetTexture(cast.icon)
 	frame.spark:SetShown(Profile:Get("castBar.spark") == true)
 
@@ -852,19 +919,19 @@ function CastBar:DrawSample(frame, state, label)
 	local interrupted = state == STATES.INTERRUPTED
 	local channeling = state == STATES.CHANNELING
 	local empowered = state == STATES.EMPOWERED
-	local timeText = Options:SampleTime(Profile:Get("castBar.time.format"))
-	local timeShown = Profile:Get("castBar.time.enabled") == true and not interrupted
+	local timeText = Options:SampleTime(Profile:Get(frame.base .. "time.format"))
+	local timeShown = Profile:Get(frame.base .. "time.enabled") == true and not interrupted
 
 	self:ClearAids(frame)
 	frame.binding:SetEnabled(false)
 	self:HoldFill(frame, interrupted and 1 or Options.SAMPLE_PROGRESS)
-	frame.text:SetText(self:SpellName(label))
+	frame.text:SetText(self:SpellName(frame, label))
 	frame.icon:SetTexture(Options.SAMPLE_ICON)
-	frame.spark:SetShown(Profile:Get("castBar.spark") == true and not interrupted)
+	frame.spark:SetShown(Profile:Get(frame.base .. "spark") == true and not interrupted)
 	frame.locked:SetAlpha(state == STATES.NOT_INTERRUPTIBLE and 1 or 0)
 	frame.failed:SetAlpha(interrupted and 1 or 0)
 
-	if not interrupted then
+	if not interrupted and frame.aids then
 		if Profile:Get("castBar.target.enabled") then
 			local _, class = UnitClass("player")
 
@@ -880,11 +947,11 @@ function CastBar:DrawSample(frame, state, label)
 		end
 	end
 
-	if channeling and Profile:Get("castBar.ticks") then
+	if channeling and frame.aids and Profile:Get("castBar.ticks") then
 		self:ShowTicks(frame, Options:TickFractions({ ticks = Options.SAMPLE_TICKS }, nil, nop))
 	end
 
-	if empowered then
+	if empowered and frame.aids then
 		local boundaries = Options:Boundaries(Options.SAMPLE_STAGES)
 
 		if Profile:Get("castBar.empowerColors") then

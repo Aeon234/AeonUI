@@ -489,6 +489,114 @@ function FramePage:DeclarePower(page)
 	end, self:PowerGroup(card, POWER_SWITCH))
 end
 
+---The frame's cast bar: its own size and place, and its look, which follows All Frames and the frame's border.
+---@param page table
+function FramePage:DeclareCastBar(page)
+	local key = self.spec.key
+	local AllFrames = AUI.SettingsAllFrames
+	local CastOptions = AUI.CastBarOptions
+	local base = AUI.UnitCastBar:Base(key)
+	local card = page:Section(key .. "CastBar", L["Cast Bar"])
+	local position, look = "castPosition", "castLook"
+
+	local function Style()
+		return AUI.Profile:Get(base .. "bars.borderStyle")
+	end
+
+	card:Toggle(Field("castEnabled", L["Show Cast Bar"], base .. "enabled"))
+	card:Checkbox(Field("castMatch", L["Match Frame Width"], base .. "matchWidth", { depends = "castEnabled" }))
+	card:Slider(Field("castWidth", L["Width"], base .. "width", {
+		depends = "castEnabled",
+		min = CastOptions.MIN_WIDTH,
+		max = CastOptions.MAX_WIDTH,
+		step = 1,
+		show = function()
+			return AUI.Profile:Get(base .. "matchWidth") ~= true
+		end,
+	}))
+	card:Slider(Field("castHeight", L["Height"], base .. "height", {
+		depends = "castEnabled",
+		min = CastOptions.MIN_HEIGHT,
+		max = CastOptions.MAX_HEIGHT,
+		step = 1,
+	}))
+	card:Checkbox(Field("castIcon", L["Spell Icon"], base .. "icon", { depends = "castEnabled" }))
+	card:Details({ id = position, label = L["Position"], depends = "castEnabled" })
+	card:Dropdown(Field("castIconSide", L["Icon Side"], base .. "iconSide", {
+		details = position,
+		options = ChoiceOptions(CastOptions.SIDES, AllFrames.CAST_SIDE_LABELS),
+	}))
+	card:Slider(Field("castX", L["X Offset"], base .. "x", {
+		details = position,
+		min = -CastOptions.MAX_OFFSET,
+		max = CastOptions.MAX_OFFSET,
+		step = 1,
+	}))
+	card:Slider(Field("castY", L["Y Offset"], base .. "y", {
+		details = position,
+		min = -CastOptions.MAX_OFFSET,
+		max = CastOptions.MAX_OFFSET,
+		step = 1,
+	}))
+	card:Dropdown(Field("castStrata", L["Frame Strata"], base .. "strata", {
+		details = position,
+		options = ChoiceOptions(CastOptions.STRATAS, AllFrames.CAST_STRATA_LABELS),
+	}))
+	card:Checkbox(Field("castAlwaysShow", L["Always Show"], base .. "alwaysShow", { details = position }))
+	card:Details({ id = look, label = L["Look"], depends = "castEnabled" })
+
+	local from = TITLES[key] or key
+
+	local function Border(field)
+		return base .. "bars." .. field, Options:Path(key, "bars." .. field)
+	end
+
+	local styleOwn, styleShared = Border("borderStyle")
+
+	card:Dropdown(Inherited("castBorderStyle", L["Border Style"], styleOwn, styleShared, from, {
+		details = look,
+		options = AllFrames.BorderOptions,
+		titleCase = false,
+	}))
+
+	local colorOwn, colorShared = Border("borderColor")
+
+	card:Color(Inherited("castBorderColor", L["Border Color"], colorOwn, colorShared, from, {
+		details = look,
+		show = function()
+			return AllFrames:HasTint(Style())
+		end,
+	}))
+
+	local lineOwn, lineShared = Border("lineColor")
+
+	card:Color(Inherited("castLineColor", L["Border Color"], lineOwn, lineShared, from, {
+		details = look,
+		hasOpacity = true,
+		show = function()
+			return Style() == "THIN_LINE"
+		end,
+	}))
+
+	local thicknessOwn, thicknessShared = Border("borderThickness")
+
+	card:Slider(Inherited("castBorderThickness", L["Border Thickness"], thicknessOwn, thicknessShared, from, {
+		details = look,
+		min = Options.MIN_BORDER_THICKNESS,
+		max = Options.MAX_BORDER_THICKNESS,
+		step = 10,
+		format = "percent",
+		show = function()
+			return AllFrames:HasThickness(Style())
+		end,
+	}))
+	AllFrames:DeclareCastLook(card, function(id, label, field, extra)
+		return Inherited(id, label, base .. field, Options.ALL .. "castBars." .. field, L["All Frames"], extra)
+	end, function()
+		return look
+	end)
+end
+
 ---The frame's health color, with its other colors in one row; all follow All Frames until changed.
 ---@param page table
 function FramePage:DeclareHealth(page)
@@ -1323,7 +1431,8 @@ function FramePage:Declare(window)
 
 	page:Preview({
 		height = PREVIEW_HEIGHT,
-		states = spec.overlays and AUI.FramePreview.OVERLAY_STATES or AUI.FramePreview.STATES,
+		states = AUI.UnitCastBar:Has(spec) and AUI.FramePreview.CAST_STATES
+			or spec.overlays and AUI.FramePreview.OVERLAY_STATES or AUI.FramePreview.STATES,
 		create = function(canvas)
 			preview:Create(canvas)
 		end,
@@ -1345,6 +1454,10 @@ function FramePage:Declare(window)
 	end
 
 	self:DeclareText(page)
+
+	if AUI.UnitCastBar:Has(spec) then
+		self:DeclareCastBar(page)
+	end
 
 	if spec.auras then
 		self:DeclareAuraDisplay(page, "buffs")

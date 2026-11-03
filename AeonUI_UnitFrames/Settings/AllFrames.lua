@@ -33,6 +33,23 @@ local SettingsAllFrames = {
 		HORIZONTAL = L["Horizontal"],
 		VERTICAL = L["Vertical"],
 	},
+	CAST_SIDE_LABELS = {
+		LEFT = L["Left"],
+		RIGHT = L["Right"],
+	},
+	CAST_STRATA_LABELS = {
+		BACKGROUND = L["Background"],
+		LOW = L["Low"],
+		MEDIUM = L["Medium"],
+		HIGH = L["High"],
+		DIALOG = L["Dialog"],
+	},
+	CAST_TIME_LABELS = {
+		REMAINING = L["Remaining"],
+		ELAPSED = L["Elapsed"],
+		REMAINING_TOTAL = L["Remaining / Total"],
+		ELAPSED_TOTAL = L["Elapsed / Total"],
+	},
 	POWER_MODE_LABELS = {
 		type = L["Power Type"],
 		class = CLASS,
@@ -231,6 +248,95 @@ function SettingsAllFrames:DeclarePowerColors(card, make, read, group)
 		depends = "powerGradient",
 		hasOpacity = true,
 	}))
+end
+
+---Declares the cast bar look rows All Frames and a frame's Cast Bar card share.
+---@param card table
+---@param make fun(id: string, label: string, field: string, extra: table?): table builds a setting for a look field
+---@param group fun(name: string, label: string?): string? the detail row a named group goes in, nil for the card itself
+function SettingsAllFrames:DeclareCastLook(card, make, group)
+	local CastOptions = AUI.CastBarOptions
+	local main = group("main")
+
+	card:Dropdown(make("castTexture", L["Texture"], "texture", { details = main, picker = "texture" }))
+	card:Color(make("castColor", L["Fill Color"], "color", { details = main }))
+	card:Checkbox(make("castClassColor", L["Class Color"], "classColor", { details = main }))
+	card:Color(make("castBackground", L["Background"], "background", { details = main, hasOpacity = true }))
+
+	local name = group("name", L["Spell Name"])
+
+	card:Checkbox(make("castNameEnabled", L["Show Spell Name"], "name.enabled", { details = name }))
+	card:Slider(make("castNameSize", L["Size"], "name.size", {
+		details = name,
+		depends = "castNameEnabled",
+		min = CastOptions.MIN_TEXT,
+		max = CastOptions.MAX_TEXT,
+		step = 1,
+	}))
+	card:Color(make("castNameColor", COLOR, "name.color", { details = name, depends = "castNameEnabled" }))
+	card:Slider(make("castNameLength", L["Max Length"], "name.maxLength", {
+		details = name,
+		depends = "castNameEnabled",
+		min = 0,
+		max = CastOptions.MAX_LENGTH,
+		step = 1,
+	}))
+
+	local time = group("time", L["Time"])
+
+	card:Checkbox(make("castTimeEnabled", L["Show Time"], "time.enabled", { details = time }))
+	card:Slider(make("castTimeSize", L["Size"], "time.size", {
+		details = time,
+		depends = "castTimeEnabled",
+		min = CastOptions.MIN_TEXT,
+		max = CastOptions.MAX_TEXT,
+		step = 1,
+	}))
+	card:Color(make("castTimeColor", COLOR, "time.color", { details = time, depends = "castTimeEnabled" }))
+	card:Dropdown(make("castTimeFormat", L["Time Format"], "time.format", {
+		details = time,
+		depends = "castTimeEnabled",
+		options = ChoiceOptions(CastOptions.TIME_FORMATS, self.CAST_TIME_LABELS),
+	}))
+
+	local colors = group("colors", L["Colors"])
+
+	card:Color(make("castNotInterruptible", L["Not Interruptible"], "notInterruptible", { details = colors }))
+	card:Checkbox(make("castGradient", L["Gradient"], "gradient", { details = colors }))
+	card:Color(make("castGradientColor", L["Gradient End Color"], "gradientColor", {
+		details = colors,
+		depends = "castGradient",
+	}))
+	card:Dropdown(make("castGradientDirection", L["Gradient Direction"], "gradientDirection", {
+		details = colors,
+		depends = "castGradient",
+		options = ChoiceOptions(Options.ORIENTATIONS, self.ORIENTATION_LABELS),
+	}))
+
+	local feedback = group("feedback", L["Feedback"])
+
+	card:Checkbox(make("castFeedback", L["Show Interrupted and Failed"], "feedback", { details = feedback }))
+	card:Color(make("castInterrupted", INTERRUPTED, "interrupted", { details = feedback, depends = "castFeedback" }))
+	card:Slider(make("castHoldTime", L["Hold Time"], "holdTime", {
+		details = feedback,
+		depends = "castFeedback",
+		min = 0,
+		max = CastOptions.MAX_HOLD,
+		step = 0.1,
+	}))
+	card:Checkbox(make("castFade", L["Fade Out"], "fade", { details = feedback }))
+
+	local bar = group("bar", L["Bar"])
+
+	card:Checkbox(make("castSpark", L["Show Spark"], "spark", { details = bar }))
+	card:Checkbox(make("castReverse", L["Reverse Fill"], "reverse", { details = bar }))
+	card:Checkbox(make("castSmooth", L["Smooth Animation"], "smooth", { details = bar }))
+	card:Dropdown(make("castFont", L["Font"], "font", { details = bar, picker = "font" }))
+	card:Dropdown(make("castOutline", L["Outline"], "outline", {
+		details = bar,
+		options = LibStub("LibAeonSettings-1.0").OUTLINES,
+	}))
+	card:Checkbox(make("castShadow", L["Text Shadow"], "shadow", { details = bar }))
 end
 
 ---The power type colors every bar shares, each only where the client has it and Blizzard's until set.
@@ -500,6 +606,20 @@ function SettingsAllFrames:Declare(window)
 			picker = "texture",
 		}))
 	end
+
+	local cast = page:Section("allFramesCastBars", L["Cast Bars"])
+
+	self:DeclareCastLook(cast, function(id, label, field, extra)
+		return Field(id, label, "castBars." .. field, extra)
+	end, function(name, label)
+		if label then
+			local id = "allFramesCast" .. name
+
+			cast:Details({ id = id, label = label })
+
+			return id
+		end
+	end)
 
 	local auras = page:Section("allFramesAuras", AURAS)
 

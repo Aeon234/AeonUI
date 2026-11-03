@@ -122,6 +122,11 @@ AUI.Text = {
 assert(loadfile(root .. "AeonUI/Profile/Schema.lua"))("AeonUI", AUI)
 assert(loadfile(root .. "AeonUI_UnitFrames/Frames/Options.lua"))("AeonUI", AUI)
 assert(loadfile(root .. "AeonUI_UnitFrames/Frames/AuraCategories.lua"))("AeonUI", AUI)
+AUI.UnitCastBar = {
+	Extent = function()
+		return 0
+	end,
+}
 assert(loadfile(root .. "AeonUI_UnitFrames/Frames/Auras.lua"))("AeonUI", AUI)
 
 local Auras, Schema, Options = AUI.Auras, AUI.Schema, AUI.UnitFrameOptions

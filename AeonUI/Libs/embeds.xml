@@ -27,6 +27,7 @@
 	<Script file="oUF\elements\pvpindicator.lua" />
 	<Script file="oUF\elements\threatindicator.lua" />
 	<Script file="oUF\elements\totems.lua" />
+	<Script file="oUF\elements\castbar.lua" />
 	<Script file="oUF\elements\power.lua" />
 	<Script file="oUF\elements\classpower.lua" />
 	<Script file="oUF\elements\runes.lua" />

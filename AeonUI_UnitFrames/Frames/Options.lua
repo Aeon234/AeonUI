@@ -18,6 +18,7 @@ local Schema = AUI.Schema
 ---@field threat boolean? it has a threat border
 ---@field reverse boolean? its health fills from the right by default
 ---@field power boolean? it can show a power bar under its health
+---@field castBar { y: number, icon: boolean }? its cast bar's defaults
 ---@field totems table? its totems' place until moved: `anchor`, `placement`, `x`, `y` and `growth`
 ---@field idleFade boolean? it fades while the player is idle
 ---@field position { point: string, x: number, y: number } its place until moved
@@ -65,6 +66,7 @@ local Options = {
 			overlays = true,
 			reverse = true,
 			power = true,
+			castBar = { y = -4, icon = true },
 			auras = {
 				buffs = { enabled = true, anchor = "aboveLeft", limit = 4, filter = "all" },
 				debuffs = { enabled = true, anchor = "belowLeft", limit = 20, filter = "all" },

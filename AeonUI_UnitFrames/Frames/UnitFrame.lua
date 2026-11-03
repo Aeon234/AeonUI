@@ -15,6 +15,7 @@ local NO_FILL = { r = 0, g = 0, b = 0, a = 0 }
 ---@field Bar StatusBar the frame's main bar: oUF's Health element
 ---@field Power StatusBar? oUF's Power element, under the health
 ---@field PowerBackground Texture?
+---@field CastBarView AUICastBarFrame?
 ---@field Health StatusBar
 ---@field Background Texture
 ---@field Border AUIBorder
@@ -108,10 +109,12 @@ end
 
 ---A frame's bar look, its own values or the shared ones.
 ---@param key string
+---@param section string? where under the frame's settings, when not its bars
 ---@return AUIBarLook look
-function UnitFrame:BarLook(key)
+function UnitFrame:BarLook(key, section)
 	local Profile = AUI.Profile
-	local style = Profile:Get(Options:Path(key, "bars.borderStyle"))
+	local bars = (section or "bars") .. "."
+	local style = Profile:Get(Options:Path(key, bars .. "borderStyle"))
 	local color = AUI.Border.ART_COLOR
 	local edgeFile
 	local hover = "color"
@@ -129,16 +132,16 @@ function UnitFrame:BarLook(key)
 	end
 
 	if style == "THIN_LINE" then
-		color = Profile:Get(Options:Path(key, "bars.lineColor"))
+		color = Profile:Get(Options:Path(key, bars .. "lineColor"))
 	elseif style ~= "FOREVER" then
-		color = Profile:Get(Options:Path(key, "bars.borderColor"))
+		color = Profile:Get(Options:Path(key, bars .. "borderColor"))
 	end
 
 	return {
-		texture = Profile:Get(Options:Path(key, "bars.texture")),
-		background = Profile:Get(Options:Path(key, "bars.background")),
+		texture = Profile:Get(Options:Path(key, bars .. "texture")),
+		background = Profile:Get(Options:Path(key, bars .. "background")),
 		borderStyle = style,
-		borderThickness = Profile:Get(Options:Path(key, "bars.borderThickness")),
+		borderThickness = Profile:Get(Options:Path(key, bars .. "borderThickness")),
 		borderColor = color,
 		edgeFile = edgeFile,
 		hover = hover,
@@ -310,6 +313,10 @@ function UnitFrame.Style(frame, unit)
 		frame.PowerBackground = background
 	end
 
+	if AUI.UnitCastBar:Has(spec) then
+		frame.CastBarView = AUI.UnitCastBar:Attach(frame)
+	end
+
 	if spec.overlays then
 		local overlays = AUI.Overlays:Create(health)
 
@@ -453,6 +460,10 @@ function UnitFrameMixin:ApplyAppearance()
 				(bar --[[@as table]]):ForceUpdate()
 			end
 		end
+	end
+
+	if AUI.UnitCastBar:Has(self.spec) then
+		AUI.UnitCastBar:Apply(self)
 	end
 
 	AUI.Text:Apply(self, self.key)

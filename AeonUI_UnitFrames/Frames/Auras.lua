@@ -205,7 +205,9 @@ end
 ---@return number above
 ---@return number below
 function Auras:Clearance(key)
-	return AUI.Text:Overhang(key)
+	local above, below = AUI.Text:Overhang(key)
+
+	return above, below + AUI.UnitCastBar:Extent(key)
 end
 
 ---@class AUIAuraPlacement

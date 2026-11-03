@@ -572,6 +572,8 @@ AUI.Media = {
 	end,
 }
 
+AUI.UnitFrameOptions = { ALL = "frames.all." }
+
 for _, file in ipairs({ "AeonUI_UnitFrames/CastBar/Options.lua", "AeonUI_UnitFrames/CastBar/TickData.lua",
 	"AeonUI_UnitFrames/CastBar/BlizzardBar.lua", "AeonUI_UnitFrames/CastBar/CastBar.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
