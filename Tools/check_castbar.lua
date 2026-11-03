@@ -1093,20 +1093,19 @@ Set("castBar.feedback", true)
 
 Equal("fades over 0.2 seconds, off by default", frame.fade.animation.seconds .. " "
 	.. tostring(AUI.Schema:Field("castBar.fade").default), "0.2 false")
+Equal("no image without Fade Out", frame.buffered, false)
 Set("castBar.fade", true)
+Equal("drawn as one image from the setting", frame.buffered, true)
 frame.bufferCalls = 0
 StartCast()
-Equal("a cast draws no frame buffer", frame.bufferCalls, 0)
 EndCast()
 Fire("UNIT_SPELLCAST_STOP", "player", "Cast-1", 133)
-Equal("the fade draws the bar as one image", frame.buffered, true)
 Equal("a finished cast fades as it stands", tostring(frame.shown) .. " " .. tostring(frame.fade.playing) .. " "
 	.. frame.text.text .. " " .. tostring(frame.binding.enabled), "true true Fireball false")
 Fire("UNIT_SPELLCAST_STOP", "player", "Cast-1", 133)
 Equal("the fade runs on", frame.fade.playing, true)
 frame.fade.scripts.OnFinished(frame.fade)
 Equal("then the bar goes", tostring(frame.shown) .. " " .. tostring(frame.fade.playing), "false false")
-Equal("and stops drawing as one image", frame.buffered, false)
 StartCast()
 EndCast()
 Fire("UNIT_SPELLCAST_INTERRUPTED", "player", "Cast-1", 133)
@@ -1116,7 +1115,6 @@ Equal("then fades, still red", tostring(frame.fade.playing) .. " " .. frame.fail
 StartCast()
 Equal("a new cast stops the fade", tostring(frame.fade.playing) .. " " .. frame.alpha .. " " .. frame.failed.alpha,
 	"false 1 0")
-Equal("and the single image", frame.buffered, false)
 EndCast()
 Fire("UNIT_SPELLCAST_STOP", "player", "Cast-1", 133)
 CastBar:Sample(true)

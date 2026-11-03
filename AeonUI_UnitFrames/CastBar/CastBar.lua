@@ -981,8 +981,6 @@ function CastBar:CancelEnding()
 		self.holdTimer = nil
 	end
 
-	local fading = self.fading
-
 	self.feedback, self.fading = false, false
 
 	if frame then
@@ -991,15 +989,10 @@ function CastBar:CancelEnding()
 		fade:Stop()
 		frame:SetAlpha(1)
 		frame.failed:SetAlpha(0)
-
-		if fading then
-			frame:SetIsFrameBuffer(false)
-		end
 	end
 end
 
----Fades the bar out as it stands, drawn as one image: each layer fading on its own would show the bar's square corners
----through the border above them.
+---Fades the bar out as it stands.
 function CastBar:StartFade()
 	local frame = self.frame --[[@as AUICastBarFrame]]
 
@@ -1007,7 +1000,6 @@ function CastBar:StartFade()
 	self.drawn, self.drawnID = nil, nil
 	frame.binding:SetEnabled(false)
 	frame.spark:Hide()
-	frame:SetIsFrameBuffer(true)
 	local fade = frame.fade --[[@as AnimationGroup]]
 
 	fade:Play()
@@ -1241,6 +1233,9 @@ function CastBar:Apply()
 
 	if self.frame then
 		self.frame:SetFrameStrata(AUI.Profile:Get("castBar.strata"))
+		-- Fade Out draws the bar as one image: each layer fading on its own would show the bar's square corners through the
+		-- border above them. Switching that on as a fade starts makes other frames flicker, so it stays on with the setting.
+		self.frame:SetIsFrameBuffer(AUI.Profile:Get("castBar.fade") == true)
 		self:Style(self.frame)
 	end
 
