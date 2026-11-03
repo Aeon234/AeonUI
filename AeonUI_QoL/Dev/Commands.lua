@@ -13,6 +13,13 @@ Dev:Register("movealert", function(rest)
 		AUI:Print("movealert: this client has no Movement Alerts.")
 	end
 end)
+Dev:Register("travelerslog", function(rest)
+	if AUI.can.travelersLog then
+		(Dev.TravelersLogProbe --[[@as AUITravelersLogProbe]]):Command(rest)
+	else
+		AUI:Print("travelerslog: this client has no Traveler's Log.")
+	end
+end)
 Dev:Register("sparkles", function()
 	if AUI.can.approachSparkles then
 		(Dev.SparklesProbe --[[@as AUISparklesProbe]]):Command()

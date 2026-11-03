@@ -44,5 +44,6 @@ Settings\Cursor.lua
 Dev\DeleteCheapestItemProbe.xml
 Dev\SparklesProbe.lua
 Dev\MovementAlertProbe.lua
+Dev\TravelersLogProbe.lua
 Dev\Commands.lua
 #@end-do-not-package@
