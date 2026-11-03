@@ -508,8 +508,11 @@ function FramePage:DeclareAuraDisplay(page, kind)
 		return AUI.Profile:Get(Own(field))
 	end
 
+	-- A setting in a detail row follows the row, which follows the switch.
 	local function On(extra)
-		extra.depends = extra.depends or show
+		if not extra.details then
+			extra.depends = extra.depends or show
+		end
 
 		return extra
 	end

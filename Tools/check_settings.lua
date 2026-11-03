@@ -2029,4 +2029,20 @@ end
 
 CheckMacrosPage()
 
+-- In its own function: this chunk is at Lua 5.1's limit of local variables.
+;(function()
+	local unitPages = Load(nil).pages
+
+	for _, pageID in ipairs({ "unitFramesAll", "unitFramePlayer" }) do
+		for _, section in ipairs(unitPages[pageID].sections) do
+			for _, setting in ipairs(section.settings) do
+				if setting.details and setting.depends then
+					Equal(pageID .. "/" .. setting.id .. " stays inside its closed row",
+						section.settings[setting.depends] and section.settings[setting.depends].details, setting.details)
+				end
+			end
+		end
+	end
+end)()
+
 io.stdout:write(("check_settings: %d checks passed\n"):format(checks))
