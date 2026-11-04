@@ -9,6 +9,7 @@ local NO_FILL = { r = 0, g = 0, b = 0, a = 0 }
 ---@class AUIUnitFrame : Button
 ---@field unit string?
 ---@field __unit string? oUF's current unit, which follows vehicles
+---@field UpdateAllElements fun(self: AUIUnitFrame, event: string) oUF: run every element
 ---@field key string the frame's key under `frames` in the profile
 ---@field spec AUIFrameSpec
 ---@field hovered boolean? the mouse is over the frame

@@ -265,6 +265,11 @@ local UNIT_FRAME = {
 	Untag = function(_, text)
 		text.tag = nil
 	end,
+	UpdateAllElements = function(self, event)
+		self.fullUpdates = (self.fullUpdates or 0) + 1
+		self.fullUpdateEvent = event
+		self.appliedAtFullUpdate = self.width ~= nil
+	end,
 }
 
 AUI.oUF = {
@@ -431,6 +436,9 @@ client:SetCombat(false)
 Frames:Start()
 
 local frame = Frames.objects.player
+
+Equal("a spawned frame gets its first update", frame.fullUpdates, 1)
+Equal("after its settings apply", frame.appliedAtFullUpdate, true)
 
 Equal("spawned by its global name", spawned[1], "AeonUIPlayer")
 Equal("once", #spawned, 1)

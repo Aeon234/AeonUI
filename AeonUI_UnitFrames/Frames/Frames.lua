@@ -113,6 +113,13 @@ function Frames:Start()
 	media.RegisterCallback(self, "LibSharedMedia_Registered", "OnMediaRegistered")
 
 	self:ApplyAll(true)
+
+	-- A frame spawned after PLAYER_ENTERING_WORLD is already shown, so oUF runs no first update: without one, its
+	-- elements keep their initial state, such as a raid marker drawing the whole icon sheet.
+	for _, frame in pairs(self.objects) do
+		frame:UpdateAllElements("Start")
+	end
+
 	AUI.Fading:Start()
 	AUI.RangeFade:Start()
 end
