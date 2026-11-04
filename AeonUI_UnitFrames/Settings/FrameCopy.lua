@@ -10,6 +10,7 @@ local Options = AUI.UnitFrameOptions
 ---following; the frame's own switch and place belong to no card, so they are never copied.
 ---@class AUISettingsFrameCopy
 ---@field SCOPES table<string, string[]> each frame card's settings under the frame: a setting, or a branch ending in a dot
+---@field trial { page: table, config: table }? the copy of the profile a hovered menu row previews
 local FrameCopy = {
 	SCOPES = {
 		size = { "width", "height", "reverse" },
@@ -88,7 +89,9 @@ function FrameCopy:Plan(fromBase, toBase, scope)
 
 			shared = shared + 1
 
-			if value == nil and not (Schema:Field(source).shared and field.shared) then
+			local own = Schema:Field(source) --[[@as AUISchemaField]]
+
+			if value == nil and not (own.shared and field.shared) then
 				value = Schema:Read(config, source)
 			end
 
@@ -120,8 +123,9 @@ function FrameCopy:Apply(changes, page, text)
 
 	for _, change in ipairs(changes) do
 		local value = Schema:Lookup(Profile.config, change.path)
+		local field = Schema:Field(change.path) --[[@as AUISchemaField]]
 
-		if value == nil and not Schema:Field(change.path).optional then
+		if value == nil and not field.optional then
 			value = Schema:Read(Profile.config, change.path)
 		end
 
@@ -138,6 +142,64 @@ function FrameCopy:Apply(changes, page, text)
 	window:RecordChange({ paths = before, text = text, page = page.id })
 
 	return written
+end
+
+---Shows a plan in the page's preview, drawn from a copy of the profile: nothing is saved and no live frame changes.
+---@param page table
+---@param changes { path: string, value: any }[]
+function FrameCopy:ShowTrial(page, changes)
+	if not page.preview then
+		return
+	end
+
+	local config = AUI:CopyTable(AUI.Profile.config)
+
+	for _, change in ipairs(changes) do
+		Schema:Write(config, change.path, AUI:CopyTable(change.value))
+	end
+
+	self.trial = { page = page, config = config }
+	local window = AUI.Settings.window --[[@as table]]
+
+	window:Refresh()
+end
+
+---Puts the preview back on the profile's own values.
+function FrameCopy:ClearTrial()
+	if self.trial then
+		self.trial = nil
+		local window = AUI.Settings.window --[[@as table]]
+
+		window:Refresh()
+	end
+end
+
+---Runs a page's preview drawing, against the trial when one is showing on that page.
+---@param page table
+---@param draw fun(): number, number returns the sample's width and height
+---@return number width
+---@return number height
+function FrameCopy:Draw(page, draw)
+	local trial = self.trial
+
+	if not trial or trial.page ~= page then
+		return draw()
+	end
+
+	local Profile = AUI.Profile
+	local config = Profile.config
+
+	Profile.config = trial.config
+
+	local ok, width, height = pcall(draw)
+
+	Profile.config = config
+
+	if not ok then
+		error(width, 0)
+	end
+
+	return width, height
 end
 
 ---Flashes the rows of the settings written, or the whole card when none of them shows.
@@ -178,9 +240,17 @@ function FrameCopy:Link(card, page, toBase, scope, sources)
 
 			if #changes > 0 then
 				menu:Action(L["%s (%d different)"]:format(source.title, #changes), function()
+					self.trial = nil
 					lib:CloseMenus()
 					Flash(page, card, self:Apply(changes, page, L["%s copied from %s."]:format(card.title, source.title)))
-				end)
+				end, {
+					onEnter = function()
+						self:ShowTrial(page, changes)
+					end,
+					onLeave = function()
+						self:ClearTrial()
+					end,
+				})
 			elseif shared > 0 then
 				menu:Hint(L["%s (no differences)"]:format(source.title))
 			end

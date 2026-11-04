@@ -1493,7 +1493,9 @@ function FramePage:Declare(window)
 			preview:Create(canvas)
 		end,
 		refresh = function(_, state, target)
-			return preview:Refresh(state, target)
+			return AUI.SettingsFrameCopy:Draw(page, function()
+				return preview:Refresh(state, target)
+			end)
 		end,
 	})
 

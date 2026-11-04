@@ -2101,8 +2101,8 @@ end)()
 		local rows = {}
 		local menu = {}
 
-		function menu.Action(_, text, onClick)
-			rows[#rows + 1] = { text = text, onClick = onClick }
+		function menu.Action(_, text, onClick, options)
+			rows[#rows + 1] = { text = text, onClick = onClick, options = options }
 		end
 
 		function menu.Hint(_, text)
@@ -2185,7 +2185,47 @@ end)()
 
 	Equal("the row counts what differs", rows[1].text, "Player (" .. (Profile:Get(Own("player", "reverse"))
 		== Profile:Get(Own("target", "reverse")) and 2 or 3) .. " different)")
+
+	-- Hovering a row previews it without saving anything.
+	local drawn = function()
+		return Profile:Get(Own("target", "width")), Profile:Get(Own("target", "height"))
+	end
+	local saved = Profile.config
+	local refreshed = window.refreshed
+	local fired = 0
+	local hook = function()
+		fired = fired + 1
+	end
+
+	AUI.Callbacks:Register("Profile", page, hook)
+	Equal("nothing is on trial before a hover", (FrameCopy:Draw(page, drawn)), width)
+	rows[1].options.onEnter()
+	Equal("a page with no preview takes no trial", FrameCopy.trial, nil)
+	page.preview = {}
+	rows[1].options.onEnter()
+	Equal("a hover redraws", window.refreshed, refreshed + 1)
+
+	local trialWidth, trialHeight = FrameCopy:Draw(page, drawn)
+
+	Equal("the preview draws the source's width", trialWidth, width + 10)
+	Equal("and height", trialHeight, height + 4)
+	Equal("the profile is back after the draw", Profile.config, saved)
+	Equal("the setting keeps its own value", Profile:Get(Own("target", "width")), width)
+	Equal("another page draws its own values", (FrameCopy:Draw({}, drawn)), width)
+	Equal("a failing draw is reported", pcall(FrameCopy.Draw, FrameCopy, page, function()
+		error("broken")
+	end), false)
+	Equal("and still puts the profile back", Profile.config, saved)
+	rows[1].options.onLeave()
+	Equal("leaving ends the trial", FrameCopy.trial, nil)
+	Equal("and redraws", window.refreshed, refreshed + 2)
+	rows[1].options.onLeave()
+	Equal("a second leave does nothing", window.refreshed, refreshed + 2)
+	Equal("nothing announced a change", fired, 0)
+	AUI.Callbacks:Unregister("Profile", page)
+	rows[1].options.onEnter()
 	rows[1].onClick()
+	Equal("a pick ends the trial", FrameCopy.trial, nil)
 	Equal("a pick closes the menu", closed, 1)
 	Equal("and applies at once", Profile:Get(Own("target", "width")), width + 10)
 	Equal("every value", Profile:Get(Own("target", "height")), height + 4)
