@@ -8,10 +8,12 @@
 --
 -- A check reads a widget's state from these fields, which its setters keep:
 --   shown, points, width, height, alpha, scale, level, parent, template, scripts, mouse   every frame or texture
---   file, color, vertex, coords, desaturated                                              textures
---   text, font                                                                            font strings
+--   kind                                                                                  frames
+--   file, atlas, color, vertex, coords, desaturated                                       textures
+--   text, font, textColor, justifyH, wordWrap                                             font strings
 --   value, min, max, statusColor, reverseFill                                             status bars
 --   backdrop                                                                              frames with BackdropTemplate
+--   plays, playing                                                                        animation groups
 -- `points` holds each anchor's SetPoint arguments, one entry per anchor. Size reads 0 until set, as an unsized frame's
 -- does. `left`, `right`, `top` and `bottom` are a check's fixtures: the screen edges read nil until it sets them.
 
@@ -109,7 +111,51 @@ local function SetAnchor(self, anchor, ...)
 	self.points[#self.points + 1] = { anchor, ... }
 end
 
+local Animation = Type(nil, {
+	SetDuration = function(self, duration)
+		self.duration = duration
+	end,
+	SetFlipBookRows = function(self, rows)
+		self.rows = rows
+	end,
+	SetFlipBookColumns = function(self, columns)
+		self.columns = columns
+	end,
+	SetFlipBookFrames = function(self, frames)
+		self.frames = frames
+	end,
+	SetFlipBookFrameWidth = function(self, width)
+		self.frameWidth = width
+	end,
+	SetFlipBookFrameHeight = function(self, height)
+		self.frameHeight = height
+	end,
+})
+
+-- `CreateAnimation` builds only the animation kinds addon code asks for.
+local ANIMATION_KINDS = { FlipBook = true }
+
+local AnimationGroup = Type(nil, {
+	CreateAnimation = function(self, kind)
+		assert(ANIMATION_KINDS[kind], "stub_client: no animation kind " .. tostring(kind))
+
+		return setmetatable({ group = self, kind = kind }, Animation)
+	end,
+	SetLooping = function(self, looping)
+		self.looping = looping
+	end,
+	Play = function(self)
+		self.plays, self.playing = self.plays + 1, true
+	end,
+	Stop = function(self)
+		self.playing = false
+	end,
+})
+
 local ScriptRegion = Type(nil, {
+	CreateAnimationGroup = function(self)
+		return setmetatable({ owner = self, plays = 0 }, AnimationGroup)
+	end,
 	SetPoint = State(function(self, ...)
 		SetAnchor(self, ...)
 	end),
@@ -220,7 +266,9 @@ local Texture = Type(Region, {
 	end),
 	SetHorizTile = State(),
 	SetVertTile = State(),
-	SetAtlas = State(),
+	SetAtlas = State(function(self, atlas)
+		self.atlas = atlas
+	end),
 	SetBlendMode = State(),
 })
 
@@ -230,6 +278,15 @@ local FontString = Type(Region, {
 	end),
 	SetText = State(function(self, text)
 		self.text = text
+	end),
+	SetTextColor = State(function(self, ...)
+		self.textColor = { ... }
+	end),
+	SetJustifyH = State(function(self, justify)
+		self.justifyH = justify
+	end),
+	SetWordWrap = State(function(self, wrap)
+		self.wordWrap = wrap
 	end),
 })
 
@@ -254,6 +311,17 @@ local Frame = Type(ScriptRegion, {
 
 local Button = Type(Frame, {})
 
+local Cooldown = Type(Frame, {
+	SetReverse = State(),
+	SetDrawEdge = State(),
+})
+
+local PlayerModel = Type(Frame, {
+	SetUnit = State(function(self, unit)
+		self.modelUnit = unit
+	end),
+})
+
 local StatusBar = Type(Frame, {
 	SetMinMaxValues = State(function(self, min, max)
 		self.min, self.max = min, max
@@ -276,8 +344,9 @@ local StatusBar = Type(Frame, {
 })
 
 -- The frame types `CreateFrame` knows, and what each XML template adds to a frame.
-local FRAME_TYPES = { Frame = Frame, Button = Button, StatusBar = StatusBar }
+local FRAME_TYPES = { Frame = Frame, Button = Button, StatusBar = StatusBar, Cooldown = Cooldown, PlayerModel = PlayerModel }
 local TEMPLATES = {
+	CooldownFrameTemplate = {},
 	BackdropTemplate = {
 		SetBackdrop = State(function(self, backdrop)
 			self.backdrop = backdrop
@@ -294,6 +363,7 @@ local TEMPLATES = {
 function CreateFrame(kind, name, parent, template)
 	local frameType = assert(FRAME_TYPES[kind], "stub_client: no frame type " .. tostring(kind))
 	local frame = setmetatable({
+		kind = kind,
 		parent = parent,
 		template = template,
 		shown = true,

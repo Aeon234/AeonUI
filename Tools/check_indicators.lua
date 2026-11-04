@@ -2,9 +2,11 @@
 -- defaults, an attached or detached portrait's room and place, the class icon rule with a secret class, the elements
 -- each setting runs, the threat colors, totem offsets, the idle rule, and events followed only while the fade is on.
 -- Run from any directory with Lua 5.1: lua Tools/check_indicators.lua
--- Frames are stand-ins that record the last call of each method; oUF's elements and drawing are not exercised here.
+-- Frames are the shared client's widgets with oUF's frame methods added; oUF's elements and drawing are not exercised here.
 
 local root = (arg and arg[0] or ""):match("^(.-)[^/\\]*$") .. "../"
+local client = assert(loadfile(root .. "Tools/stub_client.lua"))({ project = "retail" })
+local Equal = client.Equal
 
 -- Environment ---------------------------------------------------------------------------------------------
 
@@ -14,14 +16,8 @@ C_AddOns = {
 	GetAddOnMetadata = function() end,
 }
 
-local secrets = {}
-
-function issecretvalue(value)
-	return secrets[value] == true
-end
-
 local unit = { player = true, class = "MAGE" }
-local inCombat, hasTarget, casting = false, false, nil
+local hasTarget, casting = false, nil
 local grouped, instance = false, "none"
 
 function UnitIsPlayer()
@@ -30,10 +26,6 @@ end
 
 function UnitClass()
 	return "Class", unit.class
-end
-
-function InCombatLockdown()
-	return inCombat
 end
 
 function UnitExists()
@@ -110,87 +102,13 @@ function SetPortraitTexture(texture, portraitUnit)
 	texture.portraitUnit = portraitUnit
 end
 
----A frame or region stand-in recording the last call of each method.
-local function Region()
-	local region = { last = {}, shown = true, level = 1 }
-
-	function region:SetShown(shown)
-		self.shown = shown == true
-	end
-
-	function region:Show()
-		self.shown = true
-	end
-
-	function region:Hide()
-		self.shown = false
-	end
-
-	function region:IsVisible()
-		return self.shown
-	end
-
-	function region:IsShown()
-		return self.shown
-	end
-
-	function region:CreateAnimationGroup()
-		local group = Region()
-
-		function group:CreateAnimation()
-			return Region()
-		end
-
-		return group
-	end
-
-	function region:SetFrameLevel(level)
-		self.level = level
-	end
-
-	function region:GetFrameLevel()
-		return self.level
-	end
-
-	function region:CreateTexture()
-		return Region()
-	end
-
-	function region:CreateFontString()
-		return Region()
-	end
-
-	function region:SetPoint(...)
-		self.points = rawget(self, "points") or {}
-		self.points[#self.points + 1] = { ... }
-	end
-
-	function region:ClearAllPoints()
-		self.points = {}
-	end
-
-	return setmetatable(region, {
-		__index = function(_, method)
-			if not method:find("^%u") then
-				return nil
-			end
-
-			return function(self, ...)
-				self.last[method] = { ... }
-			end
-		end,
-	})
-end
-
 local created = {}
+local MakeFrame = CreateFrame
 
-function CreateFrame(kind, _, parent)
-	local frame = Region()
-
-	frame.kind, frame.parent = kind, parent
+function CreateFrame(kind, ...)
 	created[kind] = (created[kind] or 0) + 1
 
-	return frame
+	return MakeFrame(kind, ...)
 end
 
 local AUI = {}
@@ -298,18 +216,6 @@ local function Set(field, value)
 	Schema:Write(config, Options:Path("player", field), value)
 end
 
--- Harness -------------------------------------------------------------------------------------------------
-
-local checks = 0
-
-local function Equal(name, actual, expected)
-	checks = checks + 1
-	if actual ~= expected then
-		io.stderr:write(("FAIL: %s: expected %s, got %s\n"):format(name, tostring(expected), tostring(actual)))
-		os.exit(1)
-	end
-end
-
 -- Defaults ------------------------------------------------------------------------------------------------
 
 local settings = Portrait:Resolve("player")
@@ -355,8 +261,7 @@ Equal("reaches left", select(3, Portrait:Reach("player")), 50 + 4 - 3)
 -- Class icon ----------------------------------------------------------------------------------------------
 
 Equal("a player's class icon", Portrait:ClassAtlas("player"), "classicon-MAGE")
-unit.class = "SECRET"
-secrets.SECRET = true
+unit.class = client.Secret()
 Equal("no atlas from a secret class", Portrait:ClassAtlas("player"), nil)
 unit.player, unit.class = false, "MAGE"
 Equal("no class icon for an NPC", Portrait:ClassAtlas("target"), nil)
@@ -365,7 +270,7 @@ unit.player = true
 -- Live portrait -------------------------------------------------------------------------------------------
 
 local function NewFrame()
-	local frame = Region()
+	local frame = CreateFrame("Button", nil, UIParent)
 	frame.Border = {
 		SetShadowShown = function(self, shown)
 			self.shadowShown = shown
@@ -374,7 +279,7 @@ local function NewFrame()
 
 	frame.key, frame.spec = "player", Options:Spec("player")
 	frame.Content = frame
-	frame.Bar = Region()
+	frame.Bar = CreateFrame("StatusBar", nil, frame)
 	frame.enabled, frame.disabled = {}, {}
 
 	frame.running = {}
@@ -414,19 +319,19 @@ Portrait:Apply(frame)
 Equal("on shows", frame.PortraitWidgets.holder.shown, true)
 Equal("the texture is the element", frame.Portrait, frame.PortraitWidgets.texture)
 Equal("the element runs", frame.enabled.Portrait, 1)
-Equal("the square fits the frame", frame.PortraitWidgets.holder.last.SetSize[1], 36)
+Equal("the square fits the frame", frame.PortraitWidgets.holder.width, 36)
 Equal("at the top left", frame.PortraitWidgets.holder.points[1][1], "TOPLEFT")
 Equal("attached has no border of its own", frame.PortraitWidgets.border, nil)
 Equal("the style's divider beside the bar", frame.PortraitWidgets.divider.shown, true)
 Equal("at the bar's side", frame.PortraitWidgets.divider.points[1][1], "TOPRIGHT")
-Equal("as wide as the style's band", frame.PortraitWidgets.divider.last.SetWidth[1], 2)
+Equal("as wide as the style's band", frame.PortraitWidgets.divider.width, 2)
 Portrait:Apply(frame)
 Equal("the same mode does not restart the element", frame.enabled.Portrait, 1)
 
 styled = false
 Portrait:Apply(frame)
-Equal("a plain line is one pixel", frame.PortraitWidgets.divider.last.SetWidth[1], 0.5)
-Equal("in the border's color", frame.PortraitWidgets.divider.last.SetColorTexture[1], 0)
+Equal("a plain line is one pixel", frame.PortraitWidgets.divider.width, 0.5)
+Equal("in the border's color", frame.PortraitWidgets.divider.color[1], 0)
 styled = true
 look.borderStyle = "NONE"
 Portrait:Apply(frame)
@@ -446,7 +351,7 @@ Equal("class icon uses the texture", frame.Portrait, frame.PortraitWidgets.textu
 Equal("through the override", type(frame.Portrait.Override), "function")
 frame.__unit = "player"
 frame.Portrait.Override(frame, "ev", "player")
-Equal("a player shows the class", frame.Portrait.last.SetAtlas[1], "classicon-MAGE")
+Equal("a player shows the class", frame.Portrait.atlas, "classicon-MAGE")
 unit.player = false
 frame.Portrait.Override(frame, "ev", "player")
 Equal("anything else the 2D portrait", frame.Portrait.portraitUnit, "player")
@@ -472,6 +377,7 @@ Equal("and forgets the mode", frame.portraitMode, nil)
 
 config = Schema:Defaults()
 frame = NewFrame()
+frame:SetFrameLevel(1)
 created = {}
 Indicators:Create(frame)
 Equal("a layer", frame.IndicatorLayer ~= nil, true)
@@ -486,44 +392,44 @@ Equal("each with a cooldown", frame.Totems[1].Cooldown.kind, "Cooldown")
 
 Indicators:Apply(frame)
 Equal("raid marker runs", frame.enabled.RaidTargetIndicator, 1)
-Equal("at its size", frame.RaidTargetIndicator.last.SetSize[1], 18)
+Equal("at its size", frame.RaidTargetIndicator.width, 18)
 Equal("on the bar", frame.RaidTargetIndicator.points[1][2], frame.Bar)
-Equal("resting at its size", frame.RestingIndicator.last.SetSize[1], 18)
-Equal("Blizzard's animated art by default", frame.RestingIndicator.last.SetAtlas[1], "UI-HUD-UnitFrame-Player-Rest-Flipbook")
+Equal("resting at its size", frame.RestingIndicator.width, 18)
+Equal("Blizzard's animated art by default", frame.RestingIndicator.atlas, "UI-HUD-UnitFrame-Player-Rest-Flipbook")
 Equal("a whole flipbook", frame.RestingIndicator.restingAnimation ~= nil, true)
 frame.RestingIndicator:PostUpdate(false)
-Equal("the animation stops with the icon", frame.RestingIndicator.restingAnimation.last.Stop ~= nil, true)
-frame.RestingIndicator.restingAnimation.last.Play = nil
+Equal("the animation stops with the icon", frame.RestingIndicator.restingAnimation.playing, false)
+frame.RestingIndicator.restingAnimation.plays = 0
 frame.RestingIndicator:PostUpdate(true)
-Equal("and plays with it", frame.RestingIndicator.restingAnimation.last.Play ~= nil, true)
+Equal("and plays with it", frame.RestingIndicator.restingAnimation.plays, 1)
 local animated = frame.RestingIndicator.restingAnimation
-animated.last.Play = nil
+animated.plays = 0
 Indicators:Apply(frame)
-Equal("a redraw does not restart it", animated.last.Play, nil)
+Equal("a redraw does not restart it", animated.plays, 0)
 Set("indicators.resting.icon", "resting3")
 Indicators:Apply(frame)
-Equal("an icon of AeonUI's", frame.RestingIndicator.last.SetTexture[1], "Interface\\AddOns\\AeonUI\\Media\\Textures\\Resting\\Resting3.tga")
-animated.last.Play = nil
+Equal("an icon of AeonUI's", frame.RestingIndicator.file, "Interface\\AddOns\\AeonUI\\Media\\Textures\\Resting\\Resting3.tga")
+animated.plays = 0
 frame.RestingIndicator:PostUpdate(true)
-Equal("does not animate", animated.last.Play, nil)
+Equal("does not animate", animated.plays, 0)
 Set("indicators.resting.icon", "classic")
 Indicators:Apply(frame)
-Equal("the classic icon", frame.RestingIndicator.last.SetTexture[1], "Interface\\CharacterFrame\\UI-StateIcon")
-Equal("cut from its sheet", frame.RestingIndicator.last.SetTexCoord[2], 0.5)
+Equal("the classic icon", frame.RestingIndicator.file, "Interface\\CharacterFrame\\UI-StateIcon")
+Equal("cut from its sheet", frame.RestingIndicator.coords[2], 0.5)
 Set("indicators.resting.icon", "still")
 Indicators:Apply(frame)
-Equal("the still art", frame.RestingIndicator.last.SetTexture[1], "file")
-Equal("the frame with all three Zs: its column", ("%.3f"):format(frame.RestingIndicator.last.SetTexCoord[1]), "0.500")
-Equal("and its row", ("%.3f"):format(frame.RestingIndicator.last.SetTexCoord[3]), "0.571")
+Equal("the still art", frame.RestingIndicator.file, "file")
+Equal("the frame with all three Zs: its column", ("%.3f"):format(frame.RestingIndicator.coords[1]), "0.500")
+Equal("and its row", ("%.3f"):format(frame.RestingIndicator.coords[3]), "0.571")
 Set("indicators.resting.icon", "portrait")
 Indicators:Apply(frame)
-Equal("the portrait art", frame.RestingIndicator.last.SetAtlas[1], "UI-HUD-UnitFrame-PlayerPortrait-Rest")
+Equal("the portrait art", frame.RestingIndicator.atlas, "UI-HUD-UnitFrame-PlayerPortrait-Rest")
 missingAtlas = true
 Equal("art the client lacks is not offered", Indicators:HasRestingIcon("portrait"), false)
 Equal("files always are", Indicators:HasRestingIcon("resting0"), true)
 Set("indicators.resting.icon", "still")
 Indicators:Apply(frame)
-Equal("a saved icon the client lacks draws the classic one", frame.RestingIndicator.last.SetTexture[1], "Interface\\CharacterFrame\\UI-StateIcon")
+Equal("a saved icon the client lacks draws the classic one", frame.RestingIndicator.file, "Interface\\CharacterFrame\\UI-StateIcon")
 missingAtlas = false
 Set("indicators.resting.icon", "animated")
 Equal("combat stopped", frame.disabled.CombatIndicator, true)
@@ -540,7 +446,7 @@ Set("indicators.raid.size", 30)
 Set("indicators.leader.enabled", false)
 Set("totems.enabled", false)
 Indicators:Apply(frame)
-Equal("a size change applies", frame.RaidTargetIndicator.last.SetSize[1], 30)
+Equal("a size change applies", frame.RaidTargetIndicator.width, 30)
 Equal("leader stopped", frame.disabled.LeaderIndicator, true)
 Equal("assistant too", frame.disabled.AssistantIndicator, true)
 Equal("totems stopped", frame.disabled.Totems, true)
@@ -608,9 +514,8 @@ grouped, instance = true, "party"
 threat:Show()
 threat:PostUpdate("player", 3)
 Equal("in a group instance, shown", threat.shown, true)
-Equal("in its color", threat.Edges[1].last.SetVertexColor[2], 0.5)
-secrets[7] = true
-threat:PostUpdate("player", 7)
+Equal("in its color", threat.Edges[1].vertex[2], 0.5)
+threat:PostUpdate("player", client.Secret())
 Equal("a secret status shows nothing", threat.shown, false)
 
 threat:PostUpdate("player", 3)
@@ -689,51 +594,51 @@ Equal("follows casts", handlers.UNIT_SPELLCAST_START ~= nil, true)
 Equal("follows health", handlers.UNIT_HEALTH ~= nil and handlers.UNIT_MAXHEALTH ~= nil, true)
 Equal("makes one curve", curves, 1)
 Equal("a step curve", frame.idleFade.curve.kind, 1)
-Equal("it starts opaque", frame.last.SetAlpha == nil or frame.last.SetAlpha[1] > 0.5, true)
+Equal("it starts opaque", frame.alpha == nil or frame.alpha > 0.5, true)
 springs.Frames(0.02)
-Equal("then moves, not jumps", frame.last.SetAlpha[1] > 0.5 and frame.last.SetAlpha[1] < 1, true)
+Equal("then moves, not jumps", frame.alpha > 0.5 and frame.alpha < 1, true)
 Settle()
-Equal("idle fades to half", frame.last.SetAlpha[1], 0.5)
+Equal("idle fades to half", frame.alpha, 0.5)
 
 healthShare = 0.9
 handlers.UNIT_HEALTH(Fading, "UNIT_HEALTH", "player")
-Equal("below full health it stays opaque", frame.last.SetAlpha[1], 1)
+Equal("below full health it stays opaque", frame.alpha, 1)
 handlers.UNIT_HEALTH(Fading, "UNIT_HEALTH", "target")
-Equal("another unit changes nothing", frame.last.SetAlpha[1], 1)
+Equal("another unit changes nothing", frame.alpha, 1)
 healthShare = 1
 handlers.UNIT_HEALTH(Fading, "UNIT_HEALTH", "player")
-Equal("full again fades", frame.last.SetAlpha[1], 0.5)
+Equal("full again fades", frame.alpha, 0.5)
 
 frame.hovered = true
 Fading:Update(frame)
 springs.Frames(0.02)
-Equal("hovering moves it back", frame.last.SetAlpha[1] > 0.5, true)
-Equal("not all at once", frame.last.SetAlpha[1] < 1, true)
-local midway = frame.last.SetAlpha[1]
+Equal("hovering moves it back", frame.alpha > 0.5, true)
+Equal("not all at once", frame.alpha < 1, true)
+local midway = frame.alpha
 frame.hovered = false
 Fading:Update(frame)
 springs.Frames(0.02)
-Equal("a turn starts from where it is", math.abs(frame.last.SetAlpha[1] - midway) < 0.3, true)
+Equal("a turn starts from where it is", math.abs(frame.alpha - midway) < 0.3, true)
 frame.hovered = true
 Fading:Update(frame)
 Settle()
-Equal("hovered is opaque", frame.last.SetAlpha[1], 1)
+Equal("hovered is opaque", frame.alpha, 1)
 frame.hovered = false
 Fading:Update(frame)
 Settle()
-Equal("leaving fades", frame.last.SetAlpha[1], 0.5)
+Equal("leaving fades", frame.alpha, 0.5)
 
 handlers.PLAYER_REGEN_DISABLED(Fading)
 Settle()
-Equal("combat brings it back", frame.last.SetAlpha[1], 1)
+Equal("combat brings it back", frame.alpha, 1)
 handlers.PLAYER_REGEN_ENABLED(Fading)
 Settle()
-Equal("out of combat fades", frame.last.SetAlpha[1], 0.5)
+Equal("out of combat fades", frame.alpha, 0.5)
 
 hasTarget = true
 handlers.PLAYER_TARGET_CHANGED(Fading)
 Settle()
-Equal("a target brings it back", frame.last.SetAlpha[1], 1)
+Equal("a target brings it back", frame.alpha, 1)
 hasTarget = false
 handlers.PLAYER_TARGET_CHANGED(Fading)
 Settle()
@@ -741,29 +646,28 @@ Settle()
 casting = "Fireball"
 handlers.UNIT_SPELLCAST_START(Fading, "UNIT_SPELLCAST_START", "target")
 Settle()
-Equal("another unit's cast changes nothing", frame.last.SetAlpha[1], 0.5)
+Equal("another unit's cast changes nothing", frame.alpha, 0.5)
 handlers.UNIT_SPELLCAST_START(Fading, "UNIT_SPELLCAST_START", "player")
 Settle()
-Equal("casting brings it back", frame.last.SetAlpha[1], 1)
-secrets.HIDDEN = true
-casting = "HIDDEN"
+Equal("casting brings it back", frame.alpha, 1)
+casting = client.Secret()
 Fading:UpdateAll()
 Settle()
-Equal("a secret cast counts as casting", frame.last.SetAlpha[1], 1)
+Equal("a secret cast counts as casting", frame.alpha, 1)
 casting = nil
 Fading:UpdateAll()
 Settle()
-Equal("then it fades again", frame.last.SetAlpha[1], 0.5)
+Equal("then it fades again", frame.alpha, 0.5)
 
 Set("fade.idle.alpha", 20)
 AUI.Callbacks.Profile(Fading)
 Settle()
-Equal("the strength applies", frame.last.SetAlpha[1], 0.2)
+Equal("the strength applies", frame.alpha, 0.2)
 
 Set("fade.idle.enabled", false)
 AUI.Callbacks.Profile(Fading)
 Settle()
-Equal("off stays opaque", frame.last.SetAlpha[1], 1)
+Equal("off stays opaque", frame.alpha, 1)
 Equal("and follows nothing", next(handlers), nil)
 Equal("through one unregister", unregistered, 1)
 AUI.Callbacks.Profile(Fading)
@@ -771,14 +675,14 @@ Equal("still off, no second unregister", unregistered, 1)
 Set("fade.idle.enabled", true)
 AUI.Callbacks.Profile(Fading)
 Settle()
-Equal("on again fades", frame.last.SetAlpha[1], 0.2)
+Equal("on again fades", frame.alpha, 0.2)
 Equal("and follows again", handlers.PLAYER_REGEN_DISABLED ~= nil, true)
 Equal("no second curve", curves, 1)
 
 springs.reduce = true
 frame.hovered = true
 Fading:Update(frame)
-Equal("Reduce Motion jumps", frame.last.SetAlpha[1], 1)
+Equal("Reduce Motion jumps", frame.alpha, 1)
 frame.hovered = false
 
-io.stdout:write(("check_indicators: %d checks passed\n"):format(checks))
+io.stdout:write(("check_indicators: %d checks passed\n"):format(client.checks))
