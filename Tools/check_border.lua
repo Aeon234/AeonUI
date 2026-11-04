@@ -6,149 +6,8 @@
 
 local root = (arg and arg[0] or ""):match("^(.-)[^/\\]*$") .. "../"
 
-local checks = 0
-
-local function Equal(name, actual, expected)
-	checks = checks + 1
-	if actual ~= expected then
-		io.stderr:write(("FAIL: %s: expected %s, got %s\n"):format(name, tostring(expected), tostring(actual)))
-		os.exit(1)
-	end
-end
-
--- Environment ---------------------------------------------------------------------------------------------
-
-local counts = { frames = 0, textures = 0, calls = 0 }
-
--- Records a method's call, so a check can count the widget calls an operation makes.
-local function Method(body)
-	return function(self, ...)
-		counts.calls = counts.calls + 1
-		if body then
-			return body(self, ...)
-		end
-	end
-end
-
-local Region = {
-	SetPoint = Method(function(self)
-		self.anchored = true
-	end),
-	SetAllPoints = Method(function(self)
-		self.anchored = true
-	end),
-	ClearAllPoints = Method(function(self)
-		self.anchored = false
-	end),
-	SetShown = Method(function(self, shown)
-		self.shown = shown == true
-	end),
-	Show = Method(function(self)
-		self.shown = true
-	end),
-	Hide = Method(function(self)
-		self.shown = false
-	end),
-	IsShown = function(self)
-		return self.shown
-	end,
-	SetSize = Method(),
-	SetWidth = Method(function(self, width)
-		self.width = width
-	end),
-	SetHeight = Method(function(self, height)
-		self.height = height
-	end),
-}
-
-local Texture = setmetatable({
-	SetSnapToPixelGrid = Method(),
-	SetTexelSnappingBias = Method(),
-	SetTexture = Method(function(self, file)
-		self.file = file
-	end),
-	SetColorTexture = Method(),
-	SetTexCoord = Method(function(self, ...)
-		self.coords = { ... }
-	end),
-	GetTexCoord = function(self)
-		return unpack(self.coords)
-	end,
-	SetDesaturated = Method(function(self, desaturated)
-		self.desaturated = desaturated
-	end),
-	SetVertexColor = Method(function(self, r)
-		self.red = r
-	end),
-	SetHorizTile = Method(),
-	SetVertTile = Method(),
-	SetAtlas = Method(),
-	SetDrawLayer = Method(),
-	SetBlendMode = Method(),
-	SetAlpha = Method(),
-}, { __index = Region })
-Texture.__index = function(_, key)
-	return Texture[key] or error("a texture has no " .. tostring(key))
-end
-
-local Frame = setmetatable({
-	SetFrameLevel = Method(function(self, level)
-		self.level = level
-	end),
-	GetFrameLevel = function(self)
-		return self.level
-	end,
-	SetScale = Method(function(self, scale)
-		self.scale = scale
-	end),
-	SetScript = Method(function(self, name, script)
-		self.scripts[name] = script
-	end),
-	GetSize = function(self)
-		return self.frameWidth, self.frameHeight
-	end,
-	GetLeft = function()
-		return 100
-	end,
-	GetRight = function()
-		return 300
-	end,
-	GetTop = function()
-		return 300
-	end,
-	GetBottom = function()
-		return 260
-	end,
-	SetBackdrop = Method(function(self, backdrop)
-		self.backdrop = backdrop
-	end),
-	SetBackdropBorderColor = Method(),
-	CreateTexture = function(self)
-		counts.textures = counts.textures + 1
-
-		return setmetatable({ parent = self, shown = true }, Texture)
-	end,
-}, { __index = Region })
-Frame.__index = function(_, key)
-	return Frame[key] or error("a frame has no " .. tostring(key))
-end
-
-function CreateFrame(_, _, parent, template)
-	counts.frames = counts.frames + 1
-
-	return setmetatable({ parent = parent, template = template, shown = true, scripts = {}, level = 1, frameWidth = 200,
-		frameHeight = 40 }, Frame)
-end
-
-function Mixin(object, ...)
-	for index = 1, select("#", ...) do
-		for key, value in pairs((select(index, ...))) do
-			object[key] = value
-		end
-	end
-
-	return object
-end
+local client = assert(loadfile(root .. "Tools/stub_client.lua"))({ project = "retail" })
+local Equal = client.Equal
 
 C_Texture = {
 	GetAtlasInfo = function()
@@ -186,7 +45,9 @@ end
 local function Fresh(overContent)
 	local owner = CreateFrame("Frame")
 
-	counts.frames, counts.textures = 0, 0
+	owner:SetSize(200, 40)
+	owner.left, owner.right, owner.top, owner.bottom = 100, 300, 300, 260
+	client.framesMade, client.texturesMade = 0, 0
 
 	return Border:Create(owner, overContent)
 end
@@ -204,35 +65,35 @@ end
 -- Nothing up front ----------------------------------------------------------------------------------------
 
 local border = Fresh(true)
-Equal("a new border makes one frame", counts.frames, 1)
-Equal("and its background", counts.textures, 1)
+Equal("a new border makes one frame", client.framesMade, 1)
+Equal("and its background", client.texturesMade, 1)
 Equal("no art", border.pieces, nil)
 Equal("no metal", border.metal, nil)
 Equal("no lines", border.lines, nil)
 Equal("no rules", next(border.rules), nil)
 Equal("no row backgrounds", next(border.rowBackgrounds), nil)
 border.over.scripts.OnSizeChanged()
-Equal("a resize before any style makes nothing", counts.textures, 1)
+Equal("a resize before any style makes nothing", client.texturesMade, 1)
 
 border:Apply(Look("NONE"))
-Equal("None makes nothing", counts.textures, 1)
+Equal("None makes nothing", client.texturesMade, 1)
 
 -- Art ------------------------------------------------------------------------------------------------------
 
 border = Fresh(true)
 border:Apply(Look("FOREVER_MINIMAL_SHADED"))
-Equal("the art makes its nine pieces", counts.textures, 10)
-Equal("and no other frame", counts.frames, 1)
+Equal("the art makes its nine pieces", client.texturesMade, 10)
+Equal("and no other frame", client.framesMade, 1)
 Equal("no metal beside it", border.metal, nil)
 Equal("no lines beside it", border.lines, nil)
 Equal("no rules without rows", next(border.rules), nil)
 Equal("above the content on over", border.pieces[1].parent, border.over)
 Equal("in its band art", border.pieces[1].file, border.pieces[9].file)
 
-counts.calls = 0
+client.calls = 0
 border:SetColor({ r = 0.7, g = 0.7, b = 0.7 })
-Equal("a color change touches only the art", counts.calls, 18)
-Equal("and colors it", border.pieces[1].red, 0.7)
+Equal("a color change touches only the art", client.calls, 18)
+Equal("and colors it", border.pieces[1].vertex[1], 0.7)
 
 local colored = Fresh(true)
 
@@ -241,7 +102,7 @@ colored:SetColor({ r = 0.7 })
 Equal("art with its own colors keeps them", colored.pieces[1].desaturated, false)
 colored:SetColor({ r = 0.7 }, true)
 Equal("unless the color is forced", colored.pieces[1].desaturated, true)
-Equal("in that color", colored.pieces[1].red, 0.7)
+Equal("in that color", colored.pieces[1].vertex[1], 0.7)
 colored:SetColor({ r = 0.2 })
 Equal("and it comes back", colored.pieces[1].desaturated, false)
 
@@ -254,10 +115,10 @@ Equal("behind the content on the owner", behind.pieces[1].parent, behind.owner)
 border = Fresh(true)
 border:SetFrameLevel(7)
 border:Apply(Look("METAL"))
-Equal("Metal makes its pieces", counts.textures, 33)
-Equal("and its frame", counts.frames, 2)
+Equal("Metal makes its pieces", client.texturesMade, 33)
+Equal("and its frame", client.framesMade, 2)
 Equal("at the level already asked for", border.metal.level, 7)
-Equal("placed", border.metal.anchored, true)
+Equal("placed", border.metal.points[1] ~= nil, true)
 Equal("scaled", border.metal.scale ~= nil, true)
 Equal("no art beside it", border.pieces, nil)
 
@@ -272,30 +133,30 @@ Equal("and keeps it", border.metal, metal)
 metal.scale = "untouched"
 border:Layout()
 Equal("a hidden metal frame is not laid out", metal.scale, "untouched")
-counts.calls = 0
+client.calls = 0
 border:SetColor(GRAY)
-Equal("nor colored", counts.calls, 18)
+Equal("nor colored", client.calls, 18)
 
-local made = counts.textures
+local made = client.texturesMade
 border:Apply(Look("METAL"))
 Equal("switching back shows it", metal.shown, true)
-Equal("makes nothing new", counts.textures, made)
+Equal("makes nothing new", client.texturesMade, made)
 Equal("and lays it out again", metal.scale, scale)
 Equal("the art hides", AllHidden(border.pieces), true)
-counts.calls = 0
+client.calls = 0
 border:SetColor(GRAY)
-Equal("a color change reaches the metal pieces", counts.calls > 18, true)
+Equal("a color change reaches the metal pieces", client.calls > 18, true)
 
 -- Thin Line ------------------------------------------------------------------------------------------------
 
 border = Fresh(true)
 border:Apply(Look("THIN_LINE"))
-Equal("Thin Line makes four lines", counts.textures, 5)
+Equal("Thin Line makes four lines", client.texturesMade, 5)
 Equal("shown", border.lines[1].shown, true)
 Equal("one pixel tall", border.lines[1].height, 0.5)
 Equal("one pixel wide", border.lines[3].width, 0.5)
 border:SetColor({ r = 0.2 })
-Equal("a color change colors them", border.lines[1].red, 0.2)
+Equal("a color change colors them", border.lines[1].vertex[1], 0.2)
 
 local lines = border.lines
 border:Apply(Look("NONE"))
@@ -303,9 +164,9 @@ Equal("switching away hides them", AllHidden(lines), true)
 lines[1].height = "untouched"
 border:Layout()
 Equal("hidden lines are not laid out", lines[1].height, "untouched")
-lines[1].red = "untouched"
+lines[1].vertex = "untouched"
 border:SetColor(GRAY)
-Equal("nor colored by a color change", lines[1].red, "untouched")
+Equal("nor colored by a color change", lines[1].vertex, "untouched")
 
 -- Rows -----------------------------------------------------------------------------------------------------
 
@@ -342,7 +203,7 @@ Equal("the title bar is shown instead", plain.metalParts.titles.bottom.left[1].s
 
 plain = Fresh(true)
 plain:Apply(Look("NONE", { top = ROWS }))
-Equal("rows under None make nothing", counts.textures, 1)
+Equal("rows under None make nothing", client.texturesMade, 1)
 
 plain = Fresh(true)
 plain:Apply(Look("THIN_LINE", { top = ROWS }))
@@ -353,9 +214,9 @@ Equal("and no background", plain.rowBackgrounds.top, nil)
 
 border = Fresh(true)
 border:Apply(Look("EDGE", { edgeFile = "edge file" }))
-Equal("an edge makes one frame more", counts.frames, 2)
+Equal("an edge makes one frame more", client.framesMade, 2)
 Equal("from the backdrop template", border.edge.template, "BackdropTemplate")
-Equal("and no pieces", counts.textures, 1)
+Equal("and no pieces", client.texturesMade, 1)
 border:Apply(Look("NONE"))
 Equal("switching away hides it", border.edge.shown, false)
 
@@ -363,7 +224,7 @@ border = Fresh(true)
 border:Apply(Look("FOREVER"))
 Equal("no lit copy until it is asked for", border.glow, nil)
 border:SetLit(true)
-Equal("the lit copy makes nine more", counts.textures, 19)
+Equal("the lit copy makes nine more", client.texturesMade, 19)
 border:Apply(Look("NONE"))
 Equal("switching away hides it", AllHidden(border.glow), true)
 border:SetLit(true)
@@ -467,4 +328,4 @@ border:Apply(Look("THIN_LINE", { shadow = SHADOW }))
 Equal("switching back hides the art's", AllHidden(border.shadowPieces), true)
 Equal("and shows the square one", border.square.shown, true)
 
-io.stdout:write(("check_border: %d checks passed\n"):format(checks))
+io.stdout:write(("check_border: %d checks passed\n"):format(client.checks))

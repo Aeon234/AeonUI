@@ -1,4 +1,4 @@
-## Interface: 120100, 120105, 16001
+## Interface: 120105,, 16001
 ## Title: |cff00a3e3Aeon|r|cfff2e6c8UI|r Unit Frames
 ## Notes: The unit frames, player cast bar and swing timer for |cff00a3e3Aeon|r|cfff2e6c8UI|r.
 ## IconTexture: Interface\AddOns\AeonUI\Media\Textures\Logo.png
