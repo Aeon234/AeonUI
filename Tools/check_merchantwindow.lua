@@ -6,13 +6,14 @@
 -- changes item, item quality redrawn, the buyback tab and turning off giving Blizzard's slots, size and anchors back,
 -- Show All Items setting the filter as the window opens, and standing down for Krowi's Extended Vendor UI.
 -- Run from any directory with Lua 5.1: lua Tools/check_merchantwindow.lua
--- Loads the real files against stubbed globals. Exits non-zero on the first failed check.
+-- Loads the real files against the shared stub client. Exits non-zero on the first failed check.
 
 local root = (arg and arg[0] or ""):match("^(.-)[^/\\]*$") .. "../"
+local client = assert(loadfile(root .. "Tools/stub_client.lua"))({ project = "retail" })
+local Equal = client.Equal
 
 -- Environment ---------------------------------------------------------------------------------------------
 
-WOW_PROJECT_ID = 1
 SlashCmdList = {}
 MAX_ITEM_COST = 3
 MERCHANT_PAGE_NUMBER = "Page %s of %s"
@@ -36,60 +37,24 @@ function CallErrorHandler(message)
 	error(message, 0)
 end
 
--- WoW's xpcall forwards extra arguments to the function, as Lua 5.2 does; Lua 5.1's does not.
-local luaXpcall = xpcall
-function xpcall(fn, handler, ...)
-	local count, args = select("#", ...), { ... }
-
-	return luaXpcall(function()
-		return fn(unpack(args, 1, count))
-	end, handler)
-end
-
-C_Timer = { After = function(_, callback)
-	callback()
-end }
-
----A region: shown state, anchors and size, recorded.
-local function Region(name, shown)
-	local region = { name = name, shown = shown ~= false, points = {}, enabled = true }
-	function region:Show() self.shown = true end
-	function region:Hide() self.shown = false end
-	function region:SetShown(value) self.shown = value and true or false end
-	function region:IsShown() return self.shown end
-	function region:ClearAllPoints() self.points = {} end
-	function region:SetPoint(point, ...) self.points[#self.points + 1] = { point, ... } end
-	function region:SetSize(width, height) self.width, self.height = width, height end
-	function region:SetWidth(width) self.width = width end
-	function region:SetHeight(height) self.height = height end
-	function region:HookScript(script, hook) self.scriptHooks = self.scriptHooks or {}; self.scriptHooks[script] = hook end
-	function region:GetWidth() return self.width or 10 end
-	function region:GetName() return self.name end
-	function region:SetEnabled(value) self.enabled = value and true or false end
-	function region:IsEnabled() return self.enabled end
-	function region:SetText(text) self.text = text end
-	function region:SetFormattedText(format, ...) self.text = format:format(...) end
-	function region:SetTexture(texture) self.texture = texture end
-	if name then
-		_G[name] = region
-	end
-
-	return region
-end
+local MakeFrame = CreateFrame
 
 ---A slot from MerchantItemTemplate: its named parts, as the template's `$parent` names make them.
 local function MerchantItem(name)
-	local slot = Region(name)
-	slot.Name = Region(name .. "Name")
-	slot.ItemButton = Region(name .. "ItemButton")
-	slot.ItemButton.IconQuestTexture = Region(nil, false)
-	function slot.ItemButton:SetID(id) self.id = id end
-	function slot.ItemButton:GetID() return self.id or 0 end
-	Region(name .. "NameFrame")
-	Region(name .. "MoneyFrame", false)
-	Region(name .. "AltCurrencyFrame", false)
+	local slot = MakeFrame("Frame", name, MerchantFrame)
+
+	slot.Name = slot:CreateFontString(nil, "BACKGROUND", "GameFontNormalSmall")
+	slot.ItemButton = MakeFrame("Button", name .. "ItemButton", slot)
+	slot.ItemButton.IconQuestTexture = slot.ItemButton:CreateTexture()
+	slot.ItemButton.IconQuestTexture:Hide()
+	MakeFrame("Frame", name .. "MoneyFrame", slot):Hide()
+	MakeFrame("Frame", name .. "AltCurrencyFrame", slot):Hide()
+
 	for cost = 1, MAX_ITEM_COST do
-		Region(name .. "AltCurrencyFrameItem" .. cost, false)
+		local item = MakeFrame("Button", name .. "AltCurrencyFrameItem" .. cost, slot)
+
+		item:SetWidth(10)
+		item:Hide()
 	end
 
 	return slot
@@ -104,28 +69,41 @@ function CreateFrame(kind, name, parent, template)
 		return MerchantItem(name)
 	end
 
-	return { RegisterEvent = function() end, UnregisterEvent = function() end, SetScript = function() end }
+	return MakeFrame(kind, name, parent, template)
 end
 
-MerchantFrame = Region("MerchantFrame", false)
+---A named part of the merchant window.
+local function Part(kind, name, shown)
+	local part = MakeFrame(kind, name, MerchantFrame)
+
+	if shown == false then
+		part:Hide()
+	end
+
+	return part
+end
+
+MerchantFrame = MakeFrame("Frame", "MerchantFrame", UIParent)
+MerchantFrame:Hide()
 MerchantFrame.selectedTab, MerchantFrame.page = 1, 1
 MerchantFrame:SetSize(336, 444)
 for number = 1, 12 do
 	MerchantItem("MerchantItem" .. number)
 end
-local MerchantPageText = Region("MerchantPageText", false)
-local MerchantPrevPageButton = Region("MerchantPrevPageButton", false)
-local MerchantNextPageButton = Region("MerchantNextPageButton", false)
-local MerchantFrameBottomLeftBorder = Region("MerchantFrameBottomLeftBorder")
-local MerchantMoneyInset = Region("MerchantMoneyInset")
-local MerchantMoneyBg = Region("MerchantMoneyBg")
-local MerchantMoneyFrame = Region("MerchantMoneyFrame")
-local MerchantToken1 = Region("MerchantToken1")
-local MerchantBuyBackItem = Region("MerchantBuyBackItem")
-local MerchantRepairAllButton = Region("MerchantRepairAllButton")
-local MerchantRepairItemButton = Region("MerchantRepairItemButton")
-local MerchantGuildBankRepairButton = Region("MerchantGuildBankRepairButton", false)
-local MerchantSellAllJunkButton = Region("MerchantSellAllJunkButton")
+MerchantPageText = MerchantFrame:CreateFontString(nil, "BORDER", "GameFontNormal")
+MerchantPageText:Hide()
+MerchantFrameBottomLeftBorder = MerchantFrame:CreateTexture()
+local MerchantPrevPageButton = Part("Button", "MerchantPrevPageButton", false)
+local MerchantNextPageButton = Part("Button", "MerchantNextPageButton", false)
+local MerchantMoneyInset = Part("Frame", "MerchantMoneyInset")
+local MerchantMoneyBg = Part("Frame", "MerchantMoneyBg")
+local MerchantMoneyFrame = Part("Frame", "MerchantMoneyFrame")
+local MerchantToken1 = Part("Button", "MerchantToken1")
+local MerchantBuyBackItem = Part("Frame", "MerchantBuyBackItem")
+local MerchantRepairAllButton = Part("Button", "MerchantRepairAllButton")
+local MerchantRepairItemButton = Part("Button", "MerchantRepairItemButton")
+local MerchantGuildBankRepairButton = Part("Button", "MerchantGuildBankRepairButton", false)
+local MerchantSellAllJunkButton = Part("Button", "MerchantSellAllJunkButton")
 local canRepair, canGuildRepair = true, false
 function CanMerchantRepair()
 	return canRepair
@@ -164,7 +142,11 @@ Enum = { GameRule = { MerchantFilterDisabled = 7 } }
 C_GameRules = { IsGameRuleActive = function(rule)
 	return rule == 7 and filterHidden
 end }
+-- The grid reads this once a draw.
+local draws = 0
 function GetMerchantNumItems()
+	draws = draws + 1
+
 	return #items
 end
 function CanAffordMerchantItem(index)
@@ -216,24 +198,15 @@ function MerchantFrameItem_UpdateQuality(slot, link)
 	qualities[#qualities + 1] = slot:GetName() .. "=" .. tostring(link)
 end
 
-StackSplitFrame = Region("StackSplitFrame", false)
+StackSplitFrame = MakeFrame("Frame", "StackSplitFrame", UIParent)
+StackSplitFrame:Hide()
 local splitCancels = 0
 function StackSplitCancelButton_OnClick()
 	splitCancels = splitCancels + 1
 	StackSplitFrame:Hide()
 end
 
--- Blizzard's update: its tab's draw function, then whatever hooked it.
-local hooks = {}
-function hooksecurefunc(name, hook)
-	hooks[name] = hooks[name] or {}
-	table.insert(hooks[name], hook)
-end
-local function Run(name)
-	for _, hook in ipairs(hooks[name] or {}) do
-		hook()
-	end
-end
+-- Blizzard's update: its tab's draw function.
 local updates = 0
 function MerchantFrame_UpdateMerchantInfo()
 	-- Blizzard shows its page controls past ten items and hides its buyback slots.
@@ -246,7 +219,6 @@ function MerchantFrame_UpdateMerchantInfo()
 	MerchantFrame_UpdateRepairButtons()
 	MerchantBuyBackItem:Show()
 	MerchantFrameBottomLeftBorder:Show()
-	Run("MerchantFrame_UpdateMerchantInfo")
 end
 -- Blizzard anchors the buttons again without clearing them first.
 function MerchantFrame_UpdateRepairButtons()
@@ -258,7 +230,6 @@ function MerchantFrame_UpdateRepairButtons()
 		MerchantSellAllJunkButton:SetPoint("BOTTOMRIGHT", MerchantFrame, "BOTTOMRIGHT", -148, 33)
 	end
 	MerchantGuildBankRepairButton:SetShown(canGuildRepair)
-	Run("MerchantFrame_UpdateRepairButtons")
 end
 function MerchantFrame_UpdateBuybackInfo()
 	MerchantItem11:Show()
@@ -267,11 +238,8 @@ function MerchantFrame_UpdateBuybackInfo()
 	MerchantRepairItemButton:Hide()
 	MerchantBuyBackItem:Hide()
 	MerchantFrameBottomLeftBorder:Hide()
-	Run("MerchantFrame_UpdateBuybackInfo")
 end
-function MerchantFrame_UpdateItemQualityBorders()
-	Run("MerchantFrame_UpdateItemQualityBorders")
-end
+function MerchantFrame_UpdateItemQualityBorders() end
 function MerchantFrame_Update()
 	updates = updates + 1
 	if MerchantFrame.selectedTab == 1 then
@@ -279,6 +247,26 @@ function MerchantFrame_Update()
 	else
 		MerchantFrame_UpdateBuybackInfo()
 	end
+end
+
+local UPDATES = { "MerchantFrame_UpdateMerchantInfo", "MerchantFrame_UpdateBuybackInfo",
+	"MerchantFrame_UpdateItemQualityBorders" }
+local stock = {}
+for _, name in ipairs(UPDATES) do
+	stock[name] = _G[name]
+end
+
+---@return number hooked how many of Blizzard's three updates a hook has replaced
+local function HookedUpdates()
+	local hooked = 0
+
+	for _, name in ipairs(UPDATES) do
+		if _G[name] ~= stock[name] then
+			hooked = hooked + 1
+		end
+	end
+
+	return hooked
 end
 
 -- Addon table ---------------------------------------------------------------------------------------------
@@ -311,6 +299,7 @@ AUI.Profile = {
 local function Set(path, value)
 	values[path] = value
 	AUI.Callbacks:Fire("Profile", path)
+	client:RunTimers()
 end
 
 for _, file in ipairs({ "AeonUI_QoL/MerchantWindow/Options.lua", "AeonUI_QoL/MerchantWindow/BottomBar.lua", "AeonUI_QoL/MerchantWindow/MerchantWindow.lua" }) do
@@ -319,17 +308,7 @@ end
 
 local Options, MerchantWindow = AUI.MerchantWindowOptions, AUI.MerchantWindow
 
--- Harness -------------------------------------------------------------------------------------------------
-
-local checks = 0
-
-local function Equal(name, actual, expected)
-	checks = checks + 1
-	if actual ~= expected then
-		io.stderr:write(("FAIL: %s: expected %s, got %s\n"):format(name, tostring(expected), tostring(actual)))
-		os.exit(1)
-	end
-end
+-- Helpers -------------------------------------------------------------------------------------------------
 
 local function Cell(slot, rows, columns, order)
 	local row, column = Options:Cell(slot, rows, columns, order)
@@ -430,7 +409,7 @@ Equal("not a number", Options:ClampPage(nil, 3), 1)
 -- Module --------------------------------------------------------------------------------------------------
 
 MerchantWindow:Start()
-Equal("off: nothing hooked", hooks.MerchantFrame_UpdateMerchantInfo, nil)
+Equal("off: nothing hooked", client.hooks, 0)
 Equal("off: not extended", MerchantWindow.extended, false)
 
 Stock(23)
@@ -440,8 +419,7 @@ Equal("off: Blizzard's slots stay", Blizzard(true), true)
 Equal("off: no slots made", #created, 0)
 
 Set(Options.ENABLED_PATH, true)
-Equal("on: Blizzard's three updates hooked", #hooks.MerchantFrame_UpdateMerchantInfo + #hooks.MerchantFrame_UpdateBuybackInfo
-	+ #hooks.MerchantFrame_UpdateItemQualityBorders, 3)
+Equal("on: Blizzard's three updates hooked", HookedUpdates(), 3)
 Equal("on: an open window redraws", updates, 2)
 Equal("the default grid's slots", #created, 25)
 Equal("slots are named for Blizzard's helpers", created[1], "AeonUIMerchantItem1")
@@ -557,7 +535,7 @@ Equal("money and cost items", tostring(AeonUIMerchantItem2MoneyFrame.shown) .. "
 Equal("the price leaves room for the cost items", AeonUIMerchantItem2MoneyFrame.maxWidth, 120 - 24)
 Equal("an unaffordable price is gray", AeonUIMerchantItem2MoneyFrame.color, "gray")
 Equal("a quest item's mark", tostring(AeonUIMerchantItem3.ItemButton.IconQuestTexture.shown) .. " "
-	.. tostring(AeonUIMerchantItem3.ItemButton.IconQuestTexture.texture), "true bang")
+	.. tostring(AeonUIMerchantItem3.ItemButton.IconQuestTexture.file), "true bang")
 Equal("a known heirloom, sold out, desaturated and dimmed", tostring(AeonUIMerchantItem3.ItemButton.desaturated) .. " "
 	.. AeonUIMerchantItem3.slotColor, "true 0.5 0.5 0.5")
 Equal("a currency's container name", AeonUIMerchantItem4.Name.text, "Crest (container)")
@@ -578,8 +556,8 @@ Equal("item quality redrawn for each shown item", table.concat(qualities, " "),
 	"AeonUIMerchantItem1=link1 AeonUIMerchantItem2=link2 AeonUIMerchantItem3=link3 AeonUIMerchantItem4=link4")
 
 -- Forever's gamepad interface pages with its indicators.
-local MerchantPageTurnIndicatorLeft = Region("MerchantPageTurnIndicatorLeft", false)
-local MerchantPageTurnIndicatorRight = Region("MerchantPageTurnIndicatorRight", false)
+local MerchantPageTurnIndicatorLeft = Part("Button", "MerchantPageTurnIndicatorLeft", false)
+local MerchantPageTurnIndicatorRight = Part("Button", "MerchantPageTurnIndicatorRight", false)
 InputUtil = { IsGamepadUIEnabled = function()
 	return true
 end }
@@ -629,7 +607,9 @@ Equal("off: back to the first page", MerchantFrame.page, 1)
 MerchantFrame_Update()
 Equal("off: the hooks draw nothing", tostring(AeonUIMerchantItem1.shown), "false")
 Set(Options.ENABLED_PATH, true)
-Equal("on again: hooked once", #hooks.MerchantFrame_UpdateMerchantInfo, 1)
+draws = 0
+MerchantFrame_UpdateMerchantInfo()
+Equal("on again: hooked once", draws, 1)
 Equal("on again: the grid", tostring(AeonUIMerchantItem1.shown), "true")
 
 -- Krowi's Extended Vendor UI resizes the window itself.
@@ -642,7 +622,7 @@ loaded.Krowi_ExtendedVendorUI = nil
 Equal("nothing blocks it otherwise", MerchantWindow:Blocked(), nil)
 
 -- Show All Items: after Blizzard's show resets the filter to the class's items.
-local onShow = MerchantFrame.scriptHooks and MerchantFrame.scriptHooks.OnShow
+local onShow = MerchantFrame.scripts.OnShow
 Equal("hooked to the window's show once started", type(onShow), "function")
 AUI.can.merchantFilter = true
 MerchantFrame.page = 3
@@ -678,4 +658,4 @@ MerchantWindow.active = false
 AUI.can.merchantWindow = false
 Equal("unavailable: not wanted", MerchantWindow:IsWanted(), false)
 
-io.stdout:write(("check_merchantwindow: %d checks passed\n"):format(checks))
+io.stdout:write(("check_merchantwindow: %d checks passed\n"):format(client.checks))

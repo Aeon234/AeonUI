@@ -4,13 +4,14 @@
 -- side and row keys, the actions (the ignore list's store, delete, sell, the loot taken after the bags settle), and
 -- the openers (loot, merchant, quest rewards, closing by hand).
 -- Run from any directory with Lua 5.1: lua Tools/check_dci.lua
--- Loads the real files against stubbed globals. Exits non-zero on the first failed check.
+-- Loads the real files against the shared stub client. Exits non-zero on the first failed check.
 
 local root = (arg and arg[0] or ""):match("^(.-)[^/\\]*$") .. "../"
+local client = assert(loadfile(root .. "Tools/stub_client.lua"))({ project = "retail" })
+local Equal = client.Equal
 
 -- Environment ---------------------------------------------------------------------------------------------
 
-WOW_PROJECT_ID = 1
 SlashCmdList = {}
 StaticPopupDialogs = {}
 C_AddOns = {
@@ -21,24 +22,6 @@ C_AddOns = {
 
 function CallErrorHandler(message)
 	error(message, 0)
-end
-
--- WoW's xpcall forwards extra arguments to the function, as Lua 5.2 does; Lua 5.1's does not.
-local luaXpcall = xpcall
-function xpcall(fn, handler, ...)
-	local count, args = select("#", ...), { ... }
-
-	return luaXpcall(function()
-		return fn(unpack(args, 1, count))
-	end, handler)
-end
-
-C_Timer = { After = function(_, callback)
-	callback()
-end }
-
-function CreateFrame()
-	return { RegisterEvent = function() end, UnregisterEvent = function() end, SetScript = function() end }
 end
 
 -- Addon table ---------------------------------------------------------------------------------------------
@@ -76,18 +59,6 @@ end
 assert(loadfile(root .. "AeonUI_QoL/DeleteCheapestItem/Options.lua"))("AeonUI", AUI)
 
 local Options = AUI.DeleteCheapestItemOptions
-
--- Harness -------------------------------------------------------------------------------------------------
-
-local checks = 0
-
-local function Equal(name, actual, expected)
-	checks = checks + 1
-	if actual ~= expected then
-		io.stderr:write(("FAIL: %s: expected %s, got %s\n"):format(name, tostring(expected), tostring(actual)))
-		os.exit(1)
-	end
-end
 
 local nextSlot = 0
 
@@ -571,19 +542,11 @@ Equal("never below none", Options.QuestSlotsNeeded(0, 0, 3), 0)
 ERR_INV_FULL = "Inventory is full."
 Enum.LootSlotType = { None = 0, Item = 1, Money = 2, Currency = 3 }
 
-local SECRET = {}
+local SECRET = client.Secret()
 
-function issecretvalue(value)
-	return value == SECRET
+for _, name in ipairs({ "LootFrame", "MerchantFrame", "QuestFrame" }) do
+	CreateFrame("Frame", name):Hide()
 end
-
-local function Shown(shown)
-	return { shown = shown, IsShown = function(self)
-		return self.shown
-	end }
-end
-
-LootFrame, MerchantFrame, QuestFrame = Shown(false), Shown(false), Shown(false)
 
 -- Loot slot 1 holds money, 2 three Cloth, 3 a Bone.
 local loot = {
@@ -651,6 +614,14 @@ assert(loadfile(root .. "AeonUI_QoL/DeleteCheapestItem/Openers.lua"))("AeonUI", 
 
 local Openers = AUI.DeleteCheapestItemOpeners
 
+---Hands the openers an event, then lets the work it put off for the next frame run.
+---@param event string
+---@param ... any
+local function Deliver(event, ...)
+	Openers:OnEvent(event, ...)
+	client:RunTimers()
+end
+
 local function Opened()
 	local text = table.concat(opened, ", ")
 
@@ -666,85 +637,85 @@ Equal("loot: the incoming item", incoming.name .. " " .. incoming.quality, "Clot
 Equal("loot: its worth for the stack", incoming.value, 6)
 Equal("loot: worth by the price choice", Bags:Incoming(3).value, 380)
 
-Openers:OnEvent("UI_ERROR_MESSAGE", 1, "Something else")
-Openers:OnEvent("UI_ERROR_MESSAGE", 1, SECRET)
+Deliver("UI_ERROR_MESSAGE", 1, "Something else")
+Deliver("UI_ERROR_MESSAGE", 1, SECRET)
 Equal("other errors and secret ones open nothing", Opened(), "")
 
-Openers:OnEvent("UI_ERROR_MESSAGE", 1, ERR_INV_FULL)
+Deliver("UI_ERROR_MESSAGE", 1, ERR_INV_FULL)
 Equal("the error with no loot or merchant window waits for loot", Openers.waitingForLoot, true)
 LootFrame.shown = true
-Openers:OnEvent("LOOT_OPENED", false, false)
+Deliver("LOOT_OPENED", false, false)
 Equal("the loot window opens it, for the first item", Opened(), "LOOT:2")
 Equal("no longer waiting", Openers.waitingForLoot, false)
 Equal("the incoming item is the slot's", window.context.incoming.name, "Cloth")
 
 LootFrame.selectedSlot = 3
-Openers:OnEvent("UI_ERROR_MESSAGE", 1, ERR_INV_FULL)
+Deliver("UI_ERROR_MESSAGE", 1, ERR_INV_FULL)
 Equal("the error while looting: the clicked slot", Opened(), "LOOT:3")
 
 loot[3].taken = true
-Openers:OnEvent("LOOT_SLOT_CLEARED", 3)
+Deliver("LOOT_SLOT_CLEARED", 3)
 Equal("its slot looted: the next item", Opened(), "LOOT:2")
-Openers:OnEvent("LOOT_SLOT_CLEARED", 1)
+Deliver("LOOT_SLOT_CLEARED", 1)
 Equal("another slot looted: nothing", Opened(), "")
 loot[2].taken = true
-Openers:OnEvent("LOOT_SLOT_CLEARED", 2)
+Deliver("LOOT_SLOT_CLEARED", 2)
 Equal("no item left: nothing incoming", window.context.incoming, nil)
 Opened()
 
 Openers:Dismissed(window.context)
 loot[2].taken, loot[3].taken = false, false
-Openers:OnEvent("UI_ERROR_MESSAGE", 1, ERR_INV_FULL)
+Deliver("UI_ERROR_MESSAGE", 1, ERR_INV_FULL)
 Equal("closed by hand: stays closed while the loot is open", Opened(), "")
-Openers:OnEvent("LOOT_CLOSED")
+Deliver("LOOT_CLOSED")
 Equal("the loot window closing closes it", Opened(), "close")
-Openers:OnEvent("UI_ERROR_MESSAGE", 1, ERR_INV_FULL)
+Deliver("UI_ERROR_MESSAGE", 1, ERR_INV_FULL)
 Equal("the next loot opens it again", Opened(), "LOOT:3")
 LootFrame.selectedSlot = nil
 
-Openers:OnEvent("LOOT_CLOSED")
+Deliver("LOOT_CLOSED")
 Opened()
 Set(Options.OPEN_FREE_SLOTS_PATH, 1)
-Openers:OnEvent("LOOT_OPENED", false, false)
+Deliver("LOOT_OPENED", false, false)
 Equal("free slots at the threshold open it", Opened(), "LOOT:2")
-Openers:OnEvent("LOOT_CLOSED")
+Deliver("LOOT_CLOSED")
 Opened()
 Set(Options.OPEN_FREE_SLOTS_PATH, nil)
-Openers:OnEvent("LOOT_OPENED", false, false)
+Deliver("LOOT_OPENED", false, false)
 Equal("no threshold: opening loot alone opens nothing", Opened(), "")
 
 Set(Options.OPEN_BAGS_FULL_PATH, false)
-Openers:OnEvent("UI_ERROR_MESSAGE", 1, ERR_INV_FULL)
+Deliver("UI_ERROR_MESSAGE", 1, ERR_INV_FULL)
 Equal("bags-full opening turned off", Opened(), "")
 Set(Options.OPEN_BAGS_FULL_PATH, nil)
 LootFrame.shown = false
-Openers:OnEvent("LOOT_CLOSED")
+Deliver("LOOT_CLOSED")
 Opened()
 
 MerchantFrame.shown = true
-Openers:OnEvent("UI_ERROR_MESSAGE", 1, ERR_INV_FULL)
+Deliver("UI_ERROR_MESSAGE", 1, ERR_INV_FULL)
 Equal("a purchase that does not fit opens it beside the merchant", Opened(), "MERCHANT:nil")
 Set(Options.OPEN_MERCHANT_PATH, false)
-Openers:OnEvent("UI_ERROR_MESSAGE", 1, ERR_INV_FULL)
+Deliver("UI_ERROR_MESSAGE", 1, ERR_INV_FULL)
 Equal("merchant opening turned off", Opened(), "")
 Set(Options.OPEN_MERCHANT_PATH, nil)
-Openers:OnEvent("MERCHANT_CLOSED")
+Deliver("MERCHANT_CLOSED")
 Equal("the merchant closing closes it", Opened(), "close")
 MerchantFrame.shown = false
 
 questChoices, questRewards, questItems = 2, 0, 0
-Openers:OnEvent("QUEST_COMPLETE")
+Deliver("QUEST_COMPLETE")
 Equal("a reward that fits opens nothing", Opened(), "")
 questRewards = 1
-Openers:OnEvent("QUEST_COMPLETE")
+Deliver("QUEST_COMPLETE")
 Equal("rewards needing more slots than are free open it", Opened(), "QUEST:nil")
-Openers:OnEvent("QUEST_FINISHED")
+Deliver("QUEST_FINISHED")
 Equal("the quest window closing closes it", Opened(), "close")
 questItems = 1
-Openers:OnEvent("QUEST_PROGRESS")
-Openers:OnEvent("QUEST_COMPLETE")
+Deliver("QUEST_PROGRESS")
+Deliver("QUEST_COMPLETE")
 Equal("items handed in make room", Opened(), "")
-Openers:OnEvent("QUEST_FINISHED")
+Deliver("QUEST_FINISHED")
 Opened()
 Equal("the handed-in count is forgotten", Openers.handedIn, 0)
 
@@ -752,4 +723,4 @@ window.context = { kind = "HAND" }
 Openers:Dismissed(window.context)
 Equal("closing a window opened by hand dismisses nothing", next(Openers.dismissed), nil)
 
-io.stdout:write(("check_dci: %d checks passed\n"):format(checks))
+io.stdout:write(("check_dci: %d checks passed\n"):format(client.checks))

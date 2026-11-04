@@ -2,13 +2,14 @@
 -- shared settings until set, the message frame growing with its font, nothing changed while off, and every line given
 -- its font object and the frame its size back when turned off.
 -- Run from any directory with Lua 5.1: lua Tools/check_screentext.lua
--- Loads the real files against stubbed globals. Exits non-zero on the first failed check.
+-- Loads the real files against the shared stub client. Exits non-zero on the first failed check.
 
 local root = (arg and arg[0] or ""):match("^(.-)[^/\\]*$") .. "../"
+local client = assert(loadfile(root .. "Tools/stub_client.lua"))({ project = "retail" })
+local Equal = client.Equal
 
 -- Environment ---------------------------------------------------------------------------------------------
 
-WOW_PROJECT_ID = 1
 SlashCmdList = {}
 StaticPopupDialogs = {}
 C_AddOns = {
@@ -19,24 +20,6 @@ C_AddOns = {
 
 function CallErrorHandler(message)
 	error(message, 0)
-end
-
--- WoW's xpcall forwards extra arguments to the function, as Lua 5.2 does; Lua 5.1's does not.
-local luaXpcall = xpcall
-function xpcall(fn, handler, ...)
-	local count, args = select("#", ...), { ... }
-
-	return luaXpcall(function()
-		return fn(unpack(args, 1, count))
-	end, handler)
-end
-
-C_Timer = { After = function(_, callback)
-	callback()
-end }
-
-function CreateFrame()
-	return { RegisterEvent = function() end, UnregisterEvent = function() end, SetScript = function() end }
 end
 
 ---A font object with Blizzard's file, size and flags.
@@ -51,34 +34,23 @@ ZoneTextFont = FontObject("Fonts\\FRIZQT__.TTF", 32, "THICKOUTLINE")
 SubZoneTextFont = FontObject("Fonts\\FRIZQT__.TTF", 26, "THICKOUTLINE")
 PVPInfoTextFont = FontObject("Fonts\\FRIZQT__.TTF", 20, "THICKOUTLINE")
 
----A font string or message frame: it records its font, and takes a font object's font with `SetFontObject`.
-local function Region(object)
-	local region = { calls = 0 }
-	region.file, region.size, region.flags = object:GetFont()
-	function region:SetFont(file, size, flags)
-		self.calls = self.calls + 1
-		self.file, self.size, self.flags = file, size, flags
-	end
-	function region:SetFontObject(font)
-		self.calls = self.calls + 1
-		self.file, self.size, self.flags = font:GetFont()
-	end
+---@param object table the font object the line starts with
+---@return table fontString
+local function FontLine(object)
+	local line = UIParent:CreateFontString()
 
-	return region
+	line:SetFontObject(object)
+
+	return line
 end
 
-UIErrorsFrame = Region(ErrorFont)
-UIErrorsFrame.width, UIErrorsFrame.height = 512, 60
-function UIErrorsFrame:GetSize()
-	return self.width, self.height
-end
-function UIErrorsFrame:SetSize(width, height)
-	self.width, self.height = width, height
-end
-ZoneTextString = Region(ZoneTextFont)
-SubZoneTextString = Region(SubZoneTextFont)
-PVPInfoTextString = Region(PVPInfoTextFont)
-PVPArenaTextString = Region(PVPInfoTextFont)
+UIErrorsFrame = CreateFrame("MessageFrame", "UIErrorsFrame", UIParent)
+UIErrorsFrame:SetFontObject(ErrorFont)
+UIErrorsFrame:SetSize(512, 60)
+ZoneTextString = FontLine(ZoneTextFont)
+SubZoneTextString = FontLine(SubZoneTextFont)
+PVPInfoTextString = FontLine(PVPInfoTextFont)
+PVPArenaTextString = FontLine(PVPInfoTextFont)
 
 -- Addon table ---------------------------------------------------------------------------------------------
 
@@ -123,6 +95,7 @@ AUI.Profile = {
 local function Set(path, value)
 	values[path] = value
 	AUI.Callbacks:Fire("Profile", path)
+	client:RunTimers()
 end
 
 for _, file in ipairs({ "AeonUI_QoL/ScreenText/Options.lua", "AeonUI_QoL/ScreenText/ScreenText.lua" }) do
@@ -131,21 +104,9 @@ end
 
 local Options, ScreenText = AUI.ScreenTextOptions, AUI.ScreenText
 
--- Harness -------------------------------------------------------------------------------------------------
-
-local checks = 0
-
-local function Equal(name, actual, expected)
-	checks = checks + 1
-	if actual ~= expected then
-		io.stderr:write(("FAIL: %s: expected %s, got %s\n"):format(name, tostring(expected), tostring(actual)))
-		os.exit(1)
-	end
-end
-
 ---@return string font the region's file, size and flags, joined
 local function Font(region)
-	return ("%s %s %s"):format(region.file, tostring(region.size), region.flags)
+	return ("%s %s %s"):format(region.font[1], tostring(region.font[2]), region.font[3])
 end
 
 -- Arithmetic ----------------------------------------------------------------------------------------------
@@ -173,8 +134,9 @@ Equal("100% by default", AUI.Schema:Field("screenText.text.size").default, 100)
 
 -- Off -----------------------------------------------------------------------------------------------------
 
+client.calls = 0
 ScreenText:Start()
-Equal("nothing changed while off", UIErrorsFrame.calls + ZoneTextString.calls + PVPArenaTextString.calls, 0)
+Equal("nothing changed while off", client.calls, 0)
 Equal("the frame keeps its size", UIErrorsFrame.width .. "x" .. UIErrorsFrame.height, "512x60")
 
 -- On ------------------------------------------------------------------------------------------------------
@@ -212,12 +174,12 @@ Equal("errors and objectives get ErrorFont back", Font(UIErrorsFrame), "Fonts\\F
 Equal("zone gets its font back", Font(ZoneTextString), "Fonts\\FRIZQT__.TTF 32 THICKOUTLINE")
 Equal("territory gets its font back", Font(PVPArenaTextString), "Fonts\\FRIZQT__.TTF 20 THICKOUTLINE")
 Equal("the frame gets its size back", UIErrorsFrame.width .. "x" .. UIErrorsFrame.height, "512x60")
-local calls = ZoneTextString.calls
+client.calls = 0
 Set("screenText.text.size", 120)
-Equal("nothing changed while off again", ZoneTextString.calls, calls)
+Equal("nothing changed while off again", client.calls, 0)
 
 AUI.can.screenText = nil
 Set(Options.ENABLED_PATH, true)
-Equal("nothing changed without the frames", ZoneTextString.calls, calls)
+Equal("nothing changed without the frames", client.calls, 0)
 
-io.stdout:write(("check_screentext: %d checks passed\n"):format(checks))
+io.stdout:write(("check_screentext: %d checks passed\n"):format(client.checks))

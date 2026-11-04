@@ -4,13 +4,14 @@
 -- the group's difficulty, named without a link when it has none, nothing printed when any part of the listing is
 -- secret or unknown, and the join followed only while it is on.
 -- Run from any directory with Lua 5.1: lua Tools/check_alerts.lua
--- Loads the real files against stubbed globals. Exits non-zero on the first failed check.
+-- Loads the real files against the shared stub client. Exits non-zero on the first failed check.
 
 local root = (arg and arg[0] or ""):match("^(.-)[^/\\]*$") .. "../"
+local client = assert(loadfile(root .. "Tools/stub_client.lua"))({ project = "retail" })
+local Equal = client.Equal
 
 -- Environment ---------------------------------------------------------------------------------------------
 
-WOW_PROJECT_ID = 1
 SlashCmdList = {}
 StaticPopupDialogs = {}
 C_AddOns = {
@@ -23,48 +24,7 @@ function CallErrorHandler(message)
 	error(message, 0)
 end
 
--- WoW's xpcall forwards extra arguments to the function, as Lua 5.2 does; Lua 5.1's does not.
-local luaXpcall = xpcall
-function xpcall(fn, handler, ...)
-	local count, args = select("#", ...), { ... }
-
-	return luaXpcall(function()
-		return fn(unpack(args, 1, count))
-	end, handler)
-end
-
-C_Timer = { After = function(_, callback)
-	callback()
-end }
-
--- Stands in for a secret value; `issecretvalue` knows it.
-local SECRET = {}
-function issecretvalue(value)
-	return value == SECRET
-end
-
-local eventFrame
-function CreateFrame()
-	local frame = { events = {} }
-	function frame:RegisterEvent(event)
-		self.events[event] = true
-	end
-	function frame:UnregisterEvent(event)
-		self.events[event] = nil
-	end
-	function frame:SetScript(_, handler)
-		self.onEvent = handler
-	end
-	eventFrame = frame
-
-	return frame
-end
-
-local function Fire(event, ...)
-	if eventFrame.events[event] then
-		eventFrame.onEvent(eventFrame, event, ...)
-	end
-end
+local SECRET = client.Secret()
 
 SOUNDKIT = { READY_CHECK = 8960, UI_PET_BATTLES_PVP_THROUGH_QUEUE = 36609, TELL_MESSAGE = 3081,
 	IG_PLAYER_INVITE = 880, PVP_THROUGH_QUEUE = 8459, RAID_BOSS_EMOTE_WARNING = 12197,
@@ -118,6 +78,9 @@ for _, file in ipairs({ "AeonUI/Core/Callbacks.lua", "AeonUI/Core/Events.lua", "
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 
+-- Events.lua's frame, the only one these files create.
+local eventFrame = client.frames[#client.frames]
+
 local values = {}
 AUI.Profile = {
 	Get = function(_, path)
@@ -143,22 +106,10 @@ end
 
 local Options = AUI.AlertOptions
 
--- Harness -------------------------------------------------------------------------------------------------
-
-local checks = 0
-
-local function Equal(name, actual, expected)
-	checks = checks + 1
-	if actual ~= expected then
-		io.stderr:write(("FAIL: %s: expected %s, got %s\n"):format(name, tostring(expected), tostring(actual)))
-		os.exit(1)
-	end
-end
-
 ---Fires an event and returns what it played, joined.
 local function Played(event, ...)
 	played = {}
-	Fire(event, ...)
+	client:Fire(event, ...)
 
 	return table.concat(played, ",")
 end
@@ -232,7 +183,7 @@ Equal("one group on follows again", Played("READY_CHECK"), "8960@Master")
 ---Fires a join and returns what it printed, without the prefix.
 local function Joined(id)
 	printed = {}
-	Fire("LFG_LIST_JOINED_GROUP", id, "a group name")
+	client:Fire("LFG_LIST_JOINED_GROUP", id, "a group name")
 
 	return printed[1] and printed[1]:gsub("^.-|r: ", "") or "nothing"
 end
@@ -267,4 +218,4 @@ Equal("a secret map: named without a link", Joined(8), "Joined Ara-Kara, City of
 Set(Options.PREMADE_JOINED_PATH, false)
 Equal("off again: no longer followed", eventFrame.events.LFG_LIST_JOINED_GROUP, nil)
 
-io.stdout:write(("check_alerts: %d checks passed\n"):format(checks))
+io.stdout:write(("check_alerts: %d checks passed\n"):format(client.checks))

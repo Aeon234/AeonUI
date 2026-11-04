@@ -5,13 +5,14 @@
 -- secret totals passed on, charges, overrides, the stack, a cooldown's end, Combat Only, every setting, off and on;
 -- the edit mode sample, the settings page and its preview.
 -- Run from any directory with Lua 5.1: lua Tools/check_movementalert.lua
--- Loads the real files against stubbed globals. Widgets are modeled by type. Exits non-zero on the first failed check.
+-- Loads the real files against the shared stub client. Exits non-zero on the first failed check.
 
 local root = (arg and arg[0] or ""):match("^(.-)[^/\\]*$") .. "../"
+local client = assert(loadfile(root .. "Tools/stub_client.lua"))({ project = "retail" })
+local Equal = client.Equal
 
 -- Environment ---------------------------------------------------------------------------------------------
 
-WOW_PROJECT_ID = 1
 SlashCmdList = {}
 StaticPopupDialogs = {}
 C_AddOns = {
@@ -25,131 +26,14 @@ function CallErrorHandler(message)
 	errors[#errors + 1] = message
 end
 
--- WoW's xpcall forwards extra arguments to the function, as Lua 5.2 does; Lua 5.1's does not.
-local luaXpcall = xpcall
-function xpcall(fn, handler, ...)
-	local count, args = select("#", ...), { ... }
-
-	return luaXpcall(function()
-		return fn(unpack(args, 1, count))
-	end, handler)
-end
-
-C_Timer = { After = function(_, callback)
-	callback()
-end }
-
-local now = 100
-function GetTime()
-	return now
-end
-
-local secrets = {}
-function issecretvalue(value)
-	return value ~= nil and secrets[value] == true
-end
+client.now = 100
 
 Enum = {
 	LuaCurveType = { Step = "step" },
 	DurationTextBindingProperty = { RemainingDuration = 0 },
 }
 
-local frames = {}
-
----@return table frame a Frame, or a Cooldown with the template's methods
-local function Frame(kind, name, parent)
-	local frame = { widgetType = kind, name = name, parent = parent, shown = true, scripts = {}, events = {}, alpha = 1 }
-	frame.SetSize = function(self, width, height)
-		self.width, self.height = width, height
-	end
-	frame.ClearAllPoints = function(self)
-		self.point = nil
-	end
-	frame.SetAllPoints = function() end
-	frame.SetPoint = function(self, point, _, _, x, y)
-		self.point = { point, x, y }
-	end
-	frame.SetAlpha = function(self, alpha)
-		self.alpha = alpha
-	end
-	frame.Show = function(self)
-		self.shown = true
-	end
-	frame.Hide = function(self)
-		self.shown = false
-	end
-	frame.IsVisible = function(self)
-		return self.shown and (not self.parent or not self.parent.IsVisible or self.parent:IsVisible())
-	end
-	frame.SetFrameStrata = function(self, strata)
-		self.strata = strata
-	end
-	frame.EnableMouse = function(self, enabled)
-		self.mouse = enabled
-	end
-	frame.SetScript = function(self, script, handler)
-		self.scripts[script] = handler
-	end
-	frame.RegisterEvent = function(self, event)
-		self.events[event] = true
-	end
-	frame.UnregisterEvent = function(self, event)
-		self.events[event] = nil
-	end
-	frame.CreateFontString = function()
-		local text = { widgetType = "FontString" }
-		text.SetPoint = function() end
-		text.SetFont = function(self, file, size, flags)
-			self.file, self.size, self.flags = file, size, flags
-		end
-		text.SetTextColor = function(self, r, g, b)
-			self.color = ("%s %s %s"):format(r, g, b)
-		end
-		text.SetText = function(self, value)
-			self.value = value
-		end
-		text.SetShown = function(self, shown)
-			self.shown = shown
-		end
-		text.ClearAllPoints = function() end
-		text.GetUnboundedStringWidth = function()
-			return 100
-		end
-
-		return text
-	end
-
-	if kind == "Cooldown" then
-		for _, method in ipairs({ "SetDrawSwipe", "SetDrawEdge", "SetDrawBling", "SetHideCountdownNumbers" }) do
-			frame[method] = function() end
-		end
-		frame.SetCooldownFromDurationObject = function(self, duration)
-			self.duration = duration
-		end
-		frame.Clear = function(self)
-			self.duration = nil
-		end
-	end
-
-	frames[#frames + 1] = frame
-
-	return frame
-end
-
-function CreateFrame(kind, name, parent, template)
-	assert(kind == "Frame" or (kind == "Cooldown" and template == "CooldownFrameTemplate"),
-		"unexpected frame " .. tostring(kind))
-
-	return Frame(kind, name, parent)
-end
-
-UIParent = { GetHeight = function()
-	return 800
-end }
-
-function InCombatLockdown()
-	return false
-end
+UIParent:SetHeight(800)
 
 function UnitClass()
 	return "Mage", "MAGE"
@@ -274,7 +158,7 @@ for _, file in ipairs({ "AeonUI/Core/Callbacks.lua", "AeonUI/Core/Events.lua", "
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 
-local eventFrame = frames[1]
+local eventFrame = client.frames[#client.frames]
 
 AUI.Media = {
 	Font = function(_, name)
@@ -302,12 +186,12 @@ AUI.Profile = {
 local function Set(path, value)
 	values[path] = value
 	AUI.Callbacks:Fire("Profile", path)
+	client:RunTimers()
 end
 
 local function Fire(event, ...)
-	if eventFrame.events[event] then
-		eventFrame.scripts.OnEvent(eventFrame, event, ...)
-	end
+	client:Fire(event, ...)
+	client:RunTimers()
 end
 
 for _, file in ipairs({ "AeonUI_QoL/MovementAlert/Options.lua", "AeonUI_QoL/MovementAlert/MovementAlert.lua" }) do
@@ -317,16 +201,6 @@ end
 local Schema, Options, Alert = AUI.Schema, AUI.MovementAlertOptions, AUI.MovementAlert
 
 -- Harness -------------------------------------------------------------------------------------------------
-
-local checks = 0
-
-local function Equal(name, actual, expected)
-	checks = checks + 1
-
-	if actual ~= expected then
-		error(("%s: expected %s, got %s"):format(name, tostring(expected), tostring(actual)), 2)
-	end
-end
 
 local function Known(...)
 	local set = {}
@@ -342,6 +216,18 @@ end
 
 local function Default(spell)
 	return Schema:Field(Options:SpellPath(spell)).default
+end
+
+---@param region table
+---@return string font its font file, size and flags
+local function Font(region)
+	return region.font[1] .. " " .. region.font[2] .. " " .. region.font[3]
+end
+
+---@param region table
+---@return string color its text color's channels
+local function TextColor(region)
+	return table.concat(region.textColor, " ")
 end
 
 local function Tracked(class, specID, known, tracked)
@@ -365,8 +251,7 @@ local CLASSES = { "DEATHKNIGHT", "DEMONHUNTER", "DRUID", "EVOKER", "HUNTER", "MA
 	"SHAMAN", "WARLOCK", "WARRIOR" }
 
 for _, class in ipairs(CLASSES) do
-	checks = checks + 1
-	assert(Options:ClassSpells(class)[1], class .. " has an ability")
+	Equal(class .. " has an ability", Options:ClassSpells(class)[1] ~= nil, true)
 
 	for _, spell in ipairs(Options:ClassSpells(class)) do
 		Equal(class .. "'s field exists", Schema:Field(Options:SpellPath(spell)).kind, "boolean")
@@ -433,16 +318,16 @@ Equal("always", Options:LinesAllowed(false, false), true)
 
 -- Nothing while off ---------------------------------------------------------------------------------------
 
-local frameCount = #frames
+local frameCount = #client.frames
 
 Alert:Start()
-Equal("off: nothing built", #frames, frameCount)
+Equal("off: nothing built", #client.frames, frameCount)
 Equal("off: no frame", Alert.frame, nil)
 Equal("off: no events", eventFrame.events.SPELL_UPDATE_COOLDOWN, nil)
 
 AUI.can.movementAlert = false
 Set(Options.ENABLED_PATH, true)
-Equal("a client without it: nothing built", #frames, frameCount)
+Equal("a client without it: nothing built", #client.frames, frameCount)
 AUI.can.movementAlert = true
 Set(Options.ENABLED_PATH, false)
 
@@ -459,7 +344,7 @@ end
 
 Set(Options.ENABLED_PATH, true)
 Equal("on: the named frame", Alert.frame.name, "AeonUIMovementAlert")
-Equal("in its place", Alert.frame.point[1] .. " " .. Alert.frame.point[3], "BOTTOM 430")
+Equal("in its place", Alert.frame.points[1][1] .. " " .. Alert.frame.points[1][5], "BOTTOM 430")
 Equal("no line before a cooldown", #Alert.lines, 0)
 
 SetCooldown(1953, 15)
@@ -475,9 +360,8 @@ Equal("on the spell's duration", line.binding.duration, ownDurations[1953])
 Equal("the end from the same", line.ending.duration, ownDurations[1953])
 Equal("opaque", line.alpha, 1)
 Equal("the binding writes its text", line.binding.text, line.text)
-Equal("the default font", line.text.file .. " " .. line.text.size .. " " .. line.text.flags,
-	"font:Friz Quadrata TT 24 flags:SLUG")
-Equal("the default color", line.text.color, "1 1 1")
+Equal("the default font", Font(line.text), "font:Friz Quadrata TT 24 flags:SLUG")
+Equal("the default color", TextColor(line.text), "1 1 1")
 
 Fire("SPELL_UPDATE_COOLDOWN")
 Equal("the format set once", line.binding.formats, 1)
@@ -492,8 +376,7 @@ SetCooldown(1953, 2)
 Fire("SPELL_UPDATE_COOLDOWN")
 Equal("a short lockout: clear", line.alpha, 0)
 
-local SECRET = {}
-secrets[SECRET] = true
+local SECRET = client.Secret()
 SetCooldown(1953, 15, SECRET)
 Fire("SPELL_UPDATE_COOLDOWN")
 Equal("a secret total's opacity passed on", line.alpha, SECRET)
@@ -516,11 +399,9 @@ gcdDurations[1953] = Duration(20)
 Fire("SPELL_UPDATE_CHARGES")
 Equal("out of charges: opaque", line.alpha, 1)
 
-secrets[9] = true
-charges[1953] = { maxCharges = 9 }
+charges[1953] = { maxCharges = client.Secret() }
 Fire("SPELL_UPDATE_CHARGES")
 Equal("a secret maximum keeps the last reading", line.binding.duration, chargeDurations[1953])
-secrets[9] = nil
 
 charges[1953] = { maxCharges = 1 }
 Fire("SPELL_UPDATE_CHARGES")
@@ -561,8 +442,8 @@ known[186257] = true
 SetCooldown(186257, 30)
 Fire("SPELLS_CHANGED")
 Equal("a second line", Alert.lines[2].binding.format, "{} No Cheetah")
-Equal("above the first", Alert.lines[2].point[3], 42)
-Equal("the first at the bottom", Alert.lines[1].point[3], 0)
+Equal("above the first", Alert.lines[2].points[1][5], 42)
+Equal("the first at the bottom", Alert.lines[1].points[1][5], 0)
 Clear(1953)
 Fire("SPELL_UPDATE_COOLDOWN")
 Equal("the first gone: the next takes its place", Alert.lines[1].binding.format, "{} No Cheetah")
@@ -577,28 +458,32 @@ Fire("SPELLS_CHANGED")
 SetCooldown(1953, 15)
 Fire("SPELL_UPDATE_COOLDOWN")
 
-local done = line.ending.scripts.OnCooldownDone
+local function Done()
+	line.ending.scripts.OnCooldownDone()
+	client:RunTimers()
+end
+
 cooldowns[1953].isActive = false
-done()
+Done()
 Equal("a report in the frame it was given changes nothing", line.shown, true)
 
-now = now + 1
-done()
+client.now = client.now + 1
+Done()
 Equal("an end hides it", line.shown, false)
 
 cooldowns[1953].isActive = true
 Fire("SPELL_UPDATE_COOLDOWN")
-now = now + 0.1
+client.now = client.now + 0.1
 cooldowns[1953].isActive = false
-done()
+Done()
 Equal("reports too close together: the second waits", line.shown, true)
-now = now + 0.2
-done()
+client.now = client.now + 0.2
+Done()
 Equal("after the gap it counts", line.shown, false)
 
-now = now + 1
+client.now = client.now + 1
 cooldowns[1953].isActive = true
-done()
+Done()
 Equal("a hidden line's report runs no check", line.shown, false)
 
 -- Combat Only ---------------------------------------------------------------------------------------------
@@ -629,20 +514,21 @@ Set(Options.DECIMAL_PATH, true)
 Set(Options.SIZE_PATH, 30)
 Set(Options.FONT_PATH, "Other")
 Set(Options.OUTLINE_PATH, "NONE")
-Equal("the font follows", line.text.file .. " " .. line.text.size .. " " .. line.text.flags, "font:Other 30 flags:NONE")
+Equal("the font follows", Font(line.text), "font:Other 30 flags:NONE")
 Set(Options.COLOR_PATH, { r = 1, g = 0, b = 0 })
-Equal("the color follows", line.text.color, "1 0 0")
+Equal("the color follows", TextColor(line.text), "1 0 0")
 Set(Options.CLASS_COLOR_PATH, true)
-Equal("Class Color", line.text.color, "0.25 0.78 0.92")
+Equal("Class Color", TextColor(line.text), "0.25 0.78 0.92")
 Set(Options.CLASS_COLOR_PATH, false)
 
 Set(Options.POSITION_PATH, { point = "TOP", x = 5, y = -10 })
-Equal("a saved place", table.concat(Alert.frame.point, " "), "TOP 5 -10")
+Equal("a saved place", Alert.frame.points[1][1] .. " " .. Alert.frame.points[1][4] .. " " .. Alert.frame.points[1][5],
+	"TOP 5 -10")
 Set(Options.POSITION_PATH, nil)
 
 -- Off and on again ----------------------------------------------------------------------------------------
 
-frameCount = #frames
+frameCount = #client.frames
 Set(Options.ENABLED_PATH, false)
 Equal("off: hidden", line.shown, false)
 Equal("off: the binding stopped", line.binding.enabled, false)
@@ -653,7 +539,7 @@ Equal("off: no combat event", eventFrame.events.PLAYER_REGEN_DISABLED, nil)
 
 Set(Options.ENABLED_PATH, true)
 Equal("on again: shown", line.shown, true)
-Equal("on again: nothing built twice", #frames, frameCount)
+Equal("on again: nothing built twice", #client.frames, frameCount)
 Equal("on again: the events back", eventFrame.events.SPELL_UPDATE_COOLDOWN, true)
 
 -- Sample and edit mode ------------------------------------------------------------------------------------
@@ -673,13 +559,13 @@ Equal("back at its size", Alert.frame.height, 40)
 
 Alert:Sample(true)
 Equal("a sample stops the binding", line.binding.enabled, false)
-Equal("and shows its text", line.text.value, "12.3 No Blink")
+Equal("and shows its text", line.text.text, "12.3 No Blink")
 Equal("opaque", line.alpha, 1)
 Equal("and shown", line.shown, true)
 Fire("SPELL_UPDATE_COOLDOWN")
 Equal("a cooldown event leaves the sample", line.binding.enabled, false)
 Set(Options.ARRANGEMENT_PATH, "DURATION")
-Equal("the sample follows the settings", line.text.value, "12.3")
+Equal("the sample follows the settings", line.text.text, "12.3")
 Set(Options.ARRANGEMENT_PATH, "DURATION_NAME")
 Alert:Sample(false)
 Equal("after it, the real line", line.binding.enabled, true)
@@ -761,14 +647,25 @@ AUI.can.movementAlert = nil
 Equal("not on a client without it", AUI.SettingsMovementAlert:IsAvailable(), false)
 AUI.can.movementAlert = true
 
-local canvas = Frame("Frame")
+local canvas = CreateFrame("Frame")
+local createFontString = canvas.CreateFontString
+
+-- The sample's strings measure as the client would; the stub lays out no text.
+function canvas:CreateFontString(...)
+	local text = createFontString(self, ...)
+
+	text.stringWidth = 100
+
+	return text
+end
+
 local parts = {}
 local previewParts = { Part = function(_, region, target)
 	parts[#parts + 1] = target
 	parts.region = region
 end }
 local width, height = page.preview.refresh(canvas, nil, previewParts)
-Equal("the sample's text", parts.region.value, "12.3 No Blink")
+Equal("the sample's text", parts.region.text, "12.3 No Blink")
 Equal("the sample's size", width .. "x" .. height, "100x40")
 Equal("it finds the font's row", parts[1], "font")
 
@@ -794,7 +691,7 @@ Equal("its frame", info.frame, Alert.frame)
 Equal("kept to the bottom edge", info.fixedEdge, "BOTTOM")
 Equal("its default", info.default.point .. " " .. info.default.y, "BOTTOM 430")
 info.sample(true)
-Equal("its sample", line.text.value, "12.3 No Blink")
+Equal("its sample", line.text.text, "12.3 No Blink")
 info.sample(false)
 Set(Options.ENABLED_PATH, false)
 Equal("no target while off", target.target(), nil)
@@ -804,4 +701,4 @@ Equal("started once", Alert.active, true)
 
 Equal("no Lua error in the run", errors[1], nil)
 
-io.stdout:write(("check_movementalert: %d checks passed\n"):format(checks))
+io.stdout:write(("check_movementalert: %d checks passed\n"):format(client.checks))

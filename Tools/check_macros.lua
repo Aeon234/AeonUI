@@ -1,13 +1,14 @@
 -- Checks Macros/ outside the game: which items count and which wins, the text each macro holds, and the module against
 -- stubbed macro, bag and item APIs (login, combat, a full General tab, deleting, picking up).
 -- Run from any directory with Lua 5.1: lua Tools/check_macros.lua
--- Loads the real files against stubbed globals. Exits non-zero on the first failed check.
+-- Loads the real files against the shared stub client. Exits non-zero on the first failed check.
 
 local root = (arg and arg[0] or ""):match("^(.-)[^/\\]*$") .. "../"
+local client = assert(loadfile(root .. "Tools/stub_client.lua"))({ project = "retail" })
+local Equal = client.Equal
 
 -- Environment ---------------------------------------------------------------------------------------------
 
-WOW_PROJECT_ID = 1
 SlashCmdList = {}
 C_AddOns = {
 	GetAddOnMetadata = function(_, field)
@@ -19,20 +20,6 @@ function CallErrorHandler(message)
 	error(message, 0)
 end
 
--- WoW's xpcall forwards extra arguments to the function, as Lua 5.2 does; Lua 5.1's does not.
-local luaXpcall = xpcall
-function xpcall(fn, handler, ...)
-	local count, args = select("#", ...), { ... }
-
-	return luaXpcall(function()
-		return fn(unpack(args, 1, count))
-	end, handler)
-end
-
-C_Timer = { After = function(_, callback)
-	callback()
-end }
-
 function wipe(t)
 	for key in pairs(t) do
 		t[key] = nil
@@ -41,45 +28,14 @@ function wipe(t)
 	return t
 end
 
-local SECRET = {}
-function issecretvalue(value)
-	return value == SECRET
-end
+local SECRET = client.Secret()
 
-local inCombat = false
-function InCombatLockdown()
-	return inCombat
-end
-
-local clock = 1000
-function GetTime()
-	return clock
-end
+client.now = 1000
 
 -- Chat lines from `AUI:Warn`.
 local printed = {}
 function print(message)
 	printed[#printed + 1] = message
-end
-
--- The first frame made is `Core/Events.lua`'s.
-local eventFrame ---@type table
-function CreateFrame()
-	local frame = { events = {} }
-	function frame:RegisterEvent(event) self.events[event] = true end
-	function frame:UnregisterEvent(event) self.events[event] = nil end
-	function frame:SetScript(_, handler) self.onEvent = handler end
-	if not eventFrame then
-		eventFrame = frame
-	end
-
-	return frame
-end
-
-local function Fire(event, ...)
-	if eventFrame.events[event] then
-		eventFrame.onEvent(eventFrame, event, ...)
-	end
 end
 
 -- The player.
@@ -197,7 +153,7 @@ function GetNumMacros()
 	return #macros, 0
 end
 function CreateMacro(name, icon, body, perCharacter)
-	assert(not inCombat, "a macro made in combat")
+	assert(not client.combat, "a macro made in combat")
 	assert(perCharacter == false, "a character macro")
 	calls[#calls + 1] = "create " .. name
 	if not createFails then
@@ -205,13 +161,13 @@ function CreateMacro(name, icon, body, perCharacter)
 	end
 end
 function EditMacro(name, newName, icon, body)
-	assert(not inCombat, "a macro edited in combat")
+	assert(not client.combat, "a macro edited in combat")
 	assert(newName == name and icon == nil)
 	calls[#calls + 1] = "edit " .. name
 	macros[Index(name)].body = body
 end
 function DeleteMacro(index)
-	assert(not inCombat, "a macro deleted in combat")
+	assert(not client.combat, "a macro deleted in combat")
 	calls[#calls + 1] = "delete " .. macros[index].name
 	table.remove(macros, index)
 end
@@ -242,14 +198,23 @@ end
 local Macros = AUI.Macros
 local Options = AUI.MacrosOptions
 
--- Harness -------------------------------------------------------------------------------------------------
+-- Events.lua's frame, the only one these files create.
+local eventFrame = client.frames[#client.frames]
 
-local checks = 0
-local function Equal(name, actual, expected)
-	checks = checks + 1
-	if actual ~= expected then
-		error(("%s: expected %s, got %s"):format(name, tostring(expected), tostring(actual)), 2)
-	end
+---Delivers an event, then lets the update it put off for the next frame run.
+---@param event string
+---@param ... any
+local function Fire(event, ...)
+	client:Fire(event, ...)
+	client:RunTimers()
+end
+
+---Changes a macro's setting, then lets the update it put off for the next frame run.
+---@param key string
+---@param value boolean
+local function Set(key, value)
+	Macros:Set(key, value)
+	client:RunTimers()
 end
 
 local function True(name, value)
@@ -338,7 +303,7 @@ Item(500, "Bandage", 1)
 bags[0] = { 101, 102, 201, 500, 301 }
 
 Macros:Start()
-Macros:Set("food", true)
+Set("food", true)
 Equal("nothing written before entering the world", #calls, 0)
 Equal("no bag events before entering the world", eventFrame.events.BAG_UPDATE_DELAYED, nil)
 
@@ -383,10 +348,10 @@ Options.CONJURED[110] = true
 Fire("BAG_UPDATE_DELAYED")
 Equal("conjured food preferred", Body("AeonUI Food"), Lines("/use [nocombat] item:110", "/use [nocombat] item:201"))
 
-items[110].cooldown = { start = clock - 10, duration = 30 }
+items[110].cooldown = { start = client.now - 10, duration = 30 }
 Fire("BAG_UPDATE_COOLDOWN")
 Equal("food on cooldown loses", Body("AeonUI Food"), Lines("/use [nocombat] item:301", "/use [nocombat] item:201"))
-clock = clock + 30
+client:Advance(30)
 Fire("BAG_UPDATE_COOLDOWN")
 Equal("back once the cooldown ends", Body("AeonUI Food"), Lines("/use [nocombat] item:110", "/use [nocombat] item:201"))
 items[110].cooldown = "secret"
@@ -398,9 +363,9 @@ items[110].cooldown = nil
 
 -- Settings that change the text ---------------------------------------------------------------------------
 
-Macros:Set("foodOnly", true)
+Set("foodOnly", true)
 Equal("Food Only drops the drink", Body("AeonUI Food"), Lines("/use [nocombat] item:301"))
-Macros:Set("foodOnly", false)
+Set("foodOnly", false)
 
 Item(400, DRINK, 30)
 Options.FOOD_AND_DRINK[400] = true
@@ -435,11 +400,11 @@ player.level = 40
 -- Combat --------------------------------------------------------------------------------------------------
 
 bags[0] = { 301, 201 }
-inCombat = true
+client:SetCombat(true)
 Fire("BAG_UPDATE_DELAYED")
 Equal("nothing written in combat", Body("AeonUI Food"), "#showtooltip")
 True("combat's end followed", eventFrame.events.PLAYER_REGEN_ENABLED)
-inCombat = false
+client:SetCombat(false)
 Fire("PLAYER_REGEN_ENABLED")
 Equal("written when combat ends", Body("AeonUI Food"), Lines("/use [nocombat] item:301", "/use [nocombat] item:201"))
 Equal("combat's end no longer followed", eventFrame.events.PLAYER_REGEN_ENABLED, nil)
@@ -458,7 +423,7 @@ Equal("an unchanged macro not written", #calls, before)
 for index = 1, 119 do
 	macros[#macros + 1] = { name = "Other " .. index, body = "" }
 end
-Macros:Set("drink", true)
+Set("drink", true)
 Equal("not made while General is full", Index("AeonUI Drink"), 0)
 Equal("the player told", printed[#printed]:find("General macros are full", 1, true) ~= nil, true)
 local warnings = #printed
@@ -478,7 +443,7 @@ end
 AUI.can.manaPotions = true
 Item(3827, "Restore Mana", 22)
 table.insert(bags[0], 3827)
-Macros:Set("drinkMana", true)
+Set("drinkMana", true)
 Equal("a mana potion in combat on the drink macro", Body("AeonUI Drink"),
 	Lines("/use [combat] item:3827", "/use [nocombat] item:201"))
 Equal("not on the food macro", Body("AeonUI Food"), Lines("/use [nocombat] item:301", "/use [nocombat] item:201"))
@@ -491,17 +456,17 @@ Fire("UNIT_LEVEL", "player")
 Equal("a potion above the player's level skipped", Body("AeonUI Drink"),
 	Lines("/use [combat] item:3827", "/use [nocombat] item:201"))
 player.level = 40
-Macros:Set("drinkMana", false)
+Set("drinkMana", false)
 Equal("the potion line goes when off", Body("AeonUI Drink"), Lines("/use [nocombat] item:201"))
 AUI.can.manaPotions = false
 
 -- Picking up ----------------------------------------------------------------------------------------------
 
-inCombat = true
+client:SetCombat(true)
 Macros:Pickup("food")
 Equal("nothing picked up in combat", pickedUp, nil)
 Equal("the player told", printed[#printed]:find("in combat", 1, true) ~= nil, true)
-inCombat = false
+client:SetCombat(false)
 Macros:Pickup("food")
 Equal("picked up", pickedUp, "AeonUI Food")
 
@@ -512,7 +477,7 @@ Item(19013, "Healthstone", 48)
 Item(1710, "Healing Potion", 21)
 Item(929, "Healing Potion", 12)
 bags[2] = { 5509, 19013, 1710, 929, 929 }
-Macros:Set("health", true)
+Set("health", true)
 Equal("the usable stone, then potions as often as carried", Body("AeonUI Health"),
 	Lines("/castsequence reset=combat item:5509, item:1710, item:929, item:929"))
 bags[2] = { 929 }
@@ -532,7 +497,7 @@ Equal("Recuperate alone without items", Body("AeonUI Health"), Lines("/cast [noc
 AUI.can.recuperate = nil
 Macros:Pickup("health")
 Equal("the health macro picked up", pickedUp, "AeonUI Health")
-Macros:Set("health", false)
+Set("health", false)
 Equal("the health macro deleted when off", Index("AeonUI Health"), 0)
 
 -- Bandage (Forever) --------------------------------------------------------------------------------------
@@ -542,7 +507,7 @@ Item(3531, "First Aid", 0)
 Item(8544, "First Aid", 0)
 bags[3] = { 3531, 8544 }
 firstAid = 100
-Macros:Set("bandage", true)
+Set("bandage", true)
 True("skill changes followed while on", eventFrame.events.SKILL_LINES_CHANGED)
 Equal("the best bandage the First Aid rank allows", Body("AeonUI Bandage"),
 	Lines("/use [@player,nochanneling] item:3531"))
@@ -554,20 +519,20 @@ bags[3] = {}
 Fire("BAG_UPDATE_DELAYED")
 Equal("without First Aid, the last bandage stays", Body("AeonUI Bandage"),
 	Lines("/use [@player,nochanneling] item:8544"))
-Macros:Set("bandage", false)
+Set("bandage", false)
 Equal("the bandage macro deleted when off", Index("AeonUI Bandage"), 0)
 Equal("skill changes no longer followed", eventFrame.events.SKILL_LINES_CHANGED, nil)
 AUI.can.bandages = nil
 
 -- Switching off -------------------------------------------------------------------------------------------
 
-Macros:Set("drink", false)
+Set("drink", false)
 Equal("switched off, deleted", Index("AeonUI Drink"), 0)
 True("still followed while one is on", eventFrame.events.BAG_UPDATE_DELAYED)
-inCombat = true
-Macros:Set("food", false)
+client:SetCombat(true)
+Set("food", false)
 Equal("not deleted in combat", Index("AeonUI Food") > 0, true)
-inCombat = false
+client:SetCombat(false)
 Fire("PLAYER_REGEN_ENABLED")
 Equal("deleted when combat ends", Index("AeonUI Food"), 0)
 for _, event in ipairs({ "BAG_UPDATE_DELAYED", "BAG_UPDATE_COOLDOWN", "UNIT_LEVEL", "UPDATE_MACROS" }) do
@@ -581,11 +546,11 @@ Equal("settings saved account-wide", global.macros.food, nil)
 -- A macro the game cannot find ----------------------------------------------------------------------------
 
 createFails = true
-Macros:Set("food", true)
+Set("food", true)
 Equal("the player told it was lost", printed[#printed]:find("could not find it", 1, true) ~= nil, true)
 before = #calls
 Fire("BAG_UPDATE_DELAYED")
 Equal("a lost macro not made again", #calls, before)
 
 print = _G.print
-io.write(("check_macros: %d checks passed\n"):format(checks))
+io.write(("check_macros: %d checks passed\n"):format(client.checks))

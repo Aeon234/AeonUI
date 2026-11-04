@@ -6,9 +6,11 @@
 -- pop-ups: accept countdowns skipped with or without a key, bind on pickup confirmed, and toasts let clicks through;
 -- and Release Spirit held until the confirmation, rearmed on each death and left to Blizzard after Yes.
 -- Run from any directory with Lua 5.1: lua Tools/check_interface.lua
--- Loads the real files against stubbed globals. Exits non-zero on the first failed check.
+-- Loads the real files against the shared stub client. Exits non-zero on the first failed check.
 
 local root = (arg and arg[0] or ""):match("^(.-)[^/\\]*$") .. "../"
+local client = assert(loadfile(root .. "Tools/stub_client.lua"))({ project = "retail" })
+local Equal = client.Equal
 
 -- Environment ---------------------------------------------------------------------------------------------
 
@@ -28,76 +30,11 @@ function CallErrorHandler(message)
 	error(message, 0)
 end
 
--- WoW's xpcall forwards extra arguments to the function, as Lua 5.2 does; Lua 5.1's does not.
-local luaXpcall = xpcall
-function xpcall(fn, handler, ...)
-	local count, args = select("#", ...), { ... }
+UIParent.scaleCalls = 0
+GameMenuFrame = CreateFrame("Frame", "GameMenuFrame", UIParent)
+GameMenuFrame.scale, GameMenuFrame.scaleCalls = 1, 0
 
-	return luaXpcall(function()
-		return fn(unpack(args, 1, count))
-	end, handler)
-end
-
-local timers = {}
-C_Timer = {
-	After = function(_, callback)
-		timers[#timers + 1] = callback
-	end,
-}
-
-local function RunTimers()
-	local due = timers
-	timers = {}
-	for _, callback in ipairs(due) do
-		callback()
-	end
-end
-
--- The event frame Events.lua creates, modeled with only the methods it calls.
-local eventFrame
-function CreateFrame(kind)
-	assert(kind == "Frame", "unexpected frame type " .. tostring(kind))
-	local frame = { events = {} }
-	function frame:RegisterEvent(event)
-		self.events[event] = true
-	end
-	function frame:UnregisterEvent(event)
-		self.events[event] = nil
-	end
-	function frame:SetScript(_, handler)
-		self.onEvent = handler
-	end
-	eventFrame = frame
-
-	return frame
-end
-
-local function Fire(event, ...)
-	if eventFrame.events[event] then
-		eventFrame.onEvent(eventFrame, event, ...)
-	end
-end
-
--- A Frame with a scale, as UIParent and GameMenuFrame are.
-local function ScaledFrame()
-	local frame = { scale = 1, sets = 0 }
-	function frame:GetScale()
-		return self.scale
-	end
-	function frame:SetScale(scale)
-		self.scale, self.sets = scale, self.sets + 1
-	end
-
-	return frame
-end
-
-UIParent = ScaledFrame()
-GameMenuFrame = ScaledFrame()
-
-local combat, mouseDown = false, false
-function InCombatLockdown()
-	return combat
-end
+local mouseDown = false
 
 function IsMouseButtonDown(button)
 	assert(button == "LeftButton", "unexpected button " .. tostring(button))
@@ -129,17 +66,8 @@ end
 
 local UIScale, GameMenuScale = AUI.UIScale, AUI.GameMenuScale
 
--- Harness -------------------------------------------------------------------------------------------------
-
-local checks = 0
-
-local function Equal(name, actual, expected)
-	checks = checks + 1
-	if actual ~= expected then
-		io.stderr:write(("FAIL: %s: expected %s, got %s\n"):format(name, tostring(expected), tostring(actual)))
-		os.exit(1)
-	end
-end
+-- Events.lua's frame, the only one these files create.
+local eventFrame = client.frames[#client.frames]
 
 local function Round(value)
 	return math.floor(value * 100 + 0.5) / 100
@@ -166,7 +94,7 @@ UIScale:Start()
 Equal("on by default", UIScale:IsEnabled(), true)
 Equal("no value is saved on a fresh install", UIScale:Saved(), nil)
 Equal("the slider reads the current scale", Round(UIScale:Current()), 80)
-Equal("nothing is applied at login", UIParent.sets, 0)
+Equal("nothing is applied at login", UIParent.scaleCalls, 0)
 Equal("it follows the client's scale changes", eventFrame.events.UI_SCALE_CHANGED, true)
 Equal("and display changes", eventFrame.events.DISPLAY_SIZE_CHANGED, true)
 
@@ -175,15 +103,15 @@ Equal("a picked value is saved account-wide", Round(global.uiScale.scale), 53.33
 Equal("and applied at once", Round(UIParent.scale * 100), 53.33)
 
 UIParent.scale = 0.9
-Fire("UI_SCALE_CHANGED")
+client:Fire("UI_SCALE_CHANGED")
 Equal("a client change waits a frame", UIParent.scale, 0.9)
-RunTimers()
+client:RunTimers()
 Equal("then the saved scale is put back", Round(UIParent.scale * 100), 53.33)
 
-local sets = UIParent.sets
-Fire("DISPLAY_SIZE_CHANGED")
-RunTimers()
-Equal("an unchanged scale is not set again", UIParent.sets, sets)
+local sets = UIParent.scaleCalls
+client:Fire("DISPLAY_SIZE_CHANGED")
+client:RunTimers()
+Equal("an unchanged scale is not set again", UIParent.scaleCalls, sets)
 
 mouseDown = true
 UIScale:SetScale(70)
@@ -192,16 +120,16 @@ Equal("but applies nothing while the button is down", Round(UIParent.scale * 100
 UIScale:SetScale(72)
 Equal("each step of the drag is saved", global.uiScale.scale, 72)
 mouseDown = false
-Fire("GLOBAL_MOUSE_UP", "LeftButton")
+client:Fire("GLOBAL_MOUSE_UP", "LeftButton")
 Equal("the release applies the last step", UIParent.scale, 0.72)
 Equal("and stops listening for releases", eventFrame.events.GLOBAL_MOUSE_UP, nil)
 
-combat = true
+client:SetCombat(true)
 UIScale:SetScale(80)
 Equal("combat holds the change", UIParent.scale, 0.72)
 Equal("until it ends", eventFrame.events.PLAYER_REGEN_ENABLED, true)
-combat = false
-Fire("PLAYER_REGEN_ENABLED")
+client:SetCombat(false)
+client:Fire("PLAYER_REGEN_ENABLED")
 Equal("then it is applied", UIParent.scale, 0.8)
 Equal("and combat's end is no longer watched", eventFrame.events.PLAYER_REGEN_ENABLED, nil)
 
@@ -214,15 +142,15 @@ Equal("but not applied", UIParent.scale, 0.8)
 UIScale:SetEnabled(true)
 Equal("turning it on applies the saved value", UIParent.scale, 0.6)
 Equal("and nothing waits for a reload", UIScale:ReloadNeeded(), false)
-combat = true
+client:SetCombat(true)
 UIScale:SetScale(65)
 UIScale:SetEnabled(false)
 Equal("turning off drops a waiting apply", eventFrame.events.PLAYER_REGEN_ENABLED, nil)
-combat = false
+client:SetCombat(false)
 UIScale:SetEnabled(true)
 
 global.uiScale = nil
-UIParent.sets = 0
+UIParent.scaleCalls = 0
 UIScale.applied = false
 UIScale:SetEnabled(false)
 Equal("turning off before a value was applied needs no reload", UIScale:ReloadNeeded(), false)
@@ -231,7 +159,7 @@ UIScale:SetEnabled(true)
 loaded.ElvUI = true
 Equal("ElvUI loaded blocks the controls with its name", UIScale:Blocked(), "ElvUI manages the UI scale.")
 UIScale:SetScale(70)
-Equal("and nothing is applied", UIParent.sets, 0)
+Equal("and nothing is applied", UIParent.scaleCalls, 0)
 loaded.ElvUI = nil
 loaded.EllesmereUI = true
 Equal("EllesmereUI too", UIScale:Blocked(), "EllesmereUI manages the UI scale.")
@@ -244,14 +172,14 @@ Equal("a damaged saved value reads as none", UIScale:Saved(), nil)
 -- Game menu scale -----------------------------------------------------------------------------------------
 
 GameMenuScale:Start()
-Equal("Blizzard's size is left untouched at login", GameMenuFrame.sets, 0)
+Equal("Blizzard's size is left untouched at login", GameMenuFrame.scaleCalls, 0)
 GameMenuScale:Set(80)
 Equal("a value is saved account-wide", global.gameMenuScale, 80)
 Equal("and applied", GameMenuFrame.scale, 0.8)
 GameMenuScale:Set(100)
 Equal("100% puts Blizzard's size back", GameMenuFrame.scale, 1)
 global.gameMenuScale = 120
-GameMenuFrame.sets = 0
+GameMenuFrame.scaleCalls = 0
 GameMenuScale:Start()
 Equal("a saved value is applied at login", GameMenuFrame.scale, 1.2)
 global.gameMenuScale = "huge"
@@ -260,34 +188,12 @@ Equal("a damaged saved value reads as the default", GameMenuScale:Get(), 100)
 -- Interface page -----------------------------------------------------------------------------------------
 
 ---A frame that catches the mouse, as the extra action, zone ability and alternate power bar frames do.
+---@param enabled boolean
+---@return table frame
 local function MouseFrame(enabled)
-	local frame = { mouse = enabled }
-	function frame:EnableMouse(value)
-		self.mouse = value
-	end
-	function frame:IsMouseEnabled()
-		return self.mouse
-	end
+	local frame = CreateFrame("Frame")
 
-	return frame
-end
-
----A texture with an alpha.
-local function Art()
-	local art = { alpha = 1 }
-	function art:SetAlpha(alpha)
-		self.alpha = alpha
-	end
-
-	return art
-end
-
----A frame that hides, as the Great Vault's cover and notice do.
-local function Shown()
-	local frame = { shown = true }
-	function frame:Hide()
-		self.shown = false
-	end
+	frame:EnableMouse(enabled)
 
 	return frame
 end
@@ -295,9 +201,10 @@ end
 ExtraActionBarFrame = MouseFrame(true)
 ExtraAbilityContainer = MouseFrame(true)
 ZoneAbilityFrame = MouseFrame(false)
-ZoneAbilityFrame.Style = Art()
+ZoneAbilityFrame.Style = ZoneAbilityFrame:CreateTexture()
 PlayerPowerBarAlt = MouseFrame(true)
-ExtraActionButton1 = { style = Art() }
+ExtraActionButton1 = CreateFrame("Button", "ExtraActionButton1")
+ExtraActionButton1.style = ExtraActionButton1:CreateTexture()
 
 local bits = {}
 C_CVar = {
@@ -311,38 +218,24 @@ C_CVar = {
 Enum = { FrameTutorialAccount = { First = 1, Second = 4, Bad = 0 } }
 NUM_LE_FRAME_TUTORIALS = 3
 
-local bannerEvents = { BOSS_KILL = true, ENCOUNTER_LOOT_RECEIVED = true, PLAYER_ENTERING_WORLD = true }
-BossBanner = {}
-function BossBanner:IsEventRegistered(event)
-	return bannerEvents[event] == true
-end
-function BossBanner:RegisterEvent(event)
-	bannerEvents[event] = true
-end
-function BossBanner:UnregisterEvent(event)
-	bannerEvents[event] = nil
-end
+BossBanner = CreateFrame("Frame", "BossBanner")
+BossBanner:RegisterEvent("BOSS_KILL")
+BossBanner:RegisterEvent("ENCOUNTER_LOOT_RECEIVED")
+BossBanner:RegisterEvent("PLAYER_ENTERING_WORLD")
 
-function hooksecurefunc(target, name, hook)
-	if type(target) == "string" then
-		target, name, hook = _G, target, name
-	end
-	local original = target[name]
-	target[name] = function(...)
-		original(...)
-		hook(...)
-	end
-end
-
+---The Great Vault's frame, whose update shows its cover and notice.
+---@return table frame
 local function Vault()
-	local frame = { Blackout = Shown(), Overlay = Shown(), updates = 0 }
-	function frame:UpdateOverlay()
-		self.updates = self.updates + 1
-		self.Blackout.shown, self.Overlay.shown = true, true
-	end
-	function frame:IsShown()
-		return true
-	end
+	local frame = Mixin(CreateFrame("Frame"), {
+		updates = 0,
+		UpdateOverlay = function(self)
+			self.updates = self.updates + 1
+			self.Blackout:Show()
+			self.Overlay:Show()
+		end,
+	})
+
+	frame.Blackout, frame.Overlay = CreateFrame("Frame", nil, frame), CreateFrame("Frame", nil, frame)
 
 	return frame
 end
@@ -362,7 +255,7 @@ end
 local function Set(path, value)
 	values[path] = value
 	AUI.Callbacks:Fire("Profile", path)
-	RunTimers()
+	client:RunTimers()
 end
 
 for _, file in ipairs({ "AeonUI/Profile/Schema.lua", "AeonUI_QoL/Interface/Options.lua", "AeonUI_QoL/Interface/ExtraActionButton.lua",
@@ -378,12 +271,12 @@ for _, path in ipairs({ Options.CLICK_THROUGH_PATH, Options.HIDE_ART_PATH, Optio
 	Equal(path .. " is off by default", AUI.Profile:Get(path), false)
 end
 
-combat = false
+client:SetCombat(false)
 AUI.Interface:Start()
 AUI.Interface:Start()
-RunTimers()
+client:RunTimers()
 Equal("everything off touches nothing", tostring(ExtraActionBarFrame.mouse) .. " " .. ZoneAbilityFrame.Style.alpha
-	.. " " .. tostring(next(bits)) .. " " .. tostring(bannerEvents.BOSS_KILL), "true 1 nil true")
+	.. " " .. tostring(next(bits)) .. " " .. tostring(BossBanner.events.BOSS_KILL), "true 1 nil true")
 Equal("and follows nothing", eventFrame.events.PLAYER_ENTERING_WORLD, nil)
 
 Set(Options.CLICK_THROUGH_PATH, true)
@@ -393,11 +286,11 @@ Equal("Click-Through Art: the frames let clicks pass", tostring(ExtraActionBarFr
 Equal("re-applied on entering the world", eventFrame.events.PLAYER_ENTERING_WORLD, true)
 Set(Options.HIDE_ART_PATH, true)
 Equal("Hide Art", ExtraActionButton1.style.alpha .. " " .. ZoneAbilityFrame.Style.alpha, "0 0")
-combat = true
+client:SetCombat(true)
 Set(Options.CLICK_THROUGH_PATH, false)
 Equal("in combat nothing changes", ExtraActionBarFrame.mouse, false)
-combat = false
-Fire("PLAYER_REGEN_ENABLED")
+client:SetCombat(false)
+client:Fire("PLAYER_REGEN_ENABLED")
 Equal("after combat each frame's own handling is back", tostring(ExtraActionBarFrame.mouse) .. " "
 	.. tostring(ZoneAbilityFrame.mouse), "true false")
 Set(Options.HIDE_ART_PATH, false)
@@ -413,18 +306,18 @@ Set(Options.HELP_TIPS_PATH, false)
 Equal("turning it off leaves them seen", bits["closedInfoFrames:1"], true)
 
 Set(Options.BOSS_BANNER_PATH, true)
-Equal("the boss banner's two events are taken", tostring(bannerEvents.BOSS_KILL) .. " "
-	.. tostring(bannerEvents.ENCOUNTER_LOOT_RECEIVED) .. " " .. tostring(bannerEvents.PLAYER_ENTERING_WORLD),
+Equal("the boss banner's two events are taken", tostring(BossBanner.events.BOSS_KILL) .. " "
+	.. tostring(BossBanner.events.ENCOUNTER_LOOT_RECEIVED) .. " " .. tostring(BossBanner.events.PLAYER_ENTERING_WORLD),
 	"nil nil true")
 Set(Options.BOSS_BANNER_PATH, false)
-Equal("and given back", tostring(bannerEvents.BOSS_KILL) .. " " .. tostring(bannerEvents.ENCOUNTER_LOOT_RECEIVED),
+Equal("and given back", tostring(BossBanner.events.BOSS_KILL) .. " " .. tostring(BossBanner.events.ENCOUNTER_LOOT_RECEIVED),
 	"true true")
 
 Set(Options.VAULT_OVERLAY_PATH, true)
 Equal("waits for the Great Vault to load", eventFrame.events.ADDON_LOADED, true)
 WeeklyRewardsFrame = Vault()
 loaded.Blizzard_WeeklyRewards = true
-Fire("ADDON_LOADED", "Blizzard_WeeklyRewards")
+client:Fire("ADDON_LOADED", "Blizzard_WeeklyRewards")
 Equal("then stops waiting", eventFrame.events.ADDON_LOADED, nil)
 WeeklyRewardsFrame:UpdateOverlay()
 Equal("its cover and notice are hidden after each update", tostring(WeeklyRewardsFrame.Blackout.shown) .. " "
@@ -438,31 +331,9 @@ Equal("on again with the vault loaded: hidden at once", WeeklyRewardsFrame.Black
 
 AUI.can.vaultOverlay, AUI.can.bossBanner = nil, nil
 Set(Options.BOSS_BANNER_PATH, true)
-Equal("a client without the banner is left alone", bannerEvents.BOSS_KILL, true)
+Equal("a client without the banner is left alone", BossBanner.events.BOSS_KILL, true)
 
 -- Pop-ups -------------------------------------------------------------------------------------------------
-
----A button that keeps whether it is enabled and its text.
-local function Button()
-	local button = { enabled = false, text = "5" }
-	function button:Enable()
-		self.enabled = true
-	end
-	function button:Disable()
-		self.enabled = false
-	end
-	function button:SetText(text)
-		self.text = text
-	end
-	function button:SetEnabled(enabled)
-		self.enabled = enabled
-	end
-	function button:IsEnabled()
-		return self.enabled
-	end
-
-	return button
-end
 
 StaticPopupDialogs.CONFIRM_SELECT_WEEKLY_REWARD = { button1 = "Select" }
 StaticPopupDialogs.CAMP = { button1 = "Cancel" }
@@ -473,13 +344,22 @@ function StaticPopup_OnUpdate(dialog)
 		dialog.button:SetText("5")
 	end
 end
+---@param which string
+---@return table dialog a pop-up with an accept button still counting down
 local function Dialog(which)
-	local dialog = { which = which, acceptDelay = 5, button = Button() }
-	function dialog:GetButton1()
-		return self.button
-	end
+	local button = CreateFrame("Button")
 
-	return dialog
+	button:Disable()
+	button:SetText("5")
+
+	return Mixin(CreateFrame("Frame"), {
+		which = which,
+		acceptDelay = 5,
+		button = button,
+		GetButton1 = function(self)
+			return self.button
+		end,
+	})
 end
 
 local shiftDown = false
@@ -537,8 +417,8 @@ Equal("off again: the countdown is Blizzard's", vault.button.enabled, false)
 
 Equal("bind on pickup: off asks", eventFrame.events.LOOT_BIND_CONFIRM, nil)
 Set(Options.CONFIRM_BIND_PATH, true)
-Fire("LOOT_BIND_CONFIRM", 3)
-RunTimers()
+client:Fire("LOOT_BIND_CONFIRM", 3)
+client:RunTimers()
 Equal("on: the slot is looted and the question hidden", tostring(confirmed[1]) .. " " .. tostring(hidden[1]),
 	"3 LOOT_BIND:3")
 Set(Options.CONFIRM_BIND_PATH, false)
@@ -547,17 +427,18 @@ Equal("off again: no longer followed", eventFrame.events.LOOT_BIND_CONFIRM, nil)
 DELETE_ITEM_CONFIRM_STRING = "DELETE"
 local shownDialogs = {}
 local function DestroyDialog(which)
-	local editBox = { text = "" }
-	function editBox:SetText(text)
-		self.text = text
-	end
-	local dialog = { which = which, editBox = editBox }
-	function dialog:GetEditBox()
-		return self.editBox
-	end
-	shownDialogs[which] = dialog
+	local editBox = CreateFrame("EditBox")
 
-	return dialog
+	editBox:SetText("")
+	shownDialogs[which] = Mixin(CreateFrame("Frame"), {
+		which = which,
+		editBox = editBox,
+		GetEditBox = function(self)
+			return self.editBox
+		end,
+	})
+
+	return shownDialogs[which]
 end
 function StaticPopup_FindVisible(which)
 	return shownDialogs[which]
@@ -580,7 +461,7 @@ Set(Options.EASY_DESTROY_PATH, false)
 Set(Options.EASY_DESTROY_PATH, true)
 Equal("hooked once", StaticPopup_Show, destroyHook)
 Set(Options.EASY_DESTROY_PATH, false)
-good.editBox.text = ""
+good.editBox:SetText("")
 StaticPopup_Show("DELETE_GOOD_ITEM", "Thunderfury")
 Equal("off again: the word is left to the player", good.editBox.text, "")
 shownDialogs = {}
@@ -654,23 +535,23 @@ blocked = true
 Equal("Blizzard's own block still holds after Yes", Update(), false)
 blocked = false
 dead, deathShown = false, false
-Fire("PLAYER_ALIVE")
+client:Fire("PLAYER_ALIVE")
 Equal("resurrected: the question is hidden", HiddenLast(), "AEONUI_RELEASE_SPIRIT:nil")
 local asked = #popups
 dead = true
-Fire("PLAYER_DEAD")
+client:Fire("PLAYER_DEAD")
 Equal("the next death waits for Blizzard's dialog", #popups, asked)
 deathShown = true
-RunTimers()
+client:RunTimers()
 Equal("then asks again", tostring(Asked()) .. " " .. tostring(Update()), "true false")
 ghost = true
-Fire("PLAYER_ALIVE")
+client:Fire("PLAYER_ALIVE")
 Equal("released as a ghost: stood down", Update(), true)
 ghost = false
 asked = #popups
-Fire("PLAYER_ENTERING_WORLD")
-Fire("PLAYER_DEAD")
-RunTimers()
+client:Fire("PLAYER_ENTERING_WORLD")
+client:Fire("PLAYER_DEAD")
+client:RunTimers()
 Equal("a reload while dead asks again, once", tostring(#popups - asked) .. " " .. tostring(Update()), "1 false")
 local guarded = StaticPopupDialogs.DEATH.OnUpdate
 Set(Options.RELEASE_PROTECTION_PATH, false)
@@ -693,27 +574,28 @@ C_PerksProgram = {
 	end,
 }
 local function TradingPostFrame()
-	local checkbox = { checked = true }
-	function checkbox:SetChecked(checked)
-		self.checked = checked
-	end
-	local footer = { ToggleAttackAnimation = checkbox }
-	function footer:UpdateTransmogControls(_categoryID, _newProduct, _displayData) end
-	-- Blizzard's frame starts with the attack animation on.
-	local frame = { FooterFrame = footer, setting = true, sets = 0, scripts = {} }
-	function frame:GetAttackAnimationSetting()
-		return self.setting
-	end
-	function frame:SetAttackAnimationSetting(setting)
-		self.setting = setting
-		self.sets = self.sets + 1
-	end
-	function frame:HookScript(script, hook)
-		assert(self.scripts[script] == nil, "hooked twice: " .. script)
-		self.scripts[script] = hook
-	end
+	local checkbox = CreateFrame("CheckButton")
 
-	return frame
+	checkbox:SetChecked(true)
+
+	local footer = Mixin(CreateFrame("Frame"), {
+		ToggleAttackAnimation = checkbox,
+		UpdateTransmogControls = function(_, _categoryID, _newProduct, _displayData) end,
+	})
+
+	-- Blizzard's frame starts with the attack animation on.
+	return Mixin(CreateFrame("Frame"), {
+		FooterFrame = footer,
+		setting = true,
+		sets = 0,
+		GetAttackAnimationSetting = function(self)
+			return self.setting
+		end,
+		SetAttackAnimationSetting = function(self, setting)
+			self.setting = setting
+			self.sets = self.sets + 1
+		end,
+	})
 end
 local function Preview(frame)
 	return tostring(frame.setting) .. " " .. tostring(frame.FooterFrame.ToggleAttackAnimation.checked)
@@ -726,11 +608,11 @@ Set(Options.TRADING_POST_COMBAT_PATH, false)
 AUI.can.tradingPost = true
 Set(Options.TRADING_POST_COMBAT_PATH, true)
 Equal("on: waits for the Trading Post to load", eventFrame.events.ADDON_LOADED, true)
-Fire("ADDON_LOADED", "Blizzard_Collections")
+client:Fire("ADDON_LOADED", "Blizzard_Collections")
 Equal("another addon is ignored", eventFrame.events.ADDON_LOADED, true)
 PerksProgramFrame = TradingPostFrame()
 loaded.Blizzard_PerksProgram = true
-Fire("ADDON_LOADED", "Blizzard_PerksProgram")
+client:Fire("ADDON_LOADED", "Blizzard_PerksProgram")
 Equal("then stops waiting", eventFrame.events.ADDON_LOADED, nil)
 PerksProgramFrame.scripts.OnShow(PerksProgramFrame)
 Equal("opening it turns the combat animation off", Preview(PerksProgramFrame), "false false")
@@ -748,12 +630,14 @@ PerksProgramFrame.FooterFrame:UpdateTransmogControls(1, true, {})
 Equal("without Blizzard's toggle the animation is left alone", PerksProgramFrame.setting, true)
 animToggle = true
 local footerUpdate = PerksProgramFrame.FooterFrame.UpdateTransmogControls
+local showHook = PerksProgramFrame.scripts.OnShow
 Set(Options.TRADING_POST_COMBAT_PATH, false)
 PerksProgramFrame.FooterFrame:UpdateTransmogControls(1, true, {})
 Equal("off: previews are Blizzard's", PerksProgramFrame.setting, true)
 Set(Options.TRADING_POST_COMBAT_PATH, true)
 Equal("on again: hooked once, without waiting", tostring(PerksProgramFrame.FooterFrame.UpdateTransmogControls
 	== footerUpdate) .. " " .. tostring(eventFrame.events.ADDON_LOADED), "true nil")
+Equal("and the window's script hooked once", PerksProgramFrame.scripts.OnShow, showHook)
 AUI.can.tradingPost = nil
 
-io.stdout:write(("check_interface: %d checks passed\n"):format(checks))
+io.stdout:write(("check_interface: %d checks passed\n"):format(client.checks))

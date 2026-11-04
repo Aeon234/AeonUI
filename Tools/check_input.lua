@@ -3,13 +3,14 @@
 -- compact frames, Clique, and everything removed when it is turned off; the key labels' codes, the buttons hooked only
 -- once turned on, the range dot and gamepad keys left to Blizzard, the font, and Blizzard's text and font put back.
 -- Run from any directory with Lua 5.1: lua Tools/check_input.lua
--- Loads the real files against stubbed globals. Exits non-zero on the first failed check.
+-- Loads the real files against the shared stub client. Exits non-zero on the first failed check.
 
 local root = (arg and arg[0] or ""):match("^(.-)[^/\\]*$") .. "../"
+local client = assert(loadfile(root .. "Tools/stub_client.lua"))({ project = "retail" })
+local Equal = client.Equal
 
 -- Environment ---------------------------------------------------------------------------------------------
 
-WOW_PROJECT_ID = 1
 MAX_BOSS_FRAMES = 2
 MAX_PARTY_MEMBERS = 2
 SlashCmdList = {}
@@ -29,30 +30,7 @@ function CallErrorHandler(message)
 	error(message, 0)
 end
 
--- WoW's xpcall forwards extra arguments to the function, as Lua 5.2 does; Lua 5.1's does not.
-local luaXpcall = xpcall
-function xpcall(fn, handler, ...)
-	local count, args = select("#", ...), { ... }
-
-	return luaXpcall(function()
-		return fn(unpack(args, 1, count))
-	end, handler)
-end
-
-C_Timer = { After = function(_, callback)
-	callback()
-end }
-
-local inCombat = false
-function InCombatLockdown()
-	return inCombat
-end
-
--- Stands in for a secret value; `issecretvalue` knows it.
-local SECRET = {}
-function issecretvalue(value)
-	return value == SECRET
-end
+local SECRET = client.Secret()
 
 -- Console variables.
 local cvars = { ActionButtonUseKeyDown = "0" }
@@ -67,59 +45,13 @@ C_CVar = {
 	end,
 }
 
--- A secure frame keeps its attributes; a frame with a name is published under it.
-local function SecureFrame(name)
-	local frame = { attributes = {} }
-	function frame:SetAttribute(key, value)
-		self.attributes[key] = value
-	end
-	function frame:GetAttribute(key)
-		return self.attributes[key]
-	end
-	function frame:IsForbidden()
-		return self.forbidden == true
-	end
-	if name then
-		_G[name] = frame
-	end
+---@return table frame a frame whose attributes a check can read before any is set
+local function SecureFrame()
+	local frame = CreateFrame("Frame")
+
+	frame.attributes = {}
 
 	return frame
-end
-
-local eventFrame
-local buttons = {}
-function CreateFrame(kind, name, _, template)
-	if kind == "Frame" then
-		local frame = { events = {} }
-		function frame:RegisterEvent(event)
-			self.events[event] = true
-		end
-		function frame:UnregisterEvent(event)
-			self.events[event] = nil
-		end
-		function frame:SetScript(_, handler)
-			self.onEvent = handler
-		end
-		eventFrame = frame
-
-		return frame
-	end
-
-	assert(kind == "Button" and template == "SecureActionButtonTemplate", "only secure action buttons are made")
-	local button = SecureFrame(name)
-	function button:RegisterForClicks(clicks)
-		self.clicks = clicks
-	end
-	buttons[#buttons + 1] = button
-
-	return button
-end
-UIParent = {}
-
-local function Fire(event, ...)
-	if eventFrame.events[event] then
-		eventFrame.onEvent(eventFrame, event, ...)
-	end
 end
 
 -- Override bindings: key to the button name it clicks, by owner.
@@ -159,24 +91,12 @@ PlayerFrame = SecureFrame()
 TargetFrame = SecureFrame()
 TargetFrame.totFrame = SecureFrame()
 Boss1TargetFrame = SecureFrame()
-PartyFrame = { MemberFrame1 = SecureFrame(), MemberFrame2 = SecureFrame() }
+PartyFrame = Mixin(CreateFrame("Frame"), { MemberFrame1 = SecureFrame(), MemberFrame2 = SecureFrame() })
 local addonFrame, forbidden = SecureFrame(), SecureFrame()
 forbidden.forbidden = true
 ClickCastFrames = { [addonFrame] = true, [forbidden] = true, [{}] = true }
 
 function CompactUnitFrame_SetUnit(_, _) end
-local hooks = 0
-function hooksecurefunc(target, name, hook)
-	if type(target) == "string" then
-		target, name, hook = _G, target, name
-	end
-	local original = target[name]
-	target[name] = function(...)
-		original(...)
-		hook(...)
-	end
-	hooks = hooks + 1
-end
 
 -- Action buttons: bindings by action, Blizzard's display text by key, and the hotkey font string each button holds.
 RANGE_INDICATOR = "ic"
@@ -193,24 +113,14 @@ function IsBindingForGamePad(key)
 	return key:sub(1, 3) == "PAD"
 end
 
-local GRAY = { name = "NumberFontNormalSmallGray" }
-local function HotKey()
-	local hotkey = { fontObject = GRAY }
-	function hotkey:GetText()
-		return self.text
-	end
-	function hotkey:SetText(text)
-		self.text = text
-	end
-	function hotkey:GetFontObject()
-		return self.fontObject
-	end
-	function hotkey:SetFontObject(font)
-		self.fontObject, self.font = font, nil
-	end
-	function hotkey:SetFont(file, size, flags)
-		self.font = file .. " " .. size .. " " .. flags
-	end
+local GRAY = { name = "NumberFontNormalSmallGray", GetFont = function() end }
+
+---@param button table
+---@return table hotkey the hotkey font string a button holds
+local function HotKey(button)
+	local hotkey = button:CreateFontString()
+
+	hotkey:SetFontObject(GRAY)
 
 	return hotkey
 end
@@ -221,27 +131,28 @@ local function ShowKey(hotkey, key)
 end
 
 local alphaWrites = 0
-local function MacroName()
-	local text = { alpha = 1 }
-	function text:SetAlpha(alpha)
-		self.alpha = alpha
+---@param button table
+---@return table text the macro name font string a button holds, its alpha writes counted
+local function MacroName(button)
+	local text = button:CreateFontString()
+
+	hooksecurefunc(text, "SetAlpha", function()
 		alphaWrites = alphaWrites + 1
-	end
+	end)
 
 	return text
 end
 
 local function ActionButton(name, action)
-	local button = { HotKey = HotKey(), Name = MacroName() }
-	function button:GetName()
-		return name
-	end
-	function button:UpdateHotkeys()
-		self.bindingAction = action
-		ShowKey(self.HotKey, GetBindingKey(action) or GetBindingKey("CLICK " .. name .. ":LeftButton"))
-	end
+	local button = Mixin(CreateFrame("Button", name), {
+		UpdateHotkeys = function(self)
+			self.bindingAction = action
+			ShowKey(self.HotKey, GetBindingKey(action) or GetBindingKey("CLICK " .. name .. ":LeftButton"))
+		end,
+	})
+
+	button.HotKey, button.Name = HotKey(button), MacroName(button)
 	button:UpdateHotkeys()
-	_G[name] = button
 
 	return button
 end
@@ -250,15 +161,14 @@ local boundButton = ActionButton("ActionButton1", "ACTIONBUTTON1")
 local padButton = ActionButton("ActionButton2", "ACTIONBUTTON2")
 local emptyButton = ActionButton("MultiBarLeftButton1", "MULTIACTIONBAR3BUTTON1")
 ActionButton("MultiBarLeftButton2", "MULTIACTIONBAR3BUTTON2")
-local petButton = { HotKey = HotKey() }
-function petButton:GetID()
-	return 1
-end
-function petButton:SetHotkeys()
-	ShowKey(self.HotKey, GetBindingKey("BONUSACTIONBUTTON" .. self:GetID()))
-end
+local petButton = Mixin(CreateFrame("Button", "PetActionButton1"), {
+	id = 1,
+	SetHotkeys = function(self)
+		ShowKey(self.HotKey, GetBindingKey("BONUSACTIONBUTTON" .. self:GetID()))
+	end,
+})
+petButton.HotKey = HotKey(petButton)
 petButton:SetHotkeys()
-PetActionButton1 = petButton
 
 -- Addon table ---------------------------------------------------------------------------------------------
 
@@ -281,6 +191,9 @@ for _, file in ipairs({ "AeonUI/Core/Callbacks.lua", "AeonUI/Core/Events.lua", "
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 
+-- Events.lua's frame, the last one made before the feature's files load.
+local eventFrame = client.frames[#client.frames]
+
 local values = {}
 AUI.Profile = {
 	Get = function(_, path)
@@ -297,6 +210,7 @@ AUI.Profile = {
 local function Set(path, value)
 	values[path] = value
 	AUI.Callbacks:Fire("Profile", path)
+	client:RunTimers()
 end
 
 
@@ -307,16 +221,31 @@ end
 
 local Options = AUI.InputOptions
 
--- Harness -------------------------------------------------------------------------------------------------
+---Delivers an event, then lets the update it put off for the next frame run.
+---@param event string
+---@param ... any
+local function Fire(event, ...)
+	client:Fire(event, ...)
+	client:RunTimers()
+end
 
-local checks = 0
+---@return integer count the secure action buttons made so far
+local function SecureButtons()
+	local count = 0
 
-local function Equal(name, actual, expected)
-	checks = checks + 1
-	if actual ~= expected then
-		io.stderr:write(("FAIL: %s: expected %s, got %s\n"):format(name, tostring(expected), tostring(actual)))
-		os.exit(1)
+	for _, frame in ipairs(client.frames) do
+		if frame.template == "SecureActionButtonTemplate" then
+			count = count + 1
+		end
 	end
+
+	return count
+end
+
+---@param fontString table
+---@return string font the font string's file, size and flags, joined
+local function FontOf(fontString)
+	return table.concat(fontString.font, " ")
 end
 
 -- Arithmetic ----------------------------------------------------------------------------------------------
@@ -376,7 +305,7 @@ AUI.Input:Start()
 Equal("Not Managed changes nothing", cvarWrites, 0)
 Equal("and follows nothing", eventFrame.events.CVAR_UPDATE, nil)
 Equal("Focus Shortcut off binds nothing", next(bindings), nil)
-Equal("nor makes its buttons", #buttons, 0)
+Equal("nor makes its buttons", SecureButtons(), 0)
 
 Set(Options.CLICK_DOWN_PATH, "ON")
 Equal("Always On", cvars.ActionButtonUseKeyDown, "1")
@@ -389,12 +318,12 @@ Equal("another setting's change is ignored", cvarWrites, writes)
 
 Set(Options.CLICK_DOWN_PATH, "COMBAT")
 Equal("In Combat Only, out of combat", cvars.ActionButtonUseKeyDown, "0")
-inCombat = true
+client:SetCombat(true)
 Fire("PLAYER_REGEN_DISABLED")
 Equal("on as combat starts", cvars.ActionButtonUseKeyDown, "1")
 Fire("CVAR_UPDATE", "ActionButtonUseKeyDown")
 Equal("and kept on in combat", cvars.ActionButtonUseKeyDown, "1")
-inCombat = false
+client:SetCombat(false)
 Fire("PLAYER_REGEN_ENABLED")
 Equal("off as it ends", cvars.ActionButtonUseKeyDown, "0")
 
@@ -414,9 +343,9 @@ values[Options.CLICK_DOWN_PATH] = nil
 -- Focus Shortcut ------------------------------------------------------------------------------------------
 
 Set(Options.FOCUS_PATH, true)
-Equal("two secure buttons", #buttons, 2)
+Equal("two secure buttons", SecureButtons(), 2)
 local focusButton, markButton = AeonUIFocusButton, AeonUIFocusMark
-Equal("the world button acts on down", focusButton.clicks .. " " .. tostring(focusButton.attributes.useOnKeyDown),
+Equal("the world button acts on down", focusButton.clicks[1] .. " " .. tostring(focusButton.attributes.useOnKeyDown),
 	"AnyDown true")
 Equal("the marker button marks only an unmarked focus", markButton.attributes.type .. " " .. markButton.attributes.action
 	.. " " .. markButton.attributes.unit, "raidtarget set-unmarked focus")
@@ -467,7 +396,7 @@ Equal("World Clicks off: no binding", Bound("CTRL-SHIFT-BUTTON1"), nil)
 Equal("frames keep theirs", PlayerFrame.attributes["ctrl-shift-type1"], "macro")
 Set(Options.FOCUS_WORLD_PATH, true)
 
-inCombat = true
+client:SetCombat(true)
 Set(Options.FOCUS_MODIFIER_PATH, "alt")
 Equal("in combat nothing changes", tostring(Bound("ALT-BUTTON1")) .. " " .. PlayerFrame.attributes["ctrl-shift-type1"],
 	"nil macro")
@@ -475,7 +404,7 @@ local compact, nameplate = SecureFrame(), SecureFrame()
 CompactUnitFrame_SetUnit(compact, "raid1")
 CompactUnitFrame_SetUnit(nameplate, "nameplate1")
 Equal("a compact frame set up in combat waits", compact.attributes["alt-type1"], nil)
-inCombat = false
+client:SetCombat(false)
 Fire("PLAYER_REGEN_ENABLED")
 Equal("after combat, the new binding", Bound("ALT-BUTTON1"), "AeonUIFocusButton")
 Equal("and the compact frame", compact.attributes["alt-type1"], "macro")
@@ -501,18 +430,18 @@ for name, frame in pairs({ player = PlayerFrame, party = PartyFrame.MemberFrame1
 	Equal("off: the " .. name .. " frame is clear", frame.attributes["alt-type1"], nil)
 end
 Equal("off: the group is no longer followed", eventFrame.events.GROUP_ROSTER_UPDATE, nil)
-Equal("the buttons are made once", #buttons, 2)
+Equal("the buttons are made once", SecureButtons(), 2)
 
 -- Key labels ----------------------------------------------------------------------------------------------
 
-local baseHooks = hooks
-Equal("never turned on: no button is hooked", hooks, baseHooks)
+local baseHooks = client.hooks
+Equal("never turned on: no button is hooked", client.hooks, baseHooks)
 Equal("and Blizzard's text stays", boundButton.HotKey.text, "s-Mouse Button 4")
 
 Set(Options.KEY_LABELS_PATH, true)
-Equal("on: each button's update is hooked once", hooks - baseHooks, 5)
+Equal("on: each button's update is hooked once", client.hooks - baseHooks, 5)
 Equal("a bound key is shortened", boundButton.HotKey.text, "SM4")
-Equal("in the chosen font", boundButton.HotKey.font, "Arial Narrow 12 SLUG")
+Equal("in the chosen font", FontOf(boundButton.HotKey), "Arial Narrow 12 SLUG")
 Equal("a pet button's key too", petButton.HotKey.text, "C3")
 Equal("a gamepad key keeps Blizzard's text", padButton.HotKey.text, "LB")
 Equal("an unbound button keeps the range dot", emptyButton.HotKey.text, RANGE_INDICATOR)
@@ -526,13 +455,13 @@ Equal("as is a key bound to an empty button", emptyButton.HotKey.text, "SM4")
 
 Set(Options.KEY_SIZE_PATH, 16)
 Set(Options.KEY_OUTLINE_PATH, "OUTLINE")
-Equal("a font change restyles at once", boundButton.HotKey.font, "Arial Narrow 16 OUTLINE")
+Equal("a font change restyles at once", FontOf(boundButton.HotKey), "Arial Narrow 16 OUTLINE")
 Equal("and keeps the label", boundButton.HotKey.text, "AWU")
 
 Set(Options.KEY_LABELS_PATH, false)
 Equal("off: Blizzard's text is back", boundButton.HotKey.text .. " | " .. petButton.HotKey.text,
 	"a-Mouse Wheel Up | c-3")
-Equal("with its font object", tostring(boundButton.HotKey.font) .. " " .. boundButton.HotKey.fontObject.name,
+Equal("with its font object", tostring(boundButton.HotKey.font[1]) .. " " .. boundButton.HotKey.fontObject.name,
 	"nil NumberFontNormalSmallGray")
 Equal("the range dot untouched", padButton.HotKey.text, "LB")
 keyBindings.ACTIONBUTTON1 = "SHIFT-BUTTON4"
@@ -540,7 +469,7 @@ boundButton:UpdateHotkeys()
 Equal("Blizzard's updates are left alone", boundButton.HotKey.text, "s-Mouse Button 4")
 
 Set(Options.KEY_LABELS_PATH, true)
-Equal("on again: no second hook", hooks - baseHooks, 5)
+Equal("on again: no second hook", client.hooks - baseHooks, 5)
 Equal("labels shortened again", boundButton.HotKey.text .. " " .. emptyButton.HotKey.text, "SM4 SM4")
 
 -- Macro names ---------------------------------------------------------------------------------------------
@@ -569,4 +498,4 @@ Equal("a client without the buttons is left alone", alphaWrites, 0)
 AUI.can.macroNames = true
 values[Options.HIDE_MACRO_NAMES_PATH] = nil
 
-io.stdout:write(("check_input: %d checks passed\n"):format(checks))
+io.stdout:write(("check_input: %d checks passed\n"):format(client.checks))

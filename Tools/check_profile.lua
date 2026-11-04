@@ -2,9 +2,11 @@
 -- quarantine and the fallback it causes, name rules, delete remapping, resets, dormant settings and rollback when
 -- publishing fails.
 -- Run from any directory with Lua 5.1: lua Tools/check_profile.lua
--- Loads the real files against stubbed globals. It proves the store logic, not the file the client writes.
+-- Loads the real files against the shared stub client. It proves the store logic, not the file the client writes.
 
 local root = (arg and arg[0] or ""):match("^(.-)[^/\\]*$") .. "../"
+local client = assert(loadfile(root .. "Tools/stub_client.lua"))({ project = "retail" })
+local Equal = client.Equal
 
 -- Environment ---------------------------------------------------------------------------------------------
 
@@ -16,19 +18,6 @@ C_AddOns = {
 
 function CallErrorHandler(message)
 	error(message, 0)
-end
-
-local luaXpcall = xpcall
-function xpcall(fn, handler, ...)
-	local count, args = select("#", ...), { ... }
-
-	return luaXpcall(function()
-		return fn(unpack(args, 1, count))
-	end, handler)
-end
-
-function CreateFrame()
-	return { RegisterEvent = function() end, UnregisterEvent = function() end, SetScript = function() end }
 end
 
 -- The client folds case for every script; this stand-in folds ASCII and the two non-ASCII letters the checks use.
@@ -108,18 +97,6 @@ local function Load(data, characterID)
 	end)
 	Profile.root, Profile.quarantined = nil, {}
 	Profile:Initialize(data, characterID or "Player-1")
-end
-
--- Harness -------------------------------------------------------------------------------------------------
-
-local checks = 0
-
-local function Equal(name, actual, expected)
-	checks = checks + 1
-	if actual ~= expected then
-		io.stderr:write(("FAIL: %s: expected %s, got %s\n"):format(name, tostring(expected), tostring(actual)))
-		os.exit(1)
-	end
 end
 
 local function Refused(name, ok, problem)
@@ -480,4 +457,4 @@ end)
 Equal("an error inside a change is contained", okCommit, false)
 Equal("an error inside a change publishes nothing", Serialize(AeonUIDB), before)
 
-io.stdout:write(("check_profile: %d checks passed\n"):format(checks))
+io.stdout:write(("check_profile: %d checks passed\n"):format(client.checks))

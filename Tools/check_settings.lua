@@ -2,10 +2,12 @@
 -- the declaration's store and write hooks, the Profiles adapter's translation between names and profile IDs, the
 -- Damaged Profiles section, the Recovery page's export and reset, and the minimap button's saved state.
 -- Run from any directory with Lua 5.1: lua Tools/check_settings.lua
--- Loads the real files against a stand-in for LibAeonSettings that records declarations and refuses fields the
--- library does not accept. It proves the declarations and adapters, not the library's drawing.
+-- Loads the real files against the shared stub client and a stand-in for LibAeonSettings that records declarations and
+-- refuses fields the library does not accept. It proves the declarations and adapters, not the library's drawing.
 
 local root = (arg and arg[0] or ""):match("^(.-)[^/\\]*$") .. "../"
+local client = assert(loadfile(root .. "Tools/stub_client.lua"))({ project = "retail" })
+local Equal = client.Equal
 
 -- Environment ---------------------------------------------------------------------------------------------
 
@@ -17,10 +19,6 @@ RAID_TARGET_8 = "Skull"
 APPLY = "Apply"
 RELOADUI = "Reload UI"
 TRACKING = "Tracking"
-function issecretvalue()
-	return false
-end
-
 function UnitClass()
 	return "Hunter", "HUNTER"
 end
@@ -88,27 +86,14 @@ C_AddOns = {
 	GetAddOnMetadata = function() end,
 	IsAddOnLoaded = function(name) return name == "Clique" and cliqueLoaded end,
 }
-UIParent = { GetScale = function() return 0.8 end }
-GameMenuFrame = { SetScale = function(self, scale) self.scale = scale end }
+UIParent:SetScale(0.8)
+CreateFrame("Frame", "GameMenuFrame", UIParent)
 function GetPhysicalScreenSize()
 	return 2560, 1440
 end
 
 function CallErrorHandler(message)
 	error(message, 0)
-end
-
-local luaXpcall = xpcall
-function xpcall(fn, handler, ...)
-	local count, args = select("#", ...), { ... }
-
-	return luaXpcall(function()
-		return fn(unpack(args, 1, count))
-	end, handler)
-end
-
-function CreateFrame()
-	return { RegisterEvent = function() end, UnregisterEvent = function() end, SetScript = function() end }
 end
 
 function strcmputf8i(a, b)
@@ -233,19 +218,6 @@ local function NewPage(id, info)
 	end
 
 	return page
-end
-
--- Blizzard's post-hook, on a table's method.
-function hooksecurefunc(object, method, hook)
-	local original = object[method]
-
-	object[method] = function(...)
-		local results = { original(...) }
-
-		hook(...)
-
-		return unpack(results)
-	end
 end
 
 local lib = {
@@ -382,11 +354,11 @@ end
 function icon:Show(name)
 	self.hidden[name] = false
 end
-AddonCompartmentFrame = {
+Mixin(CreateFrame("Frame", "AddonCompartmentFrame", UIParent), {
 	RegisterAddon = function(_, entry)
 		icon.compartment[#icon.compartment + 1] = entry
 	end,
-}
+})
 
 DEFAULT = "Default"
 COLOR = "Color"
@@ -403,16 +375,6 @@ local LIBRARIES = { ["LibAeonSettings-1.0"] = lib, ["LibDataBroker-1.1"] = LDB, 
 	["LibSharedMedia-3.0"] = LSM }
 function LibStub(name)
 	return assert(LIBRARIES[name], name)
-end
-
-function Mixin(object, ...)
-	for index = 1, select("#", ...) do
-		for key, value in pairs((select(index, ...))) do
-			object[key] = value
-		end
-	end
-
-	return object
 end
 
 ALWAYS, COLOR, OPACITY = "Always", "Color", "Opacity"
@@ -473,18 +435,6 @@ local function Load(data)
 	Settings.window = nil
 
 	return Settings:Window()
-end
-
--- Harness -------------------------------------------------------------------------------------------------
-
-local checks = 0
-
-local function Equal(name, actual, expected)
-	checks = checks + 1
-	if actual ~= expected then
-		io.stderr:write(("FAIL: %s: expected %s, got %s\n"):format(name, tostring(expected), tostring(actual)))
-		os.exit(1)
-	end
 end
 
 -- Normal mode ------------------------------------------------------------------------------------------------
@@ -736,31 +686,10 @@ for font, size in pairs({ [ErrorFont] = 16, [ZoneTextFont] = 32, [SubZoneTextFon
 		return "Fonts\\FRIZQT__.TTF", size, ""
 	end
 end
-local sampleCanvas = {}
-function sampleCanvas:CreateFontString()
-	local text = { parent = self }
-	function text:SetText(value)
-		assert(self.size, "Font not set")
-		self.text = value
-	end
-	function text:SetTextColor() end
-	function text:SetFont(_, size)
-		self.size = size
-	end
-	function text:ClearAllPoints() end
-	function text:SetPoint() end
-	function text:GetParent()
-		return self.parent
-	end
-	function text:GetUnboundedStringWidth()
-		return #self.text * 10
-	end
-	function text:GetStringHeight()
-		return self.size
-	end
-
-	return text
-end
+local sampleCanvas = CreateFrame("Frame", nil, UIParent)
+hooksecurefunc(getmetatable(sampleCanvas:CreateFontString()), "SetText", function(self)
+	self.stringWidth, self.stringHeight = #self.text * 10, self.font[2]
+end)
 local sampleParts = {}
 local samplePreview = { Part = function(_, region, target, options)
 	sampleParts[#sampleParts + 1] = region.text .. ">" .. target .. (options.text and "" or "!")
@@ -1379,21 +1308,21 @@ Equal("then asks for the word", popups[#popups].which, "AEONUI_RESET_SAVED_SETTI
 local resetPopup = StaticPopupDialogs.AEONUI_RESET_SAVED_SETTINGS
 resetPopup.EditBoxOnTextChanged("box")
 Equal("the word is RESET", confirmations[#confirmations].expected, "RESET")
-local clicked, matches = {}, false
-local resetDialog = { GetButton1 = function()
-	return { IsEnabled = function()
-		return matches
-	end }
-end }
-local resetBox = { GetParent = function()
-	return resetDialog
-end }
+local clicked = {}
+local resetButton = CreateFrame("Button", nil, UIParent)
+local resetDialog = Mixin(CreateFrame("Frame", nil, UIParent), {
+	GetButton1 = function()
+		return resetButton
+	end,
+})
+local resetBox = CreateFrame("EditBox", nil, resetDialog)
+resetButton:Disable()
 function StaticPopup_OnClick(dialog, index)
 	clicked[#clicked + 1] = { dialog = dialog, index = index }
 end
 resetPopup.EditBoxOnEnterPressed(resetBox)
 Equal("Enter does nothing before the word matches", #clicked, 0)
-matches = true
+resetButton:Enable()
 resetPopup.EditBoxOnEnterPressed(resetBox)
 Equal("then Enter presses Reset", #clicked == 1 and clicked[1].dialog == resetDialog and clicked[1].index == 1, true)
 StaticPopup_OnClick = nil
@@ -1681,45 +1610,29 @@ Equal("and applied", GameMenuFrame.scale, 0.8)
 
 -- Details preview --------------------------------------------------------------------------------------------
 
--- The preview's tooltips, as GameTooltipTemplate makes them: a data update only flags a refresh.
-local previewTooltips = {}
-local createFrame = CreateFrame
-function CreateFrame(kind, name)
-	assert(kind == "GameTooltip", "unexpected frame type " .. tostring(kind))
-	local tooltip = { name = name, shown = true, refreshed = 0, scripts = {} }
-	function tooltip:HookScript(script, handler)
-		self.scripts[script] = handler
+---Delivers an event to a preview tooltip, as GameTooltipTemplate does: a data update only flags a refresh.
+---@param tooltip table
+---@param event string
+local function PreviewEvent(tooltip, event)
+	if event == "TOOLTIP_DATA_UPDATE" then
+		tooltip.shouldRefreshData = true
 	end
-	function tooltip:IsShown()
-		return self.shown
-	end
-	function tooltip:RefreshData()
-		self.shouldRefreshData = false
-		self.refreshed = self.refreshed + 1
-	end
-	function tooltip:Event(event)
-		if event == "TOOLTIP_DATA_UPDATE" then
-			self.shouldRefreshData = true
-		end
-		self.scripts.OnEvent(self, event)
-	end
-	previewTooltips[#previewTooltips + 1] = tooltip
 
-	return tooltip
+	tooltip.scripts.OnEvent(tooltip, event)
 end
+
 AUI.TooltipDetails = AUI.TooltipDetails or {}
-window.pages.tooltipItems.preview.create({})
-CreateFrame = createFrame
-local itemPreview = previewTooltips[1]
-Equal("three preview tooltips", #previewTooltips, 3)
-itemPreview:Event("TOOLTIP_DATA_UPDATE")
-Equal("an item that finishes loading rebuilds its tooltip", itemPreview.refreshed, 1)
+window.pages.tooltipItems.preview.create(CreateFrame("Frame", nil, UIParent))
+local itemPreview = AUI.TooltipDetails.previews[1]
+Equal("three preview tooltips", #AUI.TooltipDetails.previews, 3)
+PreviewEvent(itemPreview, "TOOLTIP_DATA_UPDATE")
+Equal("an item that finishes loading rebuilds its tooltip", itemPreview.refreshes, 1)
 Equal("and clears the flag", itemPreview.shouldRefreshData, false)
-itemPreview:Event("MODIFIER_STATE_CHANGED")
-Equal("other events rebuild nothing", itemPreview.refreshed, 1)
+PreviewEvent(itemPreview, "MODIFIER_STATE_CHANGED")
+Equal("other events rebuild nothing", itemPreview.refreshes, 1)
 itemPreview.shown = false
-itemPreview:Event("TOOLTIP_DATA_UPDATE")
-Equal("a hidden preview waits", itemPreview.refreshed, 1)
+PreviewEvent(itemPreview, "TOOLTIP_DATA_UPDATE")
+Equal("a hidden preview waits", itemPreview.refreshes, 1)
 
 -- Automation page ------------------------------------------------------------------------------------------
 
@@ -2348,4 +2261,4 @@ end)()
 	Equal("no link on Player Resources' cards", unitPages.unitFrameResources.sections.playerPowerBars.linkMenu, nil)
 end)()
 
-io.stdout:write(("check_settings: %d checks passed\n"):format(checks))
+io.stdout:write(("check_settings: %d checks passed\n"):format(client.checks))

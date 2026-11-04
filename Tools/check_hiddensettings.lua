@@ -1,13 +1,14 @@
 -- Checks HiddenSettings/ outside the game: the loot sparkle's held values, what a save keeps, what a hold writes and
 -- what a restore puts back.
 -- Run from any directory with Lua 5.1: lua Tools/check_hiddensettings.lua
--- Loads the real files against stubbed globals. Exits non-zero on the first failed check.
+-- Loads the real files against the shared stub client. Exits non-zero on the first failed check.
 
 local root = (arg and arg[0] or ""):match("^(.-)[^/\\]*$") .. "../"
+local client = assert(loadfile(root .. "Tools/stub_client.lua"))({ project = "retail" })
+local Equal = client.Equal
 
 -- Environment ---------------------------------------------------------------------------------------------
 
-WOW_PROJECT_ID = 1
 SlashCmdList = {}
 C_AddOns = {
 	GetAddOnMetadata = function(_, field)
@@ -19,35 +20,6 @@ function CallErrorHandler(message)
 	error(message, 0)
 end
 
--- WoW's xpcall forwards extra arguments to the function, as Lua 5.2 does; Lua 5.1's does not.
-local luaXpcall = xpcall
-function xpcall(fn, handler, ...)
-	local count, args = select("#", ...), { ... }
-
-	return luaXpcall(function()
-		return fn(unpack(args, 1, count))
-	end, handler)
-end
-
-C_Timer = { After = function(_, callback)
-	callback()
-end }
-
-function Mixin(object, ...)
-	for index = 1, select("#", ...) do
-		for key, value in pairs((select(index, ...))) do
-			object[key] = value
-		end
-	end
-
-	return object
-end
-
-local inCombat = false
-function InCombatLockdown()
-	return inCombat
-end
-
 -- Console variables: the client's, and each write.
 local cvars, lacking, readOnly, refused, writes = {}, {}, {}, {}, {}
 C_CVar = {
@@ -55,7 +27,7 @@ C_CVar = {
 		return cvars[name]
 	end,
 	SetCVar = function(name, value)
-		assert(not inCombat, "a console variable written in combat")
+		assert(not client.combat, "a console variable written in combat")
 		assert(type(value) == "string", "a console variable written with a " .. type(value))
 		if refused[name] then
 			return false
@@ -75,16 +47,9 @@ C_CVar = {
 	end,
 }
 
--- Stands in for a secret value; `issecretvalue` knows it.
-local SECRET = {}
-function issecretvalue(value)
-	return value == SECRET
-end
+local SECRET = client.Secret()
 
-local clock = 100
-function GetTime()
-	return clock
-end
+client.now = 100
 
 -- Tickers, recorded; `Tick` runs the live ones once.
 local tickers = {}
@@ -116,73 +81,6 @@ local function Tick()
 		end
 	end
 end
-
--- A texture: what it was given, and the methods a Texture has that the code uses.
-local function Texture()
-	local texture = { points = {} }
-	function texture:SetTexture(file) self.file = file end
-	function texture:GetTexture() return self.file end
-	function texture:GetAtlas() return self.atlas end
-	function texture:SetBlendMode(mode) self.blend = mode end
-	function texture:SetVertexColor(r, g, b, a) self.color = { r, g, b, a } end
-	function texture:SetPoint(...) self.points[#self.points + 1] = { ... } end
-	function texture:ClearAllPoints() self.points = {} end
-	function texture:SetSize(width, height) self.width, self.height = width, height end
-	function texture:SetRotation(angle) self.rotation = angle end
-	function texture:SetSnapToPixelGrid(snap) self.snap = snap end
-	function texture:SetTexelSnappingBias(bias) self.bias = bias end
-	function texture:Hide() self.shown = false end
-	function texture:Show() self.shown = true end
-
-	return texture
-end
-
--- A frame: the first one made is `Core/Events.lua`'s; the rest are recorded by name.
-local eventFrame ---@type table
-local frames = {}
-function CreateFrame(_, name, parent)
-	local frame = { events = {}, shown = true, points = {}, parent = parent, name = name, textures = {} }
-	function frame:RegisterEvent(event)
-		self.events[event] = true
-	end
-	function frame:UnregisterEvent(event)
-		self.events[event] = nil
-	end
-	function frame:SetScript(script, handler)
-		if script == "OnEvent" then
-			self.onEvent = handler
-		else
-			self[script] = handler
-		end
-	end
-	function frame:SetSize(width, height) self.width, self.height = width, height end
-	function frame:Show() self.shown = true end
-	function frame:Hide() self.shown = false end
-	function frame:IsShown() return self.shown end
-	function frame:SetParent(newParent) self.parent = newParent end
-	function frame:GetParent() return self.parent end
-	function frame:ClearAllPoints() self.points = {} end
-	function frame:SetPoint(...) self.points[#self.points + 1] = { ... } end
-	function frame:SetFrameLevel(level) self.level = level end
-	function frame:GetFrameLevel() return self.level or 5 end
-	function frame:SetIgnoreParentAlpha(ignore) self.ignoreParentAlpha = ignore end
-	function frame:CreateTexture()
-		local texture = Texture()
-		self.textures[#self.textures + 1] = texture
-
-		return texture
-	end
-	if not eventFrame then
-		eventFrame = frame
-	end
-	if name then
-		frames[name] = frame
-		_G[name] = frame
-	end
-
-	return frame
-end
-UIParent = { CreateTexture = Texture }
 
 -- The `softinteract` unit and the nameplates.
 local soft = {}
@@ -271,9 +169,8 @@ C_TooltipInfo = {
 }
 
 local function Fire(event, ...)
-	if eventFrame.events[event] then
-		eventFrame.onEvent(eventFrame, event, ...)
-	end
+	client:Fire(event, ...)
+	client:RunTimers()
 end
 
 -- Addon table ---------------------------------------------------------------------------------------------
@@ -298,21 +195,12 @@ for _, file in ipairs({ "AeonUI/Core/Callbacks.lua", "AeonUI/Core/Events.lua", "
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 
+local eventFrame = client.frames[#client.frames]
 local HiddenSettings = AUI.HiddenSettings
 
 local Options = AUI.HiddenSettingsOptions
 
 -- Harness -------------------------------------------------------------------------------------------------
-
-local checks = 0
-
-local function Equal(name, actual, expected)
-	checks = checks + 1
-	if actual ~= expected then
-		io.stderr:write(("FAIL: %s: expected %s, got %s\n"):format(name, tostring(expected), tostring(actual)))
-		os.exit(1)
-	end
-end
 
 ---@param entries AUIHeldCVar[]
 local function Join(entries)
@@ -440,19 +328,19 @@ HiddenSettings:SetQuestItems(false)
 Equal("and restores that", cvars.graphicsOutlineMode, "1")
 
 Login()
-inCombat = true
+client:SetCombat(true)
 HiddenSettings:SetQuestItems(true)
 HiddenSettings:SetQuestItems(false)
 Equal("nothing written in combat", #writes, 0)
-inCombat = false
+client:SetCombat(false)
 Fire("PLAYER_REGEN_ENABLED")
 Equal("latest state after combat", Held(), "0 2 2 2 2")
 Equal("leaves no save", Saved(), "none")
 Equal("and stops waiting", eventFrame.events.PLAYER_REGEN_ENABLED, nil)
 
-inCombat = true
+client:SetCombat(true)
 HiddenSettings:SetQuestItems(true)
-inCombat = false
+client:SetCombat(false)
 Fire("PLAYER_REGEN_ENABLED")
 Equal("a hold in combat applies after it", Held(), "1 0 0 0 0")
 HiddenSettings:SetQuestItems(false)
@@ -620,7 +508,7 @@ Equal("a change while released writes nothing", #writes, count)
 
 -- Approached objects: the module ------------------------------------------------------------------------
 
-local Approach = AUI.ApproachSparkles
+local Approach, Glints = AUI.ApproachSparkles, AUI.LootSparkleGlints
 local SOFT_OWN = { SoftTargetInteract = "1", SoftTargetInteractRange = "20", SoftTargetInteractArc = "0",
 	SoftTargetInteractOnlyInRange = "1", SoftTargetIconInteract = "0", SoftTargetIconGameObject = "0",
 	SoftTargetLowPriorityIcons = "0", SoftTargetNameplateInteract = "1" }
@@ -634,6 +522,15 @@ local function SoftHeld()
 	return table.concat(values, " ")
 end
 
+---@return table plate a nameplate, at the level the glints sit just below
+local function Plate()
+	local plate = CreateFrame("Frame")
+
+	plate:SetFrameLevel(5)
+
+	return plate
+end
+
 ---A target near the player: a game object with a cursor, a unit, or nothing.
 ---@param fields table?
 local function Target(fields)
@@ -644,12 +541,12 @@ local function Target(fields)
 		soft[key] = value
 	end
 	if fields and fields.plate == nil and fields.plateByToken == nil then
-		soft.plate = CreateFrame("Frame")
+		soft.plate = Plate()
 	end
 end
 
 local function Glint()
-	return frames.AeonUILootSparkle
+	return _G.AeonUILootSparkle
 end
 
 local function Showing()
@@ -683,10 +580,10 @@ Fire("PLAYER_SOFT_INTERACT_CHANGED", "GameObject-1", "GameObject-2")
 Equal("ore target opens the gate", cvars.SoftTargetNameplateInteract, "1")
 Equal("glints on its plate", tostring(Showing()), "true")
 Equal("below the plate's content, ignoring its alpha", Glint().level .. " " .. tostring(Glint().ignoreParentAlpha), "4 true")
-Equal("seven glints", #Glint().textures, 7)
+Equal("seven glints", #Glints.glints, 7)
 Equal("ticker while a soft target exists", LiveTickers(), 1)
-Glint().OnUpdate(Glint(), 0.05)
-Equal("the glints animate", Glint().textures[1].color ~= nil, true)
+Glint().scripts.OnUpdate(Glint(), 0.05)
+Equal("the glints animate", Glints.glints[1].texture.vertex ~= nil, true)
 
 Target({ object = true, name = "Peacebloom", cursor = 1003, inRange = true })
 Fire("PLAYER_SOFT_INTERACT_CHANGED", "GameObject-2", "GameObject-3")
@@ -700,14 +597,14 @@ Target({ object = true, name = "Mithril Deposit", atlas = "Cursor_Crosshair_Unab
 Fire("PLAYER_SOFT_INTERACT_CHANGED", "GameObject-4", "GameObject-5")
 Equal("out of range is far, by the atlas", Approach.state, "far")
 
-clock = 200
+client.now = 200
 Target({ object = true, name = "Copper Vein", cursor = 1001, inRange = false })
 Fire("PLAYER_SOFT_INTERACT_CHANGED", "GameObject-5", "GameObject-6")
 local plate = soft.plate
 soft.inRange = true
 Tick()
 Equal("walking into range waits", Approach.state, "far")
-clock = 200.2
+client.now = 200.2
 Tick()
 Equal("then shows ready", Approach.state, "ready")
 Equal("on the same plate", tostring(Glint().parent == plate), "true")
@@ -717,7 +614,7 @@ Equal("a recycled plate on a new object starts over", Approach.state, "locked")
 
 Target({ object = true, name = "Copper Vein", cursor = 1001, inRange = true, plateByToken = false,
 	plateUnit = "nameplate3" })
-soft.plate = CreateFrame("Frame")
+soft.plate = Plate()
 Fire("NAME_PLATE_UNIT_ADDED", "nameplate3")
 Equal("a plate found by its unit when the token gives none", tostring(Showing()), "true")
 Fire("NAME_PLATE_UNIT_REMOVED", "nameplate3")
@@ -772,11 +669,11 @@ Target({ unit = true, dead = true, guid = "Creature-4", loot = { true, true } })
 Fire("PLAYER_SOFT_INTERACT_CHANGED", "Creature-3", "Creature-4")
 Fire("PLAYER_REGEN_DISABLED")
 Equal("combat closes the gate", cvars.SoftTargetNameplateInteract .. " " .. tostring(Glint().shown), "0 false")
-inCombat = true
+client:SetCombat(true)
 Fire("PLAYER_SOFT_INTERACT_CHANGED", "Creature-4", "Creature-5")
 Equal("and keeps it closed in combat, glints hidden", cvars.SoftTargetNameplateInteract .. " "
 	.. tostring(Glint().shown), "0 false")
-inCombat = false
+client:SetCombat(false)
 Fire("PLAYER_REGEN_ENABLED")
 Equal("after combat it opens again", tostring(Showing()) .. " " .. cvars.SoftTargetNameplateInteract, "true 1")
 
@@ -812,11 +709,11 @@ Tick()
 Equal("a quest lookup once it is on", tooltipReads > reads, true)
 Fire("PLAYER_REGEN_DISABLED")
 Equal("combat stops the ticker", LiveTickers(), 0)
-inCombat = true
+client:SetCombat(true)
 reads = tooltipReads
 Fire("PLAYER_SOFT_INTERACT_CHANGED", "GameObject-13", "GameObject-14")
 Equal("and nothing is classified in combat", tooltipReads, reads)
-inCombat = false
+client:SetCombat(false)
 Fire("PLAYER_REGEN_ENABLED")
 Equal("the ticker comes back after combat", LiveTickers(), 1)
 HiddenSettings:SetSparkle("questObjects", false)
@@ -919,4 +816,4 @@ Login()
 HiddenSettings:SetSparkle("ore", true)
 Equal("no capability, no soft target", cvars.SoftTargetInteract, "1")
 
-print(("check_hiddensettings: %d checks passed"):format(checks))
+print(("check_hiddensettings: %d checks passed"):format(client.checks))

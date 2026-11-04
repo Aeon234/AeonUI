@@ -2,15 +2,16 @@
 -- and group finder menus, with secret names and the sites each client offers; the copy box; Guild Invite's targets
 -- and the roster; and the module hooking each menu once.
 -- Run from any directory with Lua 5.1: lua Tools/check_menus.lua
--- Loads the real files against stubbed globals. Exits non-zero on the first failed check.
+-- Loads the real files against the shared stub client. Exits non-zero on the first failed check.
 
 local root = (arg and arg[0] or ""):match("^(.-)[^/\\]*$") .. "../"
+local client = assert(loadfile(root .. "Tools/stub_client.lua"))({ project = "retail" })
+local Equal = client.Equal
 
 -- Environment ---------------------------------------------------------------------------------------------
 
 CLOSE = "Close"
 BNET_CLIENT_WOW = "WoW"
-WOW_PROJECT_ID = 1
 SlashCmdList = {}
 StaticPopupDialogs = {}
 C_AddOns = {
@@ -23,50 +24,7 @@ function CallErrorHandler(message)
 	error(message, 0)
 end
 
--- WoW's xpcall forwards extra arguments to the function, as Lua 5.2 does; Lua 5.1's does not.
-local luaXpcall = xpcall
-function xpcall(fn, handler, ...)
-	local count, args = select("#", ...), { ... }
-
-	return luaXpcall(function()
-		return fn(unpack(args, 1, count))
-	end, handler)
-end
-
-C_Timer = { After = function(_, callback)
-	callback()
-end }
-
-local eventFrame
-function CreateFrame()
-	local frame = { events = {} }
-	function frame:RegisterEvent(event)
-		self.events[event] = true
-	end
-	function frame:UnregisterEvent(event)
-		self.events[event] = nil
-	end
-	function frame:SetScript(_, handler)
-		self.onEvent = handler
-	end
-	eventFrame = frame
-
-	return frame
-end
-
-local function Fire(event, ...)
-	if eventFrame.events[event] then
-		eventFrame.onEvent(eventFrame, event, ...)
-	end
-end
-
--- Stands in for a secret value; `issecretvalue` knows it.
-local SECRET = setmetatable({}, { __tostring = function()
-	return "<secret>"
-end })
-function issecretvalue(value)
-	return value == SECRET
-end
+local SECRET = client.Secret()
 
 -- Blizzard's menus: each tag keeps the callbacks registered for it, and a menu is a list of what was created on it.
 local modifiers = {}
@@ -218,6 +176,9 @@ for _, file in ipairs({ "AeonUI/Core/Callbacks.lua", "AeonUI/Core/Events.lua", "
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 
+-- Events.lua's frame, the only one these files create.
+local eventFrame = client.frames[#client.frames]
+
 local values = {}
 AUI.Profile = {
 	Get = function(_, path)
@@ -242,18 +203,6 @@ end
 
 local Options, GuildInvite = AUI.MenuOptions, AUI.GuildInvite
 local raiderIO, warcraftLogs = Options.SITES[1], Options.SITES[2]
-
--- Harness -------------------------------------------------------------------------------------------------
-
-local checks = 0
-
-local function Equal(name, actual, expected)
-	checks = checks + 1
-	if actual ~= expected then
-		io.stderr:write(("FAIL: %s: expected %s, got %s\n"):format(name, tostring(expected), tostring(actual)))
-		os.exit(1)
-	end
-end
 
 -- Arithmetic ----------------------------------------------------------------------------------------------
 
@@ -343,9 +292,9 @@ Equal("not on another client's character", Texts(OpenMenu("MENU_UNIT_BN_FRIEND",
 Equal("nor outside the game", Texts(OpenMenu("MENU_UNIT_BN_FRIEND_OFFLINE", nil, { bnetIDAccount = 9 })), "")
 
 applicants["4:2"] = "Garrosh-Ragnaros"
-local row = { memberIdx = 2, GetParent = function()
-	return { applicantID = 4 }
-end }
+local application = CreateFrame("Frame")
+local row = CreateFrame("Frame", nil, application)
+application.applicantID, row.memberIdx = 4, 2
 menu = OpenMenu("MENU_LFG_FRAME_MEMBER_APPLY", row, nil)
 Button(menu, "Warcraft Logs").onClick()
 Equal("an applicant", popups[#popups].data.url, "https://www.warcraftlogs.com/character/eu/ragnaros/Garrosh")
@@ -372,24 +321,14 @@ AUI.can.raiderIOLinks, AUI.can.warcraftLogsLinks = true, true
 -- Copy box ------------------------------------------------------------------------------------------------
 
 local dialog = StaticPopupDialogs.AEONUI_COPY_LINK
-local box = { text = "" }
-function box:SetText(text)
-	self.text = text
-end
-function box:GetText()
-	return self.text
-end
-function box:HighlightText()
-	self.highlighted = true
-end
-function box:SetFocus()
-	self.focused = true
-end
-dialog.OnShow({ GetEditBox = function()
+local box
+local popup = Mixin(CreateFrame("Frame"), { GetEditBox = function()
 	return box
-end }, { url = "https://example.test" })
+end })
+box = CreateFrame("EditBox", nil, popup)
+dialog.OnShow(popup, { url = "https://example.test" })
 Equal("the box holds the link, selected", box.text .. tostring(box.highlighted), "https://example.testtrue")
-box.text = "typed over"
+box:SetText("typed over")
 dialog.EditBoxOnTextChanged(box, { url = "https://example.test" })
 Equal("typing puts the link back", box.text, "https://example.test")
 Equal("Escape and the button close it", dialog.button1 .. tostring(dialog.hideOnEscape), "Closetrue")
@@ -397,7 +336,7 @@ Equal("Escape and the button close it", dialog.button1 .. tostring(dialog.hideOn
 -- Guild Invite --------------------------------------------------------------------------------------------
 
 roster[1] = "Thrall-TwistingNether"
-Fire("GUILD_ROSTER_UPDATE")
+client:Fire("GUILD_ROSTER_UPDATE")
 Equal("a guild member gets no invite", Texts(OpenMenu("MENU_UNIT_PLAYER", nil, { unit = "target" })),
 	"|,External Links,Raider.IO,Warcraft Logs")
 Equal("nor a player in another guild", Button(OpenMenu("MENU_UNIT_PARTY", nil, { unit = "other" }), "Guild Invite"),
@@ -416,4 +355,4 @@ Equal("off: the roster is no longer followed", eventFrame.events.GUILD_ROSTER_UP
 Equal("and no button", Button(OpenMenu("MENU_UNIT_FRIEND", nil, { name = "Anduin" }), "Guild Invite"), nil)
 Equal("and the roster is dropped", next(GuildInvite.members), nil)
 
-io.stdout:write(("check_menus: %d checks passed\n"):format(checks))
+io.stdout:write(("check_menus: %d checks passed\n"):format(client.checks))

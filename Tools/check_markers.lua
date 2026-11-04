@@ -5,15 +5,15 @@
 -- value, the icons' hover and press springs and Animate Buttons, Reduce Motion, Show On Mouseover's fade, the role
 -- check, edit mode's sample, turned off); and the world marker cycle with and without secure snippets.
 -- Run from any directory with Lua 5.1: lua Tools/check_markers.lua
--- Loads the real files against stubbed globals. Widgets are modeled by type; protected frames refuse changes in
--- combat. Exits non-zero on the first failed check.
+-- Loads the real files against the shared stub client; protected frames refuse changes in combat.
+-- Exits non-zero on the first failed check.
 
 local root = (arg and arg[0] or ""):match("^(.-)[^/\\]*$") .. "../"
+local client = assert(loadfile(root .. "Tools/stub_client.lua"))({ project = "retail" })
+local Equal = client.Equal
 
 -- Environment ---------------------------------------------------------------------------------------------
 
-WOW_PROJECT_ID = 1
-WOW_PROJECT_MAINLINE = 1
 SlashCmdList = {}
 StaticPopupDialogs = {}
 READY_CHECK, PLAYER_COUNTDOWN_BUTTON, CLEAR_ALL = "Ready Check", "Countdown", "Clear All"
@@ -36,31 +36,7 @@ function CallErrorHandler(message)
 	errors[#errors + 1] = message
 end
 
--- WoW's xpcall forwards extra arguments to the function, as Lua 5.2 does; Lua 5.1's does not.
-local luaXpcall = xpcall
-function xpcall(fn, handler, ...)
-	local count, args = select("#", ...), { ... }
-
-	return luaXpcall(function()
-		return fn(unpack(args, 1, count))
-	end, handler)
-end
-
-C_Timer = {
-	After = function(_, callback)
-		callback()
-	end,
-}
-
-local SECRET = {}
-function issecretvalue(value)
-	return value == SECRET
-end
-
-local inCombat = false
-function InCombatLockdown()
-	return inCombat
-end
+local SECRET = client.Secret()
 
 local raid, leader, assistant, everyoneAssistant = false, false, false, false
 function IsInRaid()
@@ -96,157 +72,50 @@ function GetBindingKey(action)
 	return bindings[action]
 end
 
--- Widgets -------------------------------------------------------------------------------------------------
+-- Protected frames ---------------------------------------------------------------------------------------
+
+local SECURE = "SecureActionButtonTemplate"
+
+---@param frame table
+---@return boolean locked the frame is secure or holds a secure child, which combat locks
+local function Protected(frame)
+	if frame.template == SECURE then
+		return true
+	end
+
+	for _, child in ipairs(client.frames) do
+		if child.parent == frame and child.template == SECURE then
+			return true
+		end
+	end
+
+	return false
+end
 
 local function Blocked(frame, what)
-	if inCombat and (frame.protected or frame.holdsProtected) then
+	if client.combat and Protected(frame) then
 		error(("blocked in combat: %s on %s"):format(what, tostring(frame.name)), 3)
 	end
 end
 
-local function Texture()
-	local texture = { alpha = 1, width = 0, height = 0 }
-	function texture:SetTexture(file)
-		self.file = file
-	end
-	function texture:SetVertexColor(r, g, b, a)
-		self.color = { r, g, b, a }
-	end
-	function texture:SetAllPoints() end
-	function texture:SetPoint() end
-	function texture:SetSize(width, height)
-		self.width, self.height = width, height
-	end
-	function texture:SetHeight(height)
-		self.height = height
-	end
-	function texture:SetWidth(width)
-		self.width = width
-	end
-	function texture:SetTexCoord(...)
-		self.coords = table.concat({ ... }, ",")
-	end
-	function texture:SetSnapToPixelGrid(snap)
-		self.snap = snap
-	end
-	function texture:SetTexelSnappingBias(bias)
-		self.bias = bias
-	end
-	function texture:SetAlpha(alpha)
-		self.alpha = alpha
-	end
-	function texture:SetAlphaFromBoolean(value, alphaIfTrue, alphaIfFalse)
-		self.fromBoolean = value
-		self.alpha = value == SECRET and "secret" or (value and alphaIfTrue or alphaIfFalse)
-	end
+-- Every frame type derives from the type of UIParent, so this reaches the secure buttons too.
+local FrameType = getmetatable(UIParent)
 
-	return texture
+for _, method in ipairs({ "SetSize", "SetPoint", "ClearAllPoints", "Show", "Hide", "EnableMouse", "SetAttribute" }) do
+	local original = FrameType[method]
+
+	FrameType[method] = function(self, ...)
+		Blocked(self, method)
+
+		return original(self, ...)
+	end
 end
 
-local frames = {}
-
----@return table frame
-function CreateFrame(kind, name, parent, template)
-	local frame = { kind = kind, name = name, parent = parent, events = {}, scripts = {}, hooks = {}, attributes = {},
-		shown = true, alpha = 1, width = 0, height = 0, mouseOver = false }
-
-	frame.protected = template == "SecureActionButtonTemplate"
-
-	if frame.protected and parent then
-		parent.holdsProtected = true
-	end
-
-	function frame:RegisterEvent(event)
-		self.events[event] = true
-	end
-	function frame:UnregisterEvent(event)
-		self.events[event] = nil
-	end
-	function frame:SetScript(script, handler)
-		self.scripts[script] = handler
-	end
-	function frame:HookScript(script, handler)
-		self.hooks[script] = self.hooks[script] or {}
-		table.insert(self.hooks[script], handler)
-	end
-	function frame:Fire(script, ...)
-		if self.scripts[script] then
-			self.scripts[script](self, ...)
-		end
-
-		for _, handler in ipairs(self.hooks[script] or {}) do
-			handler(self, ...)
-		end
-	end
-	function frame:SetSize(width, height)
-		Blocked(self, "SetSize")
-		self.width, self.height = width, height
-	end
-	function frame:GetWidth()
-		return self.width
-	end
-	function frame:GetHeight()
-		return self.height
-	end
-	function frame:SetPoint(point, relative, relativePoint, x, y)
-		Blocked(self, "SetPoint")
-		self.point = ("%s %s %s"):format(tostring(point), tostring(x), tostring(y))
-		self.relative = relative
-		self.relativePoint = relativePoint
-	end
-	function frame:ClearAllPoints()
-		Blocked(self, "ClearAllPoints")
-	end
-	function frame:SetFrameStrata(strata)
-		self.strata = strata
-	end
-	function frame:SetClampedToScreen() end
-	function frame:Show()
-		Blocked(self, "Show")
-		self.shown = true
-	end
-	function frame:Hide()
-		Blocked(self, "Hide")
-		self.shown = false
-	end
-	function frame:IsShown()
-		return self.shown
-	end
-	function frame:SetAlpha(alpha)
-		self.alpha = alpha
-	end
-	function frame:EnableMouse(enabled)
-		Blocked(self, "EnableMouse")
-		self.mouse = enabled
-	end
-	function frame:IsMouseOver()
-		return self.mouseOver
-	end
-	function frame:SetAttribute(key, value)
-		Blocked(self, "SetAttribute")
-		self.attributes[key] = value
-	end
-	function frame:GetAttribute(key)
-		return self.attributes[key]
-	end
-	function frame:RegisterForClicks(...)
-		self.clicks = table.concat({ ... }, ",")
-	end
-	function frame:CreateTexture()
-		return Texture()
-	end
-
-	frames[#frames + 1] = frame
-
-	return frame
-end
-
-UIParent = CreateFrame("Frame", "UIParent")
-
-local tooltip = { lines = {} }
+local tooltip = { lines = {}, owners = 0 }
 GameTooltip = tooltip
 function tooltip:SetOwner(owner)
 	self.owner, self.lines, self.shown = owner, {}, false
+	self.owners = self.owners + 1
 end
 function tooltip:SetText(text)
 	self.title = text
@@ -277,7 +146,7 @@ end
 -- stops the click.
 local wraps = {}
 function SecureHandlerWrapScript(frame, script, header, body)
-	assert(header.protected, "the header must be protected")
+	assert(header.template == SECURE, "the header must be protected")
 	wraps[frame] = wraps[frame] or {}
 	wraps[frame][script] = assert(loadstring("local self, button, down = ...\n" .. body))
 end
@@ -289,6 +158,13 @@ function SecureHandlerSetFrameRef(frame, label, reference)
 	end
 end
 
+---Runs a frame's script, as the client does when the frame gets that input.
+local function Script(frame, script, ...)
+	if frame.scripts[script] then
+		frame.scripts[script](frame, ...)
+	end
+end
+
 -- Clicks a secure button: its PreClick (wrapped or plain), the macro it runs, then its PostClick.
 ---@return string? macro the macro text the click ran, nil when the click was stopped
 local function Click(button, mouseButton)
@@ -297,10 +173,10 @@ local function Click(button, mouseButton)
 	local wrapped = wraps[button] and wraps[button].PreClick
 
 	if wrapped then
-		local wasCombat = inCombat
-		inCombat = false -- the restricted environment may change attributes in combat
+		local wasCombat = client.combat
+		client:SetCombat(false) -- the restricted environment may change attributes in combat
 		local result = wrapped(button, mouseButton, true)
-		inCombat = wasCombat
+		client:SetCombat(wasCombat)
 
 		if result == false then
 			return nil
@@ -313,7 +189,7 @@ local function Click(button, mouseButton)
 
 	local macro = button.attributes.macrotext
 
-	button:Fire("PostClick", mouseButton, false)
+	Script(button, "PostClick", mouseButton, false)
 
 	return macro
 end
@@ -362,6 +238,7 @@ AUI.Profile = {
 local function Set(path, value)
 	values[path] = value
 	AUI.Callbacks:Fire("Profile", path)
+	client:RunTimers()
 end
 
 local settingsLibrary = {}
@@ -378,26 +255,24 @@ end
 
 local Options, Bar, Cycler, Markers = AUI.MarkerOptions, AUI.MarkerBar, AUI.MarkerCycler, AUI.Markers
 
--- Harness -------------------------------------------------------------------------------------------------
-
-local checks = 0
-
-local function Equal(name, actual, expected)
-	checks = checks + 1
-	if actual ~= expected then
-		io.stderr:write(("FAIL: %s: expected %s, got %s\n"):format(name, tostring(expected), tostring(actual)))
-		os.exit(1)
-	end
-end
+-- Helpers -------------------------------------------------------------------------------------------------
 
 local function Fire(event, ...)
-	AUI.Callbacks:Fire("event:" .. event, event, ...)
+	client:Fire(event, ...)
+	client:RunTimers()
+end
+
+---@return string place the frame's only anchor: its point and offsets
+local function Point(frame)
+	local anchor = frame.points[1]
+
+	return ("%s %s %s"):format(tostring(anchor[1]), tostring(anchor[4]), tostring(anchor[5]))
 end
 
 local function Attributes(button)
 	local keys = {}
 
-	for key, value in pairs(button.attributes) do
+	for key, value in pairs(button.attributes or {}) do
 		if key ~= "useOnKeyDown" then
 			keys[#keys + 1] = key .. "=" .. tostring(value)
 		end
@@ -472,23 +347,23 @@ Equal("nothing built while off", Bar.bar, nil)
 Set("markers.enabled", true)
 local bar = Bar.bar
 Equal("the named bar", bar and bar.name, "AeonUIRaidMarkers")
-Equal("eleven secure buttons", #bar.buttons .. " " .. tostring(bar.buttons[11].protected), "11 true")
+Equal("eleven secure buttons", #bar.buttons .. " " .. tostring(bar.buttons[11].template == SECURE), "11 true")
 Equal("icons resize off the pixel grid", tostring(bar.buttons[1].icon.snap) .. " " .. bar.buttons[1].icon.bias, "false 0")
-Equal("sized and placed at the top", bar.width .. "x" .. bar.height .. " " .. bar.point, "388x38 TOP 0 -20")
+Equal("sized and placed at the top", bar.width .. "x" .. bar.height .. " " .. Point(bar), "388x38 TOP 0 -20")
 Equal("its visibility driver", drivers[bar], "visibility:" .. Options:Visibility("GROUP_OR_TARGET"))
 Equal("Skull's attributes", Attributes(bar.buttons[8]),
 	"action1=toggle action2=toggle marker1=8 marker2=8 type1=raidtarget type2=worldmarker")
-Equal("clicked on release", bar.buttons[1].clicks .. " " .. tostring(bar.buttons[1].attributes.useOnKeyDown),
+Equal("clicked on release", bar.buttons[1].clicks[1] .. " " .. tostring(bar.buttons[1].attributes.useOnKeyDown),
 	"AnyUp false")
 Equal("the border in its style", bar.border.look.style .. " " .. bar.border.look.thickness, "FOREVER 100")
 Equal("no shadow by default", bar.border.look.shadow, nil)
 Equal("Star's icon at full size", bar.buttons[1].icon.width, 32)
 
-inCombat = true
+client:SetCombat(true)
 Set("markers.readyCheck", false)
 Equal("in combat, the layout waits", #bar.buttons .. " " .. tostring(bar.buttons[10].shown), "11 true")
 Set("markers.size", 30)
-inCombat = false
+client:SetCombat(false)
 Fire("PLAYER_REGEN_ENABLED")
 Equal("then follows the latest settings", tostring(bar.buttons[11].shown) .. " " .. bar.buttons[10].kind .. " "
 	.. bar.width, "false countdown 333")
@@ -508,10 +383,10 @@ assistant = SECRET
 Fire("GROUP_ROSTER_UPDATE")
 Equal("a secret answer counts as no", bar.buttons[1].alpha, 0.35)
 assistant = true
-inCombat = true
+client:SetCombat(true)
 Fire("PARTY_LEADER_CHANGED")
 Equal("an assist marks, in combat too", bar.buttons[1].alpha, 1)
-inCombat = false
+client:SetCombat(false)
 raid, assistant = false, false
 
 active[5] = true
@@ -519,66 +394,66 @@ Fire("RAID_TARGET_UPDATE")
 Equal("Star's world marker is down", bar.buttons[1].icon.alpha .. " " .. bar.buttons[2].icon.alpha, "0.35 1")
 active[5] = SECRET
 Fire("RAID_TARGET_UPDATE")
-Equal("a secret answer goes to the icon untested", bar.buttons[1].icon.alpha, "secret")
+Equal("a secret answer goes to the icon untested", issecretvalue(bar.buttons[1].icon.alphaBoolean[1]), true)
 active[5] = nil
 active[6] = true
-bar.buttons[2]:Fire("PostClick", "RightButton")
+Script(bar.buttons[2], "PostClick", "RightButton")
 Equal("read again after a click", bar.buttons[2].icon.alpha, 0.35)
 active[6] = nil
 
 local skull = bar.buttons[8]
-skull:Fire("OnEnter")
-Equal("hovered: the edge stays dark without Highlight Border", skull.edges[1].color[1], 0)
-skull:Fire("OnLeave")
+Script(skull, "OnEnter")
+Equal("hovered: the edge stays dark without Highlight Border", skull.edges[1].vertex[1], 0)
+Script(skull, "OnLeave")
 springs.Frames(1)
 Set("markers.feedback.highlight", true)
-skull:Fire("OnEnter")
-Equal("hovered: the edge lights and the tooltip shows its clicks", skull.edges[1].color[1] .. " " .. tostring(tooltip.title)
+Script(skull, "OnEnter")
+Equal("hovered: the edge lights and the tooltip shows its clicks", skull.edges[1].vertex[1] .. " " .. tostring(tooltip.title)
 	.. " " .. table.concat(tooltip.lines, "; "),
 	"0.7 Skull Click=Mark or unmark your target; Right-Click=Place or remove the world marker")
 Equal("the icon grows from where it is", springs.Moving(), true)
 springs.Frames(1)
 Equal("to its hovered size", skull.icon.width, 32 * Options.HOVER_SCALE)
-skull:Fire("OnMouseDown")
+Script(skull, "OnMouseDown")
 springs.Frames(0.05)
 Equal("pressed, it shrinks at once", skull.icon.width < 32 * Options.HOVER_SCALE, true)
 springs.Frames(1)
 Equal("to its pressed size", skull.icon.width, 32 * Options.PRESS_SCALE)
-skull:Fire("OnMouseUp")
-skull:Fire("OnLeave")
+Script(skull, "OnMouseUp")
+Script(skull, "OnLeave")
 springs.Frames(1)
-Equal("left: back to rest, edge and tooltip too", skull.icon.width .. " " .. skull.edges[1].color[1] .. " "
+Equal("left: back to rest, edge and tooltip too", skull.icon.width .. " " .. skull.edges[1].vertex[1] .. " "
 	.. tostring(tooltip.shown), "32 0 false")
 Set("markers.feedback.grow", false)
 Set("markers.feedback.press", false)
-skull:Fire("OnEnter")
-skull:Fire("OnMouseDown")
+Script(skull, "OnEnter")
+Script(skull, "OnMouseDown")
 Equal("without Grow on Hover or Shrink on Press the icon keeps its size", tostring(springs.Moving()) .. " "
 	.. skull.icon.width, "false 32")
-skull:Fire("OnMouseUp")
-skull:Fire("OnLeave")
+Script(skull, "OnMouseUp")
+Script(skull, "OnLeave")
 Set("markers.feedback.grow", true)
 Set("markers.feedback.press", true)
 Set("markers.feedback.highlight", false)
 springs.reduce = true
-skull:Fire("OnEnter")
+Script(skull, "OnEnter")
 Equal("Reduce Motion: the size jumps", tostring(springs.Moving()) .. " " .. skull.icon.width, "false " .. 32
 	* Options.HOVER_SCALE)
-skull:Fire("OnLeave")
+Script(skull, "OnLeave")
 springs.reduce = false
 Set("markers.tooltips", false)
 tooltip.title = nil
-skull:Fire("OnEnter")
+Script(skull, "OnEnter")
 Equal("Tooltips off", tooltip.title, nil)
-skull:Fire("OnLeave")
+Script(skull, "OnLeave")
 Set("markers.tooltips", true)
 
 local readyButton = bar.buttons[10]
-readyButton:Fire("PostClick", "RightButton")
+Script(readyButton, "PostClick", "RightButton")
 shift = true
-readyButton:Fire("PostClick", "RightButton")
+Script(readyButton, "PostClick", "RightButton")
 shift = false
-readyButton:Fire("PostClick", "LeftButton")
+Script(readyButton, "PostClick", "LeftButton")
 Equal("a right-click starts one role check; Shift-right-click logs instead", rolePolls, 1)
 
 Set("markers.mouseover", true)
@@ -587,13 +462,13 @@ Equal("Show On Mouseover: the bar takes the mouse and fades out", tostring(bar.m
 springs.Frames(1)
 Equal("faded out", bar.alpha, 0)
 bar.mouseOver = true
-bar:Fire("OnEnter")
+Script(bar, "OnEnter")
 springs.Frames(0.05)
 Equal("fading in under the cursor, from where it was", bar.alpha > 0 and bar.alpha < 1, true)
 springs.Frames(1)
 Equal("shown", bar.alpha, 1)
 bar.mouseOver = false
-bar:Fire("OnLeave")
+Script(bar, "OnLeave")
 springs.Frames(1)
 Bar:Sample(true)
 springs.Frames(1)
@@ -604,14 +479,14 @@ Equal("and hands it back", drivers[bar], "visibility:" .. Options:Visibility("GR
 Set("markers.mouseover", false)
 springs.Frames(1)
 
-inCombat = true
+client:SetCombat(true)
 Bar:Place({ point = "CENTER", x = 10, y = 20 })
-Equal("placing waits for combat", bar.point, "TOP 0 -20")
-inCombat = false
+Equal("placing waits for combat", Point(bar), "TOP 0 -20")
+client:SetCombat(false)
 Fire("PLAYER_REGEN_ENABLED")
-Equal("then takes the saved place", bar.point, "TOP 0 -20")
+Equal("then takes the saved place", Point(bar), "TOP 0 -20")
 Set("markers.position", { point = "CENTER", x = 10, y = 20 })
-Equal("a saved place", bar.point, "CENTER 10 20")
+Equal("a saved place", Point(bar), "CENTER 10 20")
 
 Set("markers.enabled", false)
 Bar:Sample(true)
@@ -625,8 +500,11 @@ Equal("off: hidden, without a driver or actions", tostring(bar.shown) .. " " .. 
 	.. Attributes(bar.buttons[1]), "false nil ")
 Equal("its events dropped", AUI.Events.registered.RAID_TARGET_UPDATE, nil)
 Set("markers.enabled", true)
+tooltip.owners = 0
+Script(bar.buttons[1], "OnEnter")
+Script(bar.buttons[1], "OnLeave")
 Equal("on again: one bar, its actions back, each button hooked once", tostring(Bar.bar == bar) .. " "
-	.. bar.buttons[1].attributes.type1 .. " " .. #bar.buttons[1].hooks.OnEnter, "true raidtarget 1")
+	.. bar.buttons[1].attributes.type1 .. " " .. tooltip.owners, "true raidtarget 1")
 
 -- The world marker cycle ----------------------------------------------------------------------------------
 
@@ -634,22 +512,22 @@ local place, clearButton = Cycler.place, Cycler.clear
 Equal("the bindings' buttons, made at the start", tostring(place ~= nil) .. " " .. tostring(clearButton ~= nil),
 	"true true")
 Equal("their names", place.name .. " " .. clearButton.name, "AeonUIWorldMarkerPlace AeonUIWorldMarkerClear")
-Equal("acting on key down", place.clicks .. " " .. tostring(place.attributes.useOnKeyDown), "AnyDown true")
+Equal("acting on key down", place.clicks[1] .. " " .. tostring(place.attributes.useOnKeyDown), "AnyDown true")
 Equal("Clear removes every world marker", clearButton.attributes.macrotext, "/cwm all")
 Equal("without snippets: the first press places Star", Click(place), "/wm [@cursor] 5")
 Equal("then Circle", Click(place), "/wm [@cursor] 6")
-inCombat = true
+client:SetCombat(true)
 Equal("in combat the key places the marker it reached again", Click(place), "/wm [@cursor] 6")
-inCombat = false
+client:SetCombat(false)
 Click(clearButton)
 Equal("Clear starts the cycle over", Click(place), "/wm [@cursor] 5")
 Set("markers.cycle.order", { "SKULL" })
 Set("markers.cycle.show.STAR", false)
 Equal("a new order starts over, Star left out", tostring(Click(place)) .. " " .. tostring(Click(place)), "/wm [@cursor] 8 /wm [@cursor] 6")
-inCombat = true
+client:SetCombat(true)
 Set("markers.cycle.show.CIRCLE", false)
 Equal("the cycle's markers change after combat", place.attributes.count, 7)
-inCombat = false
+client:SetCombat(false)
 Fire("PLAYER_REGEN_ENABLED")
 Equal("then follow the settings", place.attributes.count, 6)
 for _, name in ipairs(Options.NAMES) do
@@ -668,11 +546,11 @@ AUI.can.secureSnippets = true
 Cycler:Apply()
 place, clearButton = Cycler.place, Cycler.clear
 Equal("snippets: Star first", Click(place), "/wm [@cursor] 5")
-inCombat = true
+client:SetCombat(true)
 Equal("stepping in combat", Click(place), "/wm [@cursor] 6")
 Click(clearButton)
 Equal("Clear starts over in combat", Click(place), "/wm [@cursor] 5")
-inCombat = false
+client:SetCombat(false)
 values["markers.cycle.show.STAR"], values["markers.cycle.show.CIRCLE"] = false, false
 Cycler:Apply()
 Equal("only the markers in the cycle", tostring(Click(place)) .. " " .. place.attributes.count, "/wm [@cursor] 3 6")
@@ -686,4 +564,4 @@ Equal("the bindings' names", _G["BINDING_NAME_CLICK AeonUIWorldMarkerPlace:LeftB
 
 Equal("no errors reported", #errors, 0)
 
-print(("check_markers: %d checks passed"):format(checks))
+print(("check_markers: %d checks passed"):format(client.checks))

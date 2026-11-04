@@ -7,20 +7,33 @@
 -- a missing field gives nil, which capability guards rely on.
 --
 -- A check reads a widget's state from these fields, which its setters keep:
---   shown, points, width, height, alpha, alphaBoolean, scale, level, parent, template, scripts,
---   mouse, mouseMotion, mouseClick                                                        every frame or texture
---   kind, name, clipsChildren, strata, buffered, bufferCalls, attributes, events          frames
---   file, atlas, color, vertex, coords, desaturated, blend, gradient                      textures
---   text, font, textColor, justifyH, wordWrap, shadowColor, shadowOffset                  font strings
+--   shown, points, width, height, alpha, alphaBoolean, scale, scaleCalls, level, parent, template,
+--   scripts, mouse, mouseMotion, mouseClick, name, forbidden                              every frame or texture
+--   kind, id, clipsChildren, strata, buffered, bufferCalls, attributes, events,
+--   ignoreParentAlpha                                                                     frames
+--   clicks, enabled, text                                                                 buttons
+--   generator                                                                             dropdown buttons
+--   checked                                                                               check buttons
+--   file, atlas, color, vertex, coords, desaturated, blend, gradient, rotation, snap, bias  textures
+--   text, font, fontObject, textColor, justifyH, wordWrap, shadowColor, shadowOffset      font strings
+--   font, fontObject                                                                      message frames
+--   text, autoFocus, highlighted, focused, focusCleared                                   edit boxes
 --   value, min, max, statusColor, reverseFill, statusTexture, timer, interpolation,
 --   direction, snapped                                                                    status bars
 --   backdrop                                                                              frames with BackdropTemplate
+--   owner, padding, lines, shows, hides, refreshes, shouldRefreshData, tooltipType,
+--   tooltipData                                                                           game tooltips
 --   plays, playing, scripts, animation                                                    animation groups
---   reverse, drawEdge, drawSwipe, hideNumbers                                             cooldowns
+--   reverse, drawEdge, drawSwipe, hideNumbers, swipe, swipeColor, duration                cooldowns
+--   zoom                                                                                  minimaps
 --   enabled, flowAnchor, flowGrowth, flowLineSize, auraGroups                             aura containers
 --   cancelButtons, tooltipAnchor, durationCooldown, icon, countText, durationText, dispelTextures  aura buttons
 -- `points` holds each anchor's SetPoint arguments, one entry per anchor. Size reads 0 until set, as an unsized frame's
--- does. `left`, `right`, `top` and `bottom` are a check's fixtures: the screen edges read nil until it sets them.
+-- does. `left`, `right`, `top` and `bottom` are a check's fixtures: the screen edges read nil until it sets them. So are
+-- `effectiveScale`, which reads 1 until set, `mouseOver`, which reads false until set, a minimap's `zoomLevels`, which
+-- reads nil until set, a font string's `stringWidth` and `stringHeight`, which read 0 until set, and a game tooltip's
+-- `tooltipType` and `tooltipData`, which read nil until set. A game tooltip's `lines` holds what it was given, one
+-- `{ left, right, label, color }` per line, and a check may hand several tooltips one list.
 --
 -- Time is virtual. `client.now` is what `GetTime` answers; `client.timers` holds what `C_Timer` has pending, and an entry
 -- from `NewTimer` carries `seconds`, `cancelled` and `Cancel`.
@@ -33,6 +46,7 @@ assert(project == "retail" or project == "forever", "stub_client: unknown projec
 ---@class AUIStubClient
 ---@field checks integer the assertions made so far
 ---@field calls integer state-changing widget calls made; a check may reset it
+---@field hooks integer `hooksecurefunc` calls made; a check may reset it
 ---@field framesMade integer frames created; a check may reset it
 ---@field texturesMade integer textures created; a check may reset it
 ---@field combat boolean what `InCombatLockdown` answers
@@ -42,6 +56,7 @@ assert(project == "retail" or project == "forever", "stub_client: unknown projec
 local client = {
 	checks = 0,
 	calls = 0,
+	hooks = 0,
 	framesMade = 0,
 	texturesMade = 0,
 	combat = false,
@@ -185,10 +200,16 @@ function xpcall(fn, handler, ...)
 	end, handler)
 end
 
----@param object table
----@param method string
----@param hook function
+---@param object table|string the object, or the name of a global function
+---@param method string|function the method, or the hook when `object` names a global function
+---@param hook function?
 function hooksecurefunc(object, method, hook)
+	if type(object) == "string" then
+		object, method, hook = _G, object, method
+	end
+
+	client.hooks = client.hooks + 1
+
 	local original = object[method]
 
 	object[method] = function(...)
@@ -302,7 +323,16 @@ local AnimationGroup = Type(nil, {
 	end,
 })
 
-local ScriptRegion = Type(nil, {
+local ScriptObject = Type(nil, {
+	GetName = function(self)
+		return self.name
+	end,
+	IsForbidden = function(self)
+		return self.forbidden == true
+	end,
+})
+
+local ScriptRegion = Type(ScriptObject, {
 	CreateAnimationGroup = function(self)
 		return setmetatable({ owner = self, plays = 0, scripts = {} }, AnimationGroup)
 	end,
@@ -390,8 +420,32 @@ local ScriptRegion = Type(nil, {
 	GetScript = function(self, name)
 		return self.scripts[name]
 	end,
+	HookScript = State(function(self, name, hook)
+		local original = self.scripts[name]
+
+		self.scripts[name] = original and function(...)
+			original(...)
+			hook(...)
+		end or hook
+	end),
+	IsMouseEnabled = function(self)
+		return self.mouse
+	end,
+	IsMouseOver = function(self)
+		return self.mouseOver == true
+	end,
 	GetParent = function(self)
 		return self.parent
+	end,
+	GetPoint = function(self, index)
+		local entry = self.points[index or 1]
+
+		if entry then
+			return unpack(entry, 1, 5)
+		end
+	end,
+	GetNumPoints = function(self)
+		return #self.points
 	end,
 })
 
@@ -406,15 +460,19 @@ local SetAlphaFromBoolean = State(function(self, flag, shown, hidden)
 		self.alpha = flag and shown or hidden
 	end
 end)
-local GetEffectiveScale = function()
-	return 1
+local GetEffectiveScale = function(self)
+	return self.effectiveScale or 1
 end
 local GetAlpha = function(self)
 	return self.alpha or 1
 end
 local SetScale = State(function(self, scale)
 	self.scale = scale
+	self.scaleCalls = (self.scaleCalls or 0) + 1
 end)
+local GetScale = function(self)
+	return self.scale or 1
+end
 
 local Region = Type(ScriptRegion, {
 	SetAlpha = SetAlpha,
@@ -422,6 +480,7 @@ local Region = Type(ScriptRegion, {
 	GetAlpha = GetAlpha,
 	GetEffectiveScale = GetEffectiveScale,
 	SetScale = SetScale,
+	GetScale = GetScale,
 	SetDrawLayer = State(),
 	SetVertexColor = State(function(self, ...)
 		self.vertex = { ... }
@@ -429,8 +488,12 @@ local Region = Type(ScriptRegion, {
 })
 
 local Texture = Type(Region, {
-	SetSnapToPixelGrid = State(),
-	SetTexelSnappingBias = State(),
+	SetSnapToPixelGrid = State(function(self, snap)
+		self.snap = snap
+	end),
+	SetTexelSnappingBias = State(function(self, bias)
+		self.bias = bias
+	end),
 	SetTexture = State(function(self, file)
 		self.file = file
 	end),
@@ -457,12 +520,33 @@ local Texture = Type(Region, {
 	SetGradient = State(function(self, ...)
 		self.gradient = { ... }
 	end),
+	SetRotation = State(function(self, rotation)
+		self.rotation = rotation
+	end),
+	GetTexture = function(self)
+		return self.file
+	end,
+	GetAtlas = function(self)
+		return self.atlas
+	end,
 })
 
+local SetFont = State(function(self, ...)
+	self.font = { ... }
+end)
+local SetFontObject = State(function(self, fontObject)
+	self.fontObject, self.font = fontObject, { fontObject:GetFont() }
+end)
+
 local FontString = Type(Region, {
-	SetFont = State(function(self, ...)
-		self.font = { ... }
-	end),
+	SetFont = SetFont,
+	SetFontObject = SetFontObject,
+	GetFontObject = function(self)
+		return self.fontObject
+	end,
+	GetText = function(self)
+		return self.text
+	end,
 	SetText = State(function(self, text)
 		assert(self.font, "FontString:SetText(): Font not set")
 		self.text = text
@@ -479,12 +563,24 @@ local FontString = Type(Region, {
 	SetTextColor = State(function(self, ...)
 		self.textColor = { ... }
 	end),
+	GetTextColor = function(self)
+		return unpack(self.textColor)
+	end,
 	SetJustifyH = State(function(self, justify)
 		self.justifyH = justify
 	end),
 	SetWordWrap = State(function(self, wrap)
 		self.wordWrap = wrap
 	end),
+	GetUnboundedStringWidth = function(self)
+		return self.stringWidth or 0
+	end,
+	GetStringWidth = function(self)
+		return self.stringWidth or 0
+	end,
+	GetStringHeight = function(self)
+		return self.stringHeight or 0
+	end,
 })
 
 local Frame = Type(ScriptRegion, {
@@ -501,6 +597,7 @@ local Frame = Type(ScriptRegion, {
 	SetFrameStrata = State(function(self, strata)
 		self.strata = strata
 	end),
+	SetClampedToScreen = State(),
 	SetIsFrameBuffer = State(function(self, buffered)
 		self.buffered = buffered
 		self.bufferCalls = (self.bufferCalls or 0) + 1
@@ -509,10 +606,26 @@ local Frame = Type(ScriptRegion, {
 		self.attributes = self.attributes or {}
 		self.attributes[name] = value
 	end),
+	GetAttribute = function(self, name)
+		return self.attributes and self.attributes[name]
+	end,
+	IsEventRegistered = function(self, event)
+		return self.events[event] == true
+	end,
+	GetID = function(self)
+		return self.id
+	end,
+	SetID = State(function(self, id)
+		self.id = id
+	end),
 	SetClipsChildren = State(function(self, clips)
 		self.clipsChildren = clips
 	end),
+	SetIgnoreParentAlpha = State(function(self, ignore)
+		self.ignoreParentAlpha = ignore
+	end),
 	SetScale = SetScale,
+	GetScale = GetScale,
 	SetFrameLevel = State(function(self, level)
 		self.level = level
 	end),
@@ -541,6 +654,104 @@ local Button = Type(Frame, {
 	RegisterForClicks = State(function(self, ...)
 		self.clicks = { ... }
 	end),
+	Enable = State(function(self)
+		self.enabled = true
+	end),
+	Disable = State(function(self)
+		self.enabled = false
+	end),
+	SetEnabled = State(function(self, enabled)
+		self.enabled = enabled
+	end),
+	IsEnabled = function(self)
+		return self.enabled ~= false
+	end,
+	SetText = State(function(self, text)
+		self.text = text
+	end),
+})
+
+local DropdownButton = Type(Button, {
+	SetupMenu = State(function(self, generator)
+		self.generator = generator
+	end),
+})
+
+local CheckButton = Type(Button, {
+	SetChecked = State(function(self, checked)
+		self.checked = checked
+	end),
+	GetChecked = function(self)
+		return self.checked
+	end,
+})
+
+local MessageFrame = Type(Frame, {
+	SetFont = SetFont,
+	SetFontObject = SetFontObject,
+})
+
+local EditBox = Type(Frame, {
+	SetText = State(function(self, text)
+		self.text = text
+	end),
+	GetText = function(self)
+		return self.text
+	end,
+	SetAutoFocus = State(function(self, autoFocus)
+		self.autoFocus = autoFocus
+	end),
+	HighlightText = State(function(self)
+		self.highlighted = true
+	end),
+	SetFocus = State(function(self)
+		self.focused = true
+	end),
+	ClearFocus = State(function(self)
+		self.focused, self.focusCleared = false, true
+	end),
+})
+
+local GameTooltip = Type(Frame, {
+	SetOwner = State(function(self, owner)
+		self.owner = owner
+	end),
+	AddLine = State(function(self, text, r, g, b)
+		self.lines = self.lines or {}
+		self.lines[#self.lines + 1] = { left = text, color = { r, g, b } }
+	end),
+	AddDoubleLine = State(function(self, left, right, leftR, leftG, leftB, rightR, rightG, rightB)
+		self.lines = self.lines or {}
+		self.lines[#self.lines + 1] = {
+			left = left,
+			right = right,
+			label = { leftR, leftG, leftB },
+			color = { rightR, rightG, rightB },
+		}
+	end),
+	ClearLines = State(function(self)
+		for index = #(self.lines or {}), 1, -1 do
+			self.lines[index] = nil
+		end
+	end),
+	NumLines = function(self)
+		return #(self.lines or {})
+	end,
+	GetPadding = function(self)
+		local padding = self.padding or {}
+
+		return padding.right or 0, padding.bottom or 0, padding.left or 0, padding.top or 0
+	end,
+	SetPadding = State(function(self, right, bottom, left, top)
+		self.padding = { right = right, bottom = bottom, left = left or 0, top = top or 0 }
+	end),
+	FadeOut = State(),
+	Show = State(function(self)
+		self.shown, self.shows = true, (self.shows or 0) + 1
+	end),
+	Hide = State(function(self)
+		self.shown, self.hides = false, (self.hides or 0) + 1
+	end),
 })
 
 local Cooldown = Type(Frame, {
@@ -555,6 +766,20 @@ local Cooldown = Type(Frame, {
 	end),
 	SetHideCountdownNumbers = State(function(self, hide)
 		self.hideNumbers = hide
+	end),
+	SetDrawBling = State(),
+	SetUseCircularEdge = State(),
+	SetSwipeTexture = State(function(self, file, r, g, b, a)
+		self.swipe, self.swipeColor = file, { r, g, b, a }
+	end),
+	SetCooldownFromDurationObject = State(function(self, duration)
+		self.duration = duration
+	end),
+	SetCooldown = State(function(self, _, seconds)
+		self.duration = seconds
+	end),
+	Clear = State(function(self)
+		self.duration = nil
 	end),
 })
 
@@ -599,6 +824,18 @@ local PlayerModel = Type(Frame, {
 	end),
 })
 
+local Minimap = Type(Frame, {
+	GetZoom = function(self)
+		return self.zoom or 0
+	end,
+	SetZoom = State(function(self, zoom)
+		self.zoom = zoom
+	end),
+	GetZoomLevels = function(self)
+		return self.zoomLevels
+	end,
+})
+
 local StatusBar = Type(Frame, {
 	SetMinMaxValues = State(function(self, min, max)
 		self.min, self.max, self.timer = min, max, nil
@@ -639,14 +876,39 @@ local StatusBar = Type(Frame, {
 local FRAME_TYPES = {
 	Frame = Frame,
 	Button = Button,
+	DropdownButton = DropdownButton,
+	CheckButton = CheckButton,
+	MessageFrame = MessageFrame,
+	EditBox = EditBox,
+	GameTooltip = GameTooltip,
 	StatusBar = StatusBar,
 	Cooldown = Cooldown,
 	PlayerModel = PlayerModel,
+	Minimap = Minimap,
 	AuraContainer = AuraContainer,
 	AuraButton = AuraButton,
 }
 local TEMPLATES = {
 	CooldownFrameTemplate = {},
+	SecureActionButtonTemplate = {},
+	SearchBoxTemplate = {},
+	GameTooltipTemplate = {
+		RefreshData = State(function(self)
+			self.shouldRefreshData = false
+			self.refreshes = (self.refreshes or 0) + 1
+		end),
+		IsTooltipType = function(self, kind)
+			return self.tooltipType == kind
+		end,
+		GetPrimaryTooltipData = function(self)
+			return self.tooltipData
+		end,
+	},
+	WowStyle1DropdownTemplate = {
+		OverrideText = State(function(self, text)
+			self.text = text
+		end),
+	},
 	CustomAuraContainerTemplate = {
 		SetAuraGroupFilterString = AuraGroupField("filter"),
 		SetAuraGroupCandidateFilters = AuraGroupField("candidates"),

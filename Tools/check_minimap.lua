@@ -2,9 +2,11 @@
 -- automatic zoom reset, keeping rotation off, which profile changes re-apply the map, the rows' layout, which elements
 -- each row holds, the border's row gaps and the fade targets.
 -- Run from any directory with Lua 5.1: lua Tools/check_minimap.lua
--- Loads the real files against stubbed globals. It proves the logic, not the drawing.
+-- Loads the real files against the shared stub client. It proves the logic, not the drawing.
 
 local root = (arg and arg[0] or ""):match("^(.-)[^/\\]*$") .. "../"
+local client = assert(loadfile(root .. "Tools/stub_client.lua"))({ project = "retail" })
+local Equal = client.Equal
 
 -- Environment ---------------------------------------------------------------------------------------------
 
@@ -22,30 +24,8 @@ function CallErrorHandler(message)
 	error(message, 0)
 end
 
-local luaXpcall = xpcall
-function xpcall(fn, handler, ...)
-	local count, args = select("#", ...), { ... }
-
-	return luaXpcall(function()
-		return fn(unpack(args, 1, count))
-	end, handler)
-end
-
-function CreateFrame()
-	return { RegisterEvent = function() end, UnregisterEvent = function() end, SetScript = function() end }
-end
-
--- Blizzard's minimap, modeled with only the zoom methods the module's handlers call.
-Minimap = { zoom = 0, levels = 6 }
-function Minimap:GetZoom()
-	return self.zoom
-end
-function Minimap:GetZoomLevels()
-	return self.levels
-end
-function Minimap:SetZoom(zoom)
-	self.zoom = zoom
-end
+CreateFrame("Minimap", "Minimap", UIParent)
+Minimap.zoomLevels = 6
 
 local ignored = 0
 C_Minimap = {
@@ -53,21 +33,6 @@ C_Minimap = {
 		if ignore then
 			ignored = ignored + 1
 		end
-	end,
-}
-
-local timers = {}
-C_Timer = {
-	NewTimer = function(delay, callback)
-		local timer = { delay = delay, callback = callback, cancelled = false }
-
-		function timer:Cancel()
-			self.cancelled = true
-		end
-
-		timers[#timers + 1] = timer
-
-		return timer
 	end,
 }
 
@@ -93,21 +58,6 @@ function LibStub(name)
 	return assert(name == "LibAeonSettings-1.0" and settingsLibrary, name)
 end
 
-local inCombat = false
-function InCombatLockdown()
-	return inCombat
-end
-
-function Mixin(object, ...)
-	for index = 1, select("#", ...) do
-		for key, value in pairs((select(index, ...))) do
-			object[key] = value
-		end
-	end
-
-	return object
-end
-
 local AUI = {}
 assert(loadfile(root .. "AeonUI/Core/Core.lua"))("AeonUI", AUI)
 AUI.L = setmetatable({}, { __index = function(_, key)
@@ -128,18 +78,6 @@ AUI.Profile = {
 		return Schema:Read(stored, path)
 	end,
 }
-
--- Harness -------------------------------------------------------------------------------------------------
-
-local checks = 0
-
-local function Equal(name, actual, expected)
-	checks = checks + 1
-	if actual ~= expected then
-		io.stderr:write(("FAIL: %s: expected %s, got %s\n"):format(name, tostring(expected), tostring(actual)))
-		os.exit(1)
-	end
-end
 
 -- Geometry ------------------------------------------------------------------------------------------------
 
@@ -253,19 +191,19 @@ Equal("the default place is a valid position", (Schema:CheckValue("minimap.posit
 
 Minimap.zoom = 3
 Map:OnZoomChanged()
-Equal("no timer while the reset is off", #timers, 0)
+Equal("no timer while the reset is off", #client.timers, 0)
 stored.minimap = { zoom = { reset = 10 } }
 Map:OnZoomChanged()
-Equal("a zoom starts the timer", #timers, 1)
-Equal("for the chosen delay", timers[1].delay, 10)
+Equal("a zoom starts the timer", #client.timers, 1)
+Equal("for the chosen delay", client.timers[1].seconds, 10)
 Map:OnZoomChanged()
-Equal("another zoom cancels the first timer", timers[1].cancelled, true)
-Equal("and starts a new one", #timers, 2)
-timers[2].callback()
+Equal("another zoom cancels the first timer", client.timers[1].cancelled, true)
+Equal("and starts a new one", #client.timers, 2)
+client.timers[2].callback()
 Equal("the timer zooms all the way out", Minimap.zoom, 0)
 Equal("and forgets itself", Map.resetTimer, nil)
 Map:OnZoomChanged()
-Equal("no timer at the widest zoom", #timers, 2)
+Equal("no timer at the widest zoom", #client.timers, 2)
 
 -- Rotation ---------------------------------------------------------------------------------------------------
 
@@ -482,19 +420,18 @@ function IsInInstance()
 	return false
 end
 AUI.Events = AUI.Events or { Coalesce = function() end }
-local labelColor
-Difficulty.text = { SetText = function() end, SetTextColor = function(_, r, g, b) labelColor = { r, g, b } end }
+Difficulty.text = CreateFrame("Frame"):CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
 zone.active, clock.active, Difficulty.active = nil, nil, true
 Difficulty:Update()
 Equal("no badge outside an instance", Difficulty:IsShown(), false)
 Elements:SetPreview(true, "dev")
 Equal("the preview shows a sample badge", Difficulty.value, "25H")
 Equal("marked as the sample", Difficulty.sample, true)
-Equal("in the heroic color", labelColor[3], 0.867)
+Equal("in the heroic color", Difficulty.text.textColor[3], 0.867)
 stored.minimap = { difficulty = { colors = { heroic = { r = 1, g = 0, b = 0 } } } }
 Difficulty.tier = nil
 Difficulty:Update()
-Equal("a chosen tier color is used", labelColor[1], 1)
+Equal("a chosen tier color is used", Difficulty.text.textColor[1], 1)
 stored.minimap = nil
 Equal("Friz Quadrata by default", Schema:Read(stored, "minimap.difficulty.text.font"), "Friz Quadrata TT")
 Equal("Slug by default", Schema:Read(stored, "minimap.difficulty.text.outline"), "SLUG")
@@ -542,34 +479,32 @@ Equal("going out is slower", Fade:Response(0.3, 1), 0.35)
 
 local registered = AUI.Events.Register
 AUI.Events.Register = function() end
-local fadedAlpha
-Fade:Start({ SetAlpha = function(_, alpha)
-	fadedAlpha = alpha
-end })
+local faded = CreateFrame("Frame")
+Fade:Start(faded)
 AUI.Events.Register = registered
 Equal("the spring settles without overshoot", Fade.spring.damping, 1)
 stored.minimap = { fade = { mouseover = true } }
-local fadeTimers = #timers
+local fadeTimers = #client.timers
 Fade:SetHovered(true)
-Equal("the mouse brings it in at once", fadedAlpha, 1)
+Equal("the mouse brings it in at once", faded.alpha, 1)
 Fade:SetHovered(false)
-Equal("leaving waits before fading", #timers, fadeTimers + 1)
-Equal("for the hold", timers[#timers].delay, 0.3)
-Equal("still shown while it waits", fadedAlpha, 1)
+Equal("leaving waits before fading", #client.timers, fadeTimers + 1)
+Equal("for the hold", client.timers[#client.timers].seconds, 0.3)
+Equal("still shown while it waits", faded.alpha, 1)
 Fade:SetHovered(true)
-Equal("coming back within the hold cancels it", timers[#timers].cancelled, true)
+Equal("coming back within the hold cancels it", client.timers[#client.timers].cancelled, true)
 Fade:SetHovered(false)
-timers[#timers].callback()
-Equal("after the hold it fades", fadedAlpha, 0.3)
+client.timers[#client.timers].callback()
+Equal("after the hold it fades", faded.alpha, 0.3)
 Equal("on the slower response", Fade.spring.moves[#Fade.spring.moves].response, 0.35)
 Fade:SetHovered(true)
 Equal("coming in again on the quicker one", Fade.spring.moves[#Fade.spring.moves].response, 0.15)
 Fade:SetHovered(false)
-timers[#timers].callback()
-local beforeCombat = #timers
+client.timers[#client.timers].callback()
+local beforeCombat = #client.timers
 Fade.inCombat = true
 Fade:Refresh()
-Equal("a change of combat moves without a hold", #timers, beforeCombat)
+Equal("a change of combat moves without a hold", #client.timers, beforeCombat)
 Fade.inCombat = false
 Fade:Refresh()
 stored.minimap = nil
@@ -630,4 +565,4 @@ Map.pending = true
 Map:OnCombatEnded()
 Equal("a request made in combat applies when it ends", applied, 4)
 
-io.stdout:write(("check_minimap: %d checks passed\n"):format(checks))
+io.stdout:write(("check_minimap: %d checks passed\n"):format(client.checks))

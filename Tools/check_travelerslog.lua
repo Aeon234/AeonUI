@@ -5,13 +5,14 @@
 -- on again; which activities are hidden, each sort's order, the list pass on a tree that caches its row order as
 -- Blizzard's does, the dropdown, search and its stand-down; and the settings page. Drawing and the real list are not exercised.
 -- Run from any directory with Lua 5.1: lua Tools/check_travelerslog.lua
--- Loads the real files against stubbed globals. Widgets are modeled by type. Exits non-zero on the first failed check.
+-- Loads the real files against the shared stub client. Exits non-zero on the first failed check.
 
 local root = (arg and arg[0] or ""):match("^(.-)[^/\\]*$") .. "../"
+local client = assert(loadfile(root .. "Tools/stub_client.lua"))({ project = "retail" })
+local Equal = client.Equal
 
 -- Environment ---------------------------------------------------------------------------------------------
 
-WOW_PROJECT_ID = 1
 SlashCmdList = {}
 StaticPopupDialogs = {}
 NONE = "None"
@@ -42,24 +43,6 @@ function CallErrorHandler(message)
 	errors[#errors + 1] = message
 end
 
--- WoW's xpcall forwards extra arguments to the function, as Lua 5.2 does; Lua 5.1's does not.
-local luaXpcall = xpcall
-function xpcall(fn, handler, ...)
-	local count, args = select("#", ...), { ... }
-
-	return luaXpcall(function()
-		return fn(unpack(args, 1, count))
-	end, handler)
-end
-
-C_Timer = { After = function(_, callback)
-	callback()
-end }
-
-function GetTime()
-	return 100
-end
-
 local now = 1000
 function GetServerTime()
 	return now
@@ -76,172 +59,9 @@ function BreakUpLargeNumbers(value)
 	return text
 end
 
-function Mixin(object, ...)
-	for index = 1, select("#", ...) do
-		for key, value in pairs((select(index, ...))) do
-			object[key] = value
-		end
-	end
-
-	return object
-end
-
 PixelUtil = { SetSize = function(region, width, height)
 	region:SetSize(width, height)
 end }
-
-local function Region()
-	local region = { shown = true }
-	region.SetShown = function(self, shown)
-		self.shown = shown
-	end
-	region.SetAllPoints = function() end
-	region.SetColorTexture = function(self, r, g, b, a)
-		self.color = { r, g, b, a }
-	end
-
-	return region
-end
-
-local function FontString()
-	local text = Region()
-	text.SetPoint = function(self, point, _, relative, x)
-		self.point = { point, relative, x }
-	end
-	text.SetText = function(self, value)
-		self.value = value
-	end
-	text.SetTextColor = function(self, r)
-		self.red = r
-	end
-
-	return text
-end
-
-local bars = {}
-
-local function StatusBar(parent)
-	local bar = { parent = parent, shown = true, value = 0 }
-	local fill = Region()
-	bar.GetParent = function(self)
-		return self.parent
-	end
-	bar.SetSize = function(self, width, height)
-		self.width, self.height = width, height
-	end
-	bar.SetPoint = function(self, point, relativeTo, relative, x, y)
-		self.point = { point, relativeTo, relative, x, y }
-	end
-	bar.SetStatusBarTexture = function() end
-	bar.SetStatusBarColor = function(self, r, g, b)
-		self.color = { r, g, b }
-	end
-	bar.SetMinMaxValues = function(self, low, high)
-		self.low, self.high = low, high
-	end
-	bar.SetValue = function(self, value)
-		self.value = value
-	end
-	bar.GetStatusBarTexture = function()
-		return fill
-	end
-	bar.CreateTexture = Region
-	bar.CreateFontString = function(_, _, _, template)
-		assert(template == "GameFontHighlightSmall", "unexpected font " .. tostring(template))
-
-		return FontString()
-	end
-	bar.Show = function(self)
-		self.shown = true
-	end
-	bar.Hide = function(self)
-		self.shown = false
-	end
-	bars[#bars + 1] = bar
-
-	return bar
-end
-
-local dropdowns = {}
-local eventFrame
-function CreateFrame(kind, _, parent, template)
-	if kind == "StatusBar" then
-		return StatusBar(parent)
-	end
-
-	if kind == "EditBox" then
-		assert(template == "SearchBoxTemplate", "unexpected template " .. tostring(template))
-		local box = { parent = parent, shown = true, text = "", points = {}, scripts = {} }
-		box.SetHeight = function(self, height)
-			self.height = height
-		end
-		box.SetPoint = function(self, point, relativeTo, relative, x)
-			self.points[point] = { relativeTo, relative, x }
-		end
-		box.SetFrameLevel = function(self, level)
-			self.level = level
-		end
-		box.SetAutoFocus = function(self, autoFocus)
-			self.autoFocus = autoFocus
-		end
-		box.SetShown = function(self, shown)
-			self.shown = shown
-		end
-		box.GetText = function(self)
-			return self.text
-		end
-		box.SetText = function(self, text)
-			self.text = text
-			self.scripts.OnTextChanged(self)
-		end
-		box.HookScript = function(self, script, handler)
-			self.scripts[script] = handler
-		end
-
-		return box
-	end
-
-	if kind == "DropdownButton" then
-		assert(template == "WowStyle1DropdownTemplate", "unexpected template " .. tostring(template))
-		local dropdown = { parent = parent, shown = true, level = 0 }
-		dropdown.SetWidth = function(self, width)
-			self.width = width
-		end
-		dropdown.SetPoint = function(self, point, relativeTo, relative, x)
-			self.point = { point, relativeTo, relative, x }
-		end
-		dropdown.SetFrameLevel = function(self, level)
-			self.level = level
-		end
-		dropdown.SetupMenu = function(self, generator)
-			self.generator = generator
-		end
-		dropdown.SetShown = function(self, shown)
-			self.shown = shown
-		end
-		dropdown.OverrideText = function(self, text)
-			self.text = text
-		end
-		dropdowns[#dropdowns + 1] = dropdown
-
-		return dropdown
-	end
-
-	assert(kind == "Frame", "unexpected frame " .. tostring(kind))
-	local frame = { scripts = {}, events = {} }
-	frame.SetScript = function(self, script, handler)
-		self.scripts[script] = handler
-	end
-	frame.RegisterEvent = function(self, event)
-		self.events[event] = true
-	end
-	frame.UnregisterEvent = function(self, event)
-		self.events[event] = nil
-	end
-	eventFrame = eventFrame or frame
-
-	return frame
-end
 
 local lib = {}
 local springs = assert(loadfile(root .. "Tools/springs.lua"))(lib)
@@ -259,6 +79,8 @@ for _, file in ipairs({ "AeonUI/Core/Callbacks.lua", "AeonUI/Core/Events.lua", "
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 
+local eventFrame = client.frames[#client.frames]
+
 local values = {}
 AUI.L = setmetatable({}, { __index = function(_, key)
 	return key
@@ -271,6 +93,7 @@ AUI.Profile = {
 	Set = function(_, path, value)
 		values[path] = value
 		AUI.Callbacks:Fire("Profile", path)
+		client:RunTimers()
 	end,
 	Get = function(_, path)
 		local value = values[path]
@@ -287,6 +110,7 @@ AUI.Profile = {
 local function Set(path, value)
 	values[path] = value
 	AUI.Callbacks:Fire("Profile", path)
+	client:RunTimers()
 end
 
 for _, file in ipairs({ "AeonUI_QoL/TravelersLog/Options.lua", "AeonUI_QoL/TravelersLog/RowProgress.lua",
@@ -297,17 +121,7 @@ end
 local Schema, Options, Log, Rows = AUI.Schema, AUI.TravelersLogOptions, AUI.TravelersLog, AUI.TravelersLogRows
 local List = AUI.TravelersLogList
 
--- Harness -------------------------------------------------------------------------------------------------
-
-local checks = 0
-
-local function Equal(name, actual, expected)
-	checks = checks + 1
-
-	if actual ~= expected then
-		error(("%s: expected %s, got %s"):format(name, tostring(expected), tostring(actual)), 2)
-	end
-end
+-- Helpers -------------------------------------------------------------------------------------------------
 
 local function Requirement(text, completed)
 	return { requirementText = text, completed = completed == true }
@@ -390,59 +204,39 @@ Equal("none", Options:Label("NONE", 0.2, 5, 25), nil)
 -- Off, and waiting for Blizzard's addon --------------------------------------------------------------------
 
 local function Fire(event, ...)
-	if eventFrame.events[event] then
-		eventFrame.scripts.OnEvent(eventFrame, event, ...)
-	end
+	client:Fire(event, ...)
+	client:RunTimers()
 end
 
-local rows, initialized, hooks = {}, nil, {}
+local rows, initialized = {}, nil
 
 local function Row(activity)
-	local row = {
-		activity = activity,
-		node = { GetData = function(self)
-			return self.row.activity
-		end },
-	}
+	local row = CreateFrame("Frame")
+
+	row.activity = activity
+	row.node = { GetData = function(self)
+		return self.row.activity
+	end }
 	row.node.row = row
 	rows[#rows + 1] = row
 
 	return row
 end
 
-local scrollBox = { ForEachFrame = function(_, callback)
-	for _, row in ipairs(rows) do
-		callback(row, row.node)
-	end
-end }
-local logFrame = {
-	ScrollBox = scrollBox,
-	HeaderContainer = { TimeLeft = {}, Month = {} },
-	visible = false,
+-- What Blizzard's SetActivities builds, and the activities its ScrollToPerksActivityID was asked for.
+local listBuild
+local scrolled = {}
+
+local logFrame = Mixin(CreateFrame("Frame"), {
 	pending = {},
 	animating = {},
-	HookScript = function(_, script, handler)
-		local earlier = hooks[script]
-
-		hooks[script] = function()
-			if earlier then
-				earlier()
-			end
-
-			handler()
+	SetActivities = function(self, activities, retainScroll)
+		if listBuild then
+			listBuild(self, activities, retainScroll)
 		end
 	end,
-	CreateFontString = function(_, _, _, template)
-		assert(template == "GameFontNormal", "unexpected font " .. tostring(template))
-		local text = FontString()
-		text.Hide = function(self)
-			self.shown = false
-		end
-
-		return text
-	end,
-	IsVisible = function(self)
-		return self.visible
+	ScrollToPerksActivityID = function(_, id)
+		scrolled[#scrolled + 1] = id
 	end,
 	IsActivityPendingComplete = function(self, id)
 		return self.pending[id]
@@ -450,24 +244,26 @@ local logFrame = {
 	NeedsToAnimatePendingComplete = function(self, id)
 		return self.animating[id] == true
 	end,
-}
-scrollBox.GetDataProvider = function(self)
-	return self.provider
-end
+})
+logFrame:Hide()
+logFrame.HeaderContainer = CreateFrame("Frame", nil, logFrame)
+logFrame.HeaderContainer.TimeLeft = CreateFrame("Frame", nil, logFrame.HeaderContainer)
+logFrame.HeaderContainer.Month = CreateFrame("Frame", nil, logFrame.HeaderContainer)
 
-local setActivitiesHook
-function hooksecurefunc(owner, method, hook)
-	assert(owner == logFrame, "unexpected hook")
+local stockSetActivities = logFrame.SetActivities
 
-	if method == "ScrollToPerksActivityID" then
-		logFrame.scrollHook = hook
+local scrollBox = Mixin(CreateFrame("Frame", nil, logFrame), {
+	ForEachFrame = function(_, callback)
+		for _, row in ipairs(rows) do
+			callback(row, row.node)
+		end
+	end,
+	GetDataProvider = function(self)
+		return self.provider
+	end,
+})
+logFrame.ScrollBox = scrollBox
 
-		return
-	end
-
-	assert(method == "SetActivities" and not setActivitiesHook, "unexpected hook")
-	setActivitiesHook = hook
-end
 ScrollUtil = { AddInitializedFrameCallback = function(box, callback, owner, iterateExisting)
 	assert(box == scrollBox and owner == Rows and iterateExisting == false, "unexpected callback")
 	assert(not initialized, "hooked twice")
@@ -488,7 +284,7 @@ Fire("ADDON_LOADED", "SomeOtherAddon")
 Equal("another addon changes nothing", Log.waiting, true)
 
 journalLoaded = true
-EncounterJournal = { MonthlyActivitiesFrame = logFrame }
+CreateFrame("Frame", "EncounterJournal").MonthlyActivitiesFrame = logFrame
 Fire("ADDON_LOADED", "Blizzard_EncounterJournal")
 Equal("hooked once it has loaded", Rows.hooked, true)
 Equal("no longer waiting", Log.waiting, false)
@@ -508,24 +304,25 @@ local bar = full.aeonUIProgress
 Equal("a bar on a full row", bar ~= nil, true)
 Equal("its width leaves the label's column", bar.width, 370 - Options.LABEL_WIDTH - Options.LABEL_GAP)
 Equal("its height", bar.height, 5)
-Equal("on the row", bar.point[2], full)
-Equal("at the text's left edge", bar.point[4], 36)
-Equal("above the bottom edge", bar.point[5], 9)
-Equal("gold", bar.color[1], Options.FILL_COLOR.r)
-Equal("from 0 to 1", bar.low .. " " .. bar.high, "0 1")
+Equal("on the row", bar.points[1][2], full)
+Equal("at the text's left edge", bar.points[1][4], 36)
+Equal("above the bottom edge", bar.points[1][5], 9)
+Equal("gold", bar.statusColor[1], Options.FILL_COLOR.r)
+Equal("from 0 to 1", bar.min .. " " .. bar.max, "0 1")
 Equal("its value set at once", bar.value, 0.2)
 Equal("not moving", springs.Moving(), false)
-Equal("the label", bar.label.value, "5/25")
-Equal("just past the bar's end", bar.label.point[1] .. " " .. bar.label.point[2] .. " " .. bar.label.point[3],
+Equal("the label", bar.label.text, "5/25")
+Equal("in the small font", bar.label.template, "GameFontHighlightSmall")
+Equal("just past the bar's end", bar.label.points[1][1] .. " " .. bar.label.points[1][3] .. " " .. bar.label.points[1][4],
 	"LEFT RIGHT " .. Options.LABEL_GAP)
-Equal("light with progress", bar.label.red, Options.LABEL_COLOR.r)
+Equal("light with progress", bar.label.textColor[1], Options.LABEL_COLOR.r)
 
 local child = Row(Activity(2, { Requirement("- 0 / 10 Quests completed") }, { isChild = true }))
 Init(child)
 Equal("a child row's bar is thinner", child.aeonUIProgress.height, 3)
-Equal("a child row's left edge", child.aeonUIProgress.point[4], 40)
+Equal("a child row's left edge", child.aeonUIProgress.points[1][4], 40)
 Equal("a child row's width", child.aeonUIProgress.width, 350 - Options.LABEL_WIDTH - Options.LABEL_GAP)
-Equal("dimmer at no progress", child.aeonUIProgress.label.red, Options.LABEL_EMPTY_COLOR.r)
+Equal("dimmer at no progress", child.aeonUIProgress.label.textColor[1], Options.LABEL_EMPTY_COLOR.r)
 
 local bare = Row(Activity(3, { Requirement("- 1 / 5 Quests completed", true) }, { completed = true }))
 Init(bare)
@@ -586,7 +383,7 @@ Init(full)
 Equal("Reduce Motion sets the fill", tostring(springs.Moving()) .. " " .. bar.value, "false 0.8")
 springs.reduce = false
 
-hooks.OnHide()
+logFrame.scripts.OnHide(logFrame)
 full.activity = Activity(1, { Requirement("- 25 / 25 Quests completed") })
 Init(full)
 Equal("after closing the log, opening it sets the fill", tostring(springs.Moving()) .. " " .. bar.value, "false 1")
@@ -594,10 +391,10 @@ Equal("after closing the log, opening it sets the fill", tostring(springs.Moving
 -- Settings, off and on -----------------------------------------------------------------------------------
 
 Set(Options.TEXT_PATH, "PERCENT")
-Equal("every row follows Percent", child.aeonUIProgress.label.value, "0%")
-Equal("and a row with progress", bar.label.value, "100%")
+Equal("every row follows Percent", child.aeonUIProgress.label.text, "0%")
+Equal("and a row with progress", bar.label.text, "100%")
 Set(Options.TEXT_PATH, "NONE")
-Equal("no label", bar.label.value, "")
+Equal("no label", bar.label.text, "")
 Equal("the bar stays", bar:GetStatusBarTexture().shown, true)
 Set(Options.BARS_PATH, false)
 Equal("neither hides the whole bar", bar.shown, false)
@@ -605,18 +402,18 @@ Set(Options.TEXT_PATH, "COUNT")
 Equal("text alone shows", bar.shown, true)
 Equal("without its fill", bar:GetStatusBarTexture().shown, false)
 Equal("without its trough", bar.trough.shown, false)
-Equal("with its label", bar.label.value, "25/25")
+Equal("with its label", bar.label.text, "25/25")
 Set(Options.BARS_PATH, true)
 Equal("the fill returns", bar:GetStatusBarTexture().shown, true)
 Equal("the trough returns", bar.trough.shown, true)
 
 Set(Options.ENABLED_PATH, false)
 Equal("turned off, every bar hides", bar.shown or child.aeonUIProgress.shown, false)
-local rowsAtOff = #bars
 local fresh = Row(Activity(20, { Requirement("- 1 / 2 Quests") }))
+local framesAtOff = client.framesMade
 Init(fresh)
 Equal("a row initialized while off gets nothing", fresh.aeonUIProgress, nil)
-Equal("no bar built while off", #bars, rowsAtOff)
+Equal("no bar built while off", client.framesMade, framesAtOff)
 Set(Options.ENABLED_PATH, true)
 Equal("on again, bars return", bar.shown, true)
 Equal("a new row too", fresh.aeonUIProgress ~= nil, true)
@@ -808,7 +605,8 @@ function Provider:Drawn()
 	return self.linearized
 end
 
-local function Build(activities)
+---What Blizzard's SetActivities does to the scroll box.
+local function Tree(activities)
 	local provider = setmetatable({ invalidated = 0 }, Provider)
 
 	provider.root = TreeNode(provider)
@@ -824,12 +622,19 @@ local function Build(activities)
 
 	scrollBox.provider = provider
 	provider:Drawn()
+end
 
-	if setActivitiesHook then
-		setActivitiesHook(logFrame)
+---Has Blizzard's SetActivities build these activities, and whatever hooked it follow.
+local function Build(activities)
+	local build = listBuild
+
+	listBuild = function()
+		Tree(activities)
 	end
+	logFrame:SetActivities()
+	listBuild = build
 
-	return provider
+	return scrollBox.provider
 end
 
 local TREE = {
@@ -841,16 +646,19 @@ local TREE = {
 }
 
 local latest = TREE
-logFrame.SetActivities = function()
-	Build(latest)
+listBuild = function()
+	Tree(latest)
 end
 C_PerksActivities = { GetPerksActivitiesInfo = function()
 	return { activities = latest }
 end }
 MenuResponse = { Refresh = 2 }
 
-Equal("hooked with the row callback", setActivitiesHook ~= nil, true)
-Equal("the dropdown's header place", List.dropdown.point[2], logFrame.HeaderContainer.TimeLeft)
+Equal("hooked with the row callback", logFrame.SetActivities ~= stockSetActivities, true)
+Equal("each of the log's methods hooked once", client.hooks, 2)
+Equal("the dropdown's header place", List.dropdown.points[1][2], logFrame.HeaderContainer.TimeLeft)
+Equal("Blizzard's dropdown style", List.dropdown.template, "WowStyle1DropdownTemplate")
+Equal("the message in the normal font", List.message.template, "GameFontNormal")
 Equal("above the header", List.dropdown.level, 560)
 
 Set(Options.SORT_PATH, "DEFAULT")
@@ -906,7 +714,7 @@ Equal("which still expands", over.hasChild, true)
 
 provider = Build({ Named(14, "Done", 100, { completed = true }) })
 Equal("a list emptied gets the message", List.message.shown, true)
-Equal("the message's text", List.message.value, "Everything here is hidden.")
+Equal("the message's text", List.message.text, "Everything here is hidden.")
 provider = Build(TREE)
 Equal("gone when something shows", List.message.shown, false)
 provider = Build({})
@@ -935,7 +743,8 @@ Equal("the fourth", radios[4].text, "Closest to Complete")
 Equal("three hides", #checks_, 3)
 Equal("the last", checks_[3].text, "Unavailable")
 
-latest, logFrame.visible = TREE, true
+latest = TREE
+logFrame:Show()
 values[Options.SORT_PATH] = "DEFAULT"
 Equal("the menu keeps open", radios[2].select(), MenuResponse.Refresh)
 Equal("the sort is saved", AUI.Profile:Get(Options.SORT_PATH), "POINTS_HIGH")
@@ -949,28 +758,34 @@ Equal("turned off", AUI.Profile:Get(Options.HIDE_COMPLETED_PATH), false)
 Equal("the completed row returns, at once", scrollBox.provider:Drawn(), "2 5 1 3")
 checks_[1].toggle()
 
-logFrame.SetActivities = function()
-	Build(TREE)
+listBuild = function()
+	Tree(TREE)
 end
 scrollBox.provider = nil
 Set(Options.SORT_PATH, "NAME")
 Equal("no rebuild before the log has built its list", scrollBox.provider, nil)
 scrollBox.provider = Build(TREE)
-logFrame.visible = false
+logFrame:Hide()
 local before = scrollBox.provider
 Set(Options.SORT_PATH, "POINTS_LOW")
 Equal("no rebuild while the log is closed", scrollBox.provider, before)
-logFrame.visible = true
+logFrame:Show()
 
 Set(Options.ENABLED_PATH, false)
 Equal("turned off, the dropdown hides", List.dropdown.shown, false)
 Equal("and Blizzard's list returns, with nothing hidden", scrollBox.provider:Drawn(), "1 2 3 4 5")
 Set(Options.ENABLED_PATH, true)
 Equal("on again, the dropdown shows", List.dropdown.shown, true)
-Equal("one dropdown ever", #dropdowns, 1)
+local dropdowns = 0
+for _, frame in ipairs(client.frames) do
+	if frame.kind == "DropdownButton" then
+		dropdowns = dropdowns + 1
+	end
+end
+Equal("one dropdown ever", dropdowns, 1)
 Equal("the sort returns", scrollBox.provider:Drawn(), "1 5 2")
 Set(Options.SORT_PATH, "DEFAULT")
-logFrame.visible = false
+logFrame:Hide()
 
 -- Search -------------------------------------------------------------------------------------------------
 
@@ -999,9 +814,27 @@ Equal("the words after a checkmark", Options:Matches(Searchable({ requirements =
 } }), "horseman"), true)
 
 local box = List.searchBox
+
+---Types into the search box: the client runs its text script, and the coalesced rebuild follows.
+local function Type(query)
+	box:SetText(query)
+	box.scripts.OnTextChanged(box)
+	client:RunTimers()
+end
+
+---@return table anchor the box's SetPoint arguments for `point`
+local function BoxAnchor(point)
+	for _, anchor in ipairs(box.points) do
+		if anchor[1] == point then
+			return anchor
+		end
+	end
+end
+
 Equal("a search box", box ~= nil, true)
-Equal("after the month's name", box.points.LEFT[1], logFrame.HeaderContainer.Month)
-Equal("before the dropdown", box.points.RIGHT[1], List.dropdown)
+Equal("Blizzard's search box", box.template, "SearchBoxTemplate")
+Equal("after the month's name", BoxAnchor("LEFT")[2], logFrame.HeaderContainer.Month)
+Equal("before the dropdown", BoxAnchor("RIGHT")[2], List.dropdown)
 Equal("not taking the keyboard", box.autoFocus, false)
 Equal("above the header", box.level, 560)
 
@@ -1012,57 +845,52 @@ local SEARCHED = {
 	Named(25, "Darkmoon Tickets", 100, { children = { Named(26, "More Tickets", 100) } }),
 	Named(27, "Finished Quests", 100, { completed = true }),
 }
-logFrame.SetActivities = function()
-	Build(SEARCHED)
+listBuild = function()
+	Tree(SEARCHED)
 end
-logFrame.visible = true
+logFrame:Show()
 Build(SEARCHED)
 Equal("no search keeps all but the hidden", scrollBox.provider:Drawn(), "21 22 23 24 25 26")
 
 local replaced = 0
-local realSetActivities = logFrame.SetActivities
-logFrame.SetActivities = function(_, _, retainScroll)
+local realBuild = listBuild
+listBuild = function(_, _, retainScroll)
 	replaced = replaced + 1
 	logFrame.lastRetain = retainScroll
-	realSetActivities()
+	realBuild()
 end
 
-box:SetText("Draenor")
+Type("Draenor")
 Equal("typing narrows the list", scrollBox.provider:Drawn(), "21")
 Equal("once for the change", replaced, 1)
 Equal("from the top of the list", logFrame.lastRetain, false)
-box:SetText(" draenor ")
+Type(" draenor ")
 Equal("the same search does not rebuild", replaced, 1)
 
-box:SetText("finished")
+Type("finished")
 Equal("a hidden row stays hidden when it matches", scrollBox.provider:Drawn(), "")
 
-box:SetText("hidden child")
+Type("hidden child")
 Equal("a matching child keeps its parent", scrollBox.provider:Drawn(), "23 24")
 Equal("which still expands", SEARCHED[3].hasChild, true)
-box:SetText("darkmoon")
+Type("darkmoon")
 Equal("a matching parent keeps its child", scrollBox.provider:Drawn(), "25 26")
-box:SetText("absent")
+Type("absent")
 Equal("nothing matches", scrollBox.provider:Drawn(), "")
 Equal("the message shows", List.message.shown, true)
-Equal("says so", List.message.value, "No results found")
-box:SetText("")
+Equal("says so", List.message.text, "No results found")
+Type("")
 Equal("cleared, the list returns", scrollBox.provider:Drawn(), "21 22 23 24 25 26")
 Equal("the message goes", List.message.shown, false)
 
 values[Options.SORT_PATH] = "NAME"
-box:SetText("t")
+Type("t")
 Equal("search and sort together", scrollBox.provider:Drawn(), "25 26 23 24 22 21")
-box:SetText("")
+Type("")
 values[Options.SORT_PATH] = nil
 
 -- The objective tracker's link to an activity the search left out.
-local scrolled = {}
-logFrame.ScrollToPerksActivityID = function(self, id)
-	scrolled[#scrolled + 1] = id
-	self.scrollHook(self, id)
-end
-box:SetText("darkmoon")
+Type("darkmoon")
 logFrame:ScrollToPerksActivityID(25)
 Equal("a shown activity leaves the search", box.text, "darkmoon")
 Equal("scrolled once", #scrolled, 1)
@@ -1077,32 +905,31 @@ Equal("once more", #scrolled, 4)
 logFrame:ScrollToPerksActivityID(22)
 Equal("no search, nothing to do", #scrolled, 5)
 
-box:SetText("darkmoon")
-hooks.OnHide()
+Type("darkmoon")
+logFrame.scripts.OnHide(logFrame)
 Equal("closing the log empties the search", box.text .. List.query, "")
 Set(Options.ENABLED_PATH, true)
 
-box:SetText("darkmoon")
+Type("darkmoon")
 Set(Options.ENABLED_PATH, false)
 Equal("turned off, the box hides", box.shown, false)
 Equal("and empties", box.text, "")
 Equal("and Blizzard's list returns", scrollBox.provider:Drawn(), "21 22 23 24 25 26 27")
 Set(Options.ENABLED_PATH, true)
 Equal("on again, the box shows", box.shown, true)
-logFrame.visible = false
-logFrame.SetActivities = realSetActivities
+logFrame:Hide()
+listBuild = realBuild
 
 -- Standing down for TravelersLogSearcher, which has its own box and replaces the list's build method.
 searcherLoaded = true
-setActivitiesHook = nil
-logFrame.scrollHook = nil
+local hookedBuild, hookedScroll = logFrame.SetActivities, logFrame.ScrollToPerksActivityID
 assert(loadfile(root .. "AeonUI_QoL/TravelersLog/ActivityList.lua"))("AeonUI", AUI)
 local standing = AUI.TravelersLogList
 standing:Hook()
 Equal("no box beside it", standing.searchBox, nil)
 Equal("the dropdown stays", standing.dropdown ~= nil, true)
-Equal("the list pass stays", setActivitiesHook ~= nil, true)
-Equal("no scroll hook", logFrame.scrollHook, nil)
+Equal("the list pass stays", logFrame.SetActivities ~= hookedBuild, true)
+Equal("no scroll hook", logFrame.ScrollToPerksActivityID, hookedScroll)
 standing:Apply()
 Equal("following the settings works without a box", standing.dropdown.shown, true)
 standing:ClearSearch()
@@ -1167,4 +994,4 @@ Equal("started once", Log.active, true)
 
 Equal("no Lua error in the run", errors[1], nil)
 
-io.stdout:write(("check_travelerslog: %d checks passed\n"):format(checks))
+io.stdout:write(("check_travelerslog: %d checks passed\n"):format(client.checks))

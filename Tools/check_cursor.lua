@@ -4,14 +4,15 @@
 -- dimmed under a cast, the visibility choices and the camera turns, the colors and opacity, everything stopped when
 -- turned off, and the settings page's sample with its swipes running in turn and stopping with the page.
 -- Run from any directory with Lua 5.1: lua Tools/check_cursor.lua
--- Loads the real files against stubbed globals. Widgets are modeled by type and fail on a method their type lacks.
+-- Loads the real files against the shared stub client.
 -- Exits non-zero on the first failed check.
 
 local root = (arg and arg[0] or ""):match("^(.-)[^/\\]*$") .. "../"
+local client = assert(loadfile(root .. "Tools/stub_client.lua"))({ project = "retail" })
+local Equal = client.Equal
 
 -- Environment ---------------------------------------------------------------------------------------------
 
-WOW_PROJECT_ID = 1
 SlashCmdList = {}
 StaticPopupDialogs = {}
 C_AddOns = {
@@ -25,150 +26,14 @@ function CallErrorHandler(message)
 	errors[#errors + 1] = message
 end
 
--- WoW's xpcall forwards extra arguments to the function, as Lua 5.2 does; Lua 5.1's does not.
-local luaXpcall = xpcall
-function xpcall(fn, handler, ...)
-	local count, args = select("#", ...), { ... }
-
-	return luaXpcall(function()
-		return fn(unpack(args, 1, count))
-	end, handler)
-end
-
-C_Timer = { After = function(_, callback)
-	callback()
-end }
-
-local secrets = {}
-function issecretvalue(value)
-	return secrets[value] == true
-end
-
----A widget of one type: calling a method its type lacks fails, as calling a nil field does.
-local function Strict(object, kind)
-	object.widgetType = kind
-
-	return object
-end
-
-local log = {}
-
----@return table texture a Texture
-local function Texture()
-	local texture = { shown = true, color = { 1, 1, 1, 1 } }
-	texture.SetAllPoints = function() end
-	texture.SetPoint = function() end
-	texture.ClearAllPoints = function() end
-	texture.SetSize = function(self, width, height)
-		self.width, self.height = width, height
-	end
-	texture.SetTexture = function(self, file)
-		self.file = file
-	end
-	texture.SetVertexColor = function(self, r, g, b, a)
-		self.color = { r, g, b, a or 1 }
-	end
-	texture.SetShown = function(self, shown)
-		self.shown = shown
-	end
-	texture.IsShown = function(self)
-		return self.shown
-	end
-
-	return Strict(texture, "Texture")
-end
-
-local frames = {}
-
----@return table frame a Frame, or a Cooldown with the template's methods
-local function Frame(kind, name, parent)
-	local frame = { kind = kind, name = name, parent = parent, shown = true, scripts = {}, events = {}, points = 0 }
-	frame.SetSize = function(self, width, height)
-		self.width, self.height = width, height
-	end
-	frame.ClearAllPoints = function() end
-	frame.SetAllPoints = function() end
-	frame.SetPoint = function(self, _, _, _, x, y)
-		self.points = self.points + 1
-		self.x, self.y = x, y
-		log[#log + 1] = "point"
-	end
-	frame.Show = function(self)
-		self.shown = true
-		log[#log + 1] = "show"
-	end
-	frame.Hide = function(self)
-		self.shown = false
-	end
-	frame.IsShown = function(self)
-		return self.shown
-	end
-	frame.SetFrameStrata = function(self, strata)
-		self.strata = strata
-	end
-	frame.EnableMouse = function(self, enabled)
-		self.mouse = enabled
-	end
-	frame.SetScript = function(self, script, handler)
-		self.scripts[script] = handler
-	end
-	frame.CreateTexture = function()
-		return Texture()
-	end
-	frame.RegisterEvent = function(self, event)
-		self.events[event] = true
-	end
-	frame.UnregisterEvent = function(self, event)
-		self.events[event] = nil
-	end
-
-	if kind == "Cooldown" then
-		for _, method in ipairs({ "SetDrawSwipe", "SetDrawEdge", "SetDrawBling", "SetHideCountdownNumbers",
-			"SetUseCircularEdge" }) do
-			frame[method] = function() end
-		end
-		frame.SetReverse = function(self, reverse)
-			self.reverse = reverse
-		end
-		frame.SetSwipeTexture = function(self, file, r, g, b, a)
-			self.swipe, self.swipeColor = file, { r, g, b, a }
-		end
-		frame.SetCooldownFromDurationObject = function(self, duration)
-			self.duration = duration
-		end
-		frame.SetCooldown = function(self, _, seconds)
-			self.duration = seconds
-		end
-		frame.Clear = function(self)
-			self.duration = nil
-		end
-	end
-
-	frames[#frames + 1] = frame
-
-	return Strict(frame, kind)
-end
-
-function CreateFrame(kind, name, parent, template)
-	assert(kind == "Frame" or (kind == "Cooldown" and template == "CooldownFrameTemplate"),
-		"unexpected frame " .. tostring(kind))
-
-	return Frame(kind, name, parent)
-end
-
 local cursorX, cursorY = 300, 200
 function GetCursorPosition()
 	return cursorX, cursorY
 end
 
-UIParent = { GetEffectiveScale = function()
-	return 0.5
-end }
+UIParent.effectiveScale = 0.5
 
-local combat, instance = false, false
-function InCombatLockdown()
-	return combat
-end
+local instance = false
 function IsInInstance()
 	return instance, instance and "party" or "none"
 end
@@ -215,7 +80,7 @@ for _, file in ipairs({ "AeonUI/Core/Callbacks.lua", "AeonUI/Core/Events.lua", "
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 
-local eventFrame = frames[1]
+local eventFrame = client.frames[#client.frames]
 
 local values = {}
 AUI.Profile = {
@@ -234,12 +99,7 @@ AUI.Profile = {
 local function Set(path, value)
 	values[path] = value
 	AUI.Callbacks:Fire("Profile", path)
-end
-
-local function Fire(event, ...)
-	if eventFrame.events[event] then
-		eventFrame.scripts.OnEvent(eventFrame, event, ...)
-	end
+	client:RunTimers()
 end
 
 for _, file in ipairs({ "AeonUI_QoL/Cursor/Options.lua", "AeonUI_QoL/Cursor/CursorRing.lua" }) do
@@ -250,25 +110,34 @@ local Options, CursorRing = AUI.CursorOptions, AUI.CursorRing
 
 -- Harness -------------------------------------------------------------------------------------------------
 
-local checks = 0
-
-local function Equal(name, actual, expected)
-	checks = checks + 1
-	if actual ~= expected then
-		io.stderr:write(("FAIL: %s: expected %s, got %s\n"):format(name, tostring(expected), tostring(actual)))
-		os.exit(1)
-	end
-end
-
 local function Round(value)
 	return math.floor(value * 1000 + 0.5) / 1000
 end
 
 local function Color(texture)
-	local color = texture.color
+	local color = texture.vertex
 
 	return ("%s %s %s %s"):format(Round(color[1]), Round(color[2]), Round(color[3]), Round(color[4]))
 end
+
+---@param frame table
+---@return string place the offsets of its one anchor
+local function Place(frame)
+	local point = frame.points[1]
+
+	return point[4] .. "," .. point[5]
+end
+
+-- The order frames are anchored and shown in, which their state does not hold.
+local log = {}
+local frameType = getmetatable(UIParent)
+
+hooksecurefunc(frameType, "SetPoint", function()
+	log[#log + 1] = "point"
+end)
+hooksecurefunc(frameType, "Show", function()
+	log[#log + 1] = "show"
+end)
 
 -- Arithmetic ----------------------------------------------------------------------------------------------
 
@@ -313,7 +182,7 @@ local ring = CursorRing.frame --[[@as table]]
 Equal("the root frame is named", ring.name, "AeonUICursorRing")
 Equal("above everything, taking no clicks", ring.strata .. " " .. tostring(ring.mouse), "TOOLTIP false")
 Equal("placed at the cursor before it shows", log[#log - 1] .. " " .. log[#log], "point show")
-Equal("at the cursor", ring.x .. "," .. ring.y, "600,400")
+Equal("at the cursor", Place(ring), "600,400")
 Equal("its size", ring.width .. "x" .. ring.height, "56x56")
 Equal("Normal's ring", ring.ring.file, Options:RingTexture("NORMAL"))
 Equal("the dot", ring.dot.width .. " " .. tostring(ring.dot.shown), "6 true")
@@ -326,42 +195,41 @@ ring.scripts.OnUpdate(ring)
 Equal("a still cursor does not move it", ring.points, points)
 cursorX = 310
 ring.scripts.OnUpdate(ring)
-Equal("a moved cursor does", ring.points .. " " .. ring.x, points + 1 .. " 620")
+Equal("a moved cursor does", tostring(ring.points ~= points) .. " " .. ring.points[1][4], "true 620")
 
 -- Swipes --------------------------------------------------------------------------------------------------
 
 gcd = {}
-Fire("SPELL_UPDATE_COOLDOWN")
+client:Fire("SPELL_UPDATE_COOLDOWN")
 Equal("each cooldown update draws the global cooldown", ring.gcd.duration, gcd)
-local secret = {}
-secrets[secret] = true
+local secret = client.Secret()
 gcd = secret
-Fire("SPELL_UPDATE_COOLDOWN")
+client:Fire("SPELL_UPDATE_COOLDOWN")
 Equal("a secret duration is passed on, never read", ring.gcd.duration, secret)
 gcd = nil
 local last = ring.gcd.duration
-Fire("SPELL_UPDATE_COOLDOWN")
+client:Fire("SPELL_UPDATE_COOLDOWN")
 Equal("no duration leaves the swipe to end", ring.gcd.duration, last)
 
 casting = {}
-Fire("UNIT_SPELLCAST_START", "target")
+client:Fire("UNIT_SPELLCAST_START", "target")
 Equal("another unit's cast is ignored", ring.cast.duration, nil)
-Fire("UNIT_SPELLCAST_START", "player")
+client:Fire("UNIT_SPELLCAST_START", "player")
 Equal("the player's cast sweeps the ring", ring.cast.duration, casting)
 Equal("filling it", ring.cast.reverse, true)
 Equal("the ring dims under it", Color(ring.ring), "1 1 1 0.35")
 Equal("the dot does not", Color(ring.dot), "1 1 1 1")
 casting = nil
-Fire("UNIT_SPELLCAST_STOP", "player")
+client:Fire("UNIT_SPELLCAST_STOP", "player")
 Equal("a stopped cast clears its sweep", ring.cast.duration, nil)
 Equal("and the ring is whole again", Color(ring.ring), "1 1 1 1")
 channel = secret
-Fire("UNIT_SPELLCAST_CHANNEL_START", "player")
+client:Fire("UNIT_SPELLCAST_CHANNEL_START", "player")
 Equal("a channel, secret or not, sweeps it", ring.cast.duration, secret)
 Equal("emptying it", ring.cast.reverse, false)
 channel = nil
 empowered = {}
-Fire("UNIT_SPELLCAST_EMPOWER_START", "player")
+client:Fire("UNIT_SPELLCAST_EMPOWER_START", "player")
 Equal("an empowered cast fills it", tostring(ring.cast.duration == empowered) .. " " .. tostring(ring.cast.reverse),
 	"true true")
 ring.cast.scripts.OnCooldownDone()
@@ -370,45 +238,45 @@ empowered = nil
 casting = {}
 Set(Options.CASTS_PATH, false)
 Equal("Casts off: no sweep", ring.cast.duration, nil)
-Fire("UNIT_SPELLCAST_START", "player")
+client:Fire("UNIT_SPELLCAST_START", "player")
 Equal("and none started", ring.cast.duration, nil)
 casting = nil
 Set(Options.CASTS_PATH, true)
 Set(Options.GCD_PATH, false)
 Equal("Global Cooldown off clears its swipe", ring.gcd.duration, nil)
 gcd = {}
-Fire("SPELL_UPDATE_COOLDOWN")
+client:Fire("SPELL_UPDATE_COOLDOWN")
 Equal("and starts none", ring.gcd.duration, nil)
 Set(Options.GCD_PATH, true)
 
 -- Visibility ----------------------------------------------------------------------------------------------
 
-Fire("PLAYER_STARTED_LOOKING")
+client:Fire("PLAYER_STARTED_LOOKING")
 Equal("turning the camera with the right button hides it", ring.shown, false)
-Fire("PLAYER_STOPPED_LOOKING")
+client:Fire("PLAYER_STOPPED_LOOKING")
 Equal("and it shows again", ring.shown, true)
-Fire("PLAYER_STARTED_TURNING")
+client:Fire("PLAYER_STARTED_TURNING")
 Equal("with the left button too", ring.shown, false)
 Set(Options.HIDE_TURNING_PATH, false)
 Equal("unless asked not to", ring.shown, true)
-Fire("PLAYER_STOPPED_TURNING")
+client:Fire("PLAYER_STOPPED_TURNING")
 Set(Options.HIDE_TURNING_PATH, true)
 
 Set(Options.SHOW_PATH, "COMBAT")
 Equal("In Combat: hidden out of combat", ring.shown, false)
 cursorX, cursorY = 100, 50
 log = {}
-Fire("PLAYER_REGEN_DISABLED")
-Equal("shown in combat, placed at the cursor first", table.concat(log, " ") .. " " .. ring.x .. "," .. ring.y,
+client:Fire("PLAYER_REGEN_DISABLED")
+Equal("shown in combat, placed at the cursor first", table.concat(log, " ") .. " " .. Place(ring),
 	"point show 200,100")
-Fire("PLAYER_REGEN_ENABLED")
+client:Fire("PLAYER_REGEN_ENABLED")
 Equal("hidden again after", ring.shown, false)
 Set(Options.SHOW_PATH, "INSTANCES")
 instance = true
-Fire("PLAYER_ENTERING_WORLD")
+client:Fire("PLAYER_ENTERING_WORLD")
 Equal("In Instances: shown inside one", ring.shown, true)
 instance = false
-Fire("ZONE_CHANGED_NEW_AREA")
+client:Fire("ZONE_CHANGED_NEW_AREA")
 Equal("hidden outside", ring.shown, false)
 Set(Options.SHOW_PATH, "ALWAYS")
 
@@ -434,7 +302,7 @@ Equal("no dot", ring.dot.shown, false)
 -- Off again -----------------------------------------------------------------------------------------------
 
 casting = {}
-Fire("UNIT_SPELLCAST_START", "player")
+client:Fire("UNIT_SPELLCAST_START", "player")
 Set(Options.ENABLED_PATH, false)
 Equal("off: hidden", ring.shown, false)
 Equal("its swipes cleared", tostring(ring.gcd.duration) .. " " .. tostring(ring.cast.duration), "nil nil")
@@ -454,9 +322,6 @@ Equal("a client without it hides the ring", ring.shown, false)
 AUI.can.cursorRing = true
 values = {}
 ALWAYS, COLOR, OPACITY = "Always", "Color", "Opacity"
-function GetTime()
-	return 100
-end
 AUI.Media = { sidebar = { cursor = "SidebarCursor.tga" } }
 AUI.Settings = { Default = function(_, path)
 	return AUI.Schema:Field(path).default
@@ -474,13 +339,13 @@ local window = { Page = function()
 end }
 assert(loadfile(root .. "AeonUI_QoL/Settings/Cursor.lua"))("AeonUI", AUI)
 AUI.SettingsCursor:Declare(window)
-local canvas = Frame("Frame")
+local canvas = CreateFrame("Frame")
 local parts = {}
 local previewParts = { Part = function(_, _, target)
 	parts[#parts + 1] = target
 end }
 preview.create(canvas)
-local sample = frames[#frames - 2]
+local sample = client.frames[#client.frames - 2]
 local width, height = preview.refresh(canvas, "Idle", previewParts)
 Equal("the sample at the ring's size", width .. "x" .. height, "56x56")
 Equal("idle: no swipe", tostring(sample.gcd.duration) .. " " .. tostring(sample.cast.duration), "nil nil")
@@ -509,4 +374,4 @@ Equal("stopped: nothing runs or starts again", tostring(sample.gcd.duration) .. 
 
 Equal("no Lua error in the run", errors[1], nil)
 
-io.stdout:write(("check_cursor: %d checks passed\n"):format(checks))
+io.stdout:write(("check_cursor: %d checks passed\n"):format(client.checks))

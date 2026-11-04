@@ -2,9 +2,11 @@
 -- output, the slash command, callback dispatch and isolation, event registration and coalescing, the game menu
 -- section's place, and the key bindings (their names and order, and Bindings.xml's own Lua run against stubs).
 -- Run from any directory with Lua 5.1: lua Tools/check_core.lua
--- Loads the real Core files against stubbed globals. Exits non-zero on the first failed check.
+-- Loads the real Core files against the shared stub client. Exits non-zero on the first failed check.
 
 local root = (arg and arg[0] or ""):match("^(.-)[^/\\]*$") .. "../"
+local client = assert(loadfile(root .. "Tools/stub_client.lua"))({ project = "retail" })
+local Equal = client.Equal
 
 -- Environment ---------------------------------------------------------------------------------------------
 
@@ -21,50 +23,6 @@ C_AddOns = {
 local errors = {}
 function CallErrorHandler(message)
 	errors[#errors + 1] = message
-end
-
--- WoW's xpcall forwards extra arguments to the function, as Lua 5.2 does; Lua 5.1's does not.
-local luaXpcall = xpcall
-function xpcall(fn, handler, ...)
-	local count, args = select("#", ...), { ... }
-
-	return luaXpcall(function()
-		return fn(unpack(args, 1, count))
-	end, handler)
-end
-
-local timers = {}
-C_Timer = {
-	After = function(delay, callback)
-		timers[#timers + 1] = { delay = delay, callback = callback }
-	end,
-}
-
-local function RunTimers()
-	local due = timers
-	timers = {}
-	for _, timer in ipairs(due) do
-		timer.callback()
-	end
-end
-
--- A Frame, modeled with only the methods Events.lua calls.
-local eventFrame
-function CreateFrame(kind)
-	assert(kind == "Frame", "unexpected frame type " .. tostring(kind))
-	local frame = { events = {}, scripts = {} }
-	function frame:RegisterEvent(event)
-		self.events[event] = true
-	end
-	function frame:UnregisterEvent(event)
-		self.events[event] = nil
-	end
-	function frame:SetScript(name, handler)
-		self.scripts[name] = handler
-	end
-	eventFrame = frame
-
-	return frame
 end
 
 local printed = {}
@@ -84,17 +42,8 @@ assert(loadfile(root .. "AeonUI/Core/Events.lua"))("AeonUI", AUI)
 assert(loadfile(root .. "AeonUI/Core/GameMenu.lua"))("AeonUI", AUI)
 assert(loadfile(root .. "AeonUI/Core/Modules.lua"))("AeonUI", AUI)
 
--- Harness -------------------------------------------------------------------------------------------------
-
-local checks = 0
-
-local function Equal(name, actual, expected)
-	checks = checks + 1
-	if actual ~= expected then
-		io.stderr:write(("FAIL: %s: expected %s, got %s\n"):format(name, tostring(expected), tostring(actual)))
-		os.exit(1)
-	end
-end
+-- Events.lua's frame, the only one the Core files create at load.
+local eventFrame = client.frames[#client.frames]
 
 -- Core ----------------------------------------------------------------------------------------------------
 
@@ -184,7 +133,7 @@ Events:Register("PLAYER_LOGIN", other, function()
 end)
 Equal("first listener registers the event", eventFrame.events.PLAYER_LOGIN, true)
 
-eventFrame.scripts.OnEvent(eventFrame, "PLAYER_LOGIN", "x")
+client:Fire("PLAYER_LOGIN", "x")
 Equal("dispatch reaches every listener", table.concat(seen, ","), "PLAYER_LOGIN:x,other")
 
 Events:Unregister("PLAYER_LOGIN", owner)
@@ -199,16 +148,16 @@ end)
 Events:Coalesce("redraw", function()
 	runs[#runs + 1] = "b"
 end)
-Equal("a burst schedules one timer", #timers, 1)
-RunTimers()
+Equal("a burst schedules one timer", #client.timers, 1)
+client:RunTimers()
 Equal("the latest work runs once", table.concat(runs, ","), "b")
 
 Events:Merge("save", 0.5, function()
 	runs[#runs + 1] = "saved"
 end)
-Equal("merge waits the given delay", timers[1].delay, 0.5)
+Equal("merge waits the given delay", client.timers[1].seconds, 0.5)
 Events:Cancel("save")
-RunTimers()
+client:RunTimers()
 Equal("cancelled work does not run", runs[#runs], "b")
 
 -- Game menu ----------------------------------------------------------------------------------------------
@@ -387,4 +336,4 @@ Equal("a module's command runs instead of opening the window", LogText(), "go")
 Equal("an unknown command finds no handler", Modules:Command("other"), nil)
 
 print = _G.print
-io.stdout:write(("check_core: %d checks passed\n"):format(checks))
+io.stdout:write(("check_core: %d checks passed\n"):format(client.checks))

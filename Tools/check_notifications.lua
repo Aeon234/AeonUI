@@ -7,13 +7,14 @@
 -- Durability out of combat; Potion Ready from a bag potion's cast, its cooldown waited out, a secret one ignored; and
 -- every event followed only while a notice needs it.
 -- Run from any directory with Lua 5.1: lua Tools/check_notifications.lua
--- Loads the real files against stubbed globals. Widgets are modeled by type. Exits non-zero on the first failed check.
+-- Loads the real files against the shared stub client. Exits non-zero on the first failed check.
 
 local root = (arg and arg[0] or ""):match("^(.-)[^/\\]*$") .. "../"
+local client = assert(loadfile(root .. "Tools/stub_client.lua"))({ project = "retail" })
+local Equal = client.Equal
 
 -- Environment ---------------------------------------------------------------------------------------------
 
-WOW_PROJECT_ID = 1
 SlashCmdList = {}
 StaticPopupDialogs = {}
 C_AddOns = {
@@ -27,141 +28,19 @@ function CallErrorHandler(message)
 	errors[#errors + 1] = message
 end
 
--- WoW's xpcall forwards extra arguments to the function, as Lua 5.2 does; Lua 5.1's does not.
-local luaXpcall = xpcall
-function xpcall(fn, handler, ...)
-	local count, args = select("#", ...), { ... }
+client.now = 100
 
-	return luaXpcall(function()
-		return fn(unpack(args, 1, count))
-	end, handler)
-end
+local SECRET = client.Secret()
 
-local now = 100
-function GetTime()
-	return now
-end
+UIParent:SetHeight(768)
 
--- Timers run when `Advance` passes their time; `After(0)` runs at once.
-local timers = {}
-C_Timer = {
-	After = function(delay, callback)
-		if delay == 0 then
-			callback()
-		else
-			timers[#timers + 1] = { at = now + delay, callback = callback }
-		end
-	end,
-	NewTimer = function(delay, callback)
-		local timer = { at = now + delay, callback = callback }
-		function timer:Cancel()
-			self.cancelled = true
-		end
-		timers[#timers + 1] = timer
-
-		return timer
-	end,
-}
-
-local function Advance(seconds)
-	now = now + seconds
-
-	for _, timer in ipairs(timers) do
-		if not timer.cancelled and not timer.done and timer.at <= now then
-			timer.done = true
-			timer.callback()
-		end
-	end
-end
-
-local SECRET = {}
-function issecretvalue(value)
-	return value == SECRET
-end
-
-local function FontString()
-	local text = { shown = true, alpha = 1 }
-	function text:SetFont(file, size, flags)
-		self.font = ("%s %d %s"):format(file, size, flags)
-	end
-	function text:SetText(value)
-		assert(self.font, "Font not set")
-		self.text = value
-	end
-	function text:SetTextColor(r, g, b)
-		self.color = ("%s %s %s"):format(r, g, b)
-	end
-	function text:Show()
-		self.shown = true
-	end
-	function text:Hide()
-		self.shown = false
-	end
-	function text:SetAlpha(alpha)
-		self.shownAlpha = alpha
-	end
-	function text:ClearAllPoints() end
-	function text:SetPoint(_, _, _, _, y)
-		self.shownOffset = y + 0
-	end
-	function text:GetStringWidth()
-		return #(self.text or "") * 10
-	end
-	function text:GetStringHeight()
-		return 20
-	end
-
-	return text
-end
-
-local eventFrame
-function CreateFrame(kind, name)
-	assert(kind == "Frame")
-	local frame = { name = name, events = {}, width = 1, height = 1 }
-	function frame:RegisterEvent(event)
-		self.events[event] = true
-	end
-	function frame:UnregisterEvent(event)
-		self.events[event] = nil
-	end
-	function frame:SetScript(name, handler)
-		if name == "OnUpdate" then
-			self.onUpdate = handler
-		else
-			self.onEvent = handler
-		end
-	end
-	function frame:SetSize(width, height)
-		self.width, self.height = width, height
-	end
-	function frame:SetFrameStrata(strata)
-		self.strata = strata
-	end
-	function frame:EnableMouse() end
-	function frame:ClearAllPoints() end
-	function frame:SetPoint(point, _, _, x, y)
-		self.point = ("%s %d %d"):format(point, x, y)
-	end
-	function frame:CreateFontString()
-		return FontString()
-	end
-	eventFrame = eventFrame or frame
-
-	return frame
-end
-
-UIParent = { GetHeight = function()
-	return 768
-end }
-
-local function Fire(event, ...)
-	if eventFrame.events[event] then
-		eventFrame.onEvent(eventFrame, event, ...)
-	end
-end
+-- The stub lays out no text: a string measures ten wide a character and twenty tall.
+hooksecurefunc(getmetatable(UIParent:CreateFontString()), "SetText", function(self)
+	self.stringWidth, self.stringHeight = #(self.text or "") * 10, 20
+end)
 
 -- The world the notices read.
-local known, inCombat, instance, mounted, vehicle, taxi, dead = {}, false, false, false, false, false, false
+local known, instance, mounted, vehicle, taxi, dead = {}, false, false, false, false, false
 local pet, petDead, passive, spec, sacrificeAura, aurasSecret = true, false, false, nil, nil, false
 local petHealth, unspent, durability = 1, false, {}
 local playerHealth, trackings, form = 1, {}, nil
@@ -170,9 +49,6 @@ local bags, cooldowns = {}, {}
 C_SpellBook = { IsSpellKnown = function(spell)
 	return known[spell] == true
 end }
-function InCombatLockdown()
-	return inCombat
-end
 function IsInInstance()
 	return instance, instance and "party" or "none"
 end
@@ -321,6 +197,38 @@ for _, file in ipairs({ "AeonUI/Core/Callbacks.lua", "AeonUI/Core/Events.lua", "
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 
+local eventFrame = client.frames[#client.frames]
+
+---Runs what `After(0)` has pending, and what that starts in turn; every other timer waits for `Advance`.
+local function Settle()
+	local ran
+
+	repeat
+		local pending = client.timers
+
+		ran = false
+		client.timers = {}
+
+		for _, timer in ipairs(pending) do
+			if timer.Cancel or timer.seconds > 0 then
+				client.timers[#client.timers + 1] = timer
+			else
+				ran = true
+				timer.callback(timer)
+			end
+		end
+	until not ran
+end
+
+local function Fire(event, ...)
+	client:Fire(event, ...)
+	Settle()
+end
+
+local function Advance(seconds)
+	client:Advance(seconds)
+	Settle()
+end
 
 local values = {}
 AUI.Profile = {
@@ -339,6 +247,7 @@ AUI.Profile = {
 local function Set(path, value)
 	values[path] = value
 	AUI.Callbacks:Fire("Profile", path)
+	Settle()
 end
 
 local settingsLibrary = {}
@@ -358,16 +267,6 @@ end
 local Options, Notifications = AUI.NotificationOptions, AUI.Notifications
 
 -- Harness -------------------------------------------------------------------------------------------------
-
-local checks = 0
-
-local function Equal(name, actual, expected)
-	checks = checks + 1
-	if actual ~= expected then
-		io.stderr:write(("FAIL: %s: expected %s, got %s\n"):format(name, tostring(expected), tostring(actual)))
-		os.exit(1)
-	end
-end
 
 ---@return string shown the live lines' texts, top first
 local function Shown()
@@ -391,6 +290,12 @@ local function Line(key)
 end
 
 local Frames = springs.Frames
+
+---@param line table
+---@return number offset its one anchor's vertical offset, with a negative zero made plain
+local function Offset(line)
+	return line.points[1][5] + 0
+end
 
 local function On(key)
 	Set(Options:Path(key, "enabled"), true)
@@ -483,6 +388,7 @@ Equal("the global cooldown is not the potion's", (Options:PotionCooldown(99, 1.5
 
 Notifications:Start()
 Notifications:Start()
+Settle()
 Equal("nothing followed while every notice is off", tostring(eventFrame.events.PLAYER_REGEN_DISABLED) .. " "
 	.. tostring(eventFrame.events.UNIT_PET) .. " " .. tostring(eventFrame.events.UNIT_SPELLCAST_SUCCEEDED), "nil nil nil")
 
@@ -494,44 +400,44 @@ Notifications:Show("enter")
 Equal("the stack keeps its slots' order", Shown(), "+Combat | Low Durability (20%)")
 Equal("the named stack, sized to its lines", Notifications.frame.name .. " " .. Notifications.frame.width .. "x"
 	.. Notifications.frame.height, "AeonUINotifications 200x42")
-Equal("in the chosen style and the notice's color", Line("enter").font .. " / " .. Line("enter").color,
+Equal("in the chosen style and the notice's color", table.concat(Line("enter").font, " ") .. " / " .. table.concat(Line("enter").textColor, " "),
 	"LSM:Friz Quadrata TT 22 SLUG / 1 0.25 0.25")
 local entering, below = Line("enter"), Line("durability")
 Equal("a new line starts clear, above its place, and pushes the line below down from where it was",
-	entering.shownAlpha .. " " .. entering.shownOffset .. " " .. below.shownOffset, "0 8 0")
+	entering.alpha .. " " .. Offset(entering) .. " " .. Offset(below), "0 8 0")
 Equal("moving", springs.Moving(), true)
 Frames(0.1)
-Equal("partway", entering.shownAlpha > 0.3 and entering.shownAlpha < 1 and entering.shownOffset < 8 and entering.shownOffset > 0
-	and below.shownOffset < 0 and below.shownOffset > -22, true)
+Equal("partway", entering.alpha > 0.3 and entering.alpha < 1 and Offset(entering) < 8 and Offset(entering) > 0
+	and Offset(below) < 0 and Offset(below) > -22, true)
 Frames(2)
-Equal("at rest: in place, opaque, and nothing moving", entering.shownAlpha .. " " .. entering.shownOffset .. " "
-	.. below.shownOffset .. " " .. tostring(springs.Moving()), "1 0 -22 false")
+Equal("at rest: in place, opaque, and nothing moving", entering.alpha .. " " .. Offset(entering) .. " "
+	.. Offset(below) .. " " .. tostring(springs.Moving()), "1 0 -22 false")
 Notifications:Show("leave")
 Equal("Leaving replaces Entering in its slot", Shown(), "-Combat | Low Durability (20%)")
 local leaving = Line("leave")
-Equal("cross-fading in place", #Notifications.lines .. " " .. leaving.shownOffset .. " " .. tostring(entering.leaving)
-	.. " " .. entering.shownOffset, "3 0 true 0")
+Equal("cross-fading in place", #Notifications.lines .. " " .. Offset(leaving) .. " " .. tostring(entering.leaving)
+	.. " " .. Offset(entering), "3 0 true 0")
 Frames(2)
 Equal("the replaced line is released", #Notifications.lines, 2)
 Advance(3)
 Equal("a timed notice leaves after the duration", Shown(), "Low Durability (20%)")
 Equal("giving its room to the line below", below.offset.target, 0)
 Frames(0.1)
-Equal("moving up as it fades", leaving.shownOffset > 0 and leaving.shownAlpha < 1 and below.shownOffset > -22, true)
+Equal("moving up as it fades", Offset(leaving) > 0 and leaving.alpha < 1 and Offset(below) > -22, true)
 Notifications:Show("leave")
 Equal("shown again while leaving, it turns back from where it is", leaving.leaving == nil
-	and leaving.shownAlpha < 1 and leaving.shownOffset > 0 and #Notifications.lines == 2, true)
+	and leaving.alpha < 1 and Offset(leaving) > 0 and #Notifications.lines == 2, true)
 Frames(2)
-Equal("back in place", leaving.shownAlpha .. " " .. leaving.shownOffset .. " " .. below.shownOffset, "1 0 -22")
+Equal("back in place", leaving.alpha .. " " .. Offset(leaving) .. " " .. Offset(below), "1 0 -22")
 Notifications:Dismiss("leave")
 Frames(2)
-Equal("and is gone", Shown() .. " " .. #Notifications.lines .. " " .. below.shownOffset, "Low Durability (20%) 1 0")
+Equal("and is gone", Shown() .. " " .. #Notifications.lines .. " " .. Offset(below), "Low Durability (20%) 1 0")
 springs.reduce = true
 Notifications:Show("enter")
-Equal("Reduce Motion: in place at once", Line("enter").shownAlpha .. " " .. Line("enter").shownOffset .. " " .. below.shownOffset
+Equal("Reduce Motion: in place at once", Line("enter").alpha .. " " .. Offset(Line("enter")) .. " " .. Offset(below)
 	.. " " .. tostring(springs.Moving()), "1 0 -22 false")
 Notifications:Dismiss("enter")
-Equal("and gone at once", #Notifications.lines .. " " .. below.shownOffset, "1 0")
+Equal("and gone at once", #Notifications.lines .. " " .. Offset(below), "1 0")
 springs.reduce = false
 Advance(30)
 Equal("a reminder stays", Shown(), "Low Durability (20%)")
@@ -559,11 +465,10 @@ Fire("PLAYER_REGEN_DISABLED")
 Advance(1)
 Equal("a brief drop out of combat stays quiet", Shown(), "+Combat")
 Set(Options:Path("enter", "color"), { r = 0, g = 1, b = 0 })
-Equal("a setting change restyles what shows", Line("enter").color, "0 1 0")
+Equal("a setting change restyles what shows", table.concat(Line("enter").textColor, " "), "0 1 0")
 Set(Options:Path("enter", "enabled"), false)
 Set(Options:Path("leave", "enabled"), false)
 Equal("off: dismissed and no longer followed", Shown() .. tostring(eventFrame.events.PLAYER_REGEN_DISABLED), "nil")
-inCombat = false
 
 -- Pet -----------------------------------------------------------------------------------------------------
 
@@ -623,14 +528,14 @@ pet = true
 petHealth = 0.8
 On("petHealth")
 local health = Line("petHealth")
-Equal("Pet Low Health is shown without opacity above the mark", tostring(health and health.shownAlpha), "0")
+Equal("Pet Low Health is shown without opacity above the mark", tostring(health and health.alpha), "0")
 petHealth = 0.2
 Fire("UNIT_HEALTH", "pet")
-Equal("and with it below", health.shownAlpha, 1)
+Equal("and with it below", health.alpha, 1)
 Fire("UNIT_HEALTH", "target")
-Equal("another unit's health is ignored", health.shownAlpha, 1)
+Equal("another unit's health is ignored", health.alpha, 1)
 Set(Options.PET_HEALTH_PATH, 10)
-Equal("a new mark redraws it", Line("petHealth").shownAlpha, 0)
+Equal("a new mark redraws it", Line("petHealth").alpha, 0)
 for _, key in ipairs({ "petMissing", "petPassive", "petHealth" }) do
 	Set(Options:Path(key, "enabled"), false)
 end
@@ -671,13 +576,13 @@ Fire("UNIT_SPELLCAST_SUCCEEDED", "player", "guid", 431932)
 Equal("the player's potion is watched", AUI.PotionNotice.watched, 1001)
 Fire("BAG_UPDATE_COOLDOWN")
 Equal("an over cooldown never seen running shows nothing", Shown(), "")
-cooldowns[1001] = { now, 300, 0 }
+cooldowns[1001] = { client.now, 300, 0 }
 Fire("BAG_UPDATE_COOLDOWN")
 Equal("a cooldown waiting for combat to end shows nothing", Shown(), "")
 cooldowns[1001] = { SECRET, 300, 1 }
 Fire("BAG_UPDATE_COOLDOWN")
 Equal("nor a secret one", Shown(), "")
-cooldowns[1001] = { now, 300, 1 }
+cooldowns[1001] = { client.now, 300, 1 }
 Fire("BAG_UPDATE_COOLDOWN")
 Advance(299)
 Equal("running", Shown(), "")
@@ -694,14 +599,14 @@ dead = false
 playerHealth = 0.8
 On("lowHealth")
 local low = Line("lowHealth")
-Equal("Low Health is shown without opacity above the mark", tostring(low and low.shownAlpha), "0")
+Equal("Low Health is shown without opacity above the mark", tostring(low and low.alpha), "0")
 playerHealth = 0.2
 Fire("UNIT_HEALTH", "player")
-Equal("and fully below it, the health never read", Line("lowHealth").shownAlpha, 1)
+Equal("and fully below it, the health never read", Line("lowHealth").alpha, 1)
 Fire("UNIT_HEALTH", "target")
-Equal("another unit's health changes nothing", Line("lowHealth").shownAlpha, 1)
+Equal("another unit's health changes nothing", Line("lowHealth").alpha, 1)
 Set(Options.LOW_HEALTH_PATH, 15)
-Equal("a new mark redraws it", Line("lowHealth").shownAlpha, 0)
+Equal("a new mark redraws it", Line("lowHealth").alpha, 0)
 Set(Options.LOW_HEALTH_PATH, 35)
 dead = true
 Fire("PLAYER_DEAD")
@@ -992,4 +897,4 @@ AUI.can.flightPointNotice = nil
 
 Equal("no Lua error in the run", errors[1], nil)
 
-io.stdout:write(("check_notifications: %d checks passed\n"):format(checks))
+io.stdout:write(("check_notifications: %d checks passed\n"):format(client.checks))
