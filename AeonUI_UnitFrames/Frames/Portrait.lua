@@ -224,6 +224,7 @@ function Portrait:Place(widgets, settings, anchor, key)
 			thickness = look.borderThickness,
 			edgeFile = look.edgeFile,
 			background = NO_FILL,
+			shadow = not attached and look.shadow or nil,
 		})
 	end
 end

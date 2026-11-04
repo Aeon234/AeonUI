@@ -106,6 +106,7 @@ end
 ---@field borderColor table the color the style draws in
 ---@field edgeFile string? the backdrop edge file, for the "EDGE" style
 ---@field hover string how hovering shows: "color" takes the Hover Color, "lighten" lightens the color, "lit" the art
+---@field shadow AUIBorderShadow? the frame's shadow; a cast bar's look has none
 
 ---A frame's bar look, its own values or the shared ones.
 ---@param key string
@@ -145,6 +146,10 @@ function UnitFrame:BarLook(key, section)
 		borderColor = color,
 		edgeFile = edgeFile,
 		hover = hover,
+		shadow = not section and Profile:Get(Options:Path(key, "bars.showShadow")) and {
+			size = Profile:Get(Options:Path(key, "bars.shadowSize")),
+			color = Profile:Get(Options:Path(key, "bars.shadowColor")),
+		} or nil,
 	}
 end
 
@@ -164,6 +169,7 @@ function UnitFrame:StyleBar(bar, background, border, look)
 		thickness = look.borderThickness,
 		edgeFile = look.edgeFile,
 		background = NO_FILL,
+		shadow = look.shadow,
 	})
 end
 

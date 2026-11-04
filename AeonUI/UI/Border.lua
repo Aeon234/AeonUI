@@ -164,6 +164,8 @@ local SAME = 0.002
 ---the rows (`separator`) and between two rows (`divider`)
 ---@field rowBackgrounds table<string, Texture> per side that has needed one, the Forever art's dark middle behind the rows
 ---@field lines Texture[]?
+---@field shadowHost Frame? a plain frame one level under the owner holding the shadow, so it can change in combat on a
+---secure owner; made the first time a shadow is drawn
 ---@field shadowLook AUIBorderShadow? the shadow `Apply` last asked for
 ---@field shadowPieces Texture[]? the art's own shadow in eight pieces, made the first time it is drawn
 ---@field shadowSize integer? the art's own shadow's built size while it is drawn
@@ -916,16 +918,16 @@ local function ShadowFileSize(size)
 	return nearest
 end
 
----Makes the art's shadow's eight pieces, behind everything on the owner. Each corner is placed around the art's corner
----by `PlaceShadow`; the edges stretch between the corners.
----@param owner Frame
+---Makes the art's shadow's eight pieces. Each corner is placed around the art's corner by `PlaceShadow`; the edges
+---stretch between the corners.
+---@param host Frame
 ---@param pieces Texture[] the art's pieces
 ---@return Texture[]
-local function CreateShadowPieces(owner, pieces)
+local function CreateShadowPieces(host, pieces)
 	local shadow = {}
 
 	for index = 1, 8 do
-		local piece = owner:CreateTexture(nil, "BACKGROUND", nil, -8)
+		local piece = host:CreateTexture(nil, "BACKGROUND")
 
 		piece:SetSnapToPixelGrid(false)
 		piece:SetTexelSnappingBias(0)
@@ -958,6 +960,19 @@ function BorderMixin:ApplyShadow(look)
 	self.shadowSize = nil
 	self.shadowExtend = nil
 
+	if look then
+		local owner = self.owner
+		local host = self.shadowHost
+
+		if not host then
+			host = CreateFrame("Frame", nil, owner)
+			host:SetAllPoints()
+			self.shadowHost = host
+		end
+
+		host:SetFrameLevel(math.max(owner:GetFrameLevel() - 1, 0))
+	end
+
 	if not look or not art or not art.shadow then
 		for _, piece in ipairs(self.shadowPieces or {}) do
 			piece:Hide()
@@ -974,7 +989,8 @@ function BorderMixin:ApplyShadow(look)
 		self.square:Hide()
 	end
 
-	local shadowPieces = self.shadowPieces or CreateShadowPieces(self.owner, self.pieces --[[@as AUITextures]])
+	local shadowPieces = self.shadowPieces or CreateShadowPieces(self.shadowHost --[[@as Frame]],
+		self.pieces --[[@as AUITextures]])
 	local size = ShadowFileSize(look.size)
 	local file = art.shadow .. size .. ".tga"
 
@@ -1029,7 +1045,7 @@ function BorderMixin:ShadowReach()
 end
 
 ---Places the shadow around what the style draws: the art's own around the art's corners, reaching the file's padding
----past them, or the library's square one, one level under the owner, when it has moved or `Apply` changed its look.
+---past them, or the library's square one, when it has moved or `Apply` changed its look.
 function BorderMixin:PlaceShadow()
 	local look = self.shadowLook
 
@@ -1069,15 +1085,22 @@ function BorderMixin:PlaceShadow()
 
 	local r, g, b, a = Unpack(look.color)
 
-	self.square = LibStub("LibAeonSettings-1.0"):AddShadow(self.owner, {
+	self.square = LibStub("LibAeonSettings-1.0"):AddShadow(self.shadowHost, {
 		size = look.size,
 		color = { r, g, b, a },
-		below = true,
 		extend = extend,
 	})
 
 	if self.square then
 		self.square:Show()
+	end
+end
+
+---Shows or hides the shadow without changing its look, until told otherwise; `Apply` leaves this as it is.
+---@param shown boolean
+function BorderMixin:SetShadowShown(shown)
+	if self.shadowHost then
+		self.shadowHost:SetShown(shown)
 	end
 end
 

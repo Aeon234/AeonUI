@@ -519,6 +519,17 @@ function SettingsAllFrames:Declare(window)
 			return self:HasHoverColor(Style())
 		end,
 	}))
+	bars:Checkbox(Field("showShadow", L["Show Shadow"], "bars.showShadow"))
+	bars:Slider(Field("shadowSize", L["Shadow Size"], "bars.shadowSize", {
+		depends = "showShadow",
+		min = 1,
+		max = 10,
+		step = 1,
+	}))
+	bars:Color(Field("shadowColor", L["Shadow Color"], "bars.shadowColor", {
+		depends = "showShadow",
+		hasOpacity = true,
+	}))
 
 	local text = page:Section("allFramesText", L["Text"])
 

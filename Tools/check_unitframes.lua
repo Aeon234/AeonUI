@@ -519,11 +519,16 @@ AUI.Callbacks = {
 AUI.Border = {
 	ART = {},
 	ART_COLOR = { r = 0.5, g = 0.4, b = 0.3 },
+	SHADOW_SIZE = 4,
+	SHADOW_COLOR = { r = 0, g = 0, b = 0, a = 0.618 },
 	CellDividerWidth = function() end,
 	StyleCellDivider = function() end,
 	Create = function()
 		return {
 			SetFrameLevel = function() end,
+			SetShadowShown = function(self, shown)
+				self.shadowShown = shown
+			end,
 			Layout = function(self)
 				self.laidOut = (self.laidOut or 0) + 1
 			end,
@@ -754,6 +759,21 @@ Equal("a thin line by default", frame.Border.look.style, "THIN_LINE")
 Equal("in black", frame.Border.look.color.r, 0)
 Equal("drawing no fill of its own", frame.Border.look.background.a, 0)
 Equal("laid out once placed", frame.Border.laidOut, 1)
+Equal("no shadow by default", frame.Border.look.shadow, nil)
+Schema:Write(config, Options.ALL .. "bars.showShadow", true)
+registered.Profile(Frames, Options.ALL .. "bars.showShadow")
+Equal("All Frames turns the shadow on", frame.Border.look.shadow.size, 4)
+Schema:Write(config, Path("bars.shadowSize"), 8)
+registered.Profile(Frames, Path("bars.shadowSize"))
+Equal("and the frame's own size wins", frame.Border.look.shadow.size, 8)
+Schema:Write(config, Path("bars.showShadow"), false)
+registered.Profile(Frames, Path("bars.showShadow"))
+Equal("a frame can turn it off alone", frame.Border.look.shadow, nil)
+Schema:Write(config, Path("bars.showShadow"), nil)
+Schema:Write(config, Path("bars.shadowSize"), nil)
+Schema:Write(config, Options.ALL .. "bars.showShadow", nil)
+registered.Profile(Frames, Options.ALL .. "bars.showShadow")
+Equal("back off with All Frames", frame.Border.look.shadow, nil)
 Equal("its first slot is tagged", frame.TextSlots[1].tag, "[aui:health(both,dash,default,0,1)]")
 Equal("its second is empty", frame.TextSlots[2].tag, nil)
 Equal("listed for click-casting", ClickCastFrames[frame], true)

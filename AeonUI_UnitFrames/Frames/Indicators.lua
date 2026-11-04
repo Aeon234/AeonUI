@@ -236,8 +236,8 @@ function Indicators:UsesThreatRing(key)
 	return style == "THIN_LINE" or style == "NONE"
 end
 
----Shows threat in a color, or nothing: as a ring around the frame, or in the frame's own border, whose band would
----cover a ring.
+---Shows threat in a color, or nothing: as a ring around the frame, in place of its shadow, or in the frame's own
+---border, whose band would cover a ring.
 ---@param frame table
 ---@param color table?
 function Indicators:ShowThreat(frame, color)
@@ -247,6 +247,7 @@ function Indicators:ShowThreat(frame, color)
 
 	element.threatColor = color
 	element:SetShown(ring and color ~= nil)
+	frame.Border:SetShadowShown(not (ring and color))
 
 	if ring and color then
 		for _, edge in ipairs(element.Edges) do

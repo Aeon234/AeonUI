@@ -313,6 +313,9 @@ Schema:Color(Options.ALL .. "bars.borderColor", AUI.Border.ART_COLOR)
 Schema:Color(Options.ALL .. "bars.lineColor", { r = 0, g = 0, b = 0, a = 1 })
 Schema:Boolean(Options.ALL .. "bars.hover", true)
 Schema:Color(Options.ALL .. "bars.hoverColor", { r = 1, g = 1, b = 1 })
+Schema:Boolean(Options.ALL .. "bars.showShadow", false)
+Schema:Number(Options.ALL .. "bars.shadowSize", AUI.Border.SHADOW_SIZE, 1, 10, true)
+Schema:Color(Options.ALL .. "bars.shadowColor", AUI.Border.SHADOW_COLOR)
 Schema:String(Options.ALL .. "text.font", "Expressway", 64)
 Schema:Number(Options.ALL .. "text.size", 12, Options.MIN_TEXT, Options.MAX_TEXT, true)
 Schema:Choice(Options.ALL .. "text.outline", "fontOutline", "SLUG")
@@ -538,7 +541,8 @@ local function DeclareFrame(spec, width, height, status, slots)
 	Schema:Number(Options:Path(key, "height"), height, Options.MIN_HEIGHT, Options.MAX_HEIGHT)
 	Schema:Boolean(Options:Path(key, "reverse"), spec.reverse == true)
 
-	for _, field in ipairs({ "texture", "background", "borderStyle", "borderThickness", "borderColor", "lineColor", "hover", "hoverColor" }) do
+	for _, field in ipairs({ "texture", "background", "borderStyle", "borderThickness", "borderColor", "lineColor", "hover", "hoverColor",
+		"showShadow", "shadowSize", "shadowColor" }) do
 		Schema:Inherit(Options:Path(key, "bars." .. field), Options.ALL .. "bars." .. field)
 	end
 
@@ -602,7 +606,8 @@ local function DeclarePower(spec)
 	Schema:Number(Options:Path(key, "height"), 12, Options.MIN_POWER_HEIGHT, Options.MAX_HEIGHT)
 	Schema:Boolean(Options:Path(key, "reverse"), false)
 
-	for _, field in ipairs({ "texture", "background", "borderStyle", "borderThickness", "borderColor", "lineColor" }) do
+	for _, field in ipairs({ "texture", "background", "borderStyle", "borderThickness", "borderColor", "lineColor",
+		"showShadow", "shadowSize", "shadowColor" }) do
 		Schema:Inherit(Options:Path(key, "bars." .. field), Options.ALL .. "bars." .. field)
 	end
 
@@ -642,7 +647,8 @@ local function DeclareClassPower(key)
 	Schema:Number(Path("spacing"), 1, 0, Options.MAX_RESOURCE_SPACING, true)
 	Schema:Color(Path("dividerColor"), { r = 0, g = 0, b = 0, a = 1 })
 
-	for _, field in ipairs({ "texture", "background", "borderStyle", "borderThickness", "borderColor", "lineColor" }) do
+	for _, field in ipairs({ "texture", "background", "borderStyle", "borderThickness", "borderColor", "lineColor",
+		"showShadow", "shadowSize", "shadowColor" }) do
 		Schema:Inherit(Path("bars." .. field), Options.ALL .. "bars." .. field)
 	end
 

@@ -377,7 +377,8 @@ function FramePage:DeclareBars(page, title)
 	AUI.SettingsFrameCopy:LinkFrame(card, page, key, "bars")
 	local details = key .. "BarsLook"
 	local from = L["All Frames"]
-	local look = { "texture", "background", "borderColor", "lineColor", "borderThickness" }
+	local look = { "texture", "background", "borderColor", "lineColor", "borderThickness", "showShadow", "shadowSize",
+		"shadowColor" }
 	local hover = not self.spec.passive
 
 	local function Own(field)
@@ -448,6 +449,21 @@ function FramePage:DeclareBars(page, title)
 				return AllFrames:HasThickness(Style())
 			end,
 		}))
+	card:Checkbox(Inherited(prefix .. "showShadow", L["Show Shadow"], Own("showShadow"), Shared("showShadow"), from, {
+		details = details,
+	}))
+	card:Slider(Inherited(prefix .. "shadowSize", L["Shadow Size"], Own("shadowSize"), Shared("shadowSize"), from, {
+		details = details,
+		depends = prefix .. "showShadow",
+		min = 1,
+		max = 10,
+		step = 1,
+	}))
+	card:Color(Inherited(prefix .. "shadowColor", L["Shadow Color"], Own("shadowColor"), Shared("shadowColor"), from, {
+		details = details,
+		depends = prefix .. "showShadow",
+		hasOpacity = true,
+	}))
 
 	if not hover then
 		return card

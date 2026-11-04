@@ -366,6 +366,11 @@ unit.player = true
 
 local function NewFrame()
 	local frame = Region()
+	frame.Border = {
+		SetShadowShown = function(self, shown)
+			self.shadowShown = shown
+		end,
+	}
 
 	frame.key, frame.spec = "player", Options:Spec("player")
 	frame.Content = frame
@@ -643,14 +648,17 @@ Equal("a redraw keeps it", frame.threatColor.g, 0.5)
 Set("indicators.threat.enabled", false)
 Indicators:Apply(frame)
 Equal("off gives the border back", frame.threatColor, nil)
+Equal("threat in the border keeps the shadow", frame.Border.shadowShown, true)
 Set("indicators.threat.enabled", true)
 threat.threatColor = { r = 1, g = 0.5, b = 0 }
 look.borderStyle = "THIN_LINE"
 Indicators:Apply(frame)
 Equal("a style with a ring moves it there", frame.threatColor, nil)
 Equal("and shows it", threat.shown, true)
+Equal("the ring takes the shadow's place", frame.Border.shadowShown, false)
 threat.threatColor = nil
 Indicators:Apply(frame)
+Equal("no threat brings the shadow back", frame.Border.shadowShown, true)
 
 -- Fading --------------------------------------------------------------------------------------------------
 
