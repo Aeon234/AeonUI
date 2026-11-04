@@ -8,10 +8,10 @@
 --
 -- A check reads a widget's state from these fields, which its setters keep:
 --   shown, points, width, height, alpha, scale, level, parent, template, scripts, mouse   every frame or texture
---   kind                                                                                  frames
---   file, atlas, color, vertex, coords, desaturated                                       textures
+--   kind, clipsChildren, alphaBoolean                                                     frames
+--   file, atlas, color, vertex, coords, desaturated, blend                                textures
 --   text, font, textColor, justifyH, wordWrap                                             font strings
---   value, min, max, statusColor, reverseFill                                             status bars
+--   value, min, max, statusColor, reverseFill, statusTexture                              status bars
 --   backdrop                                                                              frames with BackdropTemplate
 --   plays, playing                                                                        animation groups
 -- `points` holds each anchor's SetPoint arguments, one entry per anchor. Size reads 0 until set, as an unsized frame's
@@ -269,7 +269,9 @@ local Texture = Type(Region, {
 	SetAtlas = State(function(self, atlas)
 		self.atlas = atlas
 	end),
-	SetBlendMode = State(),
+	SetBlendMode = State(function(self, blend)
+		self.blend = blend
+	end),
 })
 
 local FontString = Type(Region, {
@@ -292,6 +294,12 @@ local FontString = Type(Region, {
 
 local Frame = Type(ScriptRegion, {
 	SetAlpha = SetAlpha,
+	SetAlphaFromBoolean = State(function(self, ...)
+		self.alphaBoolean = { ... }
+	end),
+	SetClipsChildren = State(function(self, clips)
+		self.clipsChildren = clips
+	end),
 	SetScale = SetScale,
 	SetFrameLevel = State(function(self, level)
 		self.level = level
@@ -341,6 +349,15 @@ local StatusBar = Type(Frame, {
 	SetReverseFill = State(function(self, reverse)
 		self.reverseFill = reverse
 	end),
+	SetStatusBarTexture = State(function(self, asset)
+		self.statusTexture = self.statusTexture or self:CreateTexture()
+		self.statusTexture.file = asset
+	end),
+	GetStatusBarTexture = function(self)
+		self.statusTexture = self.statusTexture or self:CreateTexture()
+
+		return self.statusTexture
+	end,
 })
 
 -- The frame types `CreateFrame` knows, and what each XML template adds to a frame.

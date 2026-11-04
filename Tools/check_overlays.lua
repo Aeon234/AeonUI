@@ -2,103 +2,21 @@
 -- direction, what each setting shows and hides, the calculator modes set on a live frame, the overshield flag read
 -- and switched back, and the preview's sample amounts.
 -- Run from any directory with Lua 5.1: lua Tools/check_overlays.lua
--- Frames are stand-ins that record the last call of each method; drawing and clipping are not exercised here.
+-- Frames are the shared client's widgets; drawing and clipping are not exercised here.
 
 local root = (arg and arg[0] or ""):match("^(.-)[^/\\]*$") .. "../"
+local client = assert(loadfile(root .. "Tools/stub_client.lua"))({ project = "retail" })
+local Equal = client.Equal
 
 -- Environment ---------------------------------------------------------------------------------------------
 
 Enum = { UnitDamageAbsorbClampMode = { MissingHealth = 0, MissingHealthWithoutIncomingHeals = 1, MaximumHealth = 2 } }
-
----A frame, bar or texture stand-in: every method records its arguments under `last`, with the few getters the
----overlay code reads.
-local function Region()
-	local region = { last = {}, shown = true, level = 1, minimum = 0, maximum = 1, value = 0, height = 20 }
-
-	function region:SetShown(shown)
-		self.shown = shown == true
-	end
-
-	function region:IsShown()
-		return self.shown
-	end
-
-	function region:SetFrameLevel(level)
-		self.level = level
-	end
-
-	function region:GetFrameLevel()
-		return self.level
-	end
-
-	function region:SetMinMaxValues(minimum, maximum)
-		self.minimum, self.maximum = minimum, maximum
-	end
-
-	function region:GetMinMaxValues()
-		return self.minimum, self.maximum
-	end
-
-	function region:SetValue(value)
-		self.value = value
-	end
-
-	function region:GetValue()
-		return self.value
-	end
-
-	function region:GetWidth()
-		return 200
-	end
-
-	function region:GetHeight()
-		return self.height
-	end
-
-	function region:SetPoint(...)
-		self.points = rawget(self, "points") or {}
-		self.points[#self.points + 1] = { ... }
-	end
-
-	function region:ClearAllPoints()
-		self.points = {}
-	end
-
-	function region:GetStatusBarTexture()
-		self.fill = rawget(self, "fill") or Region()
-
-		return self.fill
-	end
-
-	function region:CreateTexture()
-		return Region()
-	end
-
-	return setmetatable(region, {
-		__index = function(_, method)
-			if not method:find("^%u") then
-				return nil
-			end
-
-			return function(self, ...)
-				self.last[method] = { ... }
-			end
-		end,
-	})
-end
 
 UNKNOWN = "Unknown"
 SlashCmdList = {}
 C_AddOns = {
 	GetAddOnMetadata = function() end,
 }
-
-function CreateFrame(_, _, parent)
-	local frame = Region()
-	frame.parent = parent
-
-	return frame
-end
 
 local AUI = {}
 assert(loadfile(root .. "AeonUI/Core/Core.lua"))("AeonUI", AUI)
@@ -126,17 +44,7 @@ AUI.Profile = {
 	end,
 }
 
--- Harness -------------------------------------------------------------------------------------------------
-
-local checks = 0
-
-local function Equal(name, actual, expected)
-	checks = checks + 1
-	if actual ~= expected then
-		io.stderr:write(("FAIL: %s: expected %s, got %s\n"):format(name, tostring(expected), tostring(actual)))
-		os.exit(1)
-	end
-end
+-- Helpers --------------------------------------------------------------------------------------------------
 
 local function Near(name, actual, expected)
 	Equal(name, math.abs(actual - expected) < 1e-9, true)
@@ -144,7 +52,7 @@ end
 
 local function Points(region)
 	local list = {}
-	for _, point in ipairs(rawget(region, "points") or {}) do
+	for _, point in ipairs(region.points) do
 		list[#list + 1] = point[1] .. ">" .. tostring(point[3])
 	end
 
@@ -202,7 +110,10 @@ Equal("backward, right to left", Attach(true, true), "LEFT>LEFT")
 -- Apply ---------------------------------------------------------------------------------------------------
 
 local function Fresh()
-	local bar = Region()
+	local bar = CreateFrame("StatusBar")
+
+	bar:SetSize(200, 20)
+
 	local widgets = Overlays:Create(bar)
 
 	config = Schema:Defaults()
@@ -213,31 +124,31 @@ end
 local widgets, bar
 widgets, bar, settings = Fresh()
 local fill = bar:GetStatusBarTexture()
-local calculator = { last = {} }
+local calculator = {}
 function calculator:SetIncomingHealOverflowPercent(value)
 	self.overflow = value
 end
 local health = { values = calculator }
 
-Equal("clip covers the bar", widgets.clip.last.SetAllPoints[1], bar)
-Equal("clip clips", widgets.clip.last.SetClipsChildren[1], true)
-Equal("overshield clip clips", widgets.overshieldClip.last.SetClipsChildren[1], true)
+Equal("clip covers the bar", widgets.clip.points[1][2], bar)
+Equal("clip clips", widgets.clip.clipsChildren, true)
+Equal("overshield clip clips", widgets.overshieldClip.clipsChildren, true)
 Equal("heal prediction is not clipped, so Overheal can pass the bar", widgets.healing.parent, bar)
 Equal("shields are clipped", widgets.absorb.parent, widgets.clip)
 Equal("overshield inside its clip", widgets.overshield.parent, widgets.overshieldClip)
 
 Overlays:Apply(widgets, settings, false, health)
 Equal("absorb texture", widgets.absorb.texture, "Solid")
-Equal("absorb color alpha", widgets.absorb.last.SetStatusBarColor[4], 0.8)
+Equal("absorb color alpha", widgets.absorb.statusColor[4], 0.8)
 Equal("heal prediction starts at the health edge", widgets.healing.points[1][2], fill)
 Equal("shields start where heal prediction ends", widgets.absorb.points[1][2], widgets.healing:GetStatusBarTexture())
 Equal("shield grows right", Points(widgets.absorb), "TOPLEFT>TOPRIGHT")
-Equal("attached bars are as wide as health", widgets.absorb.last.SetSize[1], 200)
-Equal("matching health height", widgets.absorb.last.SetSize[2], 20)
+Equal("attached bars are as wide as health", widgets.absorb.width, 200)
+Equal("matching health height", widgets.absorb.height, 20)
 Equal("heal absorb grows back over health", Points(widgets.healAbsorb), "TOPRIGHT>TOPRIGHT")
 Equal("no backing made at 0", widgets.backing, nil)
 Equal("overshield shown", widgets.overshieldClip.shown, true)
-Equal("overshield fills from the shield's edge", widgets.overshield.last.SetReverseFill[1], true)
+Equal("overshield fills from the shield's edge", widgets.overshield.reverseFill, true)
 Equal("overshield clip ends at the health edge", widgets.overshieldClip.points[2][2], fill)
 Equal("no glow made by default", widgets.glow, nil)
 Equal("overflow on the element", health.incomingHealOverflow, 1)
@@ -251,8 +162,8 @@ Overlays:Apply(widgets, settings, false, health)
 Equal("overheal raises the overflow", calculator.overflow, 1.2)
 local backing, glow = widgets.backing, widgets.glow
 Equal("backing inside the clip", backing.parent, widgets.clip)
-Equal("the glow is additive", glow:GetStatusBarTexture().last.SetBlendMode[1], "ADD")
-Equal("a glow's range is 0 to 1", glow.maximum, 1)
+Equal("the glow is additive", glow:GetStatusBarTexture().blend, "ADD")
+Equal("a glow's range is 0 to 1", glow.max, 1)
 settings.healAbsorb.backing = 0
 Overlays:Apply(widgets, settings, false, health)
 Equal("backing hidden back at 0", backing.shown, false)
@@ -260,14 +171,14 @@ Equal("and kept", widgets.backing, backing)
 settings.healAbsorb.backing = 40
 Overlays:Apply(widgets, settings, false, health)
 Equal("backing shown above 0", widgets.backing.shown, true)
-Equal("backing opacity", widgets.backing.last.SetStatusBarColor[4], 0.4)
+Equal("backing opacity", widgets.backing.statusColor[4], 0.4)
 Equal("glow on", widgets.glow.shown, true)
 Equal("glow on the health edge", widgets.glow.points[1][2], fill)
 Equal("glow centered on the edge", widgets.glow.points[1][1] .. ">" .. widgets.glow.points[1][3], "TOP>TOPRIGHT")
-Equal("overshield from the left", widgets.overshield.last.SetReverseFill[1], false)
+Equal("overshield from the left", widgets.overshield.reverseFill, false)
 
 Overlays:Apply(widgets, settings, true, health)
-Equal("reversed: overshield from the left of a right-to-left bar", widgets.overshield.last.SetReverseFill[1], true)
+Equal("reversed: overshield from the left of a right-to-left bar", widgets.overshield.reverseFill, true)
 Equal("reversed: shield grows left", Points(widgets.absorb), "TOPRIGHT>TOPLEFT")
 Equal("reversed: glow on the fill's left edge", widgets.glow.points[1][3], "TOPLEFT")
 
@@ -286,27 +197,27 @@ settings.absorb.matchHeight = false
 settings.absorb.height = 6
 Overlays:Apply(widgets, settings, false, health)
 Equal("corner strip spans the bottom", Points(widgets.absorb), "BOTTOMLEFT>BOTTOMLEFT,BOTTOMRIGHT>BOTTOMRIGHT")
-Equal("corner strip height", widgets.absorb.last.SetHeight[1], 6)
-Equal("corner strip fills from its side", widgets.absorb.last.SetReverseFill[1], true)
+Equal("corner strip height", widgets.absorb.height, 6)
+Equal("corner strip fills from its side", widgets.absorb.reverseFill, true)
 Equal("no overshield while detached", widgets.overshieldClip.shown, false)
 Equal("no glow while detached", widgets.glow.shown, false)
 
 settings.absorb.position = "LEFT"
 settings.absorb.matchHeight = true
 Overlays:Apply(widgets, settings, false, health)
-Equal("side strip matching height covers the bar", widgets.absorb.last.SetAllPoints[1], bar)
+Equal("side strip matching height covers the bar", widgets.absorb.points[1][2], bar)
 settings.absorb.matchHeight = false
 Overlays:Apply(widgets, settings, false, health)
 Equal("middle strip spans the bar", Points(widgets.absorb), "LEFT>LEFT,RIGHT>RIGHT")
 settings.absorb.matchHeight = true
-Equal("left strip fills right", widgets.absorb.last.SetReverseFill[1], false)
+Equal("left strip fills right", widgets.absorb.reverseFill, false)
 
 settings.absorb.position = "attach"
 settings.absorb.matchHeight = false
 settings.absorb.height = 5
 Overlays:Apply(widgets, settings, false, nil)
 Equal("attached strip at the top", Points(widgets.absorb), "TOPLEFT>TOPRIGHT")
-Equal("attached strip height", widgets.absorb.last.SetSize[2], 5)
+Equal("attached strip height", widgets.absorb.height, 5)
 
 -- Update --------------------------------------------------------------------------------------------------
 
@@ -332,13 +243,13 @@ widgets.absorb:SetValue(120000)
 widgets.healAbsorb:SetMinMaxValues(0, 588000)
 widgets.healAbsorb:SetValue(30000)
 Overlays:Update(widgets, live)
-Equal("overshield range", widgets.overshield.maximum, 588000)
+Equal("overshield range", widgets.overshield.max, 588000)
 Equal("overshield amount", widgets.overshield.value, 120000)
 Equal("flag read in the missing-health mode", modes[1], Enum.UnitDamageAbsorbClampMode.MissingHealthWithoutIncomingHeals)
 Equal("mode switched back", modes[2], Enum.UnitDamageAbsorbClampMode.MaximumHealth)
-Equal("overshield alpha from the flag", widgets.overshieldClip.last.SetAlphaFromBoolean[1], "flag")
+Equal("overshield alpha from the flag", widgets.overshieldClip.alphaBoolean[1], "flag")
 Equal("glow full while any shield exists", widgets.glow.value, 120000)
-Equal("glow range stays 0 to 1", widgets.glow.maximum, 1)
+Equal("glow range stays 0 to 1", widgets.glow.max, 1)
 Equal("backing follows heal absorbs", widgets.backing.value, 30000)
 
 -- Sample amounts ------------------------------------------------------------------------------------------
@@ -375,7 +286,7 @@ Equal("a sample without backing shows", widgets.absorb.value, 0.9)
 settings.healAbsorb.backing = 50
 Overlays:Apply(widgets, settings, false, nil)
 Overlays:ShowSample(widgets, { health = 0.3, absorb = 0.9, healAbsorb = 0.5, healing = 0 }, 0)
-Equal("sample overshield shown", widgets.overshieldClip.last.SetAlpha[1], 1)
+Equal("sample overshield shown", widgets.overshieldClip.alpha, 1)
 Near("sample backing follows heal absorbs", widgets.backing.value, 0.5)
 
-io.stdout:write(("check_overlays: %d checks passed\n"):format(checks))
+io.stdout:write(("check_overlays: %d checks passed\n"):format(client.checks))
