@@ -27,6 +27,9 @@ local PERCENT = 100
 ---@field far boolean?
 ---@field shield boolean? a shield fills its slot
 ---@field host AUISwingTimerRow? the row it rides under Combine Hands
+---@field isPreview boolean? a settings sample, which live attacks and seals leave alone
+---@field sampleField string? the preview's queued color field
+---@field sampleAttack string? the preview's queued attack
 
 ---The player's swing timer, on the clients that report swings: one frame with a row per weapon that can swing. The
 ---engine animates each row's fill and time from a duration object, so no Lua runs per frame; a timer per swing catches
@@ -38,10 +41,18 @@ local PERCENT = 100
 ---@field shown integer how many rows show
 ---@field following boolean? the events are registered
 ---@field watchingGear boolean? the off hand's slot is watched for a shield
+---@field watchingQueue boolean? next-swing attacks are watched
+---@field watchingSeals boolean? seals are watched
+---@field queueFields table<string, string> the color field of each of the class's next-swing attacks, by name
+---@field sealsByName table<string, AUISwingTimerSeal> the seals, by name, for a paladin
+---@field queued string|false|nil the queued attack's name
+---@field seal AUISwingTimerSeal|false|nil the seal up
+---@field sealTimer table? counts the seal's end
+---@field sealSeconds number? how long a seal lasts, once a buff has said
 ---@field sampling boolean? edit mode's sample is up
 ---@field inCombat boolean?
 ---@field formatter table?
-local SwingTimer = { rows = {}, byType = {}, shown = 0 }
+local SwingTimer = { rows = {}, byType = {}, shown = 0, queueFields = {}, sealsByName = {} }
 AUI.SwingTimer = SwingTimer
 
 ---@return boolean on the page's switch is on where the client reports swings
@@ -115,13 +126,31 @@ function SwingTimer:BuildRow(parent, spec)
 end
 
 ---@param row AUISwingTimerRow
+---@return string? attack the name of the attack it shows queued
+---@return string? field that attack's color field
+function SwingTimer:RowAttack(row)
+	if row.isPreview then
+		return row.sampleAttack, row.sampleField
+	end
+
+	local queued = self.queued
+
+	if queued and not row.shield then
+		return queued, self.queueFields[queued]
+	end
+end
+
+---@param row AUISwingTimerRow
 ---@return number r
 ---@return number g
 ---@return number b
-local function FillColor(row)
+function SwingTimer:FillColor(row)
 	local Profile = AUI.Profile
+	local _, queued = self:RowAttack(row)
+	local seal = not row.isPreview and not row.shield and self.seal
+	local field, own = Options:ColorField(row.spec, queued, seal and seal.color or nil)
 
-	if Profile:Get("swingTimer.classColor") then
+	if own and Profile:Get("swingTimer.classColor") then
 		local _, class = UnitClass("player")
 		local color = class and C_ClassColor.GetClassColor(class)
 
@@ -130,9 +159,34 @@ local function FillColor(row)
 		end
 	end
 
-	local color = Profile:Get("swingTimer." .. row.spec.color)
+	local color = Profile:Get("swingTimer." .. field)
 
 	return color.r, color.g, color.b
+end
+
+---Colors a row's fill and, on a row riding another, its spark, and writes its label.
+---@param row AUISwingTimerRow
+function SwingTimer:PaintRow(row)
+	local r, g, b = self:FillColor(row)
+	local attack = self:RowAttack(row)
+
+	row.bar:GetStatusBarTexture():SetVertexColor(r, g, b)
+
+	if row.host then
+		row.spark:SetVertexColor(r, g, b)
+	else
+		row.spark:SetVertexColor(1, 1, 1)
+	end
+
+	row.tag:SetText(Options:TagText(row.spec, row.shield and SHIELDSLOT or L[row.spec.label], attack))
+end
+
+function SwingTimer:PaintHands()
+	for _, row in ipairs(self.rows) do
+		if row.spec.hand then
+			self:PaintRow(row)
+		end
+	end
 end
 
 ---@return number height a row's drawn height
@@ -155,11 +209,9 @@ function SwingTimer:Style(row)
 	local size = Profile:Get("swingTimer.textSize")
 
 	local host = row.host
-	local r, g, b = FillColor(row)
 
 	row:SetSize(Profile:Get("swingTimer.width"), height)
 	AUI.Media:SetBarTexture(bar, Profile:Get("swingTimer.texture"))
-	bar:GetStatusBarTexture():SetVertexColor(r, g, b)
 	-- A row riding another shows only its spark, which stays anchored to its unseen fill.
 	bar:GetStatusBarTexture():SetAlpha(host and 0 or 1)
 	row.background:SetColorTexture(background.r, background.g, background.b, host and 0 or background.a or 1)
@@ -167,13 +219,7 @@ function SwingTimer:Style(row)
 	row.spark:ClearAllPoints()
 	row.spark:SetPoint("CENTER", bar:GetStatusBarTexture(), "RIGHT")
 
-	if host then
-		row.spark:SetVertexColor(r, g, b)
-	else
-		row.spark:SetVertexColor(1, 1, 1)
-	end
-
-	row.tag:SetText(row.shield and SHIELDSLOT or L[row.spec.label])
+	self:PaintRow(row)
 	row.spark:SetSize(Options.SPARK_WIDTH, height * SPARK_GROW)
 	row.tag:SetFont(font, size, flags)
 	row.time:SetFont(font, size, flags)
@@ -315,7 +361,7 @@ function SwingTimer:ReadSpeeds()
 
 		if holds ~= (row.shield == true) then
 			row.shield = holds
-			row.tag:SetText(holds and SHIELDSLOT or L[row.spec.label])
+			self:PaintRow(row)
 		end
 	end
 end
@@ -438,6 +484,7 @@ function SwingTimer:UpdateVisibility()
 		AUI.Profile:Get("swingTimer.hideWhenIdle") == true, running))
 end
 
+---Builds the frame and its rows once.
 function SwingTimer:CreateFrame()
 	if self.frame then
 		return
@@ -521,6 +568,7 @@ function SwingTimer:OnSwing(_, seconds, kind)
 	end
 
 	self:AskRange(row)
+	self:ReadQueue()
 end
 
 ---@param _ string the event
@@ -600,13 +648,197 @@ end
 function SwingTimer:OnCombat(event)
 	self.inCombat = event == "PLAYER_REGEN_DISABLED"
 	self:UpdateVisibility()
+
+	if not self.inCombat then
+		self:ReadSeal()
+	end
+end
+
+---Learns the names of the class's next-swing attacks and, for a paladin, its seals.
+function SwingTimer:LearnSpells()
+	local _, class = UnitClass("player")
+
+	self.queueFields, self.sealsByName = {}, {}
+
+	for _, id in ipairs(Options.NEXT_SWING[class] or {}) do
+		local name = AUI:Readable(C_Spell.GetSpellName(id))
+
+		if name then
+			self.queueFields[name] = Options:QueueField(id)
+		end
+	end
+
+	if class == "PALADIN" then
+		for _, seal in ipairs(Options.SEALS) do
+			local name = AUI:Readable(C_Spell.GetSpellName(seal.id))
+
+			if name then
+				self.sealsByName[name] = seal
+			end
+		end
+	end
+end
+
+---Paints the hand rows when the queued attack changes; a swing or an action bar update can change it.
+function SwingTimer:ReadQueue()
+	local found = false
+
+	if self.watchingQueue then
+		for name in pairs(self.queueFields) do
+			if AUI:Readable(C_Spell.IsCurrentSpell(name)) == true then
+				found = name
+
+				break
+			end
+		end
+	end
+
+	if found ~= (self.queued or false) then
+		self.queued = found
+		self:PaintHands()
+	end
+end
+
+function SwingTimer:OnActionBarState()
+	AUI.Events:Coalesce("swingTimerQueue", function()
+		SwingTimer:ReadQueue()
+	end)
+end
+
+function SwingTimer:StopSealTimer()
+	if self.sealTimer then
+		self.sealTimer:Cancel()
+		self.sealTimer = nil
+	end
+end
+
+---@param seal AUISwingTimerSeal|false
+function SwingTimer:SetSeal(seal)
+	if not seal then
+		self:StopSealTimer()
+	end
+
+	if seal ~= (self.seal or false) then
+		self.seal = seal
+		self:PaintHands()
+	end
+end
+
+---Nothing in combat says a seal has run out, so its end is counted.
+---@param seconds number
+function SwingTimer:CountSeal(seconds)
+	self:StopSealTimer()
+	self.sealTimer = C_Timer.NewTimer(seconds, function()
+		self.sealTimer = nil
+		self:SetSeal(false)
+	end)
+end
+
+---Reads the seal up from the player's buffs, which the client keeps from addons in combat.
+function SwingTimer:ReadSeal()
+	if not self.watchingSeals or self.inCombat or C_Secrets.ShouldAurasBeSecret() then
+		return
+	end
+
+	local found = false
+
+	for index = 1, Options.MAX_AURAS do
+		local aura = C_UnitAuras.GetAuraDataByIndex("player", index, "HELPFUL")
+
+		if not aura then
+			break
+		end
+
+		local seal = self.sealsByName[AUI:Readable(aura.name, "") --[[@as string]]]
+
+		if seal then
+			local length, ends = AUI:Readable(aura.duration), AUI:Readable(aura.expirationTime)
+
+			if type(length) == "number" and length > 0 then
+				self.sealSeconds = length
+			end
+
+			if type(ends) == "number" and ends > 0 then
+				self:CountSeal(math.max(ends - GetTime(), 0))
+			end
+
+			found = seal
+
+			break
+		end
+	end
+
+	self:SetSeal(found)
+end
+
+---A seal cast in combat is the seal up until it runs out.
+---@param _event string
+---@param unit string
+---@param _guid string
+---@param spellID any
+function SwingTimer:OnSpellCast(_event, unit, _guid, spellID)
+	if unit ~= "player" then
+		return
+	end
+
+	spellID = AUI:Readable(spellID)
+
+	local name = spellID and AUI:Readable(C_Spell.GetSpellName(spellID))
+	local seal = name and self.sealsByName[name]
+
+	if seal then
+		self:SetSeal(seal)
+		self:CountSeal(self.sealSeconds or Options.SEAL_SECONDS)
+	end
+end
+
+---@param _ string the event
+---@param unit string
+function SwingTimer:OnAura(_, unit)
+	if unit == "player" then
+		AUI.Events:Coalesce("swingTimerSeal", function()
+			SwingTimer:ReadSeal()
+		end)
+	end
+end
+
+---Follows queued attacks and seals only while their settings are on and the class has any.
+function SwingTimer:WatchAttacks()
+	local Events, Profile = AUI.Events, AUI.Profile
+	local queue = Profile:Get("swingTimer.queueHighlight") == true and next(self.queueFields) ~= nil
+	local seals = Profile:Get("swingTimer.sealColors") == true and next(self.sealsByName) ~= nil
+
+	if queue ~= (self.watchingQueue == true) then
+		self.watchingQueue = queue
+
+		if queue then
+			Events:Register("ACTIONBAR_UPDATE_STATE", self, self.OnActionBarState)
+		else
+			Events:Unregister("ACTIONBAR_UPDATE_STATE", self)
+		end
+	end
+
+	if seals ~= (self.watchingSeals == true) then
+		self.watchingSeals = seals
+
+		if seals then
+			Events:Register("UNIT_SPELLCAST_SUCCEEDED", self, self.OnSpellCast)
+			Events:Register("UNIT_AURA", self, self.OnAura)
+		else
+			Events:Unregister("UNIT_SPELLCAST_SUCCEEDED", self)
+			Events:Unregister("UNIT_AURA", self)
+			self:SetSeal(false)
+		end
+	end
 end
 
 ---Stops following the swings and hides the frame. The range flags go off only while Blizzard's own timer is off, since
 ---it re-sends its flag only when its own state changes.
 function SwingTimer:Stop()
 	AUI.Events:UnregisterAll(self)
-	self.watchingGear = nil
+	self.watchingGear, self.watchingQueue, self.watchingSeals = nil, nil, nil
+	self:StopSealTimer()
+	self.queued, self.seal = false, false
 
 	if not C_CVar.GetCVarBool("showSwingTimer") then
 		for _, spec in ipairs(Options.ROWS) do
@@ -629,6 +861,7 @@ function SwingTimer:Apply()
 
 		if on then
 			self:CreateFrame()
+			self:LearnSpells()
 			self.inCombat = AUI:Readable(UnitAffectingCombat("player")) == true
 
 			local Events = AUI.Events
@@ -659,6 +892,9 @@ function SwingTimer:Apply()
 	end
 
 	self:WatchGear()
+	self:WatchAttacks()
+	self:ReadQueue()
+	self:ReadSeal()
 
 	for _, row in ipairs(self.rows) do
 		self:Style(row)

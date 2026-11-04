@@ -2,7 +2,13 @@ local AUI = select(2, ...)
 
 local Schema = AUI.Schema
 
+---@class AUISwingTimerSeal
+---@field id integer
+---@field color string its color's field
+---@field label string its name where the client cannot give one
+
 ---@class AUISwingTimerRowSpec
+---@field hand boolean? it swings in melee, so queued attacks and seals color it
 ---@field swing string the row's name in `Enum.PlayerSwingType`
 ---@field show string its switch's field
 ---@field color string its color's field
@@ -24,6 +30,12 @@ local Schema = AUI.Schema
 ---@field SPARK_WIDTH number
 ---@field END_GRACE number how long, in seconds, a row waits past its swing's end before going idle
 ---@field OFF_HAND_SLOT integer the off hand's inventory slot
+---@field NEXT_SWING table<string, integer[]> each class's next-swing attacks, by spell ID, the first naming the preview's
+---@field QUEUE_OWN_COLOR table<integer, string> the attacks with a color field of their own
+---@field SEALS AUISwingTimerSeal[] the paladin's seals, by their first rank: every rank shares the name that is matched
+---@field SEAL_SECONDS number how long a seal lasts until a readable buff says otherwise
+---@field MAX_AURAS integer
+---@field QUEUE_SEPARATOR string between a row's label and its queued attack
 ---@field MIN_WIDTH number
 ---@field MAX_WIDTH number
 ---@field MIN_HEIGHT number
@@ -41,6 +53,7 @@ local Options = {
 	ROWS = {
 		{
 			swing = "MainHand",
+			hand = true,
 			show = "showMH",
 			color = "mhColor",
 			label = "MH",
@@ -50,6 +63,7 @@ local Options = {
 		},
 		{
 			swing = "OffHand",
+			hand = true,
 			show = "showOH",
 			color = "ohColor",
 			label = "OH",
@@ -73,6 +87,25 @@ local Options = {
 	SPARK_WIDTH = 8,
 	END_GRACE = 0.25,
 	OFF_HAND_SLOT = 17,
+	NEXT_SWING = {
+		WARRIOR = { 78, 845 },
+		DRUID = { 6807 },
+		HUNTER = { 2973 },
+	},
+	QUEUE_OWN_COLOR = { [845] = "cleaveColor" },
+	SEALS = {
+		{ id = 20154, color = "sealRighteousColor", label = "Seal of Righteousness" },
+		{ id = 21082, color = "sealCrusaderColor", label = "Seal of the Crusader" },
+		{ id = 20375, color = "sealCommandColor", label = "Seal of Command" },
+		{ id = 20164, color = "sealJusticeColor", label = "Seal of Justice" },
+		{ id = 20165, color = "sealLightColor", label = "Seal of Light" },
+		{ id = 20166, color = "sealWisdomColor", label = "Seal of Wisdom" },
+		{ id = 1311649, color = "sealFuryColor", label = "Seal of Fury" },
+		{ id = 407798, color = "sealMartyrdomColor", label = "Seal of Martyrdom" },
+	},
+	SEAL_SECONDS = 30,
+	MAX_AURAS = 40,
+	QUEUE_SEPARATOR = " - ",
 	MIN_WIDTH = 80,
 	MAX_WIDTH = 600,
 	MIN_HEIGHT = 4,
@@ -85,6 +118,18 @@ local Options = {
 	NEAR_TEXT = { r = 240 / 255, g = 241 / 255, b = 243 / 255 },
 }
 AUI.SwingTimerOptions = Options
+
+-- The seals' colors, by field.
+local SEAL_COLORS = {
+	sealRighteousColor = { r = 0.95, g = 0.85, b = 0.40 },
+	sealCrusaderColor = { r = 0.95, g = 0.55, b = 0.20 },
+	sealCommandColor = { r = 0.75, g = 0.35, b = 0.95 },
+	sealJusticeColor = { r = 0.60, g = 0.65, b = 0.75 },
+	sealLightColor = { r = 1, g = 0.95, b = 0.70 },
+	sealWisdomColor = { r = 0.35, g = 0.65, b = 1 },
+	sealFuryColor = { r = 0.95, g = 0.25, b = 0.20 },
+	sealMartyrdomColor = { r = 0.90, g = 0.40, b = 0.70 },
+}
 
 Schema:Choices("swingTimerVisibility", Options.VISIBILITIES)
 Schema:Choices("swingTimerBorderStyle", Options.BORDER_STYLES)
@@ -114,6 +159,15 @@ Schema:Color("swingTimer.mhColor", { r = 0x66 / 255, g = 0xd9 / 255, b = 0xef / 
 Schema:Color("swingTimer.ohColor", { r = 0xc7 / 255, g = 0xcc / 255, b = 0xdb / 255 })
 Schema:Color("swingTimer.rColor", { r = 0.3, g = 0.82, b = 0.48 })
 Schema:Color("swingTimer.background", { r = 0x19 / 255, g = 0x1b / 255, b = 0x1d / 255, a = 0.6 })
+Schema:Boolean("swingTimer.queueHighlight", true)
+Schema:Color("swingTimer.queueColor", { r = 1, g = 0.70, b = 0.20 })
+Schema:Color("swingTimer.cleaveColor", { r = 0.97, g = 0.44, b = 0.44 })
+Schema:Boolean("swingTimer.sealColors", true)
+
+for _, seal in ipairs(Options.SEALS) do
+	Schema:Color("swingTimer." .. seal.color, SEAL_COLORS[seal.color])
+end
+
 Schema:Choice("swingTimer.borderStyle", "swingTimerBorderStyle", "THIN_LINE")
 Schema:Color("swingTimer.borderColor", { r = 0x37 / 255, g = 0x3b / 255, b = 0x40 / 255 })
 Schema:String("swingTimer.font", "Expressway", 64)
@@ -144,6 +198,40 @@ end
 ---@return boolean merged
 function Options:Merged(spec, combine, hostShown, armed)
 	return combine and hostShown and armed and spec.swing == "OffHand"
+end
+
+---A hand row takes its queued attack's color, else its seal's, else its own.
+---@param spec AUISwingTimerRowSpec
+---@param queued string? the queued attack's color field
+---@param seal string? the seal's color field
+---@return string field
+---@return boolean own it is the row's own color
+function Options:ColorField(spec, queued, seal)
+	local field = spec.hand and (queued or seal)
+
+	if field then
+		return field, false
+	end
+
+	return spec.color, true
+end
+
+---@param id integer the attack's spell ID
+---@return string field its color's field
+function Options:QueueField(id)
+	return self.QUEUE_OWN_COLOR[id] or "queueColor"
+end
+
+---@param spec AUISwingTimerRowSpec
+---@param label string the row's own label
+---@param attack string? the queued attack's name
+---@return string text
+function Options:TagText(spec, label, attack)
+	if spec.hand and attack then
+		return label .. self.QUEUE_SEPARATOR .. attack
+	end
+
+	return label
 end
 
 ---@param location any the item's equip location, already readable

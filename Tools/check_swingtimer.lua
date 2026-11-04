@@ -151,9 +151,37 @@ function UnitAffectingCombat()
 	return inCombat
 end
 
+local playerClass = "WARRIOR"
 function UnitClass()
-	return "Warrior", "WARRIOR"
+	return "Warrior", playerClass
 end
+
+local currentSpells = {}
+local SPELL_NAMES = {
+	[78] = "Heroic Strike",
+	[845] = "Cleave",
+	[20154] = "Seal of Righteousness",
+	[20375] = "Seal of Command",
+	[12294] = "Mortal Strike",
+}
+C_Spell = {
+	GetSpellName = function(id)
+		return SPELL_NAMES[id]
+	end,
+	IsCurrentSpell = function(name)
+		return currentSpells[name]
+	end,
+}
+
+local aurasSecret, auras = false, {}
+C_Secrets = { ShouldAurasBeSecret = function()
+	return aurasSecret
+end }
+C_UnitAuras = { GetAuraDataByIndex = function(unit, index, filter)
+	assert(unit == "player" and filter == "HELPFUL", filter)
+
+	return auras[index]
+end }
 
 SHIELDSLOT = "Shield"
 
@@ -474,6 +502,15 @@ Equal("and shows during one", Options:Visible(true, 1, false, "COMBAT", true, tr
 Equal("Always ignores it", Options:Visible(true, 1, false, "ALWAYS", false, true, false), true)
 Equal("the sample ignores it", Options:Visible(true, 1, true, "COMBAT", false, true, false), true)
 
+Equal("a queued attack colors a hand row", Options:ColorField(mainHand, "queueColor", "sealLightColor"), "queueColor")
+Equal("else its seal", Options:ColorField(offHand, nil, "sealLightColor"), "sealLightColor")
+Equal("else its own", Options:ColorField(mainHand, nil, nil), "mhColor")
+Equal("never the ranged row", Options:ColorField(Options.ROWS[3], "queueColor", "sealLightColor"), "rColor")
+Equal("Cleave has its own color", Options:QueueField(845), "cleaveColor")
+Equal("the others share one", Options:QueueField(78), "queueColor")
+Equal("a hand row names its attack", Options:TagText(mainHand, "MH", "Cleave"), "MH - Cleave")
+Equal("the ranged row does not", Options:TagText(Options.ROWS[3], "R", "Cleave"), "R")
+
 -- Defaults ------------------------------------------------------------------------------------------------
 
 Equal("off by default", Default("enabled"), false)
@@ -489,6 +526,9 @@ Equal("Always Show Rows off", Default("alwaysShowRows"), false)
 Equal("Show Shield off", Default("shieldRow"), false)
 Equal("Combine Hands off", Default("combineHands"), false)
 Equal("Hide When Idle off", Default("hideWhenIdle"), false)
+Equal("queued attacks on", Default("queueHighlight"), true)
+Equal("seal colors on", Default("sealColors"), true)
+Equal("every seal has a color", AUI.Schema:Field("swingTimer.sealFuryColor").default.r, 0.95)
 Equal("the Aeon Light texture", Default("texture"), "Aeon Light")
 Equal("in combat", Default("visibility"), "COMBAT")
 Equal("range dim at 40%", Default("outOfRangeAlpha"), 40)
@@ -695,6 +735,139 @@ Set("swingTimer.visibility", "COMBAT")
 Set("swingTimer.hideWhenIdle", false)
 Set("swingTimer.showOH", true)
 Fire("UNIT_ATTACK_SPEED", "player")
+
+-- Queued attacks ------------------------------------------------------------------------------------------
+
+Equal("a warrior watches the action bars", eventFrame.events.ACTIONBAR_UPDATE_STATE, true)
+Equal("not its seals", eventFrame.events.UNIT_AURA, nil)
+currentSpells["Heroic Strike"] = true
+Fire("ACTIONBAR_UPDATE_STATE")
+Flush()
+Equal("a queued attack colors the main hand", main.bar.fill.vertex[1], 1)
+Equal("and the off hand", off.bar.fill.vertex[1], 1)
+Equal("not the ranged row", ranged.bar.fill.vertex[1], 0.3)
+Equal("and names itself", main.tag.text, "MH - Heroic Strike")
+currentSpells["Heroic Strike"] = nil
+Fire("PLAYER_SWING", 2.6, MAIN)
+Equal("the swing that lands it clears it", main.bar.fill.vertex[1], 0x66 / 255)
+Equal("and its name", main.tag.text, "MH")
+currentSpells.Cleave = true
+Fire("ACTIONBAR_UPDATE_STATE")
+Flush()
+Equal("Cleave takes its own color", main.bar.fill.vertex[1], 0.97)
+currentSpells.Cleave = SECRET
+Fire("ACTIONBAR_UPDATE_STATE")
+Flush()
+Equal("a secret answer is no attack", main.tag.text, "MH")
+currentSpells.Cleave = nil
+Set("swingTimer.queueHighlight", false)
+Equal("off stops watching", eventFrame.events.ACTIONBAR_UPDATE_STATE, nil)
+currentSpells["Heroic Strike"] = true
+Fire("PLAYER_SWING", 2.6, MAIN)
+Equal("and colors nothing", main.tag.text, "MH")
+currentSpells["Heroic Strike"] = nil
+Set("swingTimer.queueHighlight", true)
+Equal("on again it watches", eventFrame.events.ACTIONBAR_UPDATE_STATE, true)
+Set("swingTimer.classColor", true)
+currentSpells.Cleave = true
+Fire("ACTIONBAR_UPDATE_STATE")
+Flush()
+Equal("a queued attack beats Class Color", main.bar.fill.vertex[1], 0.97)
+currentSpells.Cleave = nil
+Fire("ACTIONBAR_UPDATE_STATE")
+Flush()
+Equal("Class Color returns", main.bar.fill.vertex[1], 0.78)
+Set("swingTimer.classColor", false)
+
+-- Seals ---------------------------------------------------------------------------------------------------
+
+Set("swingTimer.enabled", false)
+Equal("off drops the attack watch", eventFrame.events.ACTIONBAR_UPDATE_STATE, nil)
+playerClass = "PALADIN"
+Set("swingTimer.enabled", true)
+Equal("a paladin has no attack to watch", eventFrame.events.ACTIONBAR_UPDATE_STATE, nil)
+Equal("it watches its casts", eventFrame.events.UNIT_SPELLCAST_SUCCEEDED, true)
+Equal("and its buffs", eventFrame.events.UNIT_AURA, true)
+
+inCombat = false
+Fire("PLAYER_REGEN_ENABLED")
+auras[1] = { name = "Blessing" }
+auras[2] = { name = "Seal of Command", duration = 34, expirationTime = now + 20 }
+Fire("UNIT_AURA", "target")
+Flush()
+Equal("another unit's buffs are ignored", main.bar.fill.vertex[1], 0x66 / 255)
+Fire("UNIT_AURA", "player")
+Flush()
+Equal("a seal up colors the hands", main.bar.fill.vertex[1], 0.75)
+Equal("not the ranged row", ranged.bar.fill.vertex[1], 0.3)
+Equal("its label stays", main.tag.text, "MH")
+Equal("its buff says when it ends", LastTimer().seconds, 20)
+Equal("and how long seals last", SwingTimer.sealSeconds, 34)
+
+auras = {}
+Fire("UNIT_AURA", "player")
+Flush()
+Equal("a seal gone clears it", main.bar.fill.vertex[1], 0x66 / 255)
+
+Fire("PLAYER_REGEN_DISABLED")
+Fire("UNIT_SPELLCAST_SUCCEEDED", "target", "guid", 20154)
+Equal("another unit's cast is ignored", main.bar.fill.vertex[1], 0x66 / 255)
+Fire("UNIT_SPELLCAST_SUCCEEDED", "player", "guid", 12294)
+Equal("another spell too", main.bar.fill.vertex[1], 0x66 / 255)
+Fire("UNIT_SPELLCAST_SUCCEEDED", "player", "guid", SECRET)
+Equal("a secret spell too", main.bar.fill.vertex[1], 0x66 / 255)
+Fire("UNIT_SPELLCAST_SUCCEEDED", "player", "guid", 20154)
+Equal("a seal cast in combat colors the hands", main.bar.fill.vertex[1], 0.95)
+Equal("for as long as seals last", LastTimer().seconds, 34)
+
+auras[1] = { name = "Seal of Command", duration = 30, expirationTime = now + 30 }
+Fire("UNIT_AURA", "player")
+Flush()
+Equal("buffs are not read in combat", main.bar.fill.vertex[1], 0.95)
+auras = {}
+
+local sealEnd = LastTimer()
+
+sealEnd.fired = true
+sealEnd.callback()
+Equal("it runs out", main.bar.fill.vertex[1], 0x66 / 255)
+
+Fire("PLAYER_REGEN_ENABLED")
+aurasSecret = true
+auras[1] = { name = "Seal of Command" }
+Fire("UNIT_AURA", "player")
+Flush()
+Equal("secret auras are not read", main.bar.fill.vertex[1], 0x66 / 255)
+aurasSecret = false
+auras[1] = { name = SECRET }
+Fire("UNIT_AURA", "player")
+Flush()
+Equal("nor a secret name", main.bar.fill.vertex[1], 0x66 / 255)
+auras[1] = { name = "Seal of Command" }
+Fire("UNIT_AURA", "player")
+Flush()
+Equal("a buff with no times still colors", main.bar.fill.vertex[1], 0.75)
+
+Set("swingTimer.sealColors", false)
+Equal("off stops watching casts", eventFrame.events.UNIT_SPELLCAST_SUCCEEDED, nil)
+Equal("and buffs", eventFrame.events.UNIT_AURA, nil)
+Equal("and clears the color", main.bar.fill.vertex[1], 0x66 / 255)
+Set("swingTimer.sealColors", true)
+Equal("on again it reads the seal up", main.bar.fill.vertex[1], 0.75)
+
+Fire("PLAYER_REGEN_DISABLED")
+Fire("UNIT_SPELLCAST_SUCCEEDED", "player", "guid", 20154)
+
+local sealRunning = LastTimer()
+
+auras = {}
+Set("swingTimer.enabled", false)
+Equal("turning off cancels the seal's end", sealRunning.cancelled, true)
+playerClass = "WARRIOR"
+Fire("PLAYER_REGEN_ENABLED")
+Set("swingTimer.enabled", true)
+Equal("the seal is gone", main.bar.fill.vertex[1], 0x66 / 255)
+Fire("PLAYER_REGEN_DISABLED")
 
 -- Weapon swap ---------------------------------------------------------------------------------------------
 

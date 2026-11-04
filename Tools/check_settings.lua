@@ -2075,15 +2075,39 @@ end)()
 	Equal("no Swing Timer page where the client reports no swings", Load(nil).pages.swingTimer, nil)
 	AUI.can.swingTimer = true
 
+	local realClass, realSpell = UnitClass, C_Spell
+	local class = "PALADIN"
+
+	function UnitClass()
+		return "Class", class
+	end
+
+	C_Spell = { GetSpellName = function(id)
+		return id == 20154 and "Client Seal" or nil
+	end }
+
+	local paladin = Load(nil).pages.swingTimer
+
+	Equal("a paladin's preview has no Queued pill", #paladin.preview.states, 2)
+	Equal("a seal row takes the client's name", paladin.sections.swingTimerSeals.settings.sealRighteousColor.label,
+		"Client Seal")
+	Equal("or its own without one", paladin.sections.swingTimerSeals.settings.sealFuryColor.label, "Seal of Fury")
+	Equal("the Seal Colors card shows", paladin.sections.swingTimerSeals.info.show(), true)
+	Equal("not Queued Attacks", paladin.sections.swingTimerQueued.info.show(), false)
+	class = "WARRIOR"
+	Equal("for a warrior the other way round", paladin.sections.swingTimerQueued.info.show(), true)
+	Equal("no seals", paladin.sections.swingTimerSeals.info.show(), false)
+
 	local page = Load(nil).pages.swingTimer
 	local cards = {}
 
 	AUI.can.swingTimer = nil
+	UnitClass, C_Spell = realClass, realSpell
 	Equal("its title, under the Unit Frames header", page.info.title .. " " .. page.info.under,
 		"Swing Timer unitFramesHeader")
 	Equal("headed by the module's switch, off", page.info.switch.path .. "=" .. tostring(page.info.switch.default),
 		"swingTimer.enabled=false")
-	Equal("with a preview in and out of range", #page.preview.states, 2)
+	Equal("with a preview in and out of range, and queued", #page.preview.states, 3)
 
 	for _, section in ipairs(page.sections) do
 		local ids = {}
@@ -2097,7 +2121,9 @@ end)()
 
 	Equal("its cards", table.concat(cards, " | "), "Blizzard's Swing Timer:  | Bars: showMH showOH showR alwaysShowRows "
 		.. "shieldRow combineHands visibility hideWhenIdle texture depleteFill spark time label | Size: width height spacing | Range: rangeCheck outOfRangeAlpha | "
-		.. "Colors: classColor mhColor ohColor rColor background | Border: borderStyle borderColor | "
+		.. "Colors: classColor mhColor ohColor rColor background | Queued Attacks: queueHighlight queueColor cleaveColor | "
+		.. "Seal Colors: sealColors sealRighteousColor sealCrusaderColor sealCommandColor sealJusticeColor sealLightColor "
+		.. "sealWisdomColor sealFuryColor sealMartyrdomColor | Border: borderStyle borderColor | "
 		.. "Text: font outline textSize")
 
 	local note = page.sections.swingTimerBlizzard

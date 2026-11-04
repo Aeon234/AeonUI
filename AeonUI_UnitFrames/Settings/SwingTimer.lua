@@ -4,7 +4,7 @@ local L = AUI.L
 local lib = LibStub("LibAeonSettings-1.0")
 
 local PREVIEW_HEIGHT = 96
-local IN_RANGE, OUT_OF_RANGE = L["In Range"], L["Out of Range"]
+local IN_RANGE, OUT_OF_RANGE, QUEUED = L["In Range"], L["Out of Range"], L["Queued"]
 
 local VISIBILITY_LABELS = {
 	COMBAT = L["In Combat"],
@@ -57,7 +57,10 @@ local SwingTimerPreview = { rows = {} }
 ---@param canvas Frame
 function SwingTimerPreview:Create(canvas)
 	for index, spec in ipairs(AUI.SwingTimerOptions.ROWS) do
-		self.rows[index] = AUI.SwingTimer:BuildRow(canvas, spec)
+		local row = AUI.SwingTimer:BuildRow(canvas, spec)
+
+		row.isPreview = true
+		self.rows[index] = row
 	end
 end
 
@@ -70,9 +73,14 @@ function SwingTimerPreview:Refresh(state, preview)
 	local height, spacing = SwingTimer:RowHeight(), Profile:Get("swingTimer.spacing")
 	local far = state == OUT_OF_RANGE and Profile:Get("swingTimer.rangeCheck") == true
 	local canvas = self.rows[1]:GetParent() --[[@as Frame]]
+	local _, class = UnitClass("player")
+	local attacks = Options.NEXT_SWING[class]
+	local queued = state == QUEUED and attacks and attacks[1]
 
 	for _, row in ipairs(self.rows) do
 		row:SetShown(Profile:Get("swingTimer." .. row.spec.show) == true)
+		row.sampleField = queued and Options:QueueField(queued) or nil
+		row.sampleAttack = queued and C_Spell.GetSpellName(queued) or nil
 		SwingTimer:Style(row)
 	end
 
@@ -184,6 +192,42 @@ function SettingsSwingTimer:DeclareColors(page)
 end
 
 ---@param page table
+function SettingsSwingTimer:DeclareQueued(page)
+	local card = page:Section("swingTimerQueued", L["Queued Attacks"], {
+		show = function()
+			local _, class = UnitClass("player")
+
+			return AUI.SwingTimerOptions.NEXT_SWING[class] ~= nil
+		end,
+	})
+
+	card:Toggle(Field("queueHighlight", L["Color Queued Attacks"], "queueHighlight", {
+		description = L["While Heroic Strike, Cleave, Maul or Raptor Strike is queued, the melee bars take its color and name."],
+	}))
+	card:Color(Field("queueColor", L["Queued Attack Color"], "queueColor", { depends = "queueHighlight" }))
+	card:Color(Field("cleaveColor", L["Cleave Color"], "cleaveColor", { depends = "queueHighlight" }))
+end
+
+---@param page table
+function SettingsSwingTimer:DeclareSeals(page)
+	local card = page:Section("swingTimerSeals", L["Seal Colors"], {
+		show = function()
+			local _, class = UnitClass("player")
+
+			return class == "PALADIN"
+		end,
+	})
+
+	card:Toggle(Field("sealColors", L["Color By Seal"], "sealColors", {
+		description = L["The melee bars take your seal's color. In combat that is the last seal you cast until it runs out, since the game keeps your buffs from addons there."],
+	}))
+
+	for _, seal in ipairs(AUI.SwingTimerOptions.SEALS) do
+		card:Color(Field(seal.color, C_Spell.GetSpellName(seal.id) or seal.label, seal.color, { depends = "sealColors" }))
+	end
+end
+
+---@param page table
 function SettingsSwingTimer:DeclareBorder(page)
 	local Options = AUI.SwingTimerOptions
 	local card = page:Section("swingTimerBorder", L["Border"])
@@ -239,9 +283,16 @@ function SettingsSwingTimer:Declare(window)
 		return
 	end
 
+	local _, class = UnitClass("player")
+	local states = { IN_RANGE, OUT_OF_RANGE }
+
+	if Options.NEXT_SWING[class] then
+		states[3] = QUEUED
+	end
+
 	page:Preview({
 		height = PREVIEW_HEIGHT,
-		states = { IN_RANGE, OUT_OF_RANGE },
+		states = states,
 		create = function(canvas)
 			SwingTimerPreview:Create(canvas)
 		end,
@@ -260,6 +311,8 @@ function SettingsSwingTimer:Declare(window)
 	self:DeclareSize(page)
 	self:DeclareRange(page)
 	self:DeclareColors(page)
+	self:DeclareQueued(page)
+	self:DeclareSeals(page)
 	self:DeclareBorder(page)
 	self:DeclareText(page)
 end
