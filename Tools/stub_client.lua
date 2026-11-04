@@ -7,14 +7,14 @@
 -- a missing field gives nil, which capability guards rely on.
 --
 -- A check reads a widget's state from these fields, which its setters keep:
---   shown, points, width, height, alpha, scale, level, parent, template, scripts, mouse,
---   mouseMotion, mouseClick                                                               every frame or texture
---   kind, clipsChildren, alphaBoolean                                                     frames
---   file, atlas, color, vertex, coords, desaturated, blend                                textures
---   text, font, textColor, justifyH, wordWrap                                             font strings
---   value, min, max, statusColor, reverseFill, statusTexture                              status bars
+--   shown, points, width, height, alpha, alphaBoolean, scale, level, parent, template, scripts,
+--   mouse, mouseMotion, mouseClick                                                        every frame or texture
+--   kind, clipsChildren, strata, buffered, attributes                                     frames
+--   file, atlas, color, vertex, coords, desaturated, blend, gradient                      textures
+--   text, formatted, font, textColor, justifyH, wordWrap, shadowColor, shadowOffset       font strings
+--   value, min, max, statusColor, reverseFill, statusTexture, timerDuration               status bars
 --   backdrop                                                                              frames with BackdropTemplate
---   plays, playing                                                                        animation groups
+--   plays, playing, scripts                                                               animation groups
 --   reverse, drawEdge, drawSwipe, hideNumbers                                             cooldowns
 --   enabled, flowAnchor, flowGrowth, flowLineSize, auraGroups                             aura containers
 --   cancelButtons, tooltipAnchor, durationCooldown, icon, countText, durationText, dispelTextures  aura buttons
@@ -64,17 +64,39 @@ function InCombatLockdown()
 	return client.combat
 end
 
+-- Secret values: opaque, raising an error on comparison or arithmetic, secret through concatenation and formatting.
 local SECRET = {}
+
+local function Forbidden()
+	error("operation on a secret value", 2)
+end
+
+SECRET.__lt, SECRET.__le, SECRET.__add, SECRET.__sub, SECRET.__mul, SECRET.__div = Forbidden, Forbidden, Forbidden,
+	Forbidden, Forbidden, Forbidden
 
 ---@return table secret an opaque value `issecretvalue` recognizes
 function client.Secret()
 	return setmetatable({}, SECRET)
 end
 
+SECRET.__concat = client.Secret
+
 ---@param value any
 ---@return boolean secret
 function issecretvalue(value)
 	return type(value) == "table" and getmetatable(value) == SECRET
+end
+
+local luaFormat = string.format
+
+function string.format(pattern, ...)
+	for index = 1, select("#", ...) do
+		if issecretvalue((select(index, ...))) then
+			return client.Secret()
+		end
+	end
+
+	return luaFormat(pattern, ...)
 end
 
 ---A method that changes a widget's state, counted in `client.calls`.
@@ -134,10 +156,16 @@ local Animation = Type(nil, {
 	SetFlipBookFrameHeight = function(self, height)
 		self.frameHeight = height
 	end,
+	SetFromAlpha = function(self, alpha)
+		self.fromAlpha = alpha
+	end,
+	SetToAlpha = function(self, alpha)
+		self.toAlpha = alpha
+	end,
 })
 
 -- `CreateAnimation` builds only the animation kinds addon code asks for.
-local ANIMATION_KINDS = { FlipBook = true }
+local ANIMATION_KINDS = { FlipBook = true, Alpha = true }
 
 local AnimationGroup = Type(nil, {
 	CreateAnimation = function(self, kind)
@@ -147,6 +175,9 @@ local AnimationGroup = Type(nil, {
 	end,
 	SetLooping = function(self, looping)
 		self.looping = looping
+	end,
+	SetScript = function(self, name, script)
+		self.scripts[name] = script
 	end,
 	Play = function(self)
 		self.plays, self.playing = self.plays + 1, true
@@ -158,7 +189,7 @@ local AnimationGroup = Type(nil, {
 
 local ScriptRegion = Type(nil, {
 	CreateAnimationGroup = function(self)
-		return setmetatable({ owner = self, plays = 0 }, AnimationGroup)
+		return setmetatable({ owner = self, plays = 0, scripts = {} }, AnimationGroup)
 	end,
 	SetPoint = State(function(self, ...)
 		SetAnchor(self, ...)
@@ -241,17 +272,31 @@ local ScriptRegion = Type(nil, {
 	SetScript = State(function(self, name, script)
 		self.scripts[name] = script
 	end),
+	GetScript = function(self, name)
+		return self.scripts[name]
+	end,
+	GetParent = function(self)
+		return self.parent
+	end,
 })
 
 local SetAlpha = State(function(self, alpha)
 	self.alpha = alpha
 end)
+local SetAlphaFromBoolean = State(function(self, ...)
+	self.alphaBoolean = { ... }
+end)
+local GetAlpha = function(self)
+	return self.alpha or 1
+end
 local SetScale = State(function(self, scale)
 	self.scale = scale
 end)
 
 local Region = Type(ScriptRegion, {
 	SetAlpha = SetAlpha,
+	SetAlphaFromBoolean = SetAlphaFromBoolean,
+	GetAlpha = GetAlpha,
 	SetScale = SetScale,
 	SetDrawLayer = State(),
 	SetVertexColor = State(function(self, ...)
@@ -285,6 +330,9 @@ local Texture = Type(Region, {
 	SetBlendMode = State(function(self, blend)
 		self.blend = blend
 	end),
+	SetGradient = State(function(self, ...)
+		self.gradient = { ... }
+	end),
 })
 
 local FontString = Type(Region, {
@@ -292,7 +340,17 @@ local FontString = Type(Region, {
 		self.font = { ... }
 	end),
 	SetText = State(function(self, text)
+		assert(self.font, "FontString:SetText(): Font not set")
 		self.text = text
+	end),
+	SetFormattedText = State(function(self, ...)
+		self.formatted = { ... }
+	end),
+	SetShadowColor = State(function(self, ...)
+		self.shadowColor = { ... }
+	end),
+	SetShadowOffset = State(function(self, ...)
+		self.shadowOffset = { ... }
 	end),
 	SetTextColor = State(function(self, ...)
 		self.textColor = { ... }
@@ -307,8 +365,17 @@ local FontString = Type(Region, {
 
 local Frame = Type(ScriptRegion, {
 	SetAlpha = SetAlpha,
-	SetAlphaFromBoolean = State(function(self, ...)
-		self.alphaBoolean = { ... }
+	SetAlphaFromBoolean = SetAlphaFromBoolean,
+	GetAlpha = GetAlpha,
+	SetFrameStrata = State(function(self, strata)
+		self.strata = strata
+	end),
+	SetIsFrameBuffer = State(function(self, buffered)
+		self.buffered = buffered
+	end),
+	SetAttribute = State(function(self, name, value)
+		self.attributes = self.attributes or {}
+		self.attributes[name] = value
 	end),
 	SetClipsChildren = State(function(self, clips)
 		self.clipsChildren = clips
@@ -326,11 +393,22 @@ local Frame = Type(ScriptRegion, {
 		return setmetatable({ parent = self, shown = true, points = {}, scripts = {} }, Texture)
 	end,
 	CreateFontString = function(self, _, _, template)
-		return setmetatable({ parent = self, template = template, shown = true, points = {}, scripts = {} }, FontString)
+		return setmetatable({
+			parent = self,
+			template = template,
+			font = template and { template } or nil,
+			shown = true,
+			points = {},
+			scripts = {},
+		}, FontString)
 	end,
 })
 
-local Button = Type(Frame, {})
+local Button = Type(Frame, {
+	RegisterForClicks = State(function(self, ...)
+		self.clicks = { ... }
+	end),
+})
 
 local Cooldown = Type(Frame, {
 	SetReverse = State(function(self, reverse)
@@ -407,6 +485,10 @@ local StatusBar = Type(Frame, {
 	SetReverseFill = State(function(self, reverse)
 		self.reverseFill = reverse
 	end),
+	SetTimerDuration = State(function(self, duration)
+		self.timerDuration = duration
+	end),
+	SetToTargetValue = State(),
 	SetStatusBarTexture = State(function(self, asset)
 		self.statusTexture = self.statusTexture or self:CreateTexture()
 		self.statusTexture.file = asset

@@ -9,223 +9,8 @@
 
 local root = (arg and arg[0] or ""):match("^(.-)[^/\\]*$") .. "../"
 
-local checks = 0
-
-local function Equal(label, got, want)
-	checks = checks + 1
-
-	if got ~= want then
-		io.stderr:write(("FAIL: %s: expected %s, got %s\n"):format(label, tostring(want), tostring(got)))
-		os.exit(1)
-	end
-end
-
--- Secret values: opaque, raising an error on comparison or arithmetic, secret through concatenation and formatting.
-
-local SECRET = {}
-
-local function Forbidden()
-	error("operation on a secret value", 2)
-end
-
-SECRET.__lt, SECRET.__le, SECRET.__add, SECRET.__sub, SECRET.__mul, SECRET.__div = Forbidden, Forbidden, Forbidden,
-	Forbidden, Forbidden, Forbidden
-SECRET.__concat = function()
-	return setmetatable({}, SECRET)
-end
-
-local function Secret()
-	return setmetatable({}, SECRET)
-end
-
-function issecretvalue(value)
-	return type(value) == "table" and getmetatable(value) == SECRET
-end
-
-local luaFormat = string.format
-
-function string.format(pattern, ...)
-	for index = 1, select("#", ...) do
-		if issecretvalue((select(index, ...))) then
-			return Secret()
-		end
-	end
-
-	return luaFormat(pattern, ...)
-end
-
--- Widgets, modeled by type.
-
-local METHODS = {}
-
-METHODS.Region = {
-	SetPoint = function(self, ...)
-		self.point = { ... }
-	end,
-	ClearAllPoints = function(self)
-		self.point = nil
-	end,
-	SetAllPoints = function() end,
-	SetSize = function(self, width, height)
-		self.width, self.height = width, height
-	end,
-	SetWidth = function(self, width)
-		self.width = width
-	end,
-	SetHeight = function(self, height)
-		self.height = height
-	end,
-	GetSize = function(self)
-		return self.width, self.height
-	end,
-	Show = function(self)
-		self.shown = true
-	end,
-	Hide = function(self)
-		self.shown = false
-	end,
-	SetShown = function(self, shown)
-		self.shown = shown
-	end,
-	IsVisible = function(self)
-		return self.shown == true
-	end,
-	IsShown = function(self)
-		return self.shown == true
-	end,
-	GetWidth = function(self)
-		return self.width or 100
-	end,
-	GetHeight = function(self)
-		return self.height or 20
-	end,
-	SetAlpha = function(self, alpha)
-		self.alpha = alpha
-	end,
-	ForceUpdate = function() end,
-}
-METHODS.Cooldown = {
-	SetReverse = function() end,
-	SetDrawEdge = function() end,
-}
-METHODS.Texture = {
-	ForceUpdate = function() end,
-	SetAtlas = function() end,
-	SetTexCoord = function() end,
-	SetDesaturated = function() end,
-	SetSnapToPixelGrid = function() end,
-	SetTexelSnappingBias = function() end,
-	SetTexture = function(self, file)
-		self.file = file
-	end,
-	SetBlendMode = function() end,
-	SetColorTexture = function(self, ...)
-		self.color = { ... }
-	end,
-	SetVertexColor = function(self, ...)
-		self.vertex = { ... }
-	end,
-}
-METHODS.FontString = {
-	SetWordWrap = function() end,
-	SetFont = function(self, font, size, flags)
-		self.font, self.size, self.flags = font, size, flags
-	end,
-	SetTextColor = function() end,
-	SetJustifyH = function(self, justify)
-		self.justify = justify
-	end,
-	SetText = function(self, text)
-		assert(self.font, "FontString:SetText(): Font not set")
-		self.text = text
-	end,
-	UpdateTag = function(self)
-		self.updated = true
-	end,
-}
-METHODS.Frame = {
-	CreateTexture = function(self)
-		return New("Texture", self)
-	end,
-	CreateFontString = function(self, _, _, template)
-		local text = New("FontString", self)
-
-		text.font = template
-
-		return text
-	end,
-	SetFrameLevel = function(self, level)
-		self.level = level
-	end,
-	GetFrameLevel = function(self)
-		return self.level or 1
-	end,
-	SetClipsChildren = function(self, clips)
-		self.clips = clips
-	end,
-}
-METHODS.StatusBar = {
-	SetStatusBarTexture = function(self, file)
-		self.texture = file
-	end,
-	SetStatusBarColor = function(self, ...)
-		self.barColor = { ... }
-	end,
-	SetMinMaxValues = function() end,
-	SetValue = function() end,
-	GetStatusBarTexture = function(self)
-		self.fill = self.fill or New("Texture", self)
-
-		return self.fill
-	end,
-	SetReverseFill = function(self, reverse)
-		self.reverse = reverse
-	end,
-	ForceUpdate = function(self)
-		self.forced = (self.forced or 0) + 1
-	end,
-}
-METHODS.Button = {
-	IsElementEnabled = function(self, element)
-		return self.elementsOn ~= nil and self.elementsOn[element] == true
-	end,
-	EnableElement = function(self, element)
-		self.elementsOn = self.elementsOn or {}
-		self.elementsOn[element] = true
-	end,
-	DisableElement = function(self, element)
-		self.elementsOn = self.elementsOn or {}
-		self.elementsOn[element] = false
-	end,
-	-- oUF's aura element: every method records its last call.
-	CreateAuras = function(self)
-		self.auraElements = (self.auraElements or 0) + 1
-
-		return setmetatable({ last = {} }, {
-			__index = function(_, method)
-				if method == "AddGroup" then
-					return function(element, filter)
-						element.filter = filter
-
-						return "Group1"
-					end
-				end
-
-				return function(element, ...)
-					element.last[method] = { ... }
-				end
-			end,
-		})
-	end,
-	RegisterForClicks = function() end,
-	SetScript = function() end,
-	Tag = function(self, text, tag)
-		text.tag = tag
-	end,
-	Untag = function(_, text)
-		text.tag = nil
-	end,
-}
+local client = assert(loadfile(root .. "Tools/stub_client.lua"))({ project = "retail" })
+local Equal, Secret = client.Equal, client.Secret
 
 Enum = {
 	LuaCurveType = { Step = 1 },
@@ -255,71 +40,6 @@ AnchorUtil = { FlowLayoutAxis = { Horizontal = 0 } }
 AuraContainerSortMethod = { AuraInstanceIDOnly = 8 }
 AuraContainerSortDirection = { Normal = 0 }
 
-METHODS.Region.GetParent = function(self)
-	return self.parent
-end
-METHODS.Region.SetAlphaFromBoolean = function(self, value, shown, hidden)
-	self.alpha = value and shown or hidden
-end
-METHODS.Region.GetAlpha = function(self)
-	return self.alpha or 1
-end
-METHODS.Button.SetAttribute = function(self, name, value)
-	self.attributes = self.attributes or {}
-	self.attributes[name] = value
-end
-METHODS.Frame.SetFrameStrata = function(self, strata)
-	self.strata = strata
-end
-METHODS.Frame.EnableMouse = function() end
-METHODS.Frame.SetIsFrameBuffer = function(self, on)
-	self.buffered = on
-end
-METHODS.Frame.SetScript = function(self, name, script)
-	self.scripts = self.scripts or {}
-	self.scripts[name] = script
-end
-METHODS.Frame.GetScript = function(self, name)
-	return self.scripts and self.scripts[name]
-end
-METHODS.Frame.CreateAnimationGroup = function()
-	local group = { playing = false }
-
-	function group.CreateAnimation()
-		local stub = {}
-
-		function stub.SetFromAlpha() end
-		function stub.SetToAlpha() end
-		function stub.SetDuration() end
-
-		return stub
-	end
-
-	function group:SetScript(_, script)
-		self.finished = script
-	end
-
-	function group:Play()
-		self.playing = true
-	end
-
-	function group:Stop()
-		self.playing = false
-	end
-
-	return group
-end
-METHODS.StatusBar.SetTimerDuration = function(self, duration)
-	self.duration = duration
-end
-METHODS.StatusBar.SetToTargetValue = function() end
-METHODS.FontString.SetShadowColor = function() end
-METHODS.FontString.SetShadowOffset = function() end
-METHODS.FontString.SetFormattedText = function() end
-METHODS.Texture.SetGradient = function() end
-METHODS.Texture.SetHorizTile = function() end
-METHODS.Texture.SetVertTile = function() end
-
 function CreateColor(r, g, b, a)
 	return { r = r, g = g, b = b, a = a }
 end
@@ -341,58 +61,8 @@ C_DurationUtil = {
 Enum.DurationTextBindingProperty = { RemainingDuration = 1, ElapsedDuration = 2, TotalDuration = 3 }
 Enum.StatusBarInterpolation = Enum.StatusBarInterpolation or { Immediate = 0, ExponentialEaseOut = 1 }
 
-local PARENTS = {
-	Texture = { "Region" },
-	FontString = { "Region" },
-	Frame = { "Region" },
-	StatusBar = { "Frame", "Region" },
-	Cooldown = { "Frame", "Region" },
-	Button = { "Frame", "Region" },
-}
-
-function New(kind, parent)
-	local widget = { kind = kind, parent = parent }
-
-	return setmetatable(widget, {
-		__index = function(_, method)
-			local own = METHODS[kind][method]
-
-			if own then
-				return own
-			end
-
-			for _, base in ipairs(PARENTS[kind]) do
-				if METHODS[base][method] then
-					return METHODS[base][method]
-				end
-			end
-
-			-- Lowercase names are the stub's own recorded fields, and these capitalized ones are elements a frame may not have;
-			-- anything else is a method the type lacks.
-			if tostring(method):match("^[%l_]") or method == "Portrait" or method == "ThreatIndicator" or method == "Totems" then
-				return nil
-			end
-
-			error(kind .. " has no method " .. tostring(method), 2)
-		end,
-	})
-end
-
-function CreateFrame(kind, _, parent)
-	return New(kind, parent)
-end
-
-function Mixin(target, source)
-	for name, method in pairs(source) do
-		rawset(target, name, method)
-	end
-
-	return target
-end
-
 -- Client globals the frame code reads.
 
-UIParent = New("Frame")
 DEAD, PLAYER_OFFLINE = "Dead", "Offline"
 UnitFrame_OnEnter, UnitFrame_OnLeave = function() end, function() end
 CurveConstants = { ScaleTo100 = "scale" }
@@ -461,12 +131,6 @@ function LibStub()
 end
 
 -- The addon table, with the real schema and a thin profile over it.
-
-local combat = false
-
-function InCombatLockdown()
-	return combat
-end
 
 local AUI = { L = setmetatable({}, { __index = function(_, key)
 	return key
@@ -565,6 +229,44 @@ AUI.Media = {
 
 local spawned, styles = {}, {}
 
+-- The group method oUF adds to an aura container.
+local AURA_ELEMENT = {
+	AddGroup = function(element, filter)
+		element.filter = filter
+
+		return "Group1"
+	end,
+}
+
+-- The methods oUF gives a frame it spawns. These record what a check reads.
+local UNIT_FRAME = {
+	IsElementEnabled = function(self, element)
+		return self.elementsOn ~= nil and self.elementsOn[element] == true
+	end,
+	EnableElement = function(self, element)
+		self.elementsOn = self.elementsOn or {}
+		self.elementsOn[element] = true
+	end,
+	DisableElement = function(self, element)
+		self.elementsOn = self.elementsOn or {}
+		self.elementsOn[element] = false
+	end,
+	CreateAuras = function(self)
+		self.auraElements = (self.auraElements or 0) + 1
+
+		return Mixin(CreateFrame("AuraContainer", nil, self, "CustomAuraContainerTemplate"), AURA_ELEMENT)
+	end,
+	Tag = function(_, text, tag)
+		text.tag = tag
+		text.UpdateTag = function(self)
+			self.updated = true
+		end
+	end,
+	Untag = function(_, text)
+		text.tag = nil
+	end,
+}
+
 AUI.oUF = {
 	Tags = { Methods = {}, Events = {}, SharedEvents = {} },
 	colors = { power = {}, class = {}, reaction = {} },
@@ -576,12 +278,18 @@ AUI.oUF = {
 		self.active = name
 	end,
 	Spawn = function(self, spawnUnit, name)
-		local frame = New("Button")
+		local frame = Mixin(CreateFrame("Button", name, UIParent), UNIT_FRAME)
 
 		spawned[#spawned + 1] = name
 		styles[self.active](frame, spawnUnit)
-		frame.shown = true
 		frame.__unit = spawnUnit
+
+		-- oUF gives an element ForceUpdate as it enables it.
+		for _, element in ipairs({ frame.Health or false, frame.Power or false }) do
+			if element then
+				element.ForceUpdate = element.ForceUpdate or function() end
+			end
+		end
 
 		return frame
 	end,
@@ -714,11 +422,11 @@ Equal("no reload needed", Frames:ReloadNeeded(), false)
 Schema:Write(config, Path("enabled"), true)
 Equal("turning one on asks for a reload", Frames:ReloadNeeded(), true)
 
-combat = true
+client:SetCombat(true)
 Frames:Start()
 Equal("in combat: waits", #spawned, 0)
 Equal("for combat's end", registered.PLAYER_REGEN_ENABLED, Frames.Start)
-combat = false
+client:SetCombat(false)
 
 Frames:Start()
 
@@ -730,7 +438,7 @@ Equal("no reload needed once spawned", Frames:ReloadNeeded(), false)
 Equal("late media is followed", mediaCallback, "LibSharedMedia_Registered OnMediaRegistered")
 Equal("its width", frame.width, 270)
 Equal("its height", frame.height, 36)
-Equal("its default place", table.concat({ frame.point[1], frame.point[4], frame.point[5] }, " "), "CENTER -330 -200")
+Equal("its default place", table.concat({ frame.points[1][1], frame.points[1][4], frame.points[1][5] }, " "), "CENTER -330 -200")
 Equal("its texture", frame.Bar.texture, "Solid")
 Equal("painted by AeonUI's color step", frame.Health.UpdateColor, AUI.HealthColor.UpdateColor)
 Equal("following oUF's reaction events", frame.Health.colorReaction, true)
@@ -744,14 +452,14 @@ Equal("the overlays get their settings", frame.Overlays.settings.absorb.position
 Equal("no glow made while off", frame.Overlays.glow, nil)
 Equal("a display for buffs and for debuffs", frame.auraElements, 2)
 Equal("its portrait made and hidden", frame.PortraitWidgets.holder.shown ~= true, true)
-Equal("its bar fills the frame", frame.Bar.point[4], 0)
+Equal("its bar fills the frame", frame.Bar.points[2][4], 0)
 Equal("its raid marker runs", frame.elementsOn.RaidTargetIndicator, true)
 Equal("combat waits for its switch", frame.elementsOn.CombatIndicator, false)
 Equal("its totems run", frame.elementsOn.Totems, true)
 Equal("idle at half", frame.idleFade.spring.value, 0.5)
 Equal("its debuffs hold their filter", frame.AuraDisplays.debuffs.element.filter, "HARMFUL")
-Equal("disabled until shown", frame.AuraDisplays.buffs.element.last.SetEnabled[1], false)
-Equal("placed against the frame", frame.AuraDisplays.buffs.element.last.SetFlowLayoutAnchorPoint[1], "BOTTOMLEFT")
+Equal("disabled until shown", frame.AuraDisplays.buffs.element.enabled, false)
+Equal("placed against the frame", frame.AuraDisplays.buffs.element.flowAnchor, "BOTTOMLEFT")
 Equal("no backing made while off", frame.Overlays.backing, nil)
 Equal("the border sits above the overlays", AUI.UnitFrame.BORDER_LEVEL > 5, true)
 Equal("and the text above the border's edge", AUI.UnitFrame.TEXT_LEVEL > AUI.UnitFrame.BORDER_LEVEL + 1, true)
@@ -781,7 +489,7 @@ Equal("combat's end now applies held layout", registered.PLAYER_REGEN_ENABLED, F
 
 Schema:Write(config, Path("reverse"), true)
 registered.Profile(Frames, Path("reverse"))
-Equal("an appearance change applies", frame.Bar.reverse, true)
+Equal("an appearance change applies", frame.Bar.reverseFill, true)
 
 Schema:Write(config, Options.ALL .. "bars.texture", "other")
 registered.Profile(Frames, Options.ALL .. "bars.texture")
@@ -796,22 +504,22 @@ Equal("a frame's shields turn off", frame.Overlays.absorb.shown, false)
 Schema:Write(config, Path("portrait.enabled"), true)
 Schema:Write(config, Path("portrait.side"), "RIGHT")
 registered.Profile(Frames, Path("portrait.enabled"))
-Equal("an attached portrait narrows the bar", frame.Bar.point[4], -36)
+Equal("an attached portrait narrows the bar", frame.Bar.points[2][4], -36)
 Equal("the portrait runs", frame.elementsOn.Portrait, true)
 Schema:Write(config, Path("portrait.enabled"), false)
 Schema:Write(config, Path("portrait.side"), nil)
 registered.Profile(Frames, Path("portrait.enabled"))
-Equal("and gives the room back", frame.Bar.point[4], 0)
+Equal("and gives the room back", frame.Bar.points[2][4], 0)
 local notInCombat = InCombatLockdown
 InCombatLockdown = function()
 	return true
 end
 Schema:Write(config, Path("buffs.enabled"), true)
 registered.Profile(Frames, Path("buffs.enabled"))
-Equal("a display waits for combat to end", frame.AuraDisplays.buffs.element.last.SetEnabled[1], false)
+Equal("a display waits for combat to end", frame.AuraDisplays.buffs.element.enabled, false)
 InCombatLockdown = notInCombat
 Frames:OnCombatEnded()
-Equal("and then turns on", frame.AuraDisplays.buffs.element.last.SetEnabled[1], true)
+Equal("and then turns on", frame.AuraDisplays.buffs.element.enabled, true)
 Schema:Write(config, Path("buffs.enabled"), false)
 registered.Profile(Frames, Path("buffs.enabled"))
 Schema:Write(config, Path("overlays.absorb.enabled"), true)
@@ -897,20 +605,20 @@ Schema:Write(config, Path("bars.borderThickness"), 150)
 registered.Profile(Frames, Path("bars.borderThickness"))
 Equal("its thickness", frame.Border.look.thickness, 150)
 
-combat = true
+client:SetCombat(true)
 Schema:Write(config, Path("width"), 300)
 registered.Profile(Frames, Path("width"))
 Equal("in combat a layout change waits", frame.width, 270)
 Schema:Write(config, Path("reverse"), false)
 registered.Profile(Frames, Path("reverse"))
-Equal("while appearance still applies", frame.Bar.reverse, false)
-combat = false
+Equal("while appearance still applies", frame.Bar.reverseFill, false)
+client:SetCombat(false)
 registered.PLAYER_REGEN_ENABLED(Frames)
 Equal("combat's end applies the latest", frame.width, 300)
 
 Schema:Write(config, Path("position"), { point = "TOPLEFT", x = 10, y = -20 })
 registered.Profile(Frames, Path("position"))
-Equal("a saved place", table.concat({ frame.point[1], frame.point[4], frame.point[5] }, " "), "TOPLEFT 10 -20")
+Equal("a saved place", table.concat({ frame.points[1][1], frame.points[1][4], frame.points[1][5] }, " "), "TOPLEFT 10 -20")
 
 Schema:Write(config, Path("enabled"), false)
 Equal("turning it off asks for a reload", Frames:ReloadNeeded(), true)
@@ -944,7 +652,7 @@ local sampleTarget = { Part = function(_, region, id)
 	partRegions[id] = region
 end }
 
-resourcePreview:Create(New("Frame"))
+resourcePreview:Create(CreateFrame("Frame"))
 
 local width, height = resourcePreview:Refresh(nil, sampleTarget)
 
@@ -982,7 +690,7 @@ Equal("the player's slots stay custom", Schema:Read(config, Options:SlotPath("pl
 
 local targetPreview = AUI.FramePreview:New(Options:Spec("target"))
 
-targetPreview:Create(New("Frame"))
+targetPreview:Create(CreateFrame("Frame"))
 
 for _, state in ipairs(AUI.FramePreview.OVERLAY_STATES) do
 	width, height = targetPreview:Refresh(state, sampleTarget)
@@ -1040,10 +748,10 @@ Equal("edit mode shows the frame on the player", liveTarget.attributes.unit, "pl
 Frames:SampleUnit("target", false)
 Equal("and gives it back", liveTarget.attributes.unit, "target")
 Frames:SampleUnit("target", true)
-combat = true
+client:SetCombat(true)
 Frames:SampleUnit("target", false)
 Equal("in combat it waits", liveTarget.attributes.unit, "player")
-combat = false
+client:SetCombat(false)
 Frames:OnCombatEnded()
 Equal("then gives it back", liveTarget.attributes.unit, "target")
 Frames.objects.target = nil
@@ -1096,7 +804,7 @@ Equal("and its power bar", liveTarget.Power:GetParent(), liveTarget.Content)
 Equal("and its portrait", liveTarget.PortraitWidgets.holder:GetParent(), liveTarget.Content)
 Equal("and its indicators", liveTarget.IndicatorLayer:GetParent(), liveTarget.Content)
 Equal("and its cast bar", liveTarget.CastBarView:GetParent(), liveTarget.Content)
-Equal("and its auras", liveTarget.AuraDisplays.buffs.element.last.SetParent[1], liveTarget.Content)
+Equal("and its auras", liveTarget.AuraDisplays.buffs.element.parent, liveTarget.Content)
 Equal("the layer is not the frame", liveTarget.Content ~= liveTarget, true)
 Equal("Player's parts stay on the frame", frame.Content, frame)
 Equal("on by default", Schema:Read(config, rangeBase .. "enabled"), true)
@@ -1285,7 +993,7 @@ Equal("Fade Out keeps the view while fading", view:IsShown(), true)
 Equal("playing", view.fade.playing, true)
 castBar.Hide(castBar)
 Equal("a second hide changes nothing", view.fading, true)
-view.fade.finished()
+view.fade.scripts.OnFinished()
 Equal("then it hides", view:IsShown(), false)
 Equal("still one image for the next", view.buffered, true)
 castBar.Show(castBar)
@@ -1294,7 +1002,7 @@ castBar.Show(castBar)
 Equal("a new cast stops the fade", view.fade.playing, false)
 Equal("at full opacity", view:GetAlpha(), 1)
 castBar.Hide(castBar)
-view.fade.finished()
+view.fade.scripts.OnFinished()
 Schema:Write(config, Options.ALL .. "castBars.fade", false)
 liveTarget:ApplyAppearance()
 Equal("turned off, drawn normally again", view.buffered, false)
@@ -1307,4 +1015,4 @@ Schema:Write(config, castBase .. "enabled", false)
 targetPreview:Refresh(nil, sampleTarget)
 Equal("off, no sample bar", targetPreview.cast:IsShown(), false)
 
-print(("check_unitframes: %d checks passed"):format(checks))
+print(("check_unitframes: %d checks passed"):format(client.checks))
