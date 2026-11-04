@@ -2,10 +2,12 @@
 -- defaults, the filter strings and candidate filters handed to the client, placement against the frame with text
 -- clearance, row wrapping, groups added to and updated on oUF's aura element, button styling and the buff categories.
 -- Run from any directory with Lua 5.1: lua Tools/check_auras.lua
--- The client's aura containers are stand-ins that record what AeonUI asks of them; their filtering, sorting and layout
--- are the client's and are not exercised here.
+-- Aura containers are the shared client's widgets, which record what AeonUI asks of them; their filtering, sorting and
+-- layout are the client's and are not exercised here.
 
 local root = (arg and arg[0] or ""):match("^(.-)[^/\\]*$") .. "../"
+local client = assert(loadfile(root .. "Tools/stub_client.lua"))({ project = "retail" })
+local Equal = client.Equal
 
 -- Environment ---------------------------------------------------------------------------------------------
 
@@ -24,70 +26,8 @@ AuraContainerSortMethod = {
 }
 AuraContainerSortDirection = { Normal = 0, Reverse = 1 }
 
-function issecretvalue()
-	return false
-end
-
 function UnitClass()
 	return "Mage", "MAGE"
-end
-
----A frame or region stand-in recording the last call of each method.
-local function Region()
-	local region = { last = {}, shown = true, alpha = 1, level = 1 }
-
-	function region:SetShown(shown)
-		self.shown = shown == true
-	end
-
-	function region:SetAlpha(alpha)
-		self.alpha = alpha
-	end
-
-	function region:GetFrameLevel()
-		return self.level
-	end
-
-	function region:CreateTexture()
-		return Region()
-	end
-
-	function region:CreateFontString(_, _, template)
-		local font = Region()
-
-		font.template = template
-
-		return font
-	end
-
-	function region:SetPoint(...)
-		self.points = rawget(self, "points") or {}
-		self.points[#self.points + 1] = { ... }
-	end
-
-	function region:ClearAllPoints()
-		self.points = {}
-	end
-
-	return setmetatable(region, {
-		__index = function(_, method)
-			if not method:find("^%u") then
-				return nil
-			end
-
-			return function(self, ...)
-				self.last[method] = { ... }
-			end
-		end,
-	})
-end
-
-function CreateFrame(_, _, parent)
-	local frame = Region()
-
-	frame.parent = parent
-
-	return frame
 end
 
 local AUI = {}
@@ -137,18 +77,6 @@ AUI.Profile = {
 		return Schema:Read(config, path)
 	end,
 }
-
--- Harness -------------------------------------------------------------------------------------------------
-
-local checks = 0
-
-local function Equal(name, actual, expected)
-	checks = checks + 1
-	if actual ~= expected then
-		io.stderr:write(("FAIL: %s: expected %s, got %s\n"):format(name, tostring(expected), tostring(actual)))
-		os.exit(1)
-	end
-end
 
 local function Display(kind)
 	return Auras:Resolve("player", kind)
@@ -327,33 +255,28 @@ overhang = { 0, 0 }
 
 -- Live displays -------------------------------------------------------------------------------------------
 
----An oUF aura element stand-in.
-local function Element()
-	local element = Region()
-
-	element.groups = {}
-
-	function element:AddGroup(groupFilter, options)
+-- The group method oUF adds to an aura container.
+local ELEMENT = {
+	AddGroup = function(self, groupFilter, options)
 		self.groups[#self.groups + 1] = { filter = groupFilter, options = options }
 
 		return "Group" .. #self.groups
-	end
+	end,
+}
 
-	function element:SetAuraGroupFilterString(_, groupFilter)
-		self.groups[1].filter = groupFilter
-	end
-
-	return element
+---@return table button a client aura button, as the container hands one out
+local function AuraButton()
+	return CreateFrame("AuraButton", nil, nil, "CustomAuraButtonTemplate")
 end
 
-local frame = { key = "player", colors = { dispel = {} } }
+local frame = Mixin(CreateFrame("Button"), { key = "player", colors = { dispel = {} } })
 
 frame.Content = frame
 
 function frame:CreateAuras(options)
 	self.options = options
 
-	return Element()
+	return Mixin(CreateFrame("AuraContainer", nil, self, "CustomAuraContainerTemplate"), ELEMENT, { groups = {} })
 end
 
 local widgets = Auras:Create(frame, "debuffs")
@@ -371,87 +294,87 @@ Equal("group direction", element.groups[1].options.sortDirection, 0)
 Equal("group icon size", element.groups[1].options.layout.elementWidth, 22)
 Equal("group spacing", element.groups[1].options.layout.elementSpacing, 2)
 Equal("row spacing", element.groups[1].options.layout.lineSpacing, 2)
-Equal("off by default", element.last.SetEnabled[1], false)
+Equal("off by default", element.enabled, false)
 Equal("and hidden", element.shown, false)
 
 debuffs.filter, debuffs.limit, debuffs.sort, debuffs.reverse, debuffs.enabled = "own", 6, "shortest", true, true
 Auras:Configure(widgets, debuffs)
 Equal("still one group", #element.groups, 1)
-Equal("filter updated", element.groups[1].filter, "HARMFUL|PLAYER")
-Equal("limit updated", element.last.SetAuraGroupMaxFrameCount[2], 6)
-Equal("sort updated", element.last.SetAuraGroupSortMethod[2] .. "," .. element.last.SetAuraGroupSortMethod[3], "5,1")
-Equal("no extra filters", element.last.SetAuraGroupCandidateFilters[2], nil)
-Equal("on", element.last.SetEnabled[1], true)
+Equal("filter updated", element.auraGroups.Group1.filter, "HARMFUL|PLAYER")
+Equal("limit updated", element.auraGroups.Group1.limit, 6)
+Equal("sort updated", element.auraGroups.Group1.sortMethod .. "," .. element.auraGroups.Group1.sortDirection, "5,1")
+Equal("no extra filters", element.auraGroups.Group1.candidates, nil)
+Equal("on", element.enabled, true)
 Equal("and shown", element.shown, true)
 
 Auras:Place(widgets, Display("debuffs"), 270, 0, 20)
 Equal("anchored below what is there", table.concat({ element.points[1][1], element.points[1][3], element.points[1][5] }, " "),
 	"TOPLEFT BOTTOMLEFT -28")
 Equal("anchored to the frame", element.points[1][2], frame)
-Equal("flow starts at the corner", element.last.SetFlowLayoutAnchorPoint[1], "TOPLEFT")
-Equal("flow grows right and down", element.last.SetFlowLayoutGrowthDirection[1] .. ","
-	.. element.last.SetFlowLayoutGrowthDirection[2], "1,-1")
-Equal("rows wrap at the frame width", element.last.SetFlowLayoutMaximumLineSize[1], 270)
+Equal("flow starts at the corner", element.flowAnchor, "TOPLEFT")
+Equal("flow grows right and down", element.flowGrowth[1] .. ","
+	.. element.flowGrowth[2], "1,-1")
+Equal("rows wrap at the frame width", element.flowLineSize, 270)
 
 -- Buttons -------------------------------------------------------------------------------------------------
 
 debuffs = Display("debuffs")
 Auras:Configure(widgets, debuffs)
 
-local button = Region()
+local button = AuraButton()
 
 element.CreateButton(element, {}, button)
 Equal("button remembered", widgets.buttons[1], button)
-Equal("button size", button.last.SetSize[1], 22)
-Equal("tooltips on", button.last.SetMouseMotionEnabled[1], true)
-Equal("clicks pass through", button.last.SetMouseClickEnabled[1], false)
-Equal("reverse swipe", button.Cooldown.last.SetReverse[1], true)
-Equal("no swipe edge", button.Cooldown.last.SetDrawEdge[1], false)
-Equal("swipe on", button.Cooldown.last.SetDrawSwipe[1], true)
-Equal("no countdown numbers", button.Cooldown.last.SetHideCountdownNumbers[1], true)
-Equal("cooldown bound", button.last.SetDurationCooldown[1], button.Cooldown)
-Equal("icon bound", button.last.SetIcon[1], button.Icon)
+Equal("button size", button.width, 22)
+Equal("tooltips on", button.mouseMotion, true)
+Equal("clicks pass through", button.mouseClick, false)
+Equal("reverse swipe", button.Cooldown.reverse, true)
+Equal("no swipe edge", button.Cooldown.drawEdge, false)
+Equal("swipe on", button.Cooldown.drawSwipe, true)
+Equal("no countdown numbers", button.Cooldown.hideNumbers, true)
+Equal("cooldown bound", button.durationCooldown, button.Cooldown)
+Equal("icon bound", button.icon, button.Icon)
 Equal("the icon sits one pixel inside the button", button.Icon.points[1][4], 0.5)
 Equal("on every side", button.Icon.points[2][5], 0.5)
-Equal("the swipe covers the icon alone", button.Cooldown.last.SetAllPoints[1], button.Icon)
-Equal("stack bound", button.last.SetApplicationCount[1], button.Count)
+Equal("the swipe covers the icon alone", button.Cooldown.points[1][2], button.Icon)
+Equal("stack bound", button.countText, button.Count)
 Equal("stack has a font before it is bound", button.Count.template, "NumberFontNormal")
 Equal("duration has a font before it is bound", button.Time.template, "NumberFontNormal")
-Equal("duration bound", button.last.SetDurationText[1], button.Time)
-Equal("dispel border", button.last.AddDispelTypeTexture[2].showWhenHarmful, true)
-Equal("dispel colors", button.last.AddDispelTypeTexture[2].customDispelColorMap, frame.colors.dispel)
+Equal("duration bound", button.durationText, button.Time)
+Equal("dispel border", button.dispelTextures[1].options.showWhenHarmful, true)
+Equal("dispel colors", button.dispelTextures[1].options.customDispelColorMap, frame.colors.dispel)
 Equal("stack corner", button.Count.points[1][1], "BOTTOMRIGHT")
-Equal("stack font", button.Count.last.SetFont[2], 14)
+Equal("stack font", button.Count.font[2], 14)
 Equal("duration hidden", button.Time.alpha, 0)
 Equal("border shown", button.Border.alpha, 1)
-Equal("no cancel on debuffs", button.last.SetCancelAuraButtons, nil)
+Equal("no cancel on debuffs", button.cancelButtons, nil)
 
 debuffs.size, debuffs.clicks, debuffs.duration, debuffs.border, debuffs.swipe = 30, true, true, false, false
 Auras:Configure(widgets, debuffs)
-Equal("restyled size", button.last.SetSize[1], 30)
-Equal("clicks on", button.last.SetMouseClickEnabled[1], true)
+Equal("restyled size", button.width, 30)
+Equal("clicks on", button.mouseClick, true)
 Equal("duration shown", button.Time.alpha, 1)
 Equal("border hidden", button.Border.alpha, 0)
-Equal("swipe off", button.Cooldown.last.SetDrawSwipe[1], false)
+Equal("swipe off", button.Cooldown.drawSwipe, false)
 
 widgets = Auras:Create(frame, "buffs")
 Auras:Configure(widgets, Display("buffs"))
-button = Region()
+button = AuraButton()
 widgets.element.CreateButton(widgets.element, {}, button)
-Equal("player buffs cancel with a right-click", button.last.SetCancelAuraButtons[1], "RightButtonUp")
-Equal("stealable glow on buffs", button.last.AddDispelTypeTexture[2].stealableFilter, 1)
-Equal("glow texture", button.Border.last.SetTexture[1], "Interface\\TargetingFrame\\UI-TargetingFrame-Stealable")
+Equal("player buffs cancel with a right-click", button.cancelButtons, "RightButtonUp")
+Equal("stealable glow on buffs", button.dispelTextures[1].options.stealableFilter, 1)
+Equal("glow texture", button.Border.file, "Interface\\TargetingFrame\\UI-TargetingFrame-Stealable")
 frame.key = "target"
 widgets = Auras:Create(frame, "buffs")
 Auras:Configure(widgets, Display("buffs"))
-button = Region()
+button = AuraButton()
 widgets.element.CreateButton(widgets.element, {}, button)
-Equal("no cancel off the player", button.last.SetCancelAuraButtons, nil)
+Equal("no cancel off the player", button.cancelButtons, nil)
 
 local hasDuration = Display("buffs")
 hasDuration.filter = "hasDuration"
 Auras:Configure(widgets, hasDuration)
-Equal("duration filter", widgets.element.last.SetAuraGroupCandidateFilters[2].maxDuration, math.huge)
+Equal("duration filter", widgets.element.auraGroups.Group1.candidates.maxDuration, math.huge)
 
 -- Player buff categories -----------------------------------------------------------------------------------
 
@@ -502,4 +425,4 @@ local _, categoryCandidates = Auras:Filter(playerBuffs)
 Equal("categories send their spells", categoryCandidates.includeSpellIDs[342246], true)
 Equal("never show still applies", categoryCandidates.excludeSpellIDs[45438], true)
 
-io.stdout:write(("check_auras: %d checks passed\n"):format(checks))
+io.stdout:write(("check_auras: %d checks passed\n"):format(client.checks))

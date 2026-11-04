@@ -7,13 +7,17 @@
 -- a missing field gives nil, which capability guards rely on.
 --
 -- A check reads a widget's state from these fields, which its setters keep:
---   shown, points, width, height, alpha, scale, level, parent, template, scripts, mouse   every frame or texture
+--   shown, points, width, height, alpha, scale, level, parent, template, scripts, mouse,
+--   mouseMotion, mouseClick                                                               every frame or texture
 --   kind, clipsChildren, alphaBoolean                                                     frames
 --   file, atlas, color, vertex, coords, desaturated, blend                                textures
 --   text, font, textColor, justifyH, wordWrap                                             font strings
 --   value, min, max, statusColor, reverseFill, statusTexture                              status bars
 --   backdrop                                                                              frames with BackdropTemplate
 --   plays, playing                                                                        animation groups
+--   reverse, drawEdge, drawSwipe, hideNumbers                                             cooldowns
+--   enabled, flowAnchor, flowGrowth, flowLineSize, auraGroups                             aura containers
+--   cancelButtons, tooltipAnchor, durationCooldown, icon, countText, durationText, dispelTextures  aura buttons
 -- `points` holds each anchor's SetPoint arguments, one entry per anchor. Size reads 0 until set, as an unsized frame's
 -- does. `left`, `right`, `top` and `bottom` are a check's fixtures: the screen edges read nil until it sets them.
 
@@ -195,6 +199,15 @@ local ScriptRegion = Type(nil, {
 	EnableMouse = State(function(self, enabled)
 		self.mouse = enabled
 	end),
+	SetMouseMotionEnabled = State(function(self, enabled)
+		self.mouseMotion = enabled
+	end),
+	SetMouseClickEnabled = State(function(self, enabled)
+		self.mouseClick = enabled
+	end),
+	SetParent = State(function(self, parent)
+		self.parent = parent
+	end),
 	SetSize = State(function(self, width, height)
 		self.width, self.height = width, height
 	end),
@@ -312,17 +325,62 @@ local Frame = Type(ScriptRegion, {
 
 		return setmetatable({ parent = self, shown = true, points = {}, scripts = {} }, Texture)
 	end,
-	CreateFontString = function(self)
-		return setmetatable({ parent = self, shown = true, points = {}, scripts = {} }, FontString)
+	CreateFontString = function(self, _, _, template)
+		return setmetatable({ parent = self, template = template, shown = true, points = {}, scripts = {} }, FontString)
 	end,
 })
 
 local Button = Type(Frame, {})
 
 local Cooldown = Type(Frame, {
-	SetReverse = State(),
-	SetDrawEdge = State(),
+	SetReverse = State(function(self, reverse)
+		self.reverse = reverse
+	end),
+	SetDrawEdge = State(function(self, drawEdge)
+		self.drawEdge = drawEdge
+	end),
+	SetDrawSwipe = State(function(self, drawSwipe)
+		self.drawSwipe = drawSwipe
+	end),
+	SetHideCountdownNumbers = State(function(self, hide)
+		self.hideNumbers = hide
+	end),
 })
+
+local AuraContainer = Type(Frame, {
+	SetEnabled = State(function(self, enabled)
+		self.enabled = enabled
+	end),
+	SetFlowLayoutAnchorPoint = State(function(self, anchor)
+		self.flowAnchor = anchor
+	end),
+	SetFlowLayoutGrowthDirection = State(function(self, ...)
+		self.flowGrowth = { ... }
+	end),
+	SetFlowLayoutMaximumLineSize = State(function(self, size)
+		self.flowLineSize = size
+	end),
+})
+
+local AuraButton = Type(Button, {
+	SetCancelAuraButtons = State(function(self, buttons)
+		self.cancelButtons = buttons
+	end),
+	SetTooltipAnchorPoint = State(function(self, ...)
+		self.tooltipAnchor = { ... }
+	end),
+})
+
+---A setter for one field of an aura group, kept per group in `auraGroups`.
+---@param field string
+---@return function method
+local function AuraGroupField(field)
+	return State(function(self, group, value)
+		self.auraGroups = self.auraGroups or {}
+		self.auraGroups[group] = self.auraGroups[group] or {}
+		self.auraGroups[group][field] = value
+	end)
+end
 
 local PlayerModel = Type(Frame, {
 	SetUnit = State(function(self, unit)
@@ -361,9 +419,46 @@ local StatusBar = Type(Frame, {
 })
 
 -- The frame types `CreateFrame` knows, and what each XML template adds to a frame.
-local FRAME_TYPES = { Frame = Frame, Button = Button, StatusBar = StatusBar, Cooldown = Cooldown, PlayerModel = PlayerModel }
+local FRAME_TYPES = {
+	Frame = Frame,
+	Button = Button,
+	StatusBar = StatusBar,
+	Cooldown = Cooldown,
+	PlayerModel = PlayerModel,
+	AuraContainer = AuraContainer,
+	AuraButton = AuraButton,
+}
 local TEMPLATES = {
 	CooldownFrameTemplate = {},
+	CustomAuraContainerTemplate = {
+		SetAuraGroupFilterString = AuraGroupField("filter"),
+		SetAuraGroupCandidateFilters = AuraGroupField("candidates"),
+		SetAuraGroupMaxFrameCount = AuraGroupField("limit"),
+		SetAuraGroupLayout = AuraGroupField("layout"),
+		SetAuraGroupSortMethod = State(function(self, group, method, direction)
+			self.auraGroups = self.auraGroups or {}
+			self.auraGroups[group] = self.auraGroups[group] or {}
+			self.auraGroups[group].sortMethod, self.auraGroups[group].sortDirection = method, direction
+		end),
+	},
+	CustomAuraButtonTemplate = {
+		SetDurationCooldown = State(function(self, cooldown)
+			self.durationCooldown = cooldown
+		end),
+		SetIcon = State(function(self, texture)
+			self.icon = texture
+		end),
+		SetApplicationCount = State(function(self, fontString)
+			self.countText = fontString
+		end),
+		SetDurationText = State(function(self, fontString)
+			self.durationText = fontString
+		end),
+		AddDispelTypeTexture = State(function(self, texture, options)
+			self.dispelTextures = self.dispelTextures or {}
+			self.dispelTextures[#self.dispelTextures + 1] = { texture = texture, options = options }
+		end),
+	},
 	BackdropTemplate = {
 		SetBackdrop = State(function(self, backdrop)
 			self.backdrop = backdrop
