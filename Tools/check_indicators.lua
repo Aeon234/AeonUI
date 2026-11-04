@@ -232,7 +232,7 @@ Equal("leader on", AUI.Profile:Get(Options:Path("player", "indicators.leader.ena
 Equal("PvP off", AUI.Profile:Get(Options:Path("player", "indicators.pvp.enabled")), false)
 Equal("threat on", AUI.Profile:Get(Options:Path("player", "indicators.threat.enabled")), true)
 Equal("totems on", AUI.Profile:Get(Options:Path("player", "totems.enabled")), true)
-Equal("idle fade on", AUI.Profile:Get(Options:Path("player", "fade.idle.enabled")), true)
+Equal("idle fade off", AUI.Profile:Get(Options:Path("player", "fade.idle.enabled")), false)
 Equal("at half", AUI.Profile:Get(Options:Path("player", "fade.idle.alpha")), 50)
 Equal("tooltip on", AUI.Profile:Get(Options:Path("player", "tooltip.enabled")), true)
 Equal("in combat too", AUI.Profile:Get(Options:Path("player", "tooltip.hideInCombat")), false)
@@ -568,6 +568,7 @@ Equal("no threat brings the shadow back", frame.Border.shadowShown, true)
 -- Fading --------------------------------------------------------------------------------------------------
 
 config = Schema:Defaults()
+Schema:Write(config, Options:Path("player", "fade.idle.enabled"), true)
 Equal("idle alone", Fading:IsIdle(false, false, false), true)
 Equal("not in combat", Fading:IsIdle(true, false, false), false)
 Equal("not with a target", Fading:IsIdle(false, true, false), false)

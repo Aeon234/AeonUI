@@ -468,12 +468,12 @@ local function DeclareIndicators(spec)
 	end
 
 	if spec.idleFade then
-		Schema:Boolean(Options:Path(key, "fade.idle.enabled"), true)
+		Schema:Boolean(Options:Path(key, "fade.idle.enabled"), false)
 		Schema:Number(Options:Path(key, "fade.idle.alpha"), 50, 0, 100, true)
 	end
 
 	if spec.rangeFade then
-		Schema:Boolean(Options:Path(key, "fade.range.enabled"), true)
+		Schema:Boolean(Options:Path(key, "fade.range.enabled"), false)
 		Schema:Number(Options:Path(key, "fade.range.alpha"), 50, 0, 100, true)
 	end
 
