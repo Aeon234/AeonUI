@@ -1,0 +1,558 @@
+local AUI = select(2, ...)
+
+local L = AUI.L
+local Options = AUI.SwingTimerOptions
+
+local NO_FILL = { r = 0, g = 0, b = 0, a = 0 }
+local OVER_LEVEL = 2
+local SPARK_GROW = 2
+local PERCENT = 100
+
+---@class AUISwingTimerRow : Frame
+---@field spec AUISwingTimerRowSpec
+---@field background Texture
+---@field bar StatusBar
+---@field over Frame
+---@field spark Texture
+---@field tag FontString
+---@field time FontString
+---@field duration table the duration object the fill and the time run from
+---@field binding table
+---@field edge AUIBorder?
+---@field speed number? its weapon's speed, as last read
+---@field swing number? the running swing's length
+---@field ends number? when the running swing ends
+---@field endTimer table?
+---@field rangeOn boolean?
+---@field far boolean?
+
+---The player's swing timer, on the clients that report swings: one frame with a row per weapon that can swing. The
+---engine animates each row's fill and time from a duration object, so no Lua runs per frame; a timer per swing catches
+---its end. Nothing is built or registered until the page's switch is on.
+---@class AUISwingTimer
+---@field frame Frame?
+---@field rows AUISwingTimerRow[] built while on
+---@field byType table<integer, AUISwingTimerRow>
+---@field shown integer how many rows show
+---@field following boolean? the events are registered
+---@field sampling boolean? edit mode's sample is up
+---@field inCombat boolean?
+---@field formatter table?
+local SwingTimer = { rows = {}, byType = {}, shown = 0 }
+AUI.SwingTimer = SwingTimer
+
+---@return boolean on the page's switch is on where the client reports swings
+function SwingTimer:IsOn()
+	return AUI.can.swingTimer == true and AUI.Profile:Get(Options.ENABLED_PATH) == true
+end
+
+---@return table formatter seconds to one decimal, rounded up so the last moment never reads 0.0
+function SwingTimer:Formatter()
+	if not self.formatter then
+		local formatter = C_StringUtil.CreateNumericRuleFormatter()
+
+		formatter:SetBreakpoints({
+			{ threshold = 0, step = 0.1, rounding = Enum.NumericRuleFormatRounding.Up, format = "%.1f" },
+		})
+		self.formatter = formatter
+	end
+
+	return self.formatter
+end
+
+---Builds a row without its look; `Style` gives it that.
+---@param parent Frame
+---@param spec AUISwingTimerRowSpec
+---@return AUISwingTimerRow row
+function SwingTimer:BuildRow(parent, spec)
+	local row = CreateFrame("Frame", nil, parent) --[[@as AUISwingTimerRow]]
+
+	row.spec = spec
+	row.background = row:CreateTexture(nil, "BACKGROUND")
+	row.background:SetAllPoints()
+
+	local bar = CreateFrame("StatusBar", nil, row)
+
+	bar:SetAllPoints()
+	bar:SetMinMaxValues(0, 1)
+	bar:SetValue(0)
+	row.bar = bar
+
+	local over = CreateFrame("Frame", nil, bar)
+
+	over:SetAllPoints()
+	over:SetFrameLevel(bar:GetFrameLevel() + OVER_LEVEL)
+	row.over = over
+
+	row.spark = over:CreateTexture(nil, "OVERLAY")
+	row.spark:SetTexture(Options.SPARK_TEXTURE)
+	row.spark:SetBlendMode("ADD")
+	row.spark:Hide()
+
+	row.tag = over:CreateFontString(nil, "OVERLAY")
+	row.tag:SetPoint("LEFT", row, "LEFT", Options.TEXT_INSET, 0)
+	row.tag:SetWordWrap(false)
+	row.tag:SetText(L[spec.label])
+
+	row.time = over:CreateFontString(nil, "OVERLAY")
+	row.time:SetPoint("RIGHT", row, "RIGHT", -Options.TEXT_INSET, 0)
+	row.time:SetWordWrap(false)
+	row.time:SetText("")
+
+	row.duration = C_DurationUtil.CreateDuration()
+	row.binding = C_DurationUtil.CreateDurationTextBinding()
+	row.binding:SetFontString(row.time)
+	row.binding:SetDuration(row.duration)
+	row.binding:SetFormatter(self:Formatter())
+	row.binding:SetZeroDurationText("")
+	row.binding:SetExpiredText("")
+	row.binding:SetEnabled(false)
+
+	return row
+end
+
+---@param row AUISwingTimerRow
+---@return number r
+---@return number g
+---@return number b
+local function FillColor(row)
+	local Profile = AUI.Profile
+
+	if Profile:Get("swingTimer.classColor") then
+		local _, class = UnitClass("player")
+		local color = class and C_ClassColor.GetClassColor(class)
+
+		if color then
+			return color.r, color.g, color.b
+		end
+	end
+
+	local color = Profile:Get("swingTimer." .. row.spec.color)
+
+	return color.r, color.g, color.b
+end
+
+---@return number height a row's drawn height
+function SwingTimer:RowHeight()
+	local Profile = AUI.Profile
+
+	return Options:DrawnHeight(Profile:Get("swingTimer.borderStyle"), Profile:Get("swingTimer.height"),
+		AUI.CastBarOptions.FOREVER_MINIMAL.minHeight)
+end
+
+---Gives a row its look.
+---@param row AUISwingTimerRow
+function SwingTimer:Style(row)
+	local Profile = AUI.Profile
+	local height = self:RowHeight()
+	local bar = row.bar
+	local background = Profile:Get("swingTimer.background")
+	local font = AUI.Media:Font(Profile:Get("swingTimer.font"))
+	local flags = AUI.Media:FontFlags(Profile:Get("swingTimer.outline"))
+	local size = Profile:Get("swingTimer.textSize")
+
+	row:SetSize(Profile:Get("swingTimer.width"), height)
+	AUI.Media:SetBarTexture(bar, Profile:Get("swingTimer.texture"))
+	bar:GetStatusBarTexture():SetVertexColor(FillColor(row))
+	row.background:SetColorTexture(background.r, background.g, background.b, background.a or 1)
+	row.spark:ClearAllPoints()
+	row.spark:SetPoint("CENTER", bar:GetStatusBarTexture(), "RIGHT")
+	row.spark:SetSize(Options.SPARK_WIDTH, height * SPARK_GROW)
+	row.tag:SetFont(font, size, flags)
+	row.time:SetFont(font, size, flags)
+	row.tag:SetShown(Profile:Get("swingTimer.label") == true)
+	row.time:SetShown(Profile:Get("swingTimer.time") == true)
+
+	if not row.edge then
+		row.edge = AUI.Border:Create(row, true)
+		row.edge:SetFrameLevel(row.over:GetFrameLevel() + 1)
+	end
+
+	local minimal = Profile:Get("swingTimer.borderStyle") == "FOREVER_MINIMAL"
+
+	row.edge:Apply({
+		style = minimal and "FOREVER_MINIMAL_SHADED" or "THIN_LINE",
+		color = minimal and AUI.CastBarOptions.FOREVER_MINIMAL.color or Profile:Get("swingTimer.borderColor"),
+		background = NO_FILL,
+	})
+	self:PaintRange(row, row.far == true)
+end
+
+---Dims a row and turns its text red while its target is out of range.
+---@param row AUISwingTimerRow
+---@param far boolean
+function SwingTimer:PaintRange(row, far)
+	local color = far and Options.FAR_TEXT or Options.NEAR_TEXT
+
+	row:SetAlpha(far and AUI.Profile:Get("swingTimer.outOfRangeAlpha") / PERCENT or 1)
+	row.tag:SetTextColor(color.r, color.g, color.b)
+	row.time:SetTextColor(color.r, color.g, color.b)
+end
+
+---Draws a still sample: edit mode's and the settings preview's.
+---@param row AUISwingTimerRow
+---@param far boolean
+function SwingTimer:DrawSample(row, far)
+	local Profile = AUI.Profile
+	local share = row.spec.sample
+
+	row.binding:SetEnabled(false)
+	row.bar:SetMinMaxValues(0, 1)
+	row.bar:SetValue(Profile:Get("swingTimer.depleteFill") and 1 - share or share)
+	row.time:SetText(row.spec.sampleTime)
+	row.spark:SetShown(Profile:Get("swingTimer.spark") == true)
+	self:PaintRange(row, far)
+end
+
+---@param row AUISwingTimerRow
+function SwingTimer:IdleRow(row)
+	if row.endTimer then
+		row.endTimer:Cancel()
+		row.endTimer = nil
+	end
+
+	row.swing, row.ends = nil, nil
+	row.binding:SetEnabled(false)
+	row.bar:SetMinMaxValues(0, 1)
+	row.bar:SetValue(0)
+	row.time:SetText("")
+	row.spark:Hide()
+end
+
+---Runs a row's fill and time from its swing's start.
+---@param row AUISwingTimerRow
+function SwingTimer:RunRow(row)
+	local Profile = AUI.Profile
+	local direction = Profile:Get("swingTimer.depleteFill") and Enum.StatusBarTimerDirection.RemainingTime
+		or Enum.StatusBarTimerDirection.ElapsedTime
+
+	local ends, swing = row.ends --[[@as number]], row.swing --[[@as number]]
+
+	row.duration:SetTimeFromStart(ends - swing, swing)
+	row.bar:SetTimerDuration(row.duration, Enum.StatusBarInterpolation.Immediate, direction)
+	row.binding:SetEnabled(true)
+	row.spark:SetShown(Profile:Get("swingTimer.spark") == true)
+end
+
+---@param row AUISwingTimerRow
+---@param seconds any a swing's length, already readable
+function SwingTimer:StartRow(row, seconds)
+	if not Options:Usable(seconds) then
+		return
+	end
+
+	row.swing, row.ends = seconds, GetTime() + seconds
+	self:RunRow(row)
+
+	if row.endTimer then
+		row.endTimer:Cancel()
+	end
+
+	row.endTimer = C_Timer.NewTimer(seconds + Options.END_GRACE, function()
+		row.endTimer = nil
+		self:IdleRow(row)
+	end)
+end
+
+---Reads each row's weapon speed; a speed that cannot be read keeps the last one, since a haste proc can restrict it.
+function SwingTimer:ReadSpeeds()
+	for _, row in ipairs(self.rows) do
+		local value = select(row.spec.speedReturn, UnitAttackSpeed("player"))
+
+		if not issecretvalue(value) then
+			row.speed = Options:Speed(value)
+		end
+	end
+end
+
+---@param row AUISwingTimerRow
+function SwingTimer:ReadRange(row)
+	local far = false
+
+	if row.rangeOn then
+		far = AUI:Readable(C_SwingTimer.IsTargetWithinSwingRange(Enum.PlayerSwingType[row.spec.swing])) == false
+	end
+
+	row.far = far
+	self:PaintRange(row, far and not self.sampling)
+end
+
+---Asks for range edges on a row that wants them. The engine keeps one flag per swing type, shared with Blizzard's own
+---timer, so this repeats on every refresh and swing and never turns the flag off while on.
+---@param row AUISwingTimerRow
+function SwingTimer:AskRange(row)
+	row.rangeOn = AUI.Profile:Get("swingTimer.rangeCheck") == true and row:IsShown()
+
+	if row.rangeOn then
+		C_SwingTimer.EnableRangeCheck(Enum.PlayerSwingType[row.spec.swing], true)
+	end
+
+	self:ReadRange(row)
+end
+
+---Shows the rows that can swing, stacked top to bottom, and the frame around them.
+function SwingTimer:Refresh()
+	local Profile = AUI.Profile
+	local frame = self.frame
+
+	if not frame then
+		return
+	end
+
+	local height, spacing = self:RowHeight(), Profile:Get("swingTimer.spacing")
+	local shown = 0
+
+	self:ReadSpeeds()
+
+	for _, row in ipairs(self.rows) do
+		local wanted = Options:Wanted(row.spec, Profile:Get("swingTimer." .. row.spec.show) == true, row.speed)
+
+		row:SetShown(wanted)
+
+		if wanted then
+			shown = shown + 1
+			row:ClearAllPoints()
+			row:SetPoint("TOP", frame, "TOP", 0, Options:RowY(shown, height, spacing))
+		elseif row.ends then
+			self:IdleRow(row)
+		end
+
+		self:AskRange(row)
+	end
+
+	self.shown = shown
+	frame:SetSize(Profile:Get("swingTimer.width"), Options:StackHeight(shown, height, spacing))
+	self:UpdateVisibility()
+end
+
+function SwingTimer:UpdateVisibility()
+	local frame = self.frame --[[@as Frame]]
+
+	frame:SetShown(Options:Visible(self:IsOn(), self.shown, self.sampling == true,
+		AUI.Profile:Get("swingTimer.visibility"), self.inCombat == true))
+end
+
+function SwingTimer:CreateFrame()
+	if self.frame then
+		return
+	end
+
+	local frame = CreateFrame("Frame", "AeonUISwingTimer", UIParent)
+
+	frame:EnableMouse(false)
+	self.frame = frame
+
+	for index, spec in ipairs(Options.ROWS) do
+		local row = self:BuildRow(frame, spec)
+
+		self.rows[index] = row
+		self.byType[Enum.PlayerSwingType[spec.swing]] = row
+	end
+end
+
+---@return { point: string, x: number, y: number } position the saved place, or the default one
+function SwingTimer:Position()
+	return AUI.Profile:Get(Options.POSITION_PATH) or Options.DEFAULT_POSITION
+end
+
+function SwingTimer:Place()
+	local frame = self.frame
+
+	if not frame then
+		return
+	end
+
+	local position = self:Position()
+
+	frame:ClearAllPoints()
+	frame:SetPoint(position.point, UIParent, position.point, position.x, position.y)
+
+	for _, row in ipairs(self.rows) do
+		if row.edge then
+			row.edge:Layout()
+		end
+	end
+end
+
+---A running swing is parked first, or its end would empty the sample.
+---@param shown boolean edit mode's sample is up
+function SwingTimer:Sample(shown)
+	self.sampling = shown
+
+	for _, row in ipairs(self.rows) do
+		self:IdleRow(row)
+
+		if shown then
+			self:DrawSample(row, false)
+		else
+			self:PaintRange(row, row.far == true)
+		end
+	end
+
+	self:Refresh()
+end
+
+---@param _ string the event
+---@param seconds any
+---@param kind any
+function SwingTimer:OnSwing(_, seconds, kind)
+	seconds, kind = AUI:Readable(seconds), AUI:Readable(kind)
+
+	local row = kind ~= nil and self.byType[kind]
+
+	if not row or seconds == nil then
+		return
+	end
+
+	-- A swing proves the slot has a weapon while its speed cannot be read.
+	if not row:IsShown() and not row.speed and AUI.Profile:Get("swingTimer." .. row.spec.show) == true then
+		row.speed = seconds
+		self:Refresh()
+	end
+
+	if row:IsShown() and not self.sampling then
+		self:StartRow(row, seconds)
+	end
+
+	self:AskRange(row)
+end
+
+---@param _ string the event
+---@param kind any
+---@param inRange any
+---@param checks any
+function SwingTimer:OnSwingRange(_, kind, inRange, checks)
+	kind, inRange, checks = AUI:Readable(kind), AUI:Readable(inRange), AUI:Readable(checks)
+
+	local row = kind ~= nil and self.byType[kind]
+
+	if row and row.rangeOn then
+		row.far = checks == true and inRange == false
+		self:PaintRange(row, row.far and not self.sampling)
+	end
+end
+
+function SwingTimer:OnTargetChanged()
+	for _, row in ipairs(self.rows) do
+		self:ReadRange(row)
+	end
+end
+
+---A weapon swap restarts the swing at the new weapon's speed, with no swing event.
+function SwingTimer:OnWeaponChanged()
+	self:Refresh()
+
+	for _, row in ipairs(self.rows) do
+		if row.ends and row.speed and not self.sampling then
+			self:StartRow(row, row.speed)
+		end
+	end
+end
+
+---@param _ string the event
+---@param unit string
+function SwingTimer:OnAttackSpeed(_, unit)
+	if unit == "player" then
+		self:Refresh()
+	end
+end
+
+function SwingTimer:OnDead()
+	for _, row in ipairs(self.rows) do
+		if row.ends then
+			self:IdleRow(row)
+		end
+	end
+end
+
+---@param event string
+function SwingTimer:OnCombat(event)
+	self.inCombat = event == "PLAYER_REGEN_DISABLED"
+	self:UpdateVisibility()
+end
+
+---Stops following the swings and hides the frame. The range flags go off only while Blizzard's own timer is off, since
+---it re-sends its flag only when its own state changes.
+function SwingTimer:Stop()
+	AUI.Events:UnregisterAll(self)
+
+	if not C_CVar.GetCVarBool("showSwingTimer") then
+		for _, spec in ipairs(Options.ROWS) do
+			C_SwingTimer.EnableRangeCheck(Enum.PlayerSwingType[spec.swing], false)
+		end
+	end
+
+	for _, row in ipairs(self.rows) do
+		self:IdleRow(row)
+		row.far, row.rangeOn = false, false
+	end
+end
+
+---Follows the swings while the switch is on; hides the frame and stops following them while it is off.
+function SwingTimer:Apply()
+	local on = self:IsOn()
+
+	if on ~= (self.following == true) then
+		self.following = on
+
+		if on then
+			self:CreateFrame()
+			self.inCombat = AUI:Readable(UnitAffectingCombat("player")) == true
+
+			local Events = AUI.Events
+
+			Events:Register("PLAYER_SWING", self, self.OnSwing)
+			Events:Register("PLAYER_SWING_RANGE_UPDATE", self, self.OnSwingRange)
+			Events:Register("PLAYER_TARGET_CHANGED", self, self.OnTargetChanged)
+			Events:Register("WEAPON_SLOT_CHANGED", self, self.OnWeaponChanged)
+			Events:Register("UNIT_ATTACK_SPEED", self, self.OnAttackSpeed)
+			Events:Register("PLAYER_ENTERING_WORLD", self, self.Refresh)
+			Events:Register("PLAYER_DEAD", self, self.OnDead)
+			Events:Register("PLAYER_REGEN_DISABLED", self, self.OnCombat)
+			Events:Register("PLAYER_REGEN_ENABLED", self, self.OnCombat)
+			Events:Register("UI_SCALE_CHANGED", self, self.Place)
+		else
+			self:Stop()
+		end
+	end
+
+	if not self.frame then
+		return
+	end
+
+	if not on then
+		self.frame:Hide()
+
+		return
+	end
+
+	for _, row in ipairs(self.rows) do
+		self:Style(row)
+
+		if row.ends and not self.sampling then
+			self:RunRow(row)
+		end
+	end
+
+	self:Place()
+	self:Refresh()
+end
+
+---@param path string? the changed setting; nil when the whole profile changed
+function SwingTimer:OnProfileChanged(path)
+	if path == nil or path:sub(1, 11) == "swingTimer." then
+		AUI.Events:Coalesce("swingTimerApply", function()
+			SwingTimer:Apply()
+		end)
+	end
+end
+
+function SwingTimer:Start()
+	if self.active then
+		return
+	end
+
+	self.active = true
+	AUI.Callbacks:Register("Profile", self, self.OnProfileChanged)
+	self:Apply()
+end

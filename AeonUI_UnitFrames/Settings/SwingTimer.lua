@@ -1,0 +1,267 @@
+local AUI = select(2, ...)
+
+local L = AUI.L
+local lib = LibStub("LibAeonSettings-1.0")
+
+local PREVIEW_HEIGHT = 96
+local IN_RANGE, OUT_OF_RANGE = L["In Range"], L["Out of Range"]
+
+local VISIBILITY_LABELS = {
+	COMBAT = L["In Combat"],
+	ALWAYS = L["Always"],
+}
+
+local BORDER_STYLE_LABELS = {
+	THIN_LINE = L["Thin Line"],
+	FOREVER_MINIMAL = L["Forever Minimal"],
+}
+
+---The Swing Timer page, under the Unit Frames header on the clients that report swings: the module's switch, sample
+---rows as its preview, and the Bars, Size, Range, Colors, Border and Text cards.
+---@class AUISettingsSwingTimer
+local SettingsSwingTimer = {}
+AUI.SettingsSwingTimer = SettingsSwingTimer
+
+---@param values string[]
+---@param labels table<string, string>
+---@return table[] options
+local function ChoiceOptions(values, labels)
+	local options = {}
+
+	for index, value in ipairs(values) do
+		options[index] = { value = value, text = labels[value] }
+	end
+
+	return options
+end
+
+---@param id string
+---@param label string
+---@param field string the setting's path under the module
+---@param extra table? more of the setting's fields
+---@return table setting
+local function Field(id, label, field, extra)
+	local setting = extra or {}
+	local path = "swingTimer." .. field
+
+	setting.id, setting.label, setting.path, setting.default = id, label, path, AUI.Settings:Default(path)
+
+	return setting
+end
+
+---Still rows, styled as the live ones are.
+---@class AUISwingTimerPreview
+---@field rows AUISwingTimerRow[]
+local SwingTimerPreview = { rows = {} }
+
+---@param canvas Frame
+function SwingTimerPreview:Create(canvas)
+	for index, spec in ipairs(AUI.SwingTimerOptions.ROWS) do
+		self.rows[index] = AUI.SwingTimer:BuildRow(canvas, spec)
+	end
+end
+
+---@param state string a state's label
+---@param preview table
+---@return number width
+---@return number height
+function SwingTimerPreview:Refresh(state, preview)
+	local Profile, Options, SwingTimer = AUI.Profile, AUI.SwingTimerOptions, AUI.SwingTimer
+	local height, spacing = SwingTimer:RowHeight(), Profile:Get("swingTimer.spacing")
+	local far = state == OUT_OF_RANGE and Profile:Get("swingTimer.rangeCheck") == true
+	local canvas = self.rows[1]:GetParent()
+	local shown = 0
+
+	for _, row in ipairs(self.rows) do
+		local on = Profile:Get("swingTimer." .. row.spec.show) == true
+
+		row:SetShown(on)
+
+		if on then
+			shown = shown + 1
+			SwingTimer:Style(row)
+			SwingTimer:DrawSample(row, far)
+			row:ClearAllPoints()
+			row:SetPoint("TOP", canvas, "TOP", 0, Options:RowY(shown, height, spacing))
+			preview:Part(row.bar, row.spec.color)
+		end
+	end
+
+	return Profile:Get("swingTimer.width"), Options:StackHeight(shown, height, spacing)
+end
+
+---@param page table
+function SettingsSwingTimer:DeclareBars(page)
+	local Options = AUI.SwingTimerOptions
+	local card = page:Section("swingTimerBars", L["Bars"])
+
+	card:Checkbox(Field("showMH", L["Main Hand"], "showMH"))
+	card:Checkbox(Field("showOH", L["Off Hand"], "showOH", {
+		description = L["Shown while you have a weapon in your off hand."],
+	}))
+	card:Checkbox(Field("showR", L["Ranged"], "showR", {
+		description = L["Shown while you have a bow, gun, crossbow, wand or thrown weapon."],
+	}))
+	card:Dropdown(Field("visibility", L["Show"], "visibility", {
+		options = ChoiceOptions(Options.VISIBILITIES, VISIBILITY_LABELS),
+	}))
+	card:Dropdown(Field("texture", L["Texture"], "texture", { picker = "texture" }))
+	card:Checkbox(Field("depleteFill", L["Deplete Fill"], "depleteFill", {
+		description = L["Starts each bar full and drains it, instead of filling it up."],
+	}))
+	card:Checkbox(Field("spark", L["Show Spark"], "spark"))
+	card:Checkbox(Field("time", L["Show Time"], "time"))
+	card:Checkbox(Field("label", L["Show Weapon Label"], "label"))
+end
+
+---@param page table
+function SettingsSwingTimer:DeclareSize(page)
+	local Options = AUI.SwingTimerOptions
+	local card = page:Section("swingTimerSize", L["Size"])
+
+	card:Slider(Field("width", L["Width"], "width", { min = Options.MIN_WIDTH, max = Options.MAX_WIDTH, step = 1 }))
+	card:Slider(Field("height", L["Height"], "height", {
+		description = L["Forever Minimal keeps the bar at least 16 tall."],
+		min = Options.MIN_HEIGHT,
+		max = Options.MAX_HEIGHT,
+		step = 1,
+	}))
+	card:Slider(Field("spacing", L["Spacing"], "spacing", { min = 0, max = Options.MAX_SPACING, step = 1 }))
+end
+
+---@param page table
+function SettingsSwingTimer:DeclareRange(page)
+	local card = page:Section("swingTimerRange", L["Range"])
+
+	card:Checkbox(Field("rangeCheck", L["Range Check"], "rangeCheck", {
+		description = L["Dims a bar and turns its text red while your target is out of that weapon's range."],
+	}))
+	card:Slider(Field("outOfRangeAlpha", L["Out of Range Opacity"], "outOfRangeAlpha", {
+		depends = "rangeCheck",
+		min = 0,
+		max = 100,
+		step = 5,
+		format = "percent",
+	}))
+end
+
+---@param page table
+function SettingsSwingTimer:DeclareColors(page)
+	local card = page:Section("swingTimerColors", L["Colors"])
+
+	card:Checkbox(Field("classColor", L["Class Color"], "classColor"))
+	card:Color(Field("mhColor", L["Main Hand Color"], "mhColor"))
+	card:Color(Field("ohColor", L["Off Hand Color"], "ohColor"))
+	card:Color(Field("rColor", L["Ranged Color"], "rColor"))
+	card:Color(Field("background", L["Background"], "background", { hasOpacity = true }))
+end
+
+---@param page table
+function SettingsSwingTimer:DeclareBorder(page)
+	local Options = AUI.SwingTimerOptions
+	local card = page:Section("swingTimerBorder", L["Border"])
+
+	card:Dropdown(Field("borderStyle", L["Border Style"], "borderStyle", {
+		options = ChoiceOptions(Options.BORDER_STYLES, BORDER_STYLE_LABELS),
+	}))
+	card:Color(Field("borderColor", L["Border Color"], "borderColor", {
+		blocked = function()
+			if AUI.Profile:Get("swingTimer.borderStyle") ~= "THIN_LINE" then
+				return L["Needs the Thin Line border style."]
+			end
+		end,
+	}))
+end
+
+---@param page table
+function SettingsSwingTimer:DeclareText(page)
+	local Options = AUI.SwingTimerOptions
+	local card = page:Section("swingTimerText", L["Text"])
+
+	card:Dropdown(Field("font", L["Font"], "font", { picker = "font" }))
+	card:Dropdown(Field("outline", L["Outline"], "outline", { options = lib.OUTLINES }))
+	card:Slider(Field("textSize", L["Text Size"], "textSize", {
+		min = Options.MIN_TEXT,
+		max = Options.MAX_TEXT,
+		step = 1,
+	}))
+end
+
+---@return boolean
+function SettingsSwingTimer:IsAvailable()
+	return AUI.can.swingTimer == true
+end
+
+---@param window table
+function SettingsSwingTimer:Declare(window)
+	local Options = AUI.SwingTimerOptions
+
+	local page = window:Page("swingTimer", {
+		title = L["Swing Timer"],
+		under = "unitFramesHeader",
+		icon = AUI.Media.sidebar.castBar,
+		iconTint = true,
+		switch = {
+			path = Options.ENABLED_PATH,
+			default = AUI.Settings:Default(Options.ENABLED_PATH),
+			label = L["Show Swing Timer"],
+		},
+	})
+
+	if not page then
+		return
+	end
+
+	page:Preview({
+		height = PREVIEW_HEIGHT,
+		states = { IN_RANGE, OUT_OF_RANGE },
+		create = function(canvas)
+			SwingTimerPreview:Create(canvas)
+		end,
+		refresh = function(_, state, preview)
+			return SwingTimerPreview:Refresh(state or IN_RANGE, preview)
+		end,
+	})
+
+	page:Section("swingTimerBlizzard", L["Blizzard's Swing Timer"], {
+		show = function()
+			return C_CVar.GetCVarBool("showSwingTimer") == true
+		end,
+	}):Note(L["Blizzard's own swing timer is also on, so both show. Turn it off in the game's Interface options."])
+
+	self:DeclareBars(page)
+	self:DeclareSize(page)
+	self:DeclareRange(page)
+	self:DeclareColors(page)
+	self:DeclareBorder(page)
+	self:DeclareText(page)
+end
+
+AUI.Modules:Register({
+	group = "unitFrames",
+	page = SettingsSwingTimer,
+	start = function()
+		AUI.SwingTimer:Start()
+	end,
+	editTargets = {
+		{
+			key = "swingTimer",
+			path = "swingTimer.position",
+			target = function()
+				local SwingTimer = AUI.SwingTimer
+
+				if SwingTimer.frame and SwingTimer:IsOn() then
+					return {
+						label = L["Swing Timer"],
+						frame = SwingTimer.frame,
+						default = AUI.SwingTimerOptions.DEFAULT_POSITION,
+						sample = function(shown)
+							SwingTimer:Sample(shown)
+						end,
+						settings = { page = "swingTimer", section = "swingTimerBars" },
+					}
+				end
+			end,
+		},
+	},
+})

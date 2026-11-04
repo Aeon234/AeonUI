@@ -443,12 +443,12 @@ for _, file in ipairs({ "AeonUI/Core/Callbacks.lua", "AeonUI/Core/Capabilities.l
 	"AeonUI_QoL/Automation/Options.lua", "AeonUI_QoL/Automation/GameSettings.lua", "AeonUI_QoL/Menus/Options.lua", "AeonUI_QoL/Input/Options.lua",
 	"AeonUI_QoL/Input/FocusShortcut.lua", "AeonUI_QoL/Alerts/Options.lua", "AeonUI_QoL/Interface/Options.lua", "AeonUI_QoL/ScreenText/Options.lua",
 	"AeonUI_QoL/ScreenText/ScreenText.lua", "AeonUI_QoL/Cursor/Options.lua", "AeonUI_QoL/Cursor/CursorRing.lua", "AeonUI_UnitFrames/Frames/Options.lua", "AeonUI_UnitFrames/Frames/Tags.lua", "AeonUI_UnitFrames/Frames/Text.lua", "AeonUI_UnitFrames/Frames/HealthColor.lua", "AeonUI_UnitFrames/Frames/Overlays.lua", "AeonUI_UnitFrames/Frames/AuraCategories.lua", "AeonUI_UnitFrames/Frames/Auras.lua", "AeonUI_UnitFrames/Frames/Portrait.lua", "AeonUI_UnitFrames/Frames/Indicators.lua", "AeonUI_UnitFrames/Frames/Fading.lua", "AeonUI_UnitFrames/Frames/PowerColor.lua", "AeonUI_UnitFrames/Frames/PlayerPower.lua", "AeonUI_UnitFrames/Frames/ClassPower.lua", "AeonUI_UnitFrames/Frames/UnitFrame.lua", "AeonUI_UnitFrames/Frames/Frames.lua", "AeonUI_UnitFrames/CastBar/Options.lua",
-	"AeonUI_UnitFrames/CastBar/TickData.lua", "AeonUI_UnitFrames/CastBar/BlizzardBar.lua", "AeonUI_UnitFrames/CastBar/CastBar.lua", "AeonUI_UnitFrames/CastBar/UnitCastBar.lua", "AeonUI_QoL/Notifications/Options.lua",
+	"AeonUI_UnitFrames/CastBar/TickData.lua", "AeonUI_UnitFrames/CastBar/BlizzardBar.lua", "AeonUI_UnitFrames/CastBar/CastBar.lua", "AeonUI_UnitFrames/CastBar/UnitCastBar.lua", "AeonUI_UnitFrames/SwingTimer/Options.lua", "AeonUI_UnitFrames/SwingTimer/SwingTimer.lua", "AeonUI_QoL/Notifications/Options.lua",
 	"AeonUI_QoL/Notifications/Notifications.lua", "AeonUI_QoL/Markers/Options.lua", "AeonUI_QoL/Markers/Bar.lua", "AeonUI_QoL/Markers/Cycler.lua",
 	"AeonUI_QoL/Markers/Markers.lua", "AeonUI_QoL/DeleteCheapestItem/Options.lua", "AeonUI/Core/AuctionPrices.lua",
 	"AeonUI_QoL/MerchantWindow/Options.lua", "AeonUI_QoL/MerchantWindow/BottomBar.lua", "AeonUI_QoL/MerchantWindow/MerchantWindow.lua",
 	"AeonUI_QoL/HiddenSettings/Options.lua", "AeonUI_QoL/HiddenSettings/CVarHolder.lua", "AeonUI_QoL/HiddenSettings/HiddenSettings.lua",
-	"AeonUI_QoL/Macros/Options.lua", "AeonUI_QoL/Macros/Macros.lua", "AeonUI/Settings/Window.lua", "AeonUI/Settings/General.lua", "AeonUI_UnitFrames/Settings/FrameCopy.lua", "AeonUI_UnitFrames/Settings/AllFrames.lua", "AeonUI_UnitFrames/Settings/Previews.lua", "AeonUI_UnitFrames/Settings/FramePage.lua", "AeonUI_UnitFrames/Settings/PlayerResources.lua", "AeonUI_UnitFrames/Settings/CastBar.lua", "AeonUI_UnitFrames/Settings/FramePages.lua",
+	"AeonUI_QoL/Macros/Options.lua", "AeonUI_QoL/Macros/Macros.lua", "AeonUI/Settings/Window.lua", "AeonUI/Settings/General.lua", "AeonUI_UnitFrames/Settings/FrameCopy.lua", "AeonUI_UnitFrames/Settings/AllFrames.lua", "AeonUI_UnitFrames/Settings/Previews.lua", "AeonUI_UnitFrames/Settings/FramePage.lua", "AeonUI_UnitFrames/Settings/PlayerResources.lua", "AeonUI_UnitFrames/Settings/CastBar.lua", "AeonUI_UnitFrames/Settings/SwingTimer.lua", "AeonUI_UnitFrames/Settings/FramePages.lua",
 	"AeonUI_Maps/Settings/MinimapEditor.lua", "AeonUI_Maps/Settings/Minimap.lua", "AeonUI_Maps/Settings/WorldMap.lua", "AeonUI_Tooltip/Settings/Tooltip.lua",
 	"AeonUI_QoL/Settings/Automation.lua", "AeonUI_QoL/Settings/DeleteCheapestItem.lua", "AeonUI_QoL/Settings/MerchantWindow.lua",
 	"AeonUI_QoL/Settings/HiddenSettings.lua", "AeonUI_QoL/Settings/Macros.lua", "AeonUI_QoL/Settings/PlayerMenu.lua", "AeonUI_QoL/Settings/Input.lua",
@@ -2067,6 +2067,52 @@ CheckMacrosPage()
 			end
 		end
 	end
+end)()
+
+-- Swing Timer ---------------------------------------------------------------------------------------------
+
+;(function()
+	Equal("no Swing Timer page where the client reports no swings", Load(nil).pages.swingTimer, nil)
+	AUI.can.swingTimer = true
+
+	local page = Load(nil).pages.swingTimer
+	local cards = {}
+
+	AUI.can.swingTimer = nil
+	Equal("its title, under the Unit Frames header", page.info.title .. " " .. page.info.under,
+		"Swing Timer unitFramesHeader")
+	Equal("headed by the module's switch, off", page.info.switch.path .. "=" .. tostring(page.info.switch.default),
+		"swingTimer.enabled=false")
+	Equal("with a preview in and out of range", #page.preview.states, 2)
+
+	for _, section in ipairs(page.sections) do
+		local ids = {}
+
+		for _, setting in ipairs(section.settings) do
+			ids[#ids + 1] = setting.id
+		end
+
+		cards[#cards + 1] = section.title .. ": " .. table.concat(ids, " ")
+	end
+
+	Equal("its cards", table.concat(cards, " | "), "Blizzard's Swing Timer:  | Bars: showMH showOH showR visibility "
+		.. "texture depleteFill spark time label | Size: width height spacing | Range: rangeCheck outOfRangeAlpha | "
+		.. "Colors: classColor mhColor ohColor rColor background | Border: borderStyle borderColor | "
+		.. "Text: font outline textSize")
+
+	local note = page.sections.swingTimerBlizzard
+	local real = C_CVar
+
+	C_CVar = { GetCVarBool = function()
+		return true
+	end }
+	Equal("the note shows while Blizzard's timer is on", note.info.show(), true)
+	C_CVar = { GetCVarBool = function()
+		return false
+	end }
+	Equal("and not while it is off", note.info.show(), false)
+	C_CVar = real
+	Load(nil)
 end)()
 
 -- Copy From -----------------------------------------------------------------------------------------------

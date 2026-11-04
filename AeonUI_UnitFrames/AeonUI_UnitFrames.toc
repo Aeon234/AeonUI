@@ -1,6 +1,6 @@
 ## Interface: 120100, 120105, 16001
 ## Title: |cff00a3e3Aeon|r|cfff2e6c8UI|r Unit Frames
-## Notes: The unit frames and player cast bar for |cff00a3e3Aeon|r|cfff2e6c8UI|r.
+## Notes: The unit frames, player cast bar and swing timer for |cff00a3e3Aeon|r|cfff2e6c8UI|r.
 ## IconTexture: Interface\AddOns\AeonUI\Media\Textures\Logo.png
 ## Author: Aeon
 ## Version: @project-version@
@@ -13,12 +13,14 @@ Namespace.lua
 Locale\Locale.xml
 Frames\Frames.xml
 CastBar\CastBar.xml
+SwingTimer\SwingTimer.xml
 Settings\FrameCopy.lua
 Settings\AllFrames.lua
 Settings\Previews.lua
 Settings\FramePage.lua
 Settings\PlayerResources.lua
 Settings\CastBar.lua
+Settings\SwingTimer.lua
 Settings\FramePages.lua
 
 #@do-not-package@
