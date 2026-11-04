@@ -77,6 +77,7 @@ local Media = {
 			["Aeon Alt"] = MEDIA .. "Statusbars\\AeonAlt.png",
 			["Aeon Flat"] = MEDIA .. "Statusbars\\AeonFlat.tga",
 			["Aeon Gradient"] = MEDIA .. "Statusbars\\AeonGradient.tga",
+			["Aeon Light"] = MEDIA .. "Statusbars\\AeonLight.tga",
 			["Aeon Shadow"] = MEDIA .. "Statusbars\\AeonShadow.tga",
 			["Aeon Shadow Dark"] = MEDIA .. "Statusbars\\AeonShadowDark.tga",
 			["Aeon Smooth"] = MEDIA .. "Statusbars\\AeonSmooth.tga",

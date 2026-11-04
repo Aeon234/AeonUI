@@ -78,7 +78,7 @@ end
 Equal("seven borders", counts.border, 7)
 Equal("fourteen fonts", counts.font, 14)
 Equal("two sounds", counts.sound, 2)
-Equal("AeonUI's three bar textures and fifteen more", counts.statusbar, 18)
+Equal("AeonUI's three bar textures and sixteen more", counts.statusbar, 19)
 Equal("AeonCore's names are kept", registered["font:Expressway"],
 	"Interface\\AddOns\\AeonUI\\Media\\Fonts\\Expressway.ttf")
 
