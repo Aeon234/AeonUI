@@ -839,7 +839,7 @@ do
 		castBarCards[#castBarCards + 1] = section.title .. ": " .. table.concat(ids, " ")
 	end
 	Equal("its cards", table.concat(castBarCards, " | "), "Bar: width height texture color gradient gradientColor "
-		.. "gradientDirection notInterruptible background borderStyle border spark reverse smooth alwaysShow strata | "
+		.. "gradientDirection notInterruptible background borderStyle border showShadow shadowSize shadowColor spark reverse smooth alwaysShow strata | "
 		.. "Icon: icon iconSide | Text: font outline shadow | Spell Name: nameEnabled nameSize nameColor nameX nameY "
 		.. "nameLength | Time: timeEnabled timeFormat timeSize timeColor timeX timeY | Cast Target: targetEnabled "
 		.. "targetColor targetSize targetX targetY | Feedback: feedback interrupted holdTime fade | Latency: latency latencyColor "
@@ -2131,7 +2131,7 @@ end)()
 		.. "Colors: classColor mhColor ohColor rColor background | Queued Attacks: queueHighlight queueColor cleaveColor | "
 		.. "Seal Colors: sealColors sealRighteousColor sealCrusaderColor sealCommandColor sealJusticeColor sealLightColor "
 		.. "sealWisdomColor sealFuryColor sealMartyrdomColor | Swing End Window: swingWindow swingWindowTime swingWindowColor "
-		.. "windowLatency | Auto Shot Window: autoShotWindow autoShotStandColor autoShotMovingColor | Border: borderStyle borderColor | "
+		.. "windowLatency | Auto Shot Window: autoShotWindow autoShotStandColor autoShotMovingColor | Border: borderStyle borderColor showShadow shadowSize shadowColor | "
 		.. "Text: font outline textSize")
 
 	local note = page.sections.swingTimerBlizzard

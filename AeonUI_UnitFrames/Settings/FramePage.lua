@@ -603,6 +603,28 @@ function FramePage:DeclareCastBar(page)
 		end,
 	}))
 
+	local showOwn, showShared = Border("showShadow")
+
+	card:Checkbox(Inherited("castShowShadow", L["Show Shadow"], showOwn, showShared, from, { details = look }))
+
+	local sizeOwn, sizeShared = Border("shadowSize")
+
+	card:Slider(Inherited("castShadowSize", L["Shadow Size"], sizeOwn, sizeShared, from, {
+		details = look,
+		depends = "castShowShadow",
+		min = 1,
+		max = 10,
+		step = 1,
+	}))
+
+	local shadowOwn, shadowShared = Border("shadowColor")
+
+	card:Color(Inherited("castShadowColor", L["Shadow Color"], shadowOwn, shadowShared, from, {
+		details = look,
+		depends = "castShowShadow",
+		hasOpacity = true,
+	}))
+
 	local thicknessOwn, thicknessShared = Border("borderThickness")
 
 	card:Slider(Inherited("castBorderThickness", L["Border Thickness"], thicknessOwn, thicknessShared, from, {

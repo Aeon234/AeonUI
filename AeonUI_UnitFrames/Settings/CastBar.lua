@@ -169,6 +169,17 @@ function SettingsCastBar:DeclareBar(page)
 			end
 		end,
 	}))
+	card:Checkbox(Field("showShadow", L["Show Shadow"], "castBar.showShadow"))
+	card:Slider(Field("shadowSize", L["Shadow Size"], "castBar.shadowSize", {
+		depends = "showShadow",
+		min = 1,
+		max = 10,
+		step = 1,
+	}))
+	card:Color(Field("shadowColor", L["Shadow Color"], "castBar.shadowColor", {
+		depends = "showShadow",
+		hasOpacity = true,
+	}))
 	card:Checkbox(Field("spark", L["Show Spark"], "castBar.spark"))
 	card:Checkbox(Field("reverse", L["Reverse Fill"], "castBar.reverse"))
 	card:Checkbox(Field("smooth", L["Smooth Animation"], "castBar.smooth"))

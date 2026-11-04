@@ -272,24 +272,31 @@ end
 ---band covers the corners of the rectangular bar and icon and the bar reads as chamfered.
 ---@param frame AUICastBarFrame
 ---@param shown boolean
-function CastBar:StyleEdge(frame, shown)
+---@param outside number how far the Pixel border lies outside the frame, which a shadow starts beyond
+function CastBar:StyleEdge(frame, shown, outside)
+	local Profile = AUI.Profile
 	local edge = frame.edge
+	local look = frame.key and AUI.UnitFrame:BarLook(frame.key, "castBar.bars")
+	local shadow = look and look.shadow
 
-	if shown and not edge then
+	if not frame.key and Profile:Get(frame.base .. "showShadow") then
+		shadow = { size = Profile:Get(frame.base .. "shadowSize") + outside, color = Profile:Get(frame.base .. "shadowColor") }
+	end
+
+	if (shown or shadow) and not edge then
 		edge = AUI.Border:Create(frame, true)
 		edge:SetFrameLevel(frame.over:GetFrameLevel() + 1)
 		frame.edge = edge
 	end
 
 	if edge then
-		local look = frame.key and AUI.UnitFrame:BarLook(frame.key, "castBar.bars")
-
 		edge:Apply({
 			style = look and look.borderStyle or (shown and "FOREVER_MINIMAL_SHADED" or "NONE"),
 			color = look and look.borderColor or Options.FOREVER_MINIMAL.color,
 			thickness = look and look.borderThickness or nil,
 			edgeFile = look and look.edgeFile or nil,
 			background = NO_FILL,
+			shadow = shadow or nil,
 		})
 	end
 end
@@ -334,7 +341,7 @@ function CastBar:StyleLayout(frame, height)
 		line:SetShown(thickness > 0)
 	end
 
-	self:StyleEdge(frame, not pixelBorder)
+	self:StyleEdge(frame, not pixelBorder, thickness)
 end
 
 ---Gives a font string its size and color, and the text's shared outline and shadow.

@@ -247,6 +247,10 @@ function SwingTimer:Style(row)
 		style = host and "NONE" or minimal and "FOREVER_MINIMAL_SHADED" or "THIN_LINE",
 		color = minimal and AUI.CastBarOptions.FOREVER_MINIMAL.color or Profile:Get("swingTimer.borderColor"),
 		background = NO_FILL,
+		shadow = not host and Profile:Get("swingTimer.showShadow") and {
+			size = Profile:Get("swingTimer.shadowSize"),
+			color = Profile:Get("swingTimer.shadowColor"),
+		} or nil,
 	})
 	self:PaintRange(row, row.far == true)
 end

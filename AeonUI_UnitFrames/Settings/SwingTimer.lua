@@ -289,6 +289,17 @@ function SettingsSwingTimer:DeclareBorder(page)
 			end
 		end,
 	}))
+	card:Checkbox(Field("showShadow", L["Show Shadow"], "showShadow"))
+	card:Slider(Field("shadowSize", L["Shadow Size"], "shadowSize", {
+		depends = "showShadow",
+		min = 1,
+		max = 10,
+		step = 1,
+	}))
+	card:Color(Field("shadowColor", L["Shadow Color"], "shadowColor", {
+		depends = "showShadow",
+		hasOpacity = true,
+	}))
 end
 
 ---@param page table

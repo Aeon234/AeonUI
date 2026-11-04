@@ -13,7 +13,7 @@ local SHARED = {
 	"interrupted", "holdTime", "fade",
 }
 -- The bar's border, which follows its frame's until changed.
-local BORDER = { "borderStyle", "borderThickness", "borderColor", "lineColor" }
+local BORDER = { "borderStyle", "borderThickness", "borderColor", "lineColor", "showShadow", "shadowSize", "shadowColor" }
 
 ---A unit frame's cast bar: `AUI.CastBar`'s view, driven by oUF's Castbar element on the view's status bar. oUF shows and
 ---hides that bar, so the bar's own `Show` and `Hide` also show and hide the view, and turn a hide into Fade Out or Always

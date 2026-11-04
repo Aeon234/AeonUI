@@ -422,6 +422,8 @@ local function Fire(event, ...)
 end
 
 AUI.Border = {
+	SHADOW_SIZE = 4,
+	SHADOW_COLOR = { r = 0, g = 0, b = 0, a = 0.618 },
 	Create = function()
 		return {
 			laidOut = 0,
@@ -607,6 +609,7 @@ Equal("out of combat it hides", frame:IsShown(), false)
 Equal("placed at the default", frame.points[1][5], -180)
 Equal("the main hand's color", main.bar.fill.vertex[1], 0x66 / 255)
 Equal("a thin line border", main.edge.look.style, "THIN_LINE")
+Equal("no shadow by default", main.edge.look.shadow, nil)
 Equal("range asked for the main hand", rangeFlags[MAIN], true)
 Equal("not for the rows off", rangeFlags[OFF], nil)
 
@@ -731,6 +734,12 @@ Equal("the stack shrinks", frame.height, 14)
 Equal("its fill is unseen", off.bar.fill.alpha, 0)
 Equal("its background too", off.background.color[4], 0)
 Equal("it has no border", off.edge.look.style, "NONE")
+Equal("and no shadow", off.edge.look.shadow, nil)
+Set("swingTimer.showShadow", true)
+Equal("a riding row has none with Show Shadow on", off.edge.look.shadow, nil)
+Equal("its host has it", main.edge.look.shadow.size, 4)
+Set("swingTimer.showShadow", false)
+Equal("off takes it away", main.edge.look.shadow, nil)
 Equal("nor label", off.tag:IsShown(), false)
 Equal("nor time", off.time:IsShown(), false)
 Equal("its spark sits above the main hand's", off.over.level > main.over.level, true)

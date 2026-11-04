@@ -542,6 +542,8 @@ local function Fire(event, ...)
 end
 
 AUI.Border = {
+	SHADOW_SIZE = 4,
+	SHADOW_COLOR = { r = 0, g = 0, b = 0, a = 0.618 },
 	Create = function(_, owner, overContent)
 		return {
 			owner = owner,
@@ -894,6 +896,19 @@ CastBar:Place()
 Equal("placing the bar puts it back on whole pixels", edge.laidOut, 1)
 Fire("UI_SCALE_CHANGED")
 Equal("and so does a change of UI scale", edge.laidOut, 2)
+Equal("no shadow by default", edge.look.shadow, nil)
+Set("castBar.showShadow", true)
+Equal("Show Shadow gives the art one", edge.look.shadow.size, 4)
+Set("castBar.borderStyle", "PIXEL")
+Equal("and Pixel one beyond its lines", edge.look.shadow.size, 4 + frame.lines[1].height)
+Equal("with no art", edge.look.style, "NONE")
+frame.edge = nil
+Set("castBar.shadowSize", 5)
+Equal("Pixel makes a border for the shadow alone", frame.edge.look.style, "NONE")
+frame.edge = edge
+Set("castBar.shadowSize", 4)
+Set("castBar.showShadow", false)
+Equal("off takes it away", edge.look.shadow, nil)
 Set("castBar.borderStyle", "PIXEL")
 Set("castBar.height", 16)
 Set("castBar.reverse", true)
