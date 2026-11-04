@@ -228,6 +228,53 @@ function SettingsSwingTimer:DeclareSeals(page)
 end
 
 ---@param page table
+function SettingsSwingTimer:DeclareSwingWindow(page)
+	local Options = AUI.SwingTimerOptions
+	local card = page:Section("swingTimerSwingWindow", L["Swing End Window"])
+
+	card:Toggle(Field("swingWindow", L["Show Swing End Window"], "swingWindow", {
+		description = L["Shades the last part of each melee swing: when to twist a seal, finish a weave or queue an attack before the hit."],
+	}))
+	card:Slider(Field("swingWindowTime", L["Window Length"], "swingWindowTime", {
+		depends = "swingWindow",
+		min = Options.MIN_WINDOW,
+		max = Options.MAX_WINDOW,
+		step = 0.1,
+		format = "decimal",
+	}))
+	card:Color(Field("swingWindowColor", L["Window Color"], "swingWindowColor", {
+		depends = "swingWindow",
+		hasOpacity = true,
+	}))
+	card:Checkbox(Field("windowLatency", L["Add Latency"], "windowLatency", {
+		description = L["Widens the swing and Auto Shot windows by your world latency, so they show when to press rather than when the server acts."],
+	}))
+end
+
+---@param page table
+function SettingsSwingTimer:DeclareAutoShot(page)
+	local card = page:Section("swingTimerAutoShot", L["Auto Shot Window"], {
+		show = function()
+			local _, class = UnitClass("player")
+
+			return class == "HUNTER"
+		end,
+	})
+
+	card:Toggle(Field("autoShotWindow", L["Show Auto Shot Window"], "autoShotWindow", {
+		description = L["Shades Auto Shot's cast at the end of the Ranged bar. It turns red while you move, since moving holds the shot."],
+	}))
+	card:Color(Field("autoShotStandColor", L["Standing Color"], "autoShotStandColor", {
+		depends = "autoShotWindow",
+		hasOpacity = true,
+	}))
+	card:Color(Field("autoShotMovingColor", L["Moving Color"], "autoShotMovingColor", {
+		depends = "autoShotWindow",
+		hasOpacity = true,
+	}))
+end
+
+---@param page table
 function SettingsSwingTimer:DeclareBorder(page)
 	local Options = AUI.SwingTimerOptions
 	local card = page:Section("swingTimerBorder", L["Border"])
@@ -313,6 +360,8 @@ function SettingsSwingTimer:Declare(window)
 	self:DeclareColors(page)
 	self:DeclareQueued(page)
 	self:DeclareSeals(page)
+	self:DeclareSwingWindow(page)
+	self:DeclareAutoShot(page)
 	self:DeclareBorder(page)
 	self:DeclareText(page)
 end

@@ -156,6 +156,15 @@ function UnitClass()
 	return "Warrior", playerClass
 end
 
+local moving, worldLatency = false, 80
+function IsPlayerMoving()
+	return moving
+end
+
+function GetNetStats()
+	return 0, 0, 0, worldLatency
+end
+
 local currentSpells = {}
 local SPELL_NAMES = {
 	[78] = "Heroic Strike",
@@ -239,6 +248,9 @@ local REGION = {
 	end,
 	SetAlpha = function(self, alpha)
 		self.alpha = alpha
+	end,
+	SetWidth = function(self, width)
+		self.width = width
 	end,
 }
 
@@ -455,6 +467,10 @@ local function Equal(name, actual, expected)
 	end
 end
 
+local function Near(name, actual, expected)
+	Equal(name, math.abs(actual - expected) < 0.001, true)
+end
+
 local function Default(field)
 	return AUI.Schema:Field("swingTimer." .. field).default
 end
@@ -511,6 +527,24 @@ Equal("the others share one", Options:QueueField(78), "queueColor")
 Equal("a hand row names its attack", Options:TagText(mainHand, "MH", "Cleave"), "MH - Cleave")
 Equal("the ranged row does not", Options:TagText(Options.ROWS[3], "R", "Cleave"), "R")
 
+local rangedRow = Options.ROWS[3]
+
+Equal("a melee row's window", Options:WindowSeconds(mainHand, true, 0.4, false, false, 0), 0.4)
+Equal("off, none", Options:WindowSeconds(mainHand, false, 0.4, true, true, 0), nil)
+Equal("the off hand has one", Options:WindowSeconds(offHand, true, 0.4, false, false, 0), 0.4)
+Equal("the ranged row has none without Auto Shot", Options:WindowSeconds(rangedRow, true, 0.4, false, true, 0), nil)
+Equal("nor for another class", Options:WindowSeconds(rangedRow, true, 0.4, true, false, 0), nil)
+Equal("a hunter's is half a second", Options:WindowSeconds(rangedRow, false, 0.4, true, true, 0), 0.5)
+Equal("latency widens it", Options:WindowSeconds(mainHand, true, 0.4, false, false, 0.1), 0.5)
+Equal("the window's share of the row", Options:WindowWidth(0.5, 2, 200), 50)
+Equal("never past the row", Options:WindowWidth(5, 2, 200), 200)
+Equal("never unseen", Options:WindowWidth(0.001, 2, 200), 1)
+Equal("filling up it sits right", Options:WindowSide(false), "RIGHT")
+Equal("draining it sits left", Options:WindowSide(true), "LEFT")
+Equal("melee's color", Options:WindowColor(mainHand, true), "swingWindowColor")
+Equal("standing's", Options:WindowColor(rangedRow, false), "autoShotStandColor")
+Equal("moving's", Options:WindowColor(rangedRow, true), "autoShotMovingColor")
+
 -- Defaults ------------------------------------------------------------------------------------------------
 
 Equal("off by default", Default("enabled"), false)
@@ -526,6 +560,10 @@ Equal("Always Show Rows off", Default("alwaysShowRows"), false)
 Equal("Show Shield off", Default("shieldRow"), false)
 Equal("Combine Hands off", Default("combineHands"), false)
 Equal("Hide When Idle off", Default("hideWhenIdle"), false)
+Equal("the swing window off", Default("swingWindow"), false)
+Equal("the Auto Shot window off", Default("autoShotWindow"), false)
+Equal("Add Latency off", Default("windowLatency"), false)
+Equal("a 0.4 second window", Default("swingWindowTime"), 0.4)
 Equal("queued attacks on", Default("queueHighlight"), true)
 Equal("seal colors on", Default("sealColors"), true)
 Equal("every seal has a color", AUI.Schema:Field("swingTimer.sealFuryColor").default.r, 0.95)
@@ -867,6 +905,77 @@ playerClass = "WARRIOR"
 Fire("PLAYER_REGEN_ENABLED")
 Set("swingTimer.enabled", true)
 Equal("the seal is gone", main.bar.fill.vertex[1], 0x66 / 255)
+Fire("PLAYER_REGEN_DISABLED")
+
+-- Windows -------------------------------------------------------------------------------------------------
+
+Equal("a warrior watches no movement", eventFrame.events.PLAYER_STARTED_MOVING, nil)
+Fire("PLAYER_SWING", 2, MAIN)
+Equal("no window by default", main.window:IsShown(), false)
+Set("swingTimer.swingWindow", true)
+Equal("on, a running swing shades its end", main.window:IsShown(), true)
+Near("its share of the row", main.window.width, 220 * 0.4 / 2)
+Equal("at the end the swing lands on", main.window.points[1][1], "TOPRIGHT")
+Equal("in its color", main.window.color[4], 0.35)
+Equal("an idle row has none", off.window:IsShown(), false)
+Set("swingTimer.depleteFill", true)
+Equal("draining, the other end", main.window.points[1][1], "TOPLEFT")
+Set("swingTimer.depleteFill", false)
+Set("swingTimer.width", 110)
+Near("it follows the width", main.window.width, 110 * 0.4 / 2)
+Set("swingTimer.width", 220)
+Set("swingTimer.windowLatency", true)
+Fire("PLAYER_SWING", 2, MAIN)
+Near("Add Latency widens it", main.window.width, 220 * 0.48 / 2)
+worldLatency = SECRET
+Fire("PLAYER_SWING", 2, MAIN)
+Near("a secret latency adds nothing", main.window.width, 220 * 0.4 / 2)
+worldLatency = 80
+Set("swingTimer.windowLatency", false)
+
+Set("swingTimer.combineHands", true)
+Fire("PLAYER_SWING", 2, OFF)
+Equal("a row riding another has no window", off.window:IsShown(), false)
+Equal("the main hand keeps its own", main.window:IsShown(), true)
+Set("swingTimer.combineHands", false)
+Fire("PLAYER_DEAD")
+Equal("idle, it hides", main.window:IsShown(), false)
+Set("swingTimer.swingWindow", false)
+
+Set("swingTimer.enabled", false)
+playerClass = "HUNTER"
+moving = true
+Set("swingTimer.enabled", true)
+Equal("a hunter watches no movement until asked", eventFrame.events.PLAYER_STARTED_MOVING, nil)
+Set("swingTimer.autoShotWindow", true)
+Equal("then it does", eventFrame.events.PLAYER_STARTED_MOVING, true)
+moving = false
+Set("swingTimer.showR", true)
+Fire("PLAYER_SWING", 3, RANGED)
+Near("Auto Shot's cast shades the end", ranged.window.width, 220 * 0.5 / 3)
+Fire("PLAYER_STARTED_MOVING")
+Equal("moving turns it red", ranged.window.color[1], 0.95)
+Fire("PLAYER_STOPPED_MOVING")
+Equal("standing turns it green", ranged.window.color[1], 0.30)
+Equal("a melee row has none", main.window:IsShown(), false)
+Set("swingTimer.autoShotWindow", false)
+Equal("off stops watching", eventFrame.events.PLAYER_STARTED_MOVING, nil)
+Equal("and hides it", ranged.window:IsShown(), false)
+Set("swingTimer.showR", false)
+
+Set("swingTimer.autoShotWindow", true)
+Set("swingTimer.swingWindow", true)
+Fire("PLAYER_REGEN_ENABLED")
+SwingTimer:Sample(true)
+Equal("the sample shows the swing window", main.window:IsShown(), true)
+Near("at the sample's length", main.window.width, 220 * 0.4 / Options.SAMPLE_SWING)
+SwingTimer:Sample(false)
+Equal("and hides it after", main.window:IsShown(), false)
+Set("swingTimer.autoShotWindow", false)
+Set("swingTimer.swingWindow", false)
+Set("swingTimer.enabled", false)
+playerClass = "WARRIOR"
+Set("swingTimer.enabled", true)
 Fire("PLAYER_REGEN_DISABLED")
 
 -- Weapon swap ---------------------------------------------------------------------------------------------

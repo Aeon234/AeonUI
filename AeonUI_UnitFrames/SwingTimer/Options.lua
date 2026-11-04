@@ -36,6 +36,10 @@ local Schema = AUI.Schema
 ---@field SEAL_SECONDS number how long a seal lasts until a readable buff says otherwise
 ---@field MAX_AURAS integer
 ---@field QUEUE_SEPARATOR string between a row's label and its queued attack
+---@field AUTO_SHOT_CAST number Auto Shot's cast, in seconds, at the end of the ranged cycle
+---@field SAMPLE_SWING number a sample swing's length, in seconds
+---@field MIN_WINDOW number
+---@field MAX_WINDOW number
 ---@field MIN_WIDTH number
 ---@field MAX_WIDTH number
 ---@field MIN_HEIGHT number
@@ -106,6 +110,10 @@ local Options = {
 	SEAL_SECONDS = 30,
 	MAX_AURAS = 40,
 	QUEUE_SEPARATOR = " - ",
+	AUTO_SHOT_CAST = 0.5,
+	SAMPLE_SWING = 2.6,
+	MIN_WINDOW = 0.1,
+	MAX_WINDOW = 2,
 	MIN_WIDTH = 80,
 	MAX_WIDTH = 600,
 	MIN_HEIGHT = 4,
@@ -168,6 +176,13 @@ for _, seal in ipairs(Options.SEALS) do
 	Schema:Color("swingTimer." .. seal.color, SEAL_COLORS[seal.color])
 end
 
+Schema:Boolean("swingTimer.swingWindow", false)
+Schema:Number("swingTimer.swingWindowTime", 0.4, Options.MIN_WINDOW, Options.MAX_WINDOW)
+Schema:Color("swingTimer.swingWindowColor", { r = 1, g = 1, b = 1, a = 0.35 })
+Schema:Boolean("swingTimer.windowLatency", false)
+Schema:Boolean("swingTimer.autoShotWindow", false)
+Schema:Color("swingTimer.autoShotStandColor", { r = 0.30, g = 0.85, b = 0.35, a = 0.6 })
+Schema:Color("swingTimer.autoShotMovingColor", { r = 0.95, g = 0.20, b = 0.20, a = 0.6 })
 Schema:Choice("swingTimer.borderStyle", "swingTimerBorderStyle", "THIN_LINE")
 Schema:Color("swingTimer.borderColor", { r = 0x37 / 255, g = 0x3b / 255, b = 0x40 / 255 })
 Schema:String("swingTimer.font", "Expressway", 64)
@@ -232,6 +247,51 @@ function Options:TagText(spec, label, attack)
 	end
 
 	return label
+end
+
+---How much of a row's end its window shades: a melee swing's last part, or Auto Shot's cast on a hunter's Ranged row.
+---@param spec AUISwingTimerRowSpec
+---@param swingOn boolean Swing End Window
+---@param swingTime number Window Length
+---@param shotOn boolean Auto Shot Window
+---@param hunter boolean
+---@param latency number seconds added, Add Latency's
+---@return number? seconds none on a row without a window
+function Options:WindowSeconds(spec, swingOn, swingTime, shotOn, hunter, latency)
+	local seconds
+
+	if spec.hand then
+		seconds = swingOn and swingTime or nil
+	elseif shotOn and hunter then
+		seconds = self.AUTO_SHOT_CAST
+	end
+
+	return seconds and seconds + latency or nil
+end
+
+---@param seconds number
+---@param swing number the swing's length
+---@param width number the row's width
+---@return number width the window's width, at least one unit and at most the row's
+function Options:WindowWidth(seconds, swing, width)
+	return math.max(width * math.min(seconds / swing, 1), 1)
+end
+
+---@param deplete boolean Deplete Fill
+---@return string side the end a swing lands on
+function Options:WindowSide(deplete)
+	return deplete and "LEFT" or "RIGHT"
+end
+
+---@param spec AUISwingTimerRowSpec
+---@param moving boolean
+---@return string field its window's color field
+function Options:WindowColor(spec, moving)
+	if spec.hand then
+		return "swingWindowColor"
+	end
+
+	return moving and "autoShotMovingColor" or "autoShotStandColor"
 end
 
 ---@param location any the item's equip location, already readable

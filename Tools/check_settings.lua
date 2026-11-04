@@ -2097,6 +2097,10 @@ end)()
 	class = "WARRIOR"
 	Equal("for a warrior the other way round", paladin.sections.swingTimerQueued.info.show(), true)
 	Equal("no seals", paladin.sections.swingTimerSeals.info.show(), false)
+	Equal("nor Auto Shot", paladin.sections.swingTimerAutoShot.info.show(), false)
+	class = "HUNTER"
+	Equal("the Auto Shot card shows for a hunter", paladin.sections.swingTimerAutoShot.info.show(), true)
+	class = "WARRIOR"
 
 	local page = Load(nil).pages.swingTimer
 	local cards = {}
@@ -2123,7 +2127,8 @@ end)()
 		.. "shieldRow combineHands visibility hideWhenIdle texture depleteFill spark time label | Size: width height spacing | Range: rangeCheck outOfRangeAlpha | "
 		.. "Colors: classColor mhColor ohColor rColor background | Queued Attacks: queueHighlight queueColor cleaveColor | "
 		.. "Seal Colors: sealColors sealRighteousColor sealCrusaderColor sealCommandColor sealJusticeColor sealLightColor "
-		.. "sealWisdomColor sealFuryColor sealMartyrdomColor | Border: borderStyle borderColor | "
+		.. "sealWisdomColor sealFuryColor sealMartyrdomColor | Swing End Window: swingWindow swingWindowTime swingWindowColor "
+		.. "windowLatency | Auto Shot Window: autoShotWindow autoShotStandColor autoShotMovingColor | Border: borderStyle borderColor | "
 		.. "Text: font outline textSize")
 
 	local note = page.sections.swingTimerBlizzard

@@ -7,6 +7,7 @@ local NO_FILL = { r = 0, g = 0, b = 0, a = 0 }
 local OVER_LEVEL = 2
 local SPARK_GROW = 2
 local PERCENT = 100
+local MILLISECONDS = 1000
 
 ---@class AUISwingTimerRow : Frame
 ---@field spec AUISwingTimerRowSpec
@@ -14,6 +15,7 @@ local PERCENT = 100
 ---@field bar StatusBar
 ---@field over Frame
 ---@field spark Texture
+---@field window Texture shades the end of its swing
 ---@field tag FontString
 ---@field time FontString
 ---@field duration table the duration object the fill and the time run from
@@ -43,6 +45,10 @@ local PERCENT = 100
 ---@field watchingGear boolean? the off hand's slot is watched for a shield
 ---@field watchingQueue boolean? next-swing attacks are watched
 ---@field watchingSeals boolean? seals are watched
+---@field watchingMoving boolean? the player's movement is watched
+---@field hunter boolean? the player is a hunter
+---@field moving boolean? the player is moving
+---@field latency number? the world latency, in seconds, last read
 ---@field queueFields table<string, string> the color field of each of the class's next-swing attacks, by name
 ---@field sealsByName table<string, AUISwingTimerSeal> the seals, by name, for a paladin
 ---@field queued string|false|nil the queued attack's name
@@ -97,6 +103,9 @@ function SwingTimer:BuildRow(parent, spec)
 	over:SetAllPoints()
 	over:SetFrameLevel(bar:GetFrameLevel() + OVER_LEVEL)
 	row.over = over
+
+	row.window = over:CreateTexture(nil, "ARTWORK")
+	row.window:Hide()
 
 	row.spark = over:CreateTexture(nil, "OVERLAY")
 	row.spark:SetTexture(Options.SPARK_TEXTURE)
@@ -272,6 +281,40 @@ function SwingTimer:DrawSample(row, far)
 	row.time:SetText(row.spec.sampleTime)
 	row.spark:SetShown(SparkOn(row))
 	self:PaintRange(row, far)
+	self:UpdateWindow(row)
+end
+
+---Shades the end of a running or sample swing; a row riding another has none of its own.
+---@param row AUISwingTimerRow
+function SwingTimer:UpdateWindow(row)
+	local Profile = AUI.Profile
+	local window = row.window
+	local sample = row.isPreview or self.sampling
+	local seconds
+
+	if not row.host and (row.ends or sample) then
+		local _, class = UnitClass("player")
+
+		seconds = Options:WindowSeconds(row.spec, Profile:Get("swingTimer.swingWindow") == true,
+			Profile:Get("swingTimer.swingWindowTime"), Profile:Get("swingTimer.autoShotWindow") == true,
+			class == "HUNTER", not sample and Profile:Get("swingTimer.windowLatency") and self.latency or 0)
+	end
+
+	if not seconds then
+		window:Hide()
+
+		return
+	end
+
+	local side = Options:WindowSide(Profile:Get("swingTimer.depleteFill") == true)
+	local color = Profile:Get("swingTimer." .. Options:WindowColor(row.spec, not sample and self.moving == true))
+
+	window:ClearAllPoints()
+	window:SetPoint("TOP" .. side, row.bar, "TOP" .. side)
+	window:SetPoint("BOTTOM" .. side, row.bar, "BOTTOM" .. side)
+	window:SetWidth(Options:WindowWidth(seconds, row.swing or Options.SAMPLE_SWING, Profile:Get("swingTimer.width")))
+	window:SetColorTexture(color.r, color.g, color.b, color.a or 1)
+	window:Show()
 end
 
 ---@param row AUISwingTimerRow
@@ -287,6 +330,7 @@ function SwingTimer:IdleRow(row)
 	row.bar:SetValue(0)
 	row.time:SetText("")
 	row.spark:Hide()
+	row.window:Hide()
 end
 
 ---Runs a row's fill and time from its swing's start.
@@ -302,6 +346,7 @@ function SwingTimer:RunRow(row)
 	row.bar:SetTimerDuration(row.duration, Enum.StatusBarInterpolation.Immediate, direction)
 	row.binding:SetEnabled(true)
 	row.spark:SetShown(SparkOn(row))
+	self:UpdateWindow(row)
 end
 
 ---@param row AUISwingTimerRow
@@ -309,6 +354,12 @@ end
 function SwingTimer:StartRow(row, seconds)
 	if not Options:Usable(seconds) then
 		return
+	end
+
+	if AUI.Profile:Get("swingTimer.windowLatency") then
+		local _, _, _, world = GetNetStats()
+
+		self.latency = (AUI:Readable(world, 0) or 0) / MILLISECONDS
 	end
 
 	row.swing, row.ends = seconds, GetTime() + seconds
@@ -802,6 +853,37 @@ function SwingTimer:OnAura(_, unit)
 	end
 end
 
+---@param event string
+function SwingTimer:OnMoving(event)
+	self.moving = event == "PLAYER_STARTED_MOVING"
+
+	local row = self.byType[Enum.PlayerSwingType.Ranged]
+
+	if row.ends then
+		self:UpdateWindow(row)
+	end
+end
+
+---Follows the player's movement only while Auto Shot's window can show it.
+function SwingTimer:WatchMoving()
+	local _, class = UnitClass("player")
+	local watch = class == "HUNTER" and AUI.Profile:Get("swingTimer.autoShotWindow") == true
+
+	if watch ~= (self.watchingMoving == true) then
+		self.watchingMoving = watch
+
+		if watch then
+			AUI.Events:Register("PLAYER_STARTED_MOVING", self, self.OnMoving)
+			AUI.Events:Register("PLAYER_STOPPED_MOVING", self, self.OnMoving)
+			self.moving = AUI:Readable(IsPlayerMoving()) == true
+		else
+			AUI.Events:Unregister("PLAYER_STARTED_MOVING", self)
+			AUI.Events:Unregister("PLAYER_STOPPED_MOVING", self)
+			self.moving = false
+		end
+	end
+end
+
 ---Follows queued attacks and seals only while their settings are on and the class has any.
 function SwingTimer:WatchAttacks()
 	local Events, Profile = AUI.Events, AUI.Profile
@@ -836,7 +918,8 @@ end
 ---it re-sends its flag only when its own state changes.
 function SwingTimer:Stop()
 	AUI.Events:UnregisterAll(self)
-	self.watchingGear, self.watchingQueue, self.watchingSeals = nil, nil, nil
+	self.watchingGear, self.watchingQueue, self.watchingSeals, self.watchingMoving = nil, nil, nil, nil
+	self.moving = false
 	self:StopSealTimer()
 	self.queued, self.seal = false, false
 
@@ -893,6 +976,7 @@ function SwingTimer:Apply()
 
 	self:WatchGear()
 	self:WatchAttacks()
+	self:WatchMoving()
 	self:ReadQueue()
 	self:ReadSeal()
 
@@ -902,6 +986,8 @@ function SwingTimer:Apply()
 		if row.ends and not self.sampling then
 			self:RunRow(row)
 		end
+
+		self:UpdateWindow(row)
 	end
 
 	self:Place()
