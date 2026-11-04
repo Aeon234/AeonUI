@@ -2,9 +2,11 @@
 -- game: power colors and their palette, segment arithmetic and colors, heights with extra mana, each switch's elements,
 -- attaching to the power bar, frames spawned only when turned on and past combat, and Blizzard's frame left alone.
 -- Run from any directory with Lua 5.1: lua Tools/check_resources.lua
--- Frames are stand-ins that record the last call of each method; oUF's elements and drawing are not exercised here.
+-- Frames are the shared client's widgets with oUF's frame methods added; oUF's elements and drawing are not exercised here.
 
 local root = (arg and arg[0] or ""):match("^(.-)[^/\\]*$") .. "../"
+local client = assert(loadfile(root .. "Tools/stub_client.lua"))({ project = "retail" })
+local Equal = client.Equal
 
 -- Environment ---------------------------------------------------------------------------------------------
 
@@ -13,23 +15,12 @@ SlashCmdList = {}
 C_AddOns = {
 	GetAddOnMetadata = function() end,
 }
-UIParent = {}
 Enum = { StatusBarInterpolation = { Immediate = 0, ExponentialEaseOut = 1 }, PowerType = { Essence = 19 } }
 C_SpecializationInfo = {
 	GetSpecialization = function()
 		return 2
 	end,
 }
-
-function issecretvalue()
-	return false
-end
-
-local combat = false
-
-function InCombatLockdown()
-	return combat
-end
 
 function UnitClass()
 	return "Mage", "MAGE"
@@ -47,101 +38,6 @@ function GetCVar()
 	return "0"
 end
 
-function Mixin(object, source)
-	for key, value in pairs(source) do
-		object[key] = value
-	end
-
-	return object
-end
-
----A frame or region stand-in recording the last call of each method.
-local function Region()
-	local region = { last = {}, shown = true, level = 1, Stagger = false }
-
-	function region:SetShown(shown)
-		self.shown = shown == true
-	end
-
-	function region:Show()
-		self.shown = true
-	end
-
-	function region:Hide()
-		self.shown = false
-	end
-
-	function region:CreateTexture()
-		return Region()
-	end
-
-	function region:CreateFontString()
-		return Region()
-	end
-
-	function region:SetPoint(...)
-		self.points = rawget(self, "points") or {}
-		self.points[#self.points + 1] = { ... }
-	end
-
-	function region:ClearAllPoints()
-		self.points = {}
-	end
-
-	function region:GetMinMaxValues()
-		return 0, 1
-	end
-
-	function region:IsElementEnabled(element)
-		return self.elements ~= nil and self.elements[element] == true
-	end
-
-	function region:GetFrameLevel()
-		return 1
-	end
-
-	function region:GetWidth()
-		return self.width or 0
-	end
-
-	function region:GetHeight()
-		return self.height or 0
-	end
-
-	function region:SetSize(width, height)
-		self.last.SetSize = { width, height }
-		self.width, self.height = width, height
-	end
-
-	function region:GetValue()
-		return self.value or 0
-	end
-
-	function region:SetValue(value)
-		self.value = value
-	end
-
-	return setmetatable(region, {
-		__index = function(_, method)
-			if not method:find("^%u") then
-				return nil
-			end
-
-			return function(self, ...)
-				self.last[method] = { ... }
-			end
-		end,
-	})
-end
-
-function CreateFrame(_, _, parent)
-	local frame = Region()
-
-	frame.parent = parent
-
-	return frame
-end
-
 local AUI = {}
 
 assert(loadfile(root .. "AeonUI/Core/Core.lua"))("AeonUI", AUI)
@@ -154,7 +50,7 @@ end
 AUI.Border = {
 	ART_COLOR = { r = 0.5, g = 0.4, b = 0.3 },
 	Create = function()
-		return Region()
+		return Mixin(CreateFrame("Frame"), { Layout = function() end })
 	end,
 	CellDividerWidth = function()
 		return nil
@@ -178,12 +74,8 @@ AUI.UnitFrame = {
 	specs = {},
 	BORDER_LEVEL = 6,
 	Style = function() end,
-	CreateBar = function()
-		local border = Region()
-
-		function border.Layout() end
-
-		return Region(), Region(), border
+	CreateBar = function(_, frame)
+		return CreateFrame("StatusBar", nil, frame), frame:CreateTexture(), AUI.Border:Create()
 	end,
 	BarLook = function()
 		return {}
@@ -204,6 +96,11 @@ AUI.Indicators = {
 	SetElement = function(_, frame, element, on)
 		frame.elements = frame.elements or {}
 		frame.elements[element] = on
+
+		-- oUF gives an element ForceUpdate as it enables it.
+		if on and frame[element] then
+			frame[element].ForceUpdate = frame[element].ForceUpdate or function() end
+		end
 	end,
 }
 
@@ -225,6 +122,26 @@ function LibStub()
 end
 
 local spawned, disabledBlizzard = {}, 0
+
+-- The methods oUF gives a frame it spawns. These record what a check reads.
+local UNIT_FRAME = {
+	Enable = function(self)
+		self.enabled = true
+	end,
+	Disable = function(self)
+		self.enabled = false
+	end,
+	UpdateAllElements = function(self)
+		self.updated = true
+	end,
+	RegisterEvent = function(self, event)
+		self.registered = self.registered or {}
+		self.registered[event] = true
+	end,
+	IsElementEnabled = function(self, element)
+		return self.elements ~= nil and self.elements[element] == true
+	end,
+}
 
 AUI.oUF = {
 	colors = {
@@ -250,7 +167,7 @@ AUI.oUF = {
 		disabledBlizzard = disabledBlizzard + 1
 	end,
 	Spawn = function(self, unit, name)
-		local frame = Region()
+		local frame = Mixin(CreateFrame("Button", name, UIParent), UNIT_FRAME)
 
 		self:DisableBlizzard(unit)
 		frame.name = name
@@ -281,18 +198,6 @@ AUI.Profile = {
 
 local function Set(path, value)
 	Schema:Write(config, path, value)
-end
-
--- Harness -------------------------------------------------------------------------------------------------
-
-local checks = 0
-
-local function Equal(name, actual, expected)
-	checks = checks + 1
-	if actual ~= expected then
-		io.stderr:write(("FAIL: %s: expected %s, got %s\n"):format(name, tostring(expected), tostring(actual)))
-		os.exit(1)
-	end
 end
 
 -- Power colors --------------------------------------------------------------------------------------------
@@ -362,11 +267,11 @@ Equal("nothing started", Frames.started, false)
 Equal("settings are followed", handlers.Profile ~= nil, true)
 Equal("no reload needed", Frames:ReloadNeeded(), false)
 
-combat = true
+client:SetCombat(true)
 Set(Options.RESOURCES_PATH, true)
 handlers.Profile(Frames, Options.RESOURCES_PATH)
 Equal("in combat it waits", #spawned, 0)
-combat = false
+client:SetCombat(false)
 Frames:Start()
 Equal("then both spawn", table.concat(spawned, " "), "AeonUIPlayerPower AeonUIClassPower")
 Equal("Blizzard's player frame stays", disabledBlizzard, 0)
@@ -376,9 +281,9 @@ disabledBlizzard = 0
 
 local power, resource = Frames.objects.playerPower, Frames.objects.classPower
 
-Equal("its size", power.last.SetSize[1], 360)
+Equal("its size", power.width, 360)
 Equal("its place", power.points[1][5], -184)
-Equal("it shows", power.last.Enable ~= nil, true)
+Equal("it shows", power.enabled, true)
 Equal("the power element runs", power.elements.Power, true)
 Equal("oUF's power element on its bar", power.Power, power.Bar)
 Equal("in power colors", power.Power.colorPower, true)
@@ -398,15 +303,15 @@ Equal("attached", ClassPower:IsAttached(), true)
 Equal("the resource runs", resource.elements.ClassPower, true)
 Equal("runes too", resource.elements.Runes, true)
 Equal("filled runes stand on the left", resource.Runes.sortOrder, "asc")
-Equal("drawn as it spawns", resource.last.UpdateAllElements ~= nil, true)
-Equal("the power bar too", power.last.UpdateAllElements ~= nil, true)
-Equal("read again once the client knows the specialization", resource.last.RegisterEvent ~= nil, true)
+Equal("drawn as it spawns", resource.updated, true)
+Equal("the power bar too", power.updated, true)
+Equal("read again once the client knows the specialization", resource.registered.SPELLS_CHANGED, true)
 Equal("extra mana does not", resource.elements.AdditionalPower, false)
 
 Set(Options:Path("classPower", "extraMana"), true)
 handlers.Profile(Frames, Options:Path("classPower", "extraMana"))
 Equal("extra mana turns on", resource.elements.AdditionalPower, true)
-Equal("the frame grows", resource.last.SetSize[2], 16)
+Equal("the frame grows", resource.height, 16)
 Equal("extra mana under the resource", resource.ExtraHolder.points[1][4], 0)
 Equal("past its height", resource.ExtraHolder.points[1][5], -12)
 
@@ -451,9 +356,9 @@ Equal("a mover then", ClassPower:IsAttached(), false)
 Set(Options.RESOURCES_PATH, false)
 resource.ClassPower[1]:Show()
 handlers.Profile(Frames, Options.RESOURCES_PATH)
-Equal("off stops the power bar", power.last.Disable ~= nil, true)
+Equal("off stops the power bar", power.enabled, false)
 Equal("its element", power.elements.Power, false)
-Equal("off stops the class resource", resource.last.Disable ~= nil, true)
+Equal("off stops the class resource", resource.enabled, false)
 Equal("its elements", resource.elements.ClassPower, false)
 Equal("and extra mana", resource.elements.AdditionalPower, false)
 Equal("and its segments hide", resource.ClassPower[1].shown, false)
@@ -463,4 +368,4 @@ handlers.Profile(Frames, Options.RESOURCES_PATH)
 Equal("on again runs them", resource.elements.ClassPower, true)
 Equal("no second spawn", #spawned, 2)
 
-io.stdout:write(("check_resources: %d checks passed\n"):format(checks))
+io.stdout:write(("check_resources: %d checks passed\n"):format(client.checks))

@@ -7,8 +7,10 @@
 -- a missing field gives nil, which capability guards rely on.
 --
 -- A check reads a widget's state from these fields, which its setters keep:
---   shown, points, width, height, alpha, scale, level, parent, template, scripts          every frame or texture
+--   shown, points, width, height, alpha, scale, level, parent, template, scripts, mouse   every frame or texture
 --   file, color, vertex, coords, desaturated                                              textures
+--   text, font                                                                            font strings
+--   value, min, max, statusColor, reverseFill                                             status bars
 --   backdrop                                                                              frames with BackdropTemplate
 -- `points` holds each anchor's SetPoint arguments, one entry per anchor. Size reads 0 until set, as an unsized frame's
 -- does. `left`, `right`, `top` and `bottom` are a check's fixtures: the screen edges read nil until it sets them.
@@ -23,11 +25,13 @@ assert(project == "retail" or project == "forever", "stub_client: unknown projec
 ---@field calls integer state-changing widget calls made; a check may reset it
 ---@field framesMade integer frames created; a check may reset it
 ---@field texturesMade integer textures created; a check may reset it
+---@field combat boolean what `InCombatLockdown` answers
 local client = {
 	checks = 0,
 	calls = 0,
 	framesMade = 0,
 	texturesMade = 0,
+	combat = false,
 }
 
 ---Fails the check at once when a value differs from the one expected.
@@ -41,6 +45,30 @@ function client.Equal(label, got, want)
 		io.stderr:write(("FAIL: %s: expected %s, got %s\n"):format(label, tostring(want), tostring(got)))
 		os.exit(1)
 	end
+end
+
+---Sets what `InCombatLockdown` answers. Fires no events: a check fires them itself, in the order under test.
+---@param on boolean
+function client:SetCombat(on)
+	self.combat = on
+end
+
+---@return boolean combat
+function InCombatLockdown()
+	return client.combat
+end
+
+local SECRET = {}
+
+---@return table secret an opaque value `issecretvalue` recognizes
+function client.Secret()
+	return setmetatable({}, SECRET)
+end
+
+---@param value any
+---@return boolean secret
+function issecretvalue(value)
+	return type(value) == "table" and getmetatable(value) == SECRET
 end
 
 ---A method that changes a widget's state, counted in `client.calls`.
@@ -105,6 +133,22 @@ local ScriptRegion = Type(nil, {
 	IsShown = function(self)
 		return self.shown
 	end,
+	IsVisible = function(self)
+		local region = self
+
+		while region do
+			if not region.shown then
+				return false
+			end
+
+			region = region.parent
+		end
+
+		return true
+	end,
+	EnableMouse = State(function(self, enabled)
+		self.mouse = enabled
+	end),
 	SetSize = State(function(self, width, height)
 		self.width, self.height = width, height
 	end),
@@ -116,6 +160,12 @@ local ScriptRegion = Type(nil, {
 	end),
 	GetSize = function(self)
 		return self.width or 0, self.height or 0
+	end,
+	GetWidth = function(self)
+		return self.width or 0
+	end,
+	GetHeight = function(self)
+		return self.height or 0
 	end,
 	GetLeft = function(self)
 		return self.left
@@ -174,6 +224,15 @@ local Texture = Type(Region, {
 	SetBlendMode = State(),
 })
 
+local FontString = Type(Region, {
+	SetFont = State(function(self, ...)
+		self.font = { ... }
+	end),
+	SetText = State(function(self, text)
+		self.text = text
+	end),
+})
+
 local Frame = Type(ScriptRegion, {
 	SetAlpha = SetAlpha,
 	SetScale = SetScale,
@@ -188,10 +247,36 @@ local Frame = Type(ScriptRegion, {
 
 		return setmetatable({ parent = self, shown = true, points = {}, scripts = {} }, Texture)
 	end,
+	CreateFontString = function(self)
+		return setmetatable({ parent = self, shown = true, points = {}, scripts = {} }, FontString)
+	end,
+})
+
+local Button = Type(Frame, {})
+
+local StatusBar = Type(Frame, {
+	SetMinMaxValues = State(function(self, min, max)
+		self.min, self.max = min, max
+	end),
+	GetMinMaxValues = function(self)
+		return self.min or 0, self.max or 0
+	end,
+	SetValue = State(function(self, value)
+		self.value = value
+	end),
+	GetValue = function(self)
+		return self.value or 0
+	end,
+	SetStatusBarColor = State(function(self, ...)
+		self.statusColor = { ... }
+	end),
+	SetReverseFill = State(function(self, reverse)
+		self.reverseFill = reverse
+	end),
 })
 
 -- The frame types `CreateFrame` knows, and what each XML template adds to a frame.
-local FRAME_TYPES = { Frame = Frame }
+local FRAME_TYPES = { Frame = Frame, Button = Button, StatusBar = StatusBar }
 local TEMPLATES = {
 	BackdropTemplate = {
 		SetBackdrop = State(function(self, backdrop)
@@ -248,5 +333,8 @@ end
 WOW_PROJECT_MAINLINE = 1
 WOW_PROJECT_CAMELOT = project == "forever" and 18 or nil
 WOW_PROJECT_ID = project == "forever" and WOW_PROJECT_CAMELOT or WOW_PROJECT_MAINLINE
+
+UIParent = CreateFrame("Frame", "UIParent")
+client.framesMade = 0
 
 return client
