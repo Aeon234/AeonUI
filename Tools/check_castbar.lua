@@ -7,15 +7,15 @@
 -- and kept parked (after a reparent, past combat and Edit Mode) and handed back when turned off, and turning it on
 -- again.
 -- Run from any directory with Lua 5.1: lua Tools/check_castbar.lua
--- Loads the real files against stubbed globals; media is stubbed. Widgets are modeled by type and fail on a method
--- their type lacks.
+-- Loads the real files against the shared stub client; media is stubbed.
 -- Exits non-zero on the first failed check.
 
 local root = (arg and arg[0] or ""):match("^(.-)[^/\\]*$") .. "../"
+local client = assert(loadfile(root .. "Tools/stub_client.lua"))({ project = "retail" })
+local Equal, Secret = client.Equal, client.Secret
 
 -- Environment ---------------------------------------------------------------------------------------------
 
-WOW_PROJECT_ID = 1
 SlashCmdList = {}
 StaticPopupDialogs = {}
 C_AddOns = {
@@ -29,51 +29,46 @@ function CallErrorHandler(message)
 	errors[#errors + 1] = message
 end
 
--- WoW's xpcall forwards extra arguments to the function, as Lua 5.2 does; Lua 5.1's does not.
-local luaXpcall = xpcall
-function xpcall(fn, handler, ...)
-	local count, args = select("#", ...), { ... }
+client.now = 100
 
-	return luaXpcall(function()
-		return fn(unpack(args, 1, count))
-	end, handler)
-end
+---@return table[] timers the pending timers `NewTimer` started, in order
+local function NamedTimers()
+	local named = {}
 
-local timers = {}
-local namedTimers = {}
-C_Timer = {
-	After = function(_, callback)
-		timers[#timers + 1] = callback
-	end,
-	NewTimer = function(seconds, callback)
-		local timer = { seconds = seconds, callback = callback }
-		timer.Cancel = function(self)
-			self.cancelled = true
+	for _, timer in ipairs(client.timers) do
+		if timer.Cancel then
+			named[#named + 1] = timer
 		end
-		namedTimers[#namedTimers + 1] = timer
-
-		return timer
-	end,
-}
-
-local function RunNamedTimer()
-	local timer = table.remove(namedTimers)
-
-	while timer and timer.cancelled do
-		timer = table.remove(namedTimers)
 	end
 
+	return named
+end
+
+---Runs the latest timer `NewTimer` started that is not cancelled, and drops the rest.
+---@return table? timer
+local function RunNamedTimer()
+	local named = NamedTimers()
+	local timer = table.remove(named)
+
+	while timer and timer.cancelled do
+		timer = table.remove(named)
+	end
+
+	local kept = {}
+
+	for _, pending in ipairs(client.timers) do
+		if not pending.Cancel then
+			kept[#kept + 1] = pending
+		end
+	end
+
+	client.timers = kept
+
 	if timer then
-		namedTimers = {}
 		timer.callback()
 	end
 
 	return timer
-end
-
-local now = 100
-function GetTime()
-	return now
 end
 
 local latencyMs = 150
@@ -107,39 +102,6 @@ function GetClassColor(class)
 	return issecretvalue(class) and "secretR" or 1, 1, 1
 end
 INTERRUPTED = "Interrupted"
-
-local function RunTimers()
-	local pending = timers
-
-	timers = {}
-
-	for _, callback in ipairs(pending) do
-		callback()
-	end
-end
-
-local secrets = {}
-function issecretvalue(value)
-	return secrets[value] == true
-end
-
-local function Secret(value)
-	secrets[value] = true
-
-	return value
-end
-
-function hooksecurefunc(object, method, hook)
-	local original = object[method]
-
-	object[method] = function(...)
-		local results = { original(...) }
-
-		hook(...)
-
-		return unpack(results)
-	end
-end
 
 function CreateColor(r, g, b, a)
 	return { r = r, g = g, b = b, a = a }
@@ -184,264 +146,16 @@ C_DurationUtil = { CreateDurationTextBinding = function()
 	return binding
 end }
 
----A widget of one type: calling a method its type lacks fails, as calling a nil field does.
-local function Strict(object, kind)
-	object.widgetType = kind
-
-	return object
-end
-
-local function Region(kind)
-	local region = { shown = true, points = {} }
-	region.SetAllPoints = function(self, target)
-		self.allPoints = target or true
-	end
-	region.ClearAllPoints = function(self)
-		self.points = {}
-	end
-	region.SetPoint = function(self, point, relative, relativePoint, x, y)
-		self.points[#self.points + 1] = { point, relative, relativePoint, x, y }
-	end
-	region.SetSize = function(self, width, height)
-		self.width, self.height = width, height
-	end
-	region.GetSize = function(self)
-		return self.width, self.height
-	end
-	region.GetWidth = function(self)
-		return self.width or (self.parent and self.parent:GetWidth()) or 0
-	end
-	region.SetWidth = function(self, width)
-		self.width = width
-	end
-	region.SetHeight = function(self, height)
-		self.height = height
-	end
-	region.Show = function(self)
-		self.shown = true
-	end
-	region.Hide = function(self)
-		self.shown = false
-	end
-	region.SetShown = function(self, shown)
-		self.shown = shown
-	end
-	region.IsShown = function(self)
-		return self.shown
-	end
-
-	return Strict(region, kind)
-end
-
-local function Texture()
-	local texture = Region("Texture")
-	texture.SetTexture = function(self, file)
-		self.file = file
-	end
-	texture.SetColorTexture = function(self, r, g, b, a)
-		self.color = { r, g, b, a }
-	end
-	texture.SetBlendMode = function(self, mode)
-		self.blend = mode
-	end
-	texture.SetGradient = function(self, orientation, first, last)
-		self.gradient = { orientation, first, last }
-	end
-	texture.SetTexCoord = function(self, ...)
-		self.coords = { ... }
-	end
-	texture.SetSnapToPixelGrid = function() end
-	texture.SetTexelSnappingBias = function() end
-
-	return texture
-end
-
-local function FontString()
-	local text = Region("FontString")
-	text.SetFont = function(self, file, size, flags)
-		self.font, self.size, self.flags = file, size, flags
-	end
-	text.SetShadowColor = function(self, r, g, b, a)
-		self.shadow = { r, g, b, a }
-	end
-	text.SetShadowOffset = function(self, x, y)
-		self.shadowOffset = { x, y }
-	end
-	text.SetWordWrap = function(self, wrap)
-		self.wrap = wrap
-	end
-	text.SetJustifyH = function(self, justify)
-		self.justify = justify
-	end
-	text.SetText = function(self, value)
-		self.text = value
-	end
-	text.SetTextColor = function(self, r, g, b)
-		self.color = { r, g, b }
-	end
-	text.SetFormattedText = function(self, format, ...)
-		self.text = format:format(...)
-	end
-
-	return text
-end
-
-local frames = {}
-
-local function Frame(kind, name, parent)
-	local frame = Region(kind)
-	frame.name, frame.parent, frame.scripts, frame.events, frame.level, frame.alpha = name, parent, {}, {}, 1, 1
-	frame.IsVisible = function(self)
-		local parentFrame = self.parent
-
-		return self.shown and (parentFrame == nil or parentFrame.IsVisible == nil or parentFrame:IsVisible())
-	end
-	frame.GetParent = function(self)
-		return self.parent
-	end
-	frame.SetParent = function(self, newParent)
-		self.parent = newParent
-	end
-	frame.SetFrameStrata = function(self, strata)
-		self.strata = strata
-	end
-	frame.SetFrameLevel = function(self, level)
-		self.level = level
-	end
-	frame.GetFrameLevel = function(self)
-		return self.level
-	end
-	frame.EnableMouse = function(self, enabled)
-		self.mouse = enabled
-	end
-	frame.SetAlpha = function(self, alpha)
-		self.alpha = alpha
-	end
-	frame.SetIsFrameBuffer = function(self, buffered)
-		self.buffered = buffered
-		self.bufferCalls = (self.bufferCalls or 0) + 1
-	end
-	frame.SetAlphaFromBoolean = function(self, flag, shown, hidden)
-		self.alphaFlag = flag
-		self.alpha = secrets[flag] and "secret" or (flag and shown or hidden)
-	end
-	frame.GetEffectiveScale = function()
-		return 1
-	end
-	frame.SetScript = function(self, script, handler)
-		self.scripts[script] = handler
-	end
-	frame.SetClipsChildren = function(self, clips)
-		self.clips = clips
-	end
-	frame.CreateAnimationGroup = function()
-		local group = { playing = false, scripts = {} }
-		group.CreateAnimation = function(_, kind)
-			assert(kind == "Alpha")
-			local animation = {}
-			animation.SetFromAlpha = function(self, alpha)
-				self.from = alpha
-			end
-			animation.SetToAlpha = function(self, alpha)
-				self.to = alpha
-			end
-			animation.SetDuration = function(self, seconds)
-				self.seconds = seconds
-			end
-			group.animation = animation
-
-			return animation
-		end
-		group.SetScript = function(self, script, handler)
-			self.scripts[script] = handler
-		end
-		group.Play = function(self)
-			self.playing = true
-		end
-		group.Stop = function(self)
-			self.playing = false
-		end
-
-		return group
-	end
-	frame.CreateTexture = function()
-		return Texture()
-	end
-	frame.CreateFontString = function()
-		return FontString()
-	end
-	frame.RegisterEvent = function(self, event)
-		self.events[event] = true
-	end
-	frame.UnregisterEvent = function(self, event)
-		self.events[event] = nil
-	end
-
-	if kind == "StatusBar" then
-		frame.fill = Texture()
-		frame.SetStatusBarTexture = function(self, file)
-			self.fill.file = file
-		end
-		frame.GetStatusBarTexture = function(self)
-			return self.fill
-		end
-		frame.SetMinMaxValues = function(self, low, high)
-			self.min, self.max, self.timer = low, high, nil
-		end
-		frame.SetValue = function(self, value)
-			self.value = value
-		end
-		frame.SetTimerDuration = function(self, duration, interpolation, direction)
-			self.timer, self.interpolation, self.direction, self.snapped = duration, interpolation, direction, false
-		end
-		frame.SetToTargetValue = function(self)
-			self.snapped = true
-		end
-		frame.SetReverseFill = function(self, reverse)
-			self.reverse = reverse
-		end
-	end
-
-	frames[#frames + 1] = frame
-
-	return frame
-end
-
-function CreateFrame(kind, name, parent, template)
-	assert(kind == "Frame" or kind == "StatusBar", "unexpected frame " .. tostring(kind))
-
-	local frame = Frame(kind, name, parent)
-
-	if template then
-		assert(template == "BackdropTemplate", "unexpected template " .. tostring(template))
-		frame.SetBackdrop = function(self, info)
-			self.backdrop = info
-		end
-		frame.SetBackdropBorderColor = function(self, r, g, b, a)
-			self.borderColor = { r, g, b, a }
-		end
-	end
-
-	return frame
-end
-
-UIParent = Frame("Frame", "UIParent")
-
-local combat = false
-function InCombatLockdown()
-	return combat
-end
-
 local editModeCallbacks = {}
 EventRegistry = { RegisterCallback = function(_, event, callback)
 	editModeCallbacks[event] = callback
 end }
-EditModeManagerFrame = Frame("Frame", "EditModeManagerFrame", UIParent)
+CreateFrame("Frame", "EditModeManagerFrame", UIParent)
 EditModeManagerFrame:Hide()
 
-local playerFrame = Frame("Frame", "PlayerFrame", UIParent)
-PlayerCastingBarFrame = Frame("StatusBar", "PlayerCastingBarFrame", UIParent)
-PlayerCastingBarFrame.Selection = Frame("Frame", nil, PlayerCastingBarFrame)
+local playerFrame = CreateFrame("Frame", "PlayerFrame", UIParent)
+CreateFrame("StatusBar", "PlayerCastingBarFrame", UIParent)
+PlayerCastingBarFrame.Selection = CreateFrame("Frame", nil, PlayerCastingBarFrame)
 
 function UnitClass()
 	return "Mage", "MAGE"
@@ -512,7 +226,7 @@ for _, file in ipairs({ "AeonUI/Core/Callbacks.lua", "AeonUI/Core/Events.lua", "
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 
-local eventFrame = frames[#frames]
+local eventFrame = client.frames[#client.frames]
 
 
 local values = {}
@@ -532,13 +246,11 @@ AUI.Profile = {
 local function Set(path, value)
 	values[path] = value
 	AUI.Callbacks:Fire("Profile", path)
-	RunTimers()
+	client:Advance(0)
 end
 
 local function Fire(event, ...)
-	if eventFrame.events[event] then
-		eventFrame.scripts.OnEvent(eventFrame, event, ...)
-	end
+	client:Fire(event, ...)
 end
 
 AUI.Border = {
@@ -583,17 +295,7 @@ end
 
 local Options, CastBar, BlizzardBar = AUI.CastBarOptions, AUI.CastBar, AUI.CastBarBlizzard
 
--- Harness -------------------------------------------------------------------------------------------------
-
-local checks = 0
-
-local function Equal(name, actual, expected)
-	checks = checks + 1
-	if actual ~= expected then
-		io.stderr:write(("FAIL: %s: expected %s, got %s\n"):format(name, tostring(expected), tostring(actual)))
-		os.exit(1)
-	end
-end
+-- Helpers --------------------------------------------------------------------------------------------------
 
 local function Point(region)
 	local point = region.points[#region.points]
@@ -713,19 +415,19 @@ Equal("on every side", frame.lines[4].points[2][1] .. " " .. frame.lines[4].poin
 Equal("white at half opacity behind the fill", frame.background.color[1] .. " " .. frame.background.color[4], "1 0.5")
 Equal("the Solid fill", frame.bar.texture, "Solid")
 Equal("no icon", frame.icon.shown, false)
-Equal("the bar fills the frame", frame.bar.allPoints, true)
+Equal("the bar fills the frame", frame.bar.points[1][2], frame.bar.parent)
 Equal("the medium strata", frame.strata, "MEDIUM")
-local gradient = frame.bar.fill.gradient
+local gradient = frame.bar:GetStatusBarTexture().gradient
 Equal("a horizontal gradient", gradient[1] .. " " .. gradient[2].g .. " " .. gradient[3].g, "HORIZONTAL 0.71 0.682")
 Equal("the red cover hidden", frame.locked.alpha, 0)
-Equal("the spark rides the fill's edge", frame.spark.points[1][2] == frame.bar.fill and frame.spark.points[1][3],
+Equal("the spark rides the fill's edge", frame.spark.points[1][2] == frame.bar:GetStatusBarTexture() and frame.spark.points[1][3],
 	"RIGHT")
 Equal("additive", frame.spark.blend, "ADD")
 Equal("the text above the cover", frame.over.level > frame.locked.level, true)
-Equal("Expressway 14 on the Slug renderer, no outline", frame.text.font .. " " .. frame.text.size .. " "
-	.. frame.text.flags, "font:Expressway 14 SLUG")
+Equal("Expressway 14 on the Slug renderer, no outline", frame.text.font[1] .. " " .. frame.text.font[2] .. " "
+	.. frame.text.font[3], "font:Expressway 14 SLUG")
 Equal("with a shadow", frame.time.shadowOffset[1] .. "," .. frame.time.shadowOffset[2], "1,-1")
-Equal("the name never wraps", frame.text.wrap, false)
+Equal("the name never wraps", frame.text.wordWrap, false)
 Equal("and stops short of the time", frame.text.points[2][2], frame.time)
 Equal("the time to one decimal", formatters[1].breakpoints[1].format, "%.1f")
 Equal("written by the binding", frame.binding.region, frame.time)
@@ -762,13 +464,13 @@ cast = nil
 Fire("UNIT_SPELLCAST_STOP", "target")
 Equal("another unit's events are ignored", frame.shown, true)
 
-cast = { name = Secret("Frostbolt"), display = Secret("Frostbolt"), locked = Secret(true) }
-castDuration = Secret({})
+cast = { name = Secret(), display = Secret(), locked = Secret() }
+castDuration = Secret()
 Fire("UNIT_SPELLCAST_START", "player")
 Equal("a secret cast still shows", frame.shown, true)
 Equal("its duration passed on", frame.bar.timer, castDuration)
 Equal("its name passed on", frame.text.text, cast.display)
-Equal("a secret flag sets the cover through the client", frame.locked.alpha, "secret")
+Equal("a secret flag sets the cover through the client", issecretvalue(frame.locked.alphaBoolean[1]), true)
 
 cast, castDuration = nil, nil
 Fire("UNIT_SPELLCAST_STOP", "player")
@@ -850,14 +552,14 @@ Equal("its strata", frame.strata, "HIGH")
 Set("castBar.texture", "AeonUI Thin Stripes")
 Equal("its texture", frame.bar.texture, "AeonUI Thin Stripes")
 Set("castBar.gradient", false)
-Equal("one color without the gradient", frame.bar.fill.gradient[3].g, 0.71)
+Equal("one color without the gradient", frame.bar:GetStatusBarTexture().gradient[3].g, 0.71)
 Set("castBar.gradient", true)
 Set("castBar.gradientDirection", "VERTICAL")
-Equal("the gradient's direction", frame.bar.fill.gradient[1], "VERTICAL")
+Equal("the gradient's direction", frame.bar:GetStatusBarTexture().gradient[1], "VERTICAL")
 Set("castBar.color", { r = 0, g = 1, b = 0 })
-Equal("the fill color", frame.bar.fill.gradient[2].g, 1)
+Equal("the fill color", frame.bar:GetStatusBarTexture().gradient[2].g, 1)
 Set("castBar.classColor", true)
-Equal("the class color, without the gradient", frame.bar.fill.gradient[2].r .. " " .. frame.bar.fill.gradient[3].b,
+Equal("the class color, without the gradient", frame.bar:GetStatusBarTexture().gradient[2].r .. " " .. frame.bar:GetStatusBarTexture().gradient[3].b,
 	"0.25 0.92")
 Set("castBar.classColor", false)
 Set("castBar.background", { r = 0, g = 0, b = 0, a = 0.25 })
@@ -912,7 +614,7 @@ Equal("off takes it away", edge.look.shadow, nil)
 Set("castBar.borderStyle", "PIXEL")
 Set("castBar.height", 16)
 Set("castBar.reverse", true)
-Equal("a reversed fill", tostring(frame.bar.reverse) .. " " .. frame.spark.points[1][3], "true LEFT")
+Equal("a reversed fill", tostring(frame.bar.reverseFill) .. " " .. frame.spark.points[1][3], "true LEFT")
 Set("castBar.reverse", false)
 Set("castBar.icon", true)
 Equal("the icon shows, square", tostring(frame.icon.shown) .. " " .. frame.icon.width .. "x" .. frame.icon.height,
@@ -921,28 +623,28 @@ Equal("on the left, the bar beside it", frame.icon.points[1][1] .. " " .. frame.
 Set("castBar.iconSide", "RIGHT")
 Equal("or on the right", frame.icon.points[1][1] .. " " .. frame.bar.points[2][2], "TOPRIGHT -16")
 Set("castBar.icon", false)
-Equal("the bar back across the frame", #frame.bar.points, 0)
+Equal("the bar back across the frame", frame.bar.points[1][2], frame.bar.parent)
 Set("castBar.font", "Arial Narrow")
-Equal("the font, on every text", frame.text.font .. " " .. frame.time.font .. " " .. frame.pushback.font .. " "
-	.. frame.target.font, "font:Arial Narrow font:Arial Narrow font:Arial Narrow font:Arial Narrow")
+Equal("the font, on every text", frame.text.font[1] .. " " .. frame.time.font[1] .. " " .. frame.pushback.font[1] .. " "
+	.. frame.target.font[1], "font:Arial Narrow font:Arial Narrow font:Arial Narrow font:Arial Narrow")
 Set("castBar.font", "Expressway")
 Set("castBar.outline", "OUTLINE")
-Equal("the outline", frame.time.flags, "OUTLINE")
+Equal("the outline", frame.time.font[3], "OUTLINE")
 Set("castBar.shadow", false)
-Equal("no shadow", frame.text.shadow[4], 0)
+Equal("no shadow", frame.text.shadowColor[4], 0)
 Equal("the text sits in from both edges", frame.text.points[1][4] .. " " .. frame.time.points[1][4], "4 -4")
 Set("castBar.name.size", 20)
 Set("castBar.name.color", { r = 1, g = 0, b = 0 })
 Set("castBar.name.x", 5)
 Set("castBar.name.y", -2)
-Equal("the name's size, color and place", frame.text.size .. " " .. frame.text.color[2] .. " "
+Equal("the name's size, color and place", frame.text.font[2] .. " " .. frame.text.textColor[2] .. " "
 	.. frame.text.points[1][4] .. " " .. frame.text.points[1][5], "20 0 9 -2")
 Set("castBar.name.enabled", false)
 Equal("no name", frame.text.shown, false)
 Set("castBar.name.enabled", true)
 Set("castBar.time.size", 10)
 Set("castBar.time.x", -3)
-Equal("the time's size and place", frame.time.size .. " " .. frame.time.points[1][4], "10 -7")
+Equal("the time's size and place", frame.time.font[2] .. " " .. frame.time.points[1][4], "10 -7")
 Set("castBar.time.format", "ELAPSED_TOTAL")
 Equal("the time's format", frame.binding.format .. " " .. frame.binding.components[1].property .. " "
 	.. frame.binding.components[2].property, "{} / {} 2 4")
@@ -956,7 +658,7 @@ Set("castBar.name.maxLength", 4)
 cast, castDuration = { name = "Pyroblast", display = "Pyroblast" }, {}
 Fire("UNIT_SPELLCAST_START", "player")
 Equal("a long name cut", frame.text.text, "Pyro\226\128\166")
-cast.display = Secret("Pyroblast!")
+cast.display = Secret()
 Fire("UNIT_SPELLCAST_DELAYED", "player")
 Equal("a secret one kept whole", frame.text.text, cast.display)
 Set("castBar.name.maxLength", 0)
@@ -998,7 +700,7 @@ Equal("Interrupted fills the bar in its color", frame.text.text .. " " .. frame.
 Equal("and stops the cast's timer", frame.bar.timer, nil)
 Equal("without the time, spark or latency", tostring(frame.time.shown) .. " " .. tostring(frame.spark.shown) .. " "
 	.. tostring(frame.latency.shown), "false false false")
-Equal("held for its time", namedTimers[#namedTimers].seconds, 0.6)
+Equal("held for its time", NamedTimers()[#NamedTimers()].seconds, 0.6)
 Fire("UNIT_SPELLCAST_STOP", "player", "Cast-1", 133)
 Equal("the stop after it does not end it", tostring(frame.shown) .. " " .. frame.text.text, "true Interrupted")
 RunNamedTimer()
@@ -1011,7 +713,7 @@ Equal("Failed the same way", frame.text.text, "Failed")
 StartCast()
 Equal("a new cast replaces it", frame.text.text .. " " .. frame.failed.alpha .. " " .. tostring(frame.time.shown),
 	"Fireball 0 true")
-Equal("and its timer", namedTimers[#namedTimers].cancelled, true)
+Equal("and its timer", NamedTimers()[#NamedTimers()].cancelled, true)
 EndCast()
 Fire("UNIT_SPELLCAST_STOP", "player", "Cast-1", 133)
 Equal("a plain stop is no feedback", frame.shown, false)
@@ -1053,12 +755,12 @@ Set("castBar.holdTime", 0.6)
 
 Equal("Show Interrupted and Failed is on by default", AUI.Schema:Field("castBar.feedback").default, true)
 Set("castBar.feedback", false)
-local timersBefore = #namedTimers
+local timersBefore = #NamedTimers()
 StartCast()
 EndCast()
 Fire("UNIT_SPELLCAST_INTERRUPTED", "player", "Cast-1", 133)
 Equal("off, an interrupted cast goes at once, with no hold", tostring(frame.shown) .. " " .. frame.failed.alpha .. " "
-	.. tostring(frame.binding.enabled) .. " " .. (#namedTimers - timersBefore), "false 0 false 0")
+	.. tostring(frame.binding.enabled) .. " " .. (#NamedTimers() - timersBefore), "false 0 false 0")
 StartCast()
 Fire("UNIT_SPELLCAST_INTERRUPTED", "player", "Cast-1", 133)
 Equal("even while the client still reports the cast", frame.shown, false)
@@ -1101,12 +803,12 @@ StartCast()
 EndCast()
 Fire("UNIT_SPELLCAST_FAILED", "player", "Cast-1", 133)
 Equal("Failed goes at once too", tostring(frame.shown) .. " " .. frame.failed.alpha .. " "
-	.. (#namedTimers - timersBefore), "false 0 0")
+	.. (#NamedTimers() - timersBefore), "false 0 0")
 Set("castBar.feedback", true)
 
 -- Fade Out ------------------------------------------------------------------------------------------------
 
-Equal("fades over 0.2 seconds, off by default", frame.fade.animation.seconds .. " "
+Equal("fades over 0.2 seconds, off by default", frame.fade.animation.duration .. " "
 	.. tostring(AUI.Schema:Field("castBar.fade").default), "0.2 false")
 Equal("no image without Fade Out", frame.buffered, false)
 Set("castBar.fade", true)
@@ -1159,6 +861,9 @@ Set("castBar.fade", false)
 
 -- Latency -------------------------------------------------------------------------------------------------
 
+-- The client gives the bar its frame's width through its anchors; the stub does no layout.
+frame.bar:SetWidth(frame.width)
+
 StartCast()
 Equal("latency shades the cast's end", tostring(frame.latency.shown) .. " " .. frame.latency.points[1][1] .. " "
 	.. frame.latency.width, "true TOPRIGHT 38.6")
@@ -1199,7 +904,7 @@ Equal("a delayed cast reads later", frame.pushback.text, "+0.4")
 Equal("the name stops short of it", frame.text.points[2][2], frame.pushback)
 Equal("and it short of the time", frame.pushback.points[1][2], frame.time)
 Set("castBar.pushbackColor", { r = 0, g = 0, b = 1 })
-Equal("its color", frame.pushback.color[3], 1)
+Equal("its color", frame.pushback.textColor[3], 1)
 EndCast()
 Fire("UNIT_SPELLCAST_STOP", "player", "Cast-1", 133)
 Equal("cleared once hidden", frame.shown, false)
@@ -1223,11 +928,11 @@ Equal("the name back against the time", frame.text.points[2][2], frame.time)
 
 -- Empowered casts -----------------------------------------------------------------------------------------
 
-now = 1
+client.now = 1
 channel, empoweredDuration = { name = "Fire Breath", display = "Fire Breath", empowered = true }, {}
 Fire("UNIT_SPELLCAST_EMPOWER_START", "player")
 Equal("the stage colors show", frame.zones.shown, true)
-Equal("clipped to the fill", tostring(frame.zones.clips) .. " " .. tostring(frame.zones.allPoints == frame.bar.fill),
+Equal("clipped to the fill", tostring(frame.zones.clipsChildren) .. " " .. tostring(frame.zones.points[1][2] == frame.bar:GetStatusBarTexture()),
 	"true true")
 Equal("one per stage", #frame.stages, 4)
 Equal("each in its color", frame.stages[2].color[1], 0.62)
@@ -1245,14 +950,14 @@ Set("castBar.empowerColors", true)
 Set("castBar.stageLabel", true)
 Fire("UNIT_SPELLCAST_EMPOWER_UPDATE", "player")
 Equal("the label replaces the time", frame.time.text .. " " .. tostring(frame.binding.enabled), "Stage 0 false")
-Equal("until the next stage", tostring(namedTimers[#namedTimers].seconds), "0.7")
-now = 1.8
+Equal("until the next stage", tostring(NamedTimers()[#NamedTimers()].seconds), "0.7")
+client.now = 1.8
 RunNamedTimer()
 Equal("then the stage reached", frame.time.text, "Stage 1")
-now = 3.2
+client.now = 3.2
 RunNamedTimer()
 Equal("and Hold at full charge", frame.time.text, "Hold")
-now = 100
+client.now = 100
 Set("castBar.stageLabel", false)
 channel, empoweredDuration = nil, nil
 Fire("UNIT_SPELLCAST_EMPOWER_STOP", "player", "Cast-4", 357208, true, nil)
@@ -1299,7 +1004,7 @@ Set("castBar.ticks", true)
 channel.spell = 99999
 Fire("UNIT_SPELLCAST_CHANNEL_UPDATE", "player")
 Equal("an unlisted spell has none", frame.ticks[1].shown, false)
-channel.spell = Secret(15408)
+channel.spell = Secret()
 Fire("UNIT_SPELLCAST_CHANNEL_UPDATE", "player")
 Equal("nor a secret one", frame.ticks[1].shown, false)
 channel.spell = 198013
@@ -1332,7 +1037,7 @@ Equal("no target while off", frame.target.shown, false)
 Set("castBar.target.enabled", true)
 Fire("UNIT_SPELLCAST_DELAYED", "player")
 Equal("the target's name", tostring(frame.target.shown) .. " " .. frame.target.text, "true Thrall")
-Equal("in its class color", frame.target.color[3], 0.87)
+Equal("in its class color", frame.target.textColor[3], 0.87)
 Equal("before the time", frame.target.points[1][2], frame.time)
 Equal("the spell name stops at it", frame.text.points[2][2], frame.target)
 Equal("within its share of the bar", tostring(frame.target.width), tostring(386 * 0.35))
@@ -1341,19 +1046,19 @@ Fire("UNIT_SPELLCAST_DELAYED", "player")
 Equal("hidden when the client says not to", frame.target.shown, false)
 Equal("the name back against the time", frame.text.points[2][2], frame.time)
 targetShown = true
-targetName, targetClass = Secret("Hidden"), Secret("PRIEST")
+targetName, targetClass = Secret(), Secret()
 Fire("UNIT_SPELLCAST_DELAYED", "player")
-Equal("a secret name and class go straight through", frame.target.text .. " " .. frame.target.color[1],
-	"Hidden secretR")
+Equal("a secret name goes straight through", frame.target.text, targetName)
+Equal("and a secret class", frame.target.textColor[1], "secretR")
 targetName, targetClass = "Thrall", "SHAMAN"
 Set("castBar.target.classColor", false)
 Set("castBar.target.color", { r = 0, g = 1, b = 0 })
 Fire("UNIT_SPELLCAST_DELAYED", "player")
-Equal("its own color", frame.target.color[2], 1)
+Equal("its own color", frame.target.textColor[2], 1)
 Set("castBar.target.size", 10)
 Set("castBar.target.x", -8)
 Set("castBar.target.y", 3)
-Equal("its size and place", frame.target.size .. " " .. frame.target.points[1][4] .. " " .. frame.target.points[1][5],
+Equal("its size and place", frame.target.font[2] .. " " .. frame.target.points[1][4] .. " " .. frame.target.points[1][5],
 	"10 -12 3")
 EndCast()
 Fire("UNIT_SPELLCAST_STOP", "player")
@@ -1397,7 +1102,7 @@ AUI.SettingsCastBar:Declare({
 })
 Equal("five states", table.concat(declaredPreview.states, ","),
 	"Casting,Channeling,Empowered,Not Interruptible,Interrupted")
-local canvas = Frame("Frame", nil, UIParent)
+local canvas = CreateFrame("Frame", nil, UIParent)
 declaredPreview.create(canvas)
 local parts = {}
 local previewStub = { Part = function(_, region, target)
@@ -1420,11 +1125,11 @@ BlizzardBar.repark.scripts.OnUpdate(BlizzardBar.repark)
 Equal("and parked again in the same frame", PlayerCastingBarFrame.parent, BlizzardBar.hidden)
 Equal("the deferral runs once", BlizzardBar.repark.shown, false)
 
-combat = true
+client:SetCombat(true)
 PlayerCastingBarFrame:SetParent(playerFrame)
 BlizzardBar.repark.scripts.OnUpdate(BlizzardBar.repark)
 Equal("in combat it waits", PlayerCastingBarFrame.parent, playerFrame)
-combat = false
+client:SetCombat(false)
 Fire("PLAYER_REGEN_ENABLED")
 Equal("until combat ends", PlayerCastingBarFrame.parent, BlizzardBar.hidden)
 Equal("then stops waiting", eventFrame.events.PLAYER_REGEN_ENABLED, nil)
@@ -1435,7 +1140,7 @@ BlizzardBar.repark.scripts.OnUpdate(BlizzardBar.repark)
 Equal("left to Edit Mode while it is open", PlayerCastingBarFrame.parent, UIParent)
 PlayerCastingBarFrame.Selection:Show()
 PlayerCastingBarFrame.Selection:SetAlpha(1)
-RunTimers()
+client:Advance(0)
 Equal("its selection hidden again after Edit Mode shows it", PlayerCastingBarFrame.Selection.alpha, 0)
 EditModeManagerFrame:Hide()
 editModeCallbacks["EditMode.Exit"]()
@@ -1467,4 +1172,4 @@ Equal("a hidden original parent gives way to UIParent", PlayerCastingBarFrame.pa
 
 Equal("no errors", #errors, 0)
 
-print(("check_castbar: %d checks passed"):format(checks))
+print(("check_castbar: %d checks passed"):format(client.checks))

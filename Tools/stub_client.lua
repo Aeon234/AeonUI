@@ -9,17 +9,21 @@
 -- A check reads a widget's state from these fields, which its setters keep:
 --   shown, points, width, height, alpha, alphaBoolean, scale, level, parent, template, scripts,
 --   mouse, mouseMotion, mouseClick                                                        every frame or texture
---   kind, clipsChildren, strata, buffered, attributes                                     frames
+--   kind, name, clipsChildren, strata, buffered, bufferCalls, attributes, events          frames
 --   file, atlas, color, vertex, coords, desaturated, blend, gradient                      textures
---   text, formatted, font, textColor, justifyH, wordWrap, shadowColor, shadowOffset       font strings
---   value, min, max, statusColor, reverseFill, statusTexture, timerDuration               status bars
+--   text, font, textColor, justifyH, wordWrap, shadowColor, shadowOffset                  font strings
+--   value, min, max, statusColor, reverseFill, statusTexture, timer, interpolation,
+--   direction, snapped                                                                    status bars
 --   backdrop                                                                              frames with BackdropTemplate
---   plays, playing, scripts                                                               animation groups
+--   plays, playing, scripts, animation                                                    animation groups
 --   reverse, drawEdge, drawSwipe, hideNumbers                                             cooldowns
 --   enabled, flowAnchor, flowGrowth, flowLineSize, auraGroups                             aura containers
 --   cancelButtons, tooltipAnchor, durationCooldown, icon, countText, durationText, dispelTextures  aura buttons
 -- `points` holds each anchor's SetPoint arguments, one entry per anchor. Size reads 0 until set, as an unsized frame's
 -- does. `left`, `right`, `top` and `bottom` are a check's fixtures: the screen edges read nil until it sets them.
+--
+-- Time is virtual. `client.now` is what `GetTime` answers; `client.timers` holds what `C_Timer` has pending, and an entry
+-- from `NewTimer` carries `seconds`, `cancelled` and `Cancel`.
 
 local options = ...
 local project = assert(options and options.project, "stub_client: no project")
@@ -32,12 +36,18 @@ assert(project == "retail" or project == "forever", "stub_client: unknown projec
 ---@field framesMade integer frames created; a check may reset it
 ---@field texturesMade integer textures created; a check may reset it
 ---@field combat boolean what `InCombatLockdown` answers
+---@field frames table[] every frame created, in order
+---@field now number what `GetTime` answers
+---@field timers table[] what `C_Timer` has pending, in order
 local client = {
 	checks = 0,
 	calls = 0,
 	framesMade = 0,
 	texturesMade = 0,
 	combat = false,
+	frames = {},
+	now = 0,
+	timers = {},
 }
 
 ---Fails the check at once when a value differs from the one expected.
@@ -52,6 +62,83 @@ function client.Equal(label, got, want)
 		os.exit(1)
 	end
 end
+
+---Delivers an event to every frame registered for it, through its `OnEvent` script.
+---@param event string
+---@param ... any the event's payload
+function client:Fire(event, ...)
+	for _, frame in ipairs(self.frames) do
+		if frame.events[event] and frame.scripts.OnEvent then
+			frame.scripts.OnEvent(frame, event, ...)
+		end
+	end
+end
+
+---@param timer table
+local function RunTimer(timer)
+	if not timer.cancelled then
+		timer.callback(timer)
+	end
+end
+
+---Moves the clock on and runs what falls due, in order. A timer a callback starts waits for the next call.
+---@param seconds number
+function client:Advance(seconds)
+	local pending = self.timers
+
+	self.now = self.now + seconds
+	self.timers = {}
+
+	for _, timer in ipairs(pending) do
+		if timer.due <= self.now then
+			RunTimer(timer)
+		else
+			self.timers[#self.timers + 1] = timer
+		end
+	end
+end
+
+---Runs everything pending once, whatever its delay, without moving the clock.
+function client:RunTimers()
+	local pending = self.timers
+
+	self.timers = {}
+
+	for _, timer in ipairs(pending) do
+		RunTimer(timer)
+	end
+end
+
+---@return number now
+function GetTime()
+	return client.now
+end
+
+---@param seconds number
+---@param callback function
+---@return table timer
+local function AddTimer(seconds, callback)
+	local timer = { seconds = seconds, due = client.now + seconds, callback = callback }
+
+	client.timers[#client.timers + 1] = timer
+
+	return timer
+end
+
+C_Timer = {
+	After = function(seconds, callback)
+		AddTimer(seconds, callback)
+	end,
+	NewTimer = function(seconds, callback)
+		local timer = AddTimer(seconds, callback)
+
+		timer.Cancel = function(self)
+			self.cancelled = true
+		end
+
+		return timer
+	end,
+}
 
 ---Sets what `InCombatLockdown` answers. Fires no events: a check fires them itself, in the order under test.
 ---@param on boolean
@@ -85,6 +172,32 @@ SECRET.__concat = client.Secret
 ---@return boolean secret
 function issecretvalue(value)
 	return type(value) == "table" and getmetatable(value) == SECRET
+end
+
+-- The client's xpcall forwards extra arguments to the function, as Lua 5.2 does; Lua 5.1's does not.
+local luaXpcall = xpcall
+
+function xpcall(fn, handler, ...)
+	local count, args = select("#", ...), { ... }
+
+	return luaXpcall(function()
+		return fn(unpack(args, 1, count))
+	end, handler)
+end
+
+---@param object table
+---@param method string
+---@param hook function
+function hooksecurefunc(object, method, hook)
+	local original = object[method]
+
+	object[method] = function(...)
+		local results = { original(...) }
+
+		hook(...)
+
+		return unpack(results)
+	end
 end
 
 local luaFormat = string.format
@@ -171,7 +284,9 @@ local AnimationGroup = Type(nil, {
 	CreateAnimation = function(self, kind)
 		assert(ANIMATION_KINDS[kind], "stub_client: no animation kind " .. tostring(kind))
 
-		return setmetatable({ group = self, kind = kind }, Animation)
+		self.animation = setmetatable({ group = self, kind = kind }, Animation)
+
+		return self.animation
 	end,
 	SetLooping = function(self, looping)
 		self.looping = looping
@@ -283,9 +398,17 @@ local ScriptRegion = Type(nil, {
 local SetAlpha = State(function(self, alpha)
 	self.alpha = alpha
 end)
-local SetAlphaFromBoolean = State(function(self, ...)
-	self.alphaBoolean = { ... }
+-- The flag may be secret, which Lua cannot test: only an ordinary one moves `alpha`.
+local SetAlphaFromBoolean = State(function(self, flag, shown, hidden)
+	self.alphaBoolean = { flag, shown, hidden }
+
+	if not issecretvalue(flag) then
+		self.alpha = flag and shown or hidden
+	end
 end)
+local GetEffectiveScale = function()
+	return 1
+end
 local GetAlpha = function(self)
 	return self.alpha or 1
 end
@@ -297,6 +420,7 @@ local Region = Type(ScriptRegion, {
 	SetAlpha = SetAlpha,
 	SetAlphaFromBoolean = SetAlphaFromBoolean,
 	GetAlpha = GetAlpha,
+	GetEffectiveScale = GetEffectiveScale,
 	SetScale = SetScale,
 	SetDrawLayer = State(),
 	SetVertexColor = State(function(self, ...)
@@ -343,8 +467,8 @@ local FontString = Type(Region, {
 		assert(self.font, "FontString:SetText(): Font not set")
 		self.text = text
 	end),
-	SetFormattedText = State(function(self, ...)
-		self.formatted = { ... }
+	SetFormattedText = State(function(self, pattern, ...)
+		self.text = pattern:format(...)
 	end),
 	SetShadowColor = State(function(self, ...)
 		self.shadowColor = { ... }
@@ -367,11 +491,19 @@ local Frame = Type(ScriptRegion, {
 	SetAlpha = SetAlpha,
 	SetAlphaFromBoolean = SetAlphaFromBoolean,
 	GetAlpha = GetAlpha,
+	GetEffectiveScale = GetEffectiveScale,
+	RegisterEvent = State(function(self, event)
+		self.events[event] = true
+	end),
+	UnregisterEvent = State(function(self, event)
+		self.events[event] = nil
+	end),
 	SetFrameStrata = State(function(self, strata)
 		self.strata = strata
 	end),
 	SetIsFrameBuffer = State(function(self, buffered)
 		self.buffered = buffered
+		self.bufferCalls = (self.bufferCalls or 0) + 1
 	end),
 	SetAttribute = State(function(self, name, value)
 		self.attributes = self.attributes or {}
@@ -390,13 +522,14 @@ local Frame = Type(ScriptRegion, {
 	CreateTexture = function(self)
 		client.texturesMade = client.texturesMade + 1
 
-		return setmetatable({ parent = self, shown = true, points = {}, scripts = {} }, Texture)
+		return setmetatable({ parent = self, shown = true, alpha = 1, points = {}, scripts = {} }, Texture)
 	end,
 	CreateFontString = function(self, _, _, template)
 		return setmetatable({
 			parent = self,
 			template = template,
 			font = template and { template } or nil,
+			alpha = 1,
 			shown = true,
 			points = {},
 			scripts = {},
@@ -468,7 +601,7 @@ local PlayerModel = Type(Frame, {
 
 local StatusBar = Type(Frame, {
 	SetMinMaxValues = State(function(self, min, max)
-		self.min, self.max = min, max
+		self.min, self.max, self.timer = min, max, nil
 	end),
 	GetMinMaxValues = function(self)
 		return self.min or 0, self.max or 0
@@ -485,10 +618,12 @@ local StatusBar = Type(Frame, {
 	SetReverseFill = State(function(self, reverse)
 		self.reverseFill = reverse
 	end),
-	SetTimerDuration = State(function(self, duration)
-		self.timerDuration = duration
+	SetTimerDuration = State(function(self, duration, interpolation, direction)
+		self.timer, self.interpolation, self.direction, self.snapped = duration, interpolation, direction, false
 	end),
-	SetToTargetValue = State(),
+	SetToTargetValue = State(function(self)
+		self.snapped = true
+	end),
 	SetStatusBarTexture = State(function(self, asset)
 		self.statusTexture = self.statusTexture or self:CreateTexture()
 		self.statusTexture.file = asset
@@ -558,8 +693,11 @@ function CreateFrame(kind, name, parent, template)
 	local frameType = assert(FRAME_TYPES[kind], "stub_client: no frame type " .. tostring(kind))
 	local frame = setmetatable({
 		kind = kind,
+		name = name,
 		parent = parent,
 		template = template,
+		events = {},
+		alpha = 1,
 		shown = true,
 		points = {},
 		scripts = {},
@@ -567,6 +705,7 @@ function CreateFrame(kind, name, parent, template)
 	}, frameType)
 
 	client.framesMade = client.framesMade + 1
+	client.frames[#client.frames + 1] = frame
 
 	if template then
 		for method, body in pairs(assert(TEMPLATES[template], "stub_client: no template " .. template)) do
