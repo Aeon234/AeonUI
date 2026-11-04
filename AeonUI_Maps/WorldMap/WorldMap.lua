@@ -437,6 +437,16 @@ function WorldMap:LevelColor(levels)
 	return QuestDifficultyColors.difficult
 end
 
+---Adds a line to `GameTooltip` in the level range's color. `QuestDifficultyColors` entries are plain `{ r, g, b }`
+---tables, which `GameTooltip_AddColoredLine` cannot take.
+---@param text string
+---@param levels number[] `{ min, max }`
+function WorldMap:AddLevelLine(text, levels)
+	local color = self:LevelColor(levels)
+
+	GameTooltip:AddLine(text, color.r, color.g, color.b, true)
+end
+
 ---Adds one marker's lines: its name, kind, level range, faction and destinations.
 ---@param marker AUIWorldMapMarker
 ---@param first boolean the marker heads the tooltip
@@ -466,7 +476,7 @@ function WorldMap:AddMarkerLines(marker, first)
 		local text = levels[1] == levels[2] and L["Level %d"]:format(levels[1])
 			or L["Level %d-%d"]:format(levels[1], levels[2])
 
-		GameTooltip_AddColoredLine(GameTooltip, text, self:LevelColor(levels))
+		self:AddLevelLine(text, levels)
 	end
 
 	if marker.faction then

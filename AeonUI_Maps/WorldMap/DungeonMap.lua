@@ -128,8 +128,7 @@ local function OnPinEnter(pin)
 			end
 
 			if boss.level then
-				GameTooltip_AddColoredLine(GameTooltip, L["Level %d"]:format(boss.level),
-					AUI.WorldMap:LevelColor({ boss.level, boss.level }))
+				AUI.WorldMap:AddLevelLine(L["Level %d"]:format(boss.level), { boss.level, boss.level })
 			end
 
 			if boss.optional then
