@@ -2095,8 +2095,8 @@ end)()
 		cards[#cards + 1] = section.title .. ": " .. table.concat(ids, " ")
 	end
 
-	Equal("its cards", table.concat(cards, " | "), "Blizzard's Swing Timer:  | Bars: showMH showOH showR visibility "
-		.. "texture depleteFill spark time label | Size: width height spacing | Range: rangeCheck outOfRangeAlpha | "
+	Equal("its cards", table.concat(cards, " | "), "Blizzard's Swing Timer:  | Bars: showMH showOH showR alwaysShowRows "
+		.. "shieldRow combineHands visibility hideWhenIdle texture depleteFill spark time label | Size: width height spacing | Range: rangeCheck outOfRangeAlpha | "
 		.. "Colors: classColor mhColor ohColor rColor background | Border: borderStyle borderColor | "
 		.. "Text: font outline textSize")
 

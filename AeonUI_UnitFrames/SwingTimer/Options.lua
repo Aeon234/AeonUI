@@ -23,6 +23,7 @@ local Schema = AUI.Schema
 ---@field SPARK_TEXTURE string
 ---@field SPARK_WIDTH number
 ---@field END_GRACE number how long, in seconds, a row waits past its swing's end before going idle
+---@field OFF_HAND_SLOT integer the off hand's inventory slot
 ---@field MIN_WIDTH number
 ---@field MAX_WIDTH number
 ---@field MIN_HEIGHT number
@@ -71,6 +72,7 @@ local Options = {
 	SPARK_TEXTURE = "Interface\\CastingBar\\UI-CastingBar-Spark",
 	SPARK_WIDTH = 8,
 	END_GRACE = 0.25,
+	OFF_HAND_SLOT = 17,
 	MIN_WIDTH = 80,
 	MAX_WIDTH = 600,
 	MIN_HEIGHT = 4,
@@ -92,6 +94,10 @@ Schema:Position(Options.POSITION_PATH)
 Schema:Boolean("swingTimer.showMH", true)
 Schema:Boolean("swingTimer.showOH", false)
 Schema:Boolean("swingTimer.showR", false)
+Schema:Boolean("swingTimer.alwaysShowRows", false)
+Schema:Boolean("swingTimer.shieldRow", false)
+Schema:Boolean("swingTimer.combineHands", false)
+Schema:Boolean("swingTimer.hideWhenIdle", false)
 Schema:Choice("swingTimer.visibility", "swingTimerVisibility", "COMBAT")
 Schema:Number("swingTimer.width", 220, Options.MIN_WIDTH, Options.MAX_WIDTH, true)
 Schema:Number("swingTimer.height", 14, Options.MIN_HEIGHT, Options.MAX_HEIGHT, true)
@@ -115,16 +121,35 @@ Schema:Choice("swingTimer.outline", "fontOutline", "SLUG")
 Schema:Number("swingTimer.textSize", 11, Options.MIN_TEXT, Options.MAX_TEXT, true)
 
 ---A row shows while its switch is on and its slot can swing: the Main Hand always can, the others need a weapon speed.
+---Always Show Rows shows every row switched on, and a shield shows the Off Hand row.
 ---@param spec AUISwingTimerRowSpec
 ---@param on boolean its switch
 ---@param speed number? its weapon's speed, as last read
+---@param always boolean? Always Show Rows
+---@param shield boolean? a shield fills its slot and counts
 ---@return boolean wanted
-function Options:Wanted(spec, on, speed)
+function Options:Wanted(spec, on, speed, always, shield)
 	if not on then
 		return false
 	end
 
-	return spec.swing == "MainHand" or speed ~= nil
+	return always == true or shield == true or spec.swing == "MainHand" or speed ~= nil
+end
+
+---Combine Hands lays the Off Hand row over the Main Hand row, as only a spark, while both show and it has a weapon.
+---@param spec AUISwingTimerRowSpec
+---@param combine boolean Combine Hands
+---@param hostShown boolean the Main Hand row shows
+---@param armed boolean the row's slot holds a weapon that swings
+---@return boolean merged
+function Options:Merged(spec, combine, hostShown, armed)
+	return combine and hostShown and armed and spec.swing == "OffHand"
+end
+
+---@param location any the item's equip location, already readable
+---@return boolean shield
+function Options:IsShield(location)
+	return location == "INVTYPE_SHIELD"
 end
 
 ---@param value any what `UnitAttackSpeed` returned, already readable
@@ -148,13 +173,19 @@ end
 ---@param sampling boolean edit mode's sample is up
 ---@param visibility string the Show setting
 ---@param inCombat boolean
+---@param hideIdle boolean? Hide When Idle, which only In Combat honors
+---@param running boolean? a swing is running
 ---@return boolean visible
-function Options:Visible(on, rows, sampling, visibility, inCombat)
+function Options:Visible(on, rows, sampling, visibility, inCombat, hideIdle, running)
 	if not on or rows == 0 then
 		return false
 	end
 
-	return sampling or visibility == "ALWAYS" or inCombat
+	if sampling or visibility == "ALWAYS" then
+		return true
+	end
+
+	return inCombat and (not hideIdle or running == true)
 end
 
 ---@param rows integer

@@ -155,6 +155,19 @@ function UnitClass()
 	return "Warrior", "WARRIOR"
 end
 
+SHIELDSLOT = "Shield"
+
+local offHandItem
+function GetInventoryItemID(unit, slot)
+	assert(unit == "player" and slot == 17, slot)
+
+	return offHandItem
+end
+
+C_Item = { GetItemInfoInstant = function(item)
+	return item, "Armor", "Shields", item == "shield" and "INVTYPE_SHIELD" or "INVTYPE_WEAPON"
+end }
+
 C_ClassColor = { GetClassColor = function()
 	return { r = 0.78, g = 0.61, b = 0.43 }
 end }
@@ -446,6 +459,21 @@ Equal("the second row's place", Options:RowY(2, 14, 2), -16)
 Equal("Forever Minimal keeps its least height", Options:DrawnHeight("FOREVER_MINIMAL", 14, 16), 16)
 Equal("Thin Line does not", Options:DrawnHeight("THIN_LINE", 14, 16), 14)
 
+Equal("Always Show Rows shows an empty slot", Options:Wanted(offHand, true, nil, true), true)
+Equal("not one switched off", Options:Wanted(offHand, false, nil, true), false)
+Equal("a shield shows its row", Options:Wanted(offHand, true, nil, false, true), true)
+Equal("the off hand merges", Options:Merged(offHand, true, true, true), true)
+Equal("not without the main hand", Options:Merged(offHand, true, false, true), false)
+Equal("not without a weapon", Options:Merged(offHand, true, true, false), false)
+Equal("not with Combine Hands off", Options:Merged(offHand, false, true, true), false)
+Equal("the main hand never does", Options:Merged(mainHand, true, true, true), false)
+Equal("a shield is one", Options:IsShield("INVTYPE_SHIELD"), true)
+Equal("a sword is not", Options:IsShield("INVTYPE_WEAPON"), false)
+Equal("Hide When Idle hides between swings", Options:Visible(true, 1, false, "COMBAT", true, true, false), false)
+Equal("and shows during one", Options:Visible(true, 1, false, "COMBAT", true, true, true), true)
+Equal("Always ignores it", Options:Visible(true, 1, false, "ALWAYS", false, true, false), true)
+Equal("the sample ignores it", Options:Visible(true, 1, true, "COMBAT", false, true, false), true)
+
 -- Defaults ------------------------------------------------------------------------------------------------
 
 Equal("off by default", Default("enabled"), false)
@@ -457,6 +485,10 @@ Equal("off hand opt-in", Default("showOH"), false)
 Equal("ranged opt-in", Default("showR"), false)
 Equal("fills up", Default("depleteFill"), false)
 Equal("spark on", Default("spark"), true)
+Equal("Always Show Rows off", Default("alwaysShowRows"), false)
+Equal("Show Shield off", Default("shieldRow"), false)
+Equal("Combine Hands off", Default("combineHands"), false)
+Equal("Hide When Idle off", Default("hideWhenIdle"), false)
 Equal("the Aeon Light texture", Default("texture"), "Aeon Light")
 Equal("in combat", Default("visibility"), "COMBAT")
 Equal("range dim at 40%", Default("outOfRangeAlpha"), 40)
@@ -579,6 +611,90 @@ Equal("and runs", ranged.bar.timer, ranged.duration)
 speeds[3] = 3
 Set("swingTimer.showR", false)
 Equal("a row switched off idles", ranged.ends, nil)
+
+-- Always Show Rows, shields, Combine Hands, Hide When Idle ---------------------------------------------------
+
+speeds[2] = nil
+Fire("UNIT_ATTACK_SPEED", "player")
+Equal("no off hand, no row", off:IsShown(), false)
+Equal("no gear watch by default", eventFrame.events.PLAYER_EQUIPMENT_CHANGED, nil)
+
+Set("swingTimer.alwaysShowRows", true)
+Equal("Always Show Rows shows it", off:IsShown(), true)
+Equal("and takes its place", frame.height, 30)
+Equal("and watches the slot", eventFrame.events.PLAYER_EQUIPMENT_CHANGED, true)
+Set("swingTimer.alwaysShowRows", false)
+Equal("off again it goes", off:IsShown(), false)
+Equal("and stops watching", eventFrame.events.PLAYER_EQUIPMENT_CHANGED, nil)
+
+Set("swingTimer.shieldRow", true)
+Equal("no shield, no row", off:IsShown(), false)
+offHandItem = "shield"
+Fire("PLAYER_EQUIPMENT_CHANGED", 5)
+Equal("another slot changes nothing", off:IsShown(), false)
+Fire("PLAYER_EQUIPMENT_CHANGED", 17)
+Equal("a shield shows the row", off:IsShown(), true)
+Equal("labeled Shield", off.tag.text, "Shield")
+Set("swingTimer.combineHands", true)
+Equal("a shield never merges", off.host, nil)
+Set("swingTimer.combineHands", false)
+offHandItem = nil
+Fire("PLAYER_EQUIPMENT_CHANGED", 17)
+Equal("taken off, the row goes", off:IsShown(), false)
+Equal("and its label returns", off.tag.text, "OH")
+Set("swingTimer.shieldRow", false)
+
+speeds[2] = 1.8
+Fire("UNIT_ATTACK_SPEED", "player")
+Set("swingTimer.combineHands", true)
+Equal("the off hand rides the main hand", off.host, main)
+Equal("its place is the main hand's", off.points[1][2], main)
+Equal("the stack shrinks", frame.height, 14)
+Equal("its fill is unseen", off.bar.fill.alpha, 0)
+Equal("its background too", off.background.color[4], 0)
+Equal("it has no border", off.edge.look.style, "NONE")
+Equal("nor label", off.tag:IsShown(), false)
+Equal("nor time", off.time:IsShown(), false)
+Equal("its spark sits above the main hand's", off.over.level > main.over.level, true)
+Equal("in the off hand's color", off.spark.vertex[1], 0xc7 / 255)
+Set("swingTimer.spark", false)
+Fire("PLAYER_SWING", 1.8, OFF)
+Equal("its spark ignores Show Spark", off.spark:IsShown(), true)
+Fire("PLAYER_SWING", 2.6, MAIN)
+Equal("the main hand's follows it", main.spark:IsShown(), false)
+Set("swingTimer.spark", true)
+Fire("PLAYER_DEAD")
+Equal("idle, its spark hides", off.spark:IsShown(), false)
+Set("swingTimer.showMH", false)
+Equal("without the main hand it has its own bar", off.host, nil)
+Equal("its fill back", off.bar.fill.alpha, 1)
+Equal("its border back", off.edge.look.style, "THIN_LINE")
+Equal("its label back", off.tag:IsShown(), true)
+Set("swingTimer.showMH", true)
+Set("swingTimer.combineHands", false)
+Equal("off again it stacks", frame.height, 30)
+Equal("its spark is white", off.spark.vertex[1], 1)
+Set("swingTimer.showOH", false)
+
+Set("swingTimer.hideWhenIdle", true)
+Equal("in combat with no swing it hides", frame:IsShown(), false)
+Fire("PLAYER_SWING", 2.6, MAIN)
+Equal("a swing shows it", frame:IsShown(), true)
+
+local idling = LastTimer()
+
+idling.fired = true
+idling.callback()
+Equal("past the grace it hides", frame:IsShown(), false)
+Fire("PLAYER_SWING", 2.6, MAIN)
+Fire("PLAYER_DEAD")
+Equal("dying hides it", frame:IsShown(), false)
+Set("swingTimer.visibility", "ALWAYS")
+Equal("Always ignores it", frame:IsShown(), true)
+Set("swingTimer.visibility", "COMBAT")
+Set("swingTimer.hideWhenIdle", false)
+Set("swingTimer.showOH", true)
+Fire("UNIT_ATTACK_SPEED", "player")
 
 -- Weapon swap ---------------------------------------------------------------------------------------------
 

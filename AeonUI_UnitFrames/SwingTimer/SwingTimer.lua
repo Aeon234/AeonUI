@@ -25,6 +25,8 @@ local PERCENT = 100
 ---@field endTimer table?
 ---@field rangeOn boolean?
 ---@field far boolean?
+---@field shield boolean? a shield fills its slot
+---@field host AUISwingTimerRow? the row it rides under Combine Hands
 
 ---The player's swing timer, on the clients that report swings: one frame with a row per weapon that can swing. The
 ---engine animates each row's fill and time from a duration object, so no Lua runs per frame; a timer per swing catches
@@ -35,6 +37,7 @@ local PERCENT = 100
 ---@field byType table<integer, AUISwingTimerRow>
 ---@field shown integer how many rows show
 ---@field following boolean? the events are registered
+---@field watchingGear boolean? the off hand's slot is watched for a shield
 ---@field sampling boolean? edit mode's sample is up
 ---@field inCombat boolean?
 ---@field formatter table?
@@ -151,27 +154,42 @@ function SwingTimer:Style(row)
 	local flags = AUI.Media:FontFlags(Profile:Get("swingTimer.outline"))
 	local size = Profile:Get("swingTimer.textSize")
 
+	local host = row.host
+	local r, g, b = FillColor(row)
+
 	row:SetSize(Profile:Get("swingTimer.width"), height)
 	AUI.Media:SetBarTexture(bar, Profile:Get("swingTimer.texture"))
-	bar:GetStatusBarTexture():SetVertexColor(FillColor(row))
-	row.background:SetColorTexture(background.r, background.g, background.b, background.a or 1)
+	bar:GetStatusBarTexture():SetVertexColor(r, g, b)
+	-- A row riding another shows only its spark, which stays anchored to its unseen fill.
+	bar:GetStatusBarTexture():SetAlpha(host and 0 or 1)
+	row.background:SetColorTexture(background.r, background.g, background.b, host and 0 or background.a or 1)
+	row.over:SetFrameLevel(host and host.over:GetFrameLevel() + OVER_LEVEL or bar:GetFrameLevel() + OVER_LEVEL)
 	row.spark:ClearAllPoints()
 	row.spark:SetPoint("CENTER", bar:GetStatusBarTexture(), "RIGHT")
+
+	if host then
+		row.spark:SetVertexColor(r, g, b)
+	else
+		row.spark:SetVertexColor(1, 1, 1)
+	end
+
+	row.tag:SetText(row.shield and SHIELDSLOT or L[row.spec.label])
 	row.spark:SetSize(Options.SPARK_WIDTH, height * SPARK_GROW)
 	row.tag:SetFont(font, size, flags)
 	row.time:SetFont(font, size, flags)
-	row.tag:SetShown(Profile:Get("swingTimer.label") == true)
-	row.time:SetShown(Profile:Get("swingTimer.time") == true)
+	row.tag:SetShown(not host and Profile:Get("swingTimer.label") == true)
+	row.time:SetShown(not host and Profile:Get("swingTimer.time") == true)
 
 	if not row.edge then
 		row.edge = AUI.Border:Create(row, true)
-		row.edge:SetFrameLevel(row.over:GetFrameLevel() + 1)
 	end
+
+	row.edge:SetFrameLevel(row.over:GetFrameLevel() + 1)
 
 	local minimal = Profile:Get("swingTimer.borderStyle") == "FOREVER_MINIMAL"
 
 	row.edge:Apply({
-		style = minimal and "FOREVER_MINIMAL_SHADED" or "THIN_LINE",
+		style = host and "NONE" or minimal and "FOREVER_MINIMAL_SHADED" or "THIN_LINE",
 		color = minimal and AUI.CastBarOptions.FOREVER_MINIMAL.color or Profile:Get("swingTimer.borderColor"),
 		background = NO_FILL,
 	})
@@ -189,6 +207,12 @@ function SwingTimer:PaintRange(row, far)
 	row.time:SetTextColor(color.r, color.g, color.b)
 end
 
+---@param row AUISwingTimerRow
+---@return boolean on a row riding another is its spark alone, so it ignores Show Spark
+local function SparkOn(row)
+	return row.host ~= nil or AUI.Profile:Get("swingTimer.spark") == true
+end
+
 ---Draws a still sample: edit mode's and the settings preview's.
 ---@param row AUISwingTimerRow
 ---@param far boolean
@@ -200,7 +224,7 @@ function SwingTimer:DrawSample(row, far)
 	row.bar:SetMinMaxValues(0, 1)
 	row.bar:SetValue(Profile:Get("swingTimer.depleteFill") and 1 - share or share)
 	row.time:SetText(row.spec.sampleTime)
-	row.spark:SetShown(Profile:Get("swingTimer.spark") == true)
+	row.spark:SetShown(SparkOn(row))
 	self:PaintRange(row, far)
 end
 
@@ -231,7 +255,7 @@ function SwingTimer:RunRow(row)
 	row.duration:SetTimeFromStart(ends - swing, swing)
 	row.bar:SetTimerDuration(row.duration, Enum.StatusBarInterpolation.Immediate, direction)
 	row.binding:SetEnabled(true)
-	row.spark:SetShown(Profile:Get("swingTimer.spark") == true)
+	row.spark:SetShown(SparkOn(row))
 end
 
 ---@param row AUISwingTimerRow
@@ -251,18 +275,90 @@ function SwingTimer:StartRow(row, seconds)
 	row.endTimer = C_Timer.NewTimer(seconds + Options.END_GRACE, function()
 		row.endTimer = nil
 		self:IdleRow(row)
+		self:UpdateVisibility()
 	end)
+	self:UpdateVisibility()
+end
+
+---@return boolean aware the off hand's slot matters: a shield shows or labels its row
+function SwingTimer:ShieldAware()
+	local Profile = AUI.Profile
+
+	return Profile:Get("swingTimer.shieldRow") == true or Profile:Get("swingTimer.alwaysShowRows") == true
+end
+
+---@return boolean shield the off hand's slot holds a shield
+local function OffHandShield()
+	local item = AUI:Readable(GetInventoryItemID("player", Options.OFF_HAND_SLOT))
+
+	if not item then
+		return false
+	end
+
+	local _, _, _, location = C_Item.GetItemInfoInstant(item)
+
+	return Options:IsShield(AUI:Readable(location))
 end
 
 ---Reads each row's weapon speed; a speed that cannot be read keeps the last one, since a haste proc can restrict it.
 function SwingTimer:ReadSpeeds()
+	local shield = self:ShieldAware() and OffHandShield()
+
 	for _, row in ipairs(self.rows) do
 		local value = select(row.spec.speedReturn, UnitAttackSpeed("player"))
 
 		if not issecretvalue(value) then
 			row.speed = Options:Speed(value)
 		end
+
+		local holds = row.spec.swing == "OffHand" and shield and not row.speed
+
+		if holds ~= (row.shield == true) then
+			row.shield = holds
+			row.tag:SetText(holds and SHIELDSLOT or L[row.spec.label])
+		end
 	end
+end
+
+---Lays a row over another under Combine Hands, or back on its own.
+---@param row AUISwingTimerRow
+---@param host AUISwingTimerRow?
+function SwingTimer:SetHost(row, host)
+	if row.host ~= host then
+		row.host = host
+		self:Style(row)
+	end
+end
+
+---Stacks the rows that show, top to bottom; a row riding another takes no place.
+---@param rows AUISwingTimerRow[] the Main Hand's first
+---@param parent Frame
+---@param armed fun(row: AUISwingTimerRow): boolean its slot holds a weapon that swings
+---@return integer shown how many places the stack takes
+function SwingTimer:Stack(rows, parent, armed)
+	local Profile = AUI.Profile
+	local height, spacing = self:RowHeight(), Profile:Get("swingTimer.spacing")
+	local combine = Profile:Get("swingTimer.combineHands") == true
+	local first = rows[1]
+	local shown = 0
+
+	for _, row in ipairs(rows) do
+		if row:IsShown() then
+			local merged = Options:Merged(row.spec, combine, first:IsShown(), armed(row))
+
+			self:SetHost(row, merged and first or nil)
+			row:ClearAllPoints()
+
+			if merged then
+				row:SetPoint("TOP", first, "TOP")
+			else
+				shown = shown + 1
+				row:SetPoint("TOP", parent, "TOP", 0, Options:RowY(shown, height, spacing))
+			end
+		end
+	end
+
+	return shown
 end
 
 ---@param row AUISwingTimerRow
@@ -299,37 +395,47 @@ function SwingTimer:Refresh()
 		return
 	end
 
-	local height, spacing = self:RowHeight(), Profile:Get("swingTimer.spacing")
-	local shown = 0
+	local always = Profile:Get("swingTimer.alwaysShowRows") == true
 
 	self:ReadSpeeds()
 
 	for _, row in ipairs(self.rows) do
-		local wanted = Options:Wanted(row.spec, Profile:Get("swingTimer." .. row.spec.show) == true, row.speed)
+		local wanted = Options:Wanted(row.spec, Profile:Get("swingTimer." .. row.spec.show) == true, row.speed, always,
+			row.shield)
 
 		row:SetShown(wanted)
 
-		if wanted then
-			shown = shown + 1
-			row:ClearAllPoints()
-			row:SetPoint("TOP", frame, "TOP", 0, Options:RowY(shown, height, spacing))
-		elseif row.ends then
+		if not wanted and row.ends then
 			self:IdleRow(row)
 		end
+	end
 
+	local shown = self:Stack(self.rows, frame, function(row)
+		return row.speed ~= nil
+	end)
+
+	for _, row in ipairs(self.rows) do
 		self:AskRange(row)
 	end
 
 	self.shown = shown
-	frame:SetSize(Profile:Get("swingTimer.width"), Options:StackHeight(shown, height, spacing))
+	frame:SetSize(Profile:Get("swingTimer.width"), Options:StackHeight(shown, self:RowHeight(),
+		Profile:Get("swingTimer.spacing")))
 	self:UpdateVisibility()
 end
 
 function SwingTimer:UpdateVisibility()
 	local frame = self.frame --[[@as Frame]]
 
+	local running = false
+
+	for _, row in ipairs(self.rows) do
+		running = running or row.ends ~= nil
+	end
+
 	frame:SetShown(Options:Visible(self:IsOn(), self.shown, self.sampling == true,
-		AUI.Profile:Get("swingTimer.visibility"), self.inCombat == true))
+		AUI.Profile:Get("swingTimer.visibility"), self.inCombat == true,
+		AUI.Profile:Get("swingTimer.hideWhenIdle") == true, running))
 end
 
 function SwingTimer:CreateFrame()
@@ -463,6 +569,31 @@ function SwingTimer:OnDead()
 			self:IdleRow(row)
 		end
 	end
+
+	self:UpdateVisibility()
+end
+
+---@param _ string the event
+---@param slot number
+function SwingTimer:OnEquipment(_, slot)
+	if slot == Options.OFF_HAND_SLOT then
+		self:Refresh()
+	end
+end
+
+---Watches the off hand's slot only while a shield matters.
+function SwingTimer:WatchGear()
+	local aware = self:ShieldAware()
+
+	if aware ~= (self.watchingGear == true) then
+		self.watchingGear = aware
+
+		if aware then
+			AUI.Events:Register("PLAYER_EQUIPMENT_CHANGED", self, self.OnEquipment)
+		else
+			AUI.Events:Unregister("PLAYER_EQUIPMENT_CHANGED", self)
+		end
+	end
 end
 
 ---@param event string
@@ -475,6 +606,7 @@ end
 ---it re-sends its flag only when its own state changes.
 function SwingTimer:Stop()
 	AUI.Events:UnregisterAll(self)
+	self.watchingGear = nil
 
 	if not C_CVar.GetCVarBool("showSwingTimer") then
 		for _, spec in ipairs(Options.ROWS) do
@@ -525,6 +657,8 @@ function SwingTimer:Apply()
 
 		return
 	end
+
+	self:WatchGear()
 
 	for _, row in ipairs(self.rows) do
 		self:Style(row)

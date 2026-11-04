@@ -69,21 +69,24 @@ function SwingTimerPreview:Refresh(state, preview)
 	local Profile, Options, SwingTimer = AUI.Profile, AUI.SwingTimerOptions, AUI.SwingTimer
 	local height, spacing = SwingTimer:RowHeight(), Profile:Get("swingTimer.spacing")
 	local far = state == OUT_OF_RANGE and Profile:Get("swingTimer.rangeCheck") == true
-	local canvas = self.rows[1]:GetParent()
-	local shown = 0
+	local canvas = self.rows[1]:GetParent() --[[@as Frame]]
 
 	for _, row in ipairs(self.rows) do
-		local on = Profile:Get("swingTimer." .. row.spec.show) == true
+		row:SetShown(Profile:Get("swingTimer." .. row.spec.show) == true)
+		SwingTimer:Style(row)
+	end
 
-		row:SetShown(on)
+	local shown = SwingTimer:Stack(self.rows, canvas, function()
+		return true
+	end)
 
-		if on then
-			shown = shown + 1
-			SwingTimer:Style(row)
+	for _, row in ipairs(self.rows) do
+		if row:IsShown() then
 			SwingTimer:DrawSample(row, far)
-			row:ClearAllPoints()
-			row:SetPoint("TOP", canvas, "TOP", 0, Options:RowY(shown, height, spacing))
-			preview:Part(row.bar, row.spec.color)
+
+			if not row.host then
+				preview:Part(row.bar, row.spec.color)
+			end
 		end
 	end
 
@@ -102,8 +105,32 @@ function SettingsSwingTimer:DeclareBars(page)
 	card:Checkbox(Field("showR", L["Ranged"], "showR", {
 		description = L["Shown while you have a bow, gun, crossbow, wand or thrown weapon."],
 	}))
+	card:Checkbox(Field("alwaysShowRows", L["Always Show Rows"], "alwaysShowRows", {
+		description = L["Shows every bar turned on here, with or without a weapon in its slot."],
+	}))
+	card:Checkbox(Field("shieldRow", L["Show Shield As Off Hand"], "shieldRow", {
+		description = L["Shows the Off Hand bar, labeled Shield, while a shield is equipped."],
+	}))
+	card:Checkbox(Field("combineHands", L["Combine Hands"], "combineHands", {
+		description = L["Shows the off hand as a spark on the Main Hand bar, instead of its own bar."],
+		blocked = function()
+			local Profile = AUI.Profile
+
+			if not (Profile:Get("swingTimer.showMH") and Profile:Get("swingTimer.showOH")) then
+				return L["Needs the Main Hand and Off Hand bars."]
+			end
+		end,
+	}))
 	card:Dropdown(Field("visibility", L["Show"], "visibility", {
 		options = ChoiceOptions(Options.VISIBILITIES, VISIBILITY_LABELS),
+	}))
+	card:Checkbox(Field("hideWhenIdle", L["Hide When Idle"], "hideWhenIdle", {
+		description = L["Hides the bars while no swing is running."],
+		blocked = function()
+			if AUI.Profile:Get("swingTimer.visibility") ~= "COMBAT" then
+				return L["Needs Show In Combat."]
+			end
+		end,
 	}))
 	card:Dropdown(Field("texture", L["Texture"], "texture", { picker = "texture" }))
 	card:Checkbox(Field("depleteFill", L["Deplete Fill"], "depleteFill", {
