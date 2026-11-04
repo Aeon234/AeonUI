@@ -42,6 +42,9 @@ Schema:Number("minimap.scale", 100, 50, 200, true)
 Schema:Choice("minimap.border.style", "minimapBorderStyle", "METAL")
 Schema:Color("minimap.border.color", AUI.Border.ART_COLOR)
 Schema:Number("minimap.border.thickness", 100, 50, 300, true)
+Schema:Boolean("minimap.border.showShadow", false)
+Schema:Number("minimap.border.shadowSize", AUI.Border.SHADOW_SIZE, 1, 10, true)
+Schema:Color("minimap.border.shadowColor", AUI.Border.SHADOW_COLOR)
 Schema:Color("minimap.background", { r = 0.067, g = 0.067, b = 0.067, a = 0.9 })
 Schema:Boolean("minimap.zoom.wheel", true)
 Schema:Number("minimap.zoom.reset", 0, 0, 60, true)
@@ -471,6 +474,10 @@ function Map:Arrange(force)
 			thickness = thickness,
 			top = layout.top,
 			bottom = layout.bottom,
+			shadow = Profile:Get("minimap.border.showShadow") and {
+				size = Profile:Get("minimap.border.shadowSize"),
+				color = Profile:Get("minimap.border.shadowColor"),
+			} or nil,
 		})
 		border:SetFrameLevel(Minimap:GetFrameLevel() + (style == "METAL" and BORDER_BELOW or BORDER_ABOVE))
 		AUI.MinimapRows:SetFrameLevel(Minimap:GetFrameLevel() + ROWS_LEVEL)

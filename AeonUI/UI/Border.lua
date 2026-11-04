@@ -24,16 +24,19 @@ local TEXTURES = "Interface\\AddOns\\" .. AUI.name .. "\\Media\\Textures\\"
 ---@field tinted boolean? Border Color tints a gray copy of it
 ---@field strip boolean? its edges and middle are drawn from a one-texel strip through its middle
 ---@field white boolean? its band is white, so it is always tinted, Border Color included at the art's own color
+---@field shadow string? its shadow's files without their size: the glow along its own outline, in place of the square
+---shadow
 
 ---@type table<string, AUIBorderArt>
 local ART = {
 	FOREVER_MINIMAL = { file = TEXTURES .. "ForeverMinimal.tga", band = TEXTURES .. "ForeverMinimalBand.tga", size = 110,
-		tinted = true, strip = true, across = 20, down = 20, bandStart = 6, outset = 10.5 },
+		tinted = true, strip = true, across = 20, down = 20, bandStart = 6, outset = 10.5,
+		shadow = TEXTURES .. "ForeverMinimalShadow-" },
 	FOREVER_MINIMAL_SHADED = { file = TEXTURES .. "ForeverMinimalShaded.tga",
 		band = TEXTURES .. "ForeverMinimalShaded.tga", size = 110, tinted = true, white = true, strip = true, across = 20,
-		down = 20, bandStart = 6, outset = 10.5 },
+		down = 20, bandStart = 6, outset = 10.5, shadow = TEXTURES .. "ForeverMinimalShadow-" },
 	FOREVER = { file = TEXTURES .. "Forever.tga", band = TEXTURES .. "ForeverBand.tga", size = 110, across = 48,
-		down = 20, bandStart = 6, outset = 10.5 },
+		down = 20, bandStart = 6, outset = 10.5, shadow = TEXTURES .. "ForeverShadow-" },
 	SLATE = { file = TEXTURES .. "Slate.tga", band = TEXTURES .. "SlateBand.tga", size = 128, tinted = true, strip = true,
 		across = 32, down = 32, bandStart = 15, outset = 19.5 },
 }
@@ -93,6 +96,12 @@ local BAND_DIVIDERS = { FOREVER_MINIMAL = true, FOREVER_MINIMAL_SHADED = true, F
 -- A backdrop edge's size at 100% Border Thickness, and how far it reaches outside the owner, as a share of its size.
 local EDGE_SIZE = 16
 local EDGE_OUTSET = 0.25
+-- The sizes the art's shadow files are built in, units outside the art at its own scale; a shadow takes the nearest.
+local SHADOW_SIZES = { 2, 4, 6, 8, 10 }
+-- How far the metal band's outer edge lies past the owner, in the atlases' own units: the reach above less the outer
+-- space the same measurements give (12.5 left, 3 right, 7 top and bottom). The same band on both clients; Retail's
+-- reach differs only in the space outside it. A side with information rows has its title bar's reach, 18, less the 7.
+local METAL_BAND = { left = 9, right = 8.5, top = 9, bottom = 9, title = 11 }
 -- How strongly `SetLit` adds a second copy of the art over itself.
 local LIT_ALPHA = 0.4
 
@@ -113,11 +122,16 @@ local SAME = 0.002
 ---@class AUIBorderLook
 ---@field style AUIBorderStyle
 ---@field color AUIColor the band or line color
+---@field shadow AUIBorderShadow? a soft glow outside the border; none when absent
 ---@field background AUIColor the owner's fill under Metal, Thin Line and None; the Forever styles bring their own
 ---@field thickness number? the Metal, Forever and edge styles' size, in percent of Blizzard's
 ---@field edgeFile string? the backdrop edge file the "EDGE" style draws
 ---@field top AUIBorderSide? information rows along the owner's top edge, inside it
 ---@field bottom AUIBorderSide? information rows along its bottom edge
+
+---@class AUIBorderShadow
+---@field size number units outside the border
+---@field color AUIColor
 
 ---Information rows along one edge of the owner. The space between them and the rest of the owner, and between two
 ---rows, is `Border:Gaps` for the style.
@@ -150,16 +164,26 @@ local SAME = 0.002
 ---the rows (`separator`) and between two rows (`divider`)
 ---@field rowBackgrounds table<string, Texture> per side that has needed one, the Forever art's dark middle behind the rows
 ---@field lines Texture[]?
+---@field shadowLook AUIBorderShadow? the shadow `Apply` last asked for
+---@field shadowPieces Texture[]? the art's own shadow in eight pieces, made the first time it is drawn
+---@field shadowSize integer? the art's own shadow's built size while it is drawn
+---@field shadowExtend string? how far the square shadow last reached past the owner
+---@field square table? the library's square shadow, for the styles without a shadow of their own
+---@field metalScale number? the metal frame's scale
 local BorderMixin = {}
 
 ---@class AUIBorderFactory
 ---@field STYLES AUIBorderStyle[] in display order
 ---@field ART_COLOR AUIColor
 ---@field ART table<string, AUIBorderArt> the Forever styles' art, by style
+---@field SHADOW_SIZE number the default shadow size
+---@field SHADOW_COLOR AUIColor the default shadow color
 local Border = {
 	STYLES = { "METAL", "FOREVER_MINIMAL", "FOREVER", "SLATE", "THIN_LINE", "NONE" },
 	ART_COLOR = ART_COLOR,
 	ART = ART,
+	SHADOW_SIZE = 4,
+	SHADOW_COLOR = { r = 0, g = 0, b = 0, a = 0.618 },
 }
 AUI.Border = Border
 
@@ -484,6 +508,7 @@ function BorderMixin:Layout()
 			scale = Border:FitScale(corner.height, (reach.top + reach.bottom) / 2, height, scale)
 		end
 
+		self.metalScale = scale
 		metal:SetScale(scale)
 		metal:ClearAllPoints()
 		metal:SetPoint("TOPLEFT", self.owner, "TOPLEFT", -reach.left, top and TITLE.heights[1] or reach.top)
@@ -504,6 +529,8 @@ function BorderMixin:Layout()
 			end
 		end
 	end
+
+	self:PlaceShadow()
 end
 
 ---Shows the plain frame or the title bar on each side and anchors the sides' edges between them.
@@ -870,8 +897,188 @@ function BorderMixin:Apply(look)
 	self:ApplyEdge(look)
 	self:ApplyRows(art, look.color)
 	self:SetLit(false)
+	self:ApplyShadow(look.shadow)
 
 	self:Layout()
+end
+
+---@param size number
+---@return integer size the nearest size the art's shadow files are built in
+local function ShadowFileSize(size)
+	local nearest = SHADOW_SIZES[1]
+
+	for _, built in ipairs(SHADOW_SIZES) do
+		if math.abs(built - size) < math.abs(nearest - size) then
+			nearest = built
+		end
+	end
+
+	return nearest
+end
+
+---Makes the art's shadow's eight pieces, behind everything on the owner. Each corner is placed around the art's corner
+---by `PlaceShadow`; the edges stretch between the corners.
+---@param owner Frame
+---@param pieces Texture[] the art's pieces
+---@return Texture[]
+local function CreateShadowPieces(owner, pieces)
+	local shadow = {}
+
+	for index = 1, 8 do
+		local piece = owner:CreateTexture(nil, "BACKGROUND", nil, -8)
+
+		piece:SetSnapToPixelGrid(false)
+		piece:SetTexelSnappingBias(0)
+		piece.row, piece.column = PIECES[index][1], PIECES[index][2]
+		piece.art = pieces[index]
+		shadow[index] = piece
+	end
+
+	local topLeft, topRight, bottomLeft, bottomRight = shadow[1], shadow[2], shadow[3], shadow[4]
+
+	shadow[5]:SetPoint("TOPLEFT", topLeft, "TOPRIGHT")
+	shadow[5]:SetPoint("BOTTOMRIGHT", topRight, "BOTTOMLEFT")
+	shadow[6]:SetPoint("TOPLEFT", bottomLeft, "TOPRIGHT")
+	shadow[6]:SetPoint("BOTTOMRIGHT", bottomRight, "BOTTOMLEFT")
+	shadow[7]:SetPoint("TOPLEFT", topLeft, "BOTTOMLEFT")
+	shadow[7]:SetPoint("BOTTOMRIGHT", bottomLeft, "TOPRIGHT")
+	shadow[8]:SetPoint("TOPLEFT", topRight, "BOTTOMLEFT")
+	shadow[8]:SetPoint("BOTTOMRIGHT", bottomRight, "TOPRIGHT")
+
+	return shadow
+end
+
+---Draws the art's own shadow or readies the square one, and hides whichever the style does not use. Placed by
+---`PlaceShadow`.
+---@param look AUIBorderShadow?
+function BorderMixin:ApplyShadow(look)
+	local art = self.art
+
+	self.shadowLook = look
+	self.shadowSize = nil
+	self.shadowExtend = nil
+
+	if not look or not art or not art.shadow then
+		for _, piece in ipairs(self.shadowPieces or {}) do
+			piece:Hide()
+		end
+
+		if self.square and not look then
+			self.square:Hide()
+		end
+
+		return
+	end
+
+	if self.square then
+		self.square:Hide()
+	end
+
+	local shadowPieces = self.shadowPieces or CreateShadowPieces(self.owner, self.pieces --[[@as AUITextures]])
+	local size = ShadowFileSize(look.size)
+	local file = art.shadow .. size .. ".tga"
+
+	self.shadowPieces = shadowPieces
+	self.shadowSize = size
+
+	-- The file's texels around the art on each side, at the art's two per unit.
+	local pad = 2 * (size + 2)
+	local total = art.size + 2 * pad
+	local r, g, b, a = Unpack(look.color)
+
+	local function Bounds(corner)
+		return { { 0, corner + pad }, { total / 2 - 1, total / 2 + 1 }, { total - corner - pad, total } }
+	end
+
+	local columns, rows = Bounds(art.across), Bounds(art.down)
+
+	for _, piece in ipairs(shadowPieces) do
+		local column, row = columns[piece.column], rows[piece.row]
+
+		piece:SetTexture(file)
+		piece:SetTexCoord(column[1] / total, column[2] / total, row[1] / total, row[2] / total)
+		piece:SetVertexColor(r, g, b, a)
+		piece:Show()
+	end
+end
+
+---@return table extend how far each side of the square shadow reaches past the owner, to the outside of the band
+function BorderMixin:ShadowReach()
+	local art = self.art
+
+	if art then
+		local band = (art.outset - art.bandStart) * (self.artScale or ART_SCALE)
+
+		return { left = band, right = band, top = band, bottom = band }
+	elseif self.style == "METAL" then
+		local scale = self.metalScale or 1
+
+		return {
+			left = METAL_BAND.left * scale,
+			right = METAL_BAND.right * scale,
+			top = (self.top and METAL_BAND.title or METAL_BAND.top) * scale,
+			bottom = (self.bottom and METAL_BAND.title or METAL_BAND.bottom) * scale,
+		}
+	elseif self.style == "EDGE" then
+		local band = EDGE_SIZE * self.thickness / 100 * EDGE_OUTSET
+
+		return { left = band, right = band, top = band, bottom = band }
+	end
+
+	return { left = 0, right = 0, top = 0, bottom = 0 }
+end
+
+---Places the shadow around what the style draws: the art's own around the art's corners, reaching the file's padding
+---past them, or the library's square one, one level under the owner, when it has moved or `Apply` changed its look.
+function BorderMixin:PlaceShadow()
+	local look = self.shadowLook
+
+	if not look then
+		return
+	end
+
+	local size = self.shadowSize
+
+	if size then
+		local art = self.art --[[@as AUIBorderArt]]
+		local scale = self.artScale or ART_SCALE
+		local pad = 2 * (size + 2)
+		local width, height = (art.across + pad) * scale, (art.down + pad) * scale
+
+		for index = 1, 4 do
+			local piece = (self.shadowPieces --[[@as AUITextures]])[index]
+			local onLeft, onTop = piece.column == 1, piece.row == 1
+			local point = (onTop and "TOP" or "BOTTOM") .. (onLeft and "LEFT" or "RIGHT")
+
+			piece:ClearAllPoints()
+			piece:SetPoint(point, piece.art, point, (onLeft and -pad or pad) * scale, (onTop and pad or -pad) * scale)
+			piece:SetSize(width, height)
+		end
+
+		return
+	end
+
+	local extend = self:ShadowReach()
+	local reach = ("%s %s %s %s"):format(extend.left, extend.right, extend.top, extend.bottom)
+
+	if reach == self.shadowExtend then
+		return
+	end
+
+	self.shadowExtend = reach
+
+	local r, g, b, a = Unpack(look.color)
+
+	self.square = LibStub("LibAeonSettings-1.0"):AddShadow(self.owner, {
+		size = look.size,
+		color = { r, g, b, a },
+		below = true,
+		extend = extend,
+	})
+
+	if self.square then
+		self.square:Show()
+	end
 end
 
 ---Draws the "EDGE" style, a backdrop edge around the owner, in a frame made the first time it is needed.

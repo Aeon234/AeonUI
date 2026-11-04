@@ -355,6 +355,32 @@ function SettingsMinimap:DeclareBorder(page)
 		default = Settings:Default("minimap.background"),
 		hasOpacity = true,
 	})
+	border:Checkbox({
+		id = "showShadow",
+		label = L["Show Shadow"],
+		path = "minimap.border.showShadow",
+		default = Settings:Default("minimap.border.showShadow"),
+	})
+	border:Slider({
+		id = "shadowSize",
+		resettable = true,
+		label = L["Shadow Size"],
+		path = "minimap.border.shadowSize",
+		default = Settings:Default("minimap.border.shadowSize"),
+		min = 1,
+		max = 10,
+		step = 1,
+		depends = "showShadow",
+	})
+	border:Color({
+		id = "shadowColor",
+		resettable = true,
+		label = L["Shadow Color"],
+		path = "minimap.border.shadowColor",
+		default = Settings:Default("minimap.border.shadowColor"),
+		hasOpacity = true,
+		depends = "showShadow",
+	})
 end
 
 ---@param page table

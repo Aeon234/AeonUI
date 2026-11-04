@@ -101,7 +101,7 @@ function SettingsRaidMarkers:DeclareBar(page)
 		default = Settings:Default("markers.enabled"),
 		keywords = table.concat({ L["Buttons"], READY_CHECK, PLAYER_COUNTDOWN_BUTTON, L["Countdown Seconds"], L["Layout"],
 			L["Orientation"], L["Button Size"], L["Spacing"], L["Border"], L["Border Style"], L["Border Color"],
-			L["Border Thickness"] }, " "),
+			L["Border Thickness"], L["Show Shadow"], L["Shadow Size"], L["Shadow Color"] }, " "),
 	})
 	card:Dropdown({
 		id = "markersVisibility",
@@ -232,6 +232,33 @@ function SettingsRaidMarkers:DeclareBorder(page)
 				return L["Needs a Forever or Slate border style."]
 			end
 		end,
+	})
+	card:Checkbox({
+		id = "markersShowShadow",
+		label = L["Show Shadow"],
+		path = "markers.border.showShadow",
+		default = Settings:Default("markers.border.showShadow"),
+		depends = "markersEnabled",
+	})
+	card:Slider({
+		id = "markersShadowSize",
+		resettable = true,
+		label = L["Shadow Size"],
+		path = "markers.border.shadowSize",
+		default = Settings:Default("markers.border.shadowSize"),
+		min = 1,
+		max = 10,
+		step = 1,
+		depends = "markersShowShadow",
+	})
+	card:Color({
+		id = "markersShadowColor",
+		resettable = true,
+		label = L["Shadow Color"],
+		path = "markers.border.shadowColor",
+		default = Settings:Default("markers.border.shadowColor"),
+		hasOpacity = true,
+		depends = "markersShowShadow",
 	})
 end
 

@@ -952,7 +952,7 @@ Equal("every card titled, a line only where the keys are bound", MarkerCards(mar
 	"Bar: markersEnabled markersVisibility markersMouseover markersTooltips markersFeedback | "
 	.. "Buttons: markersReadyCheck markersCountdown markersSeconds | "
 	.. "Layout: markersOrientation markersSize markersSpacing | "
-	.. "Border: markersBorderStyle markersBorderColor markersBorderThickness | "
+	.. "Border: markersBorderStyle markersBorderColor markersBorderThickness markersShowShadow markersShadowSize markersShadowColor | "
 	.. "World Marker Cycle: markersKeys+ markersCycleOrder")
 local barCard = markersPage.sections.markersBar
 Equal("the bar's switch, off; its settings follow it", barCard.settings.markersEnabled.kind .. " "
@@ -1101,6 +1101,9 @@ Equal("every border style is offered", #borderSection.settings.borderStyle.optio
 local borderSettings = borderSection.settings
 Equal("border color is free with Metal", borderSettings.borderColor.blocked(), nil)
 Equal("thickness is free with Metal", borderSettings.borderThickness.blocked(), nil)
+Equal("the shadow is off by default", borderSettings.showShadow.default, false)
+Equal("shadow size follows Show Shadow", borderSettings.shadowSize.depends, "showShadow")
+Equal("shadow color follows Show Shadow", borderSettings.shadowColor.depends, "showShadow")
 Profile:Set("minimap.border.style", "NONE")
 Equal("border color needs a style", type(borderSettings.borderColor.blocked()), "string")
 Equal("thickness needs an art style", type(borderSettings.borderThickness.blocked()), "string")

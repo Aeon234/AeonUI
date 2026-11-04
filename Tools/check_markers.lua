@@ -481,6 +481,7 @@ Equal("Skull's attributes", Attributes(bar.buttons[8]),
 Equal("clicked on release", bar.buttons[1].clicks .. " " .. tostring(bar.buttons[1].attributes.useOnKeyDown),
 	"AnyUp false")
 Equal("the border in its style", bar.border.look.style .. " " .. bar.border.look.thickness, "FOREVER 100")
+Equal("no shadow by default", bar.border.look.shadow, nil)
 Equal("Star's icon at full size", bar.buttons[1].icon.width, 32)
 
 inCombat = true

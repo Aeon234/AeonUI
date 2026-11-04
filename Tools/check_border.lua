@@ -369,4 +369,92 @@ Equal("switching away hides it", AllHidden(border.glow), true)
 border:SetLit(true)
 Equal("a style with no art lights nothing", AllHidden(border.glow), true)
 
+-- Shadows ----------------------------------------------------------------------------------------------------
+
+local added = {}
+local library = {
+	AddShadow = function(_, owner, options)
+		local shadow = added[owner] or { Show = function(self) self.shown = true end,
+			Hide = function(self) self.shown = false end }
+
+		shadow.options, shadow.calls = options, (shadow.calls or 0) + 1
+		added[owner] = shadow
+
+		return shadow
+	end,
+}
+
+function LibStub(name)
+	assert(name == "LibAeonSettings-1.0")
+
+	return library
+end
+
+local SHADOW = { size = 4, color = Border.SHADOW_COLOR }
+
+-- Never enabled: nothing is made, for any style.
+for _, style in ipairs({ "METAL", "FOREVER_MINIMAL", "FOREVER", "SLATE", "THIN_LINE", "NONE" }) do
+	border = Fresh(true)
+	border:Apply(Look(style))
+	Equal(style .. " off makes no shadow pieces", border.shadowPieces, nil)
+	Equal(style .. " off asks the library for nothing", border.square, nil)
+end
+
+-- A style with art of its own draws its glow, on, off and on again, reusing its pieces.
+for style, file in pairs({ FOREVER = "ForeverShadow-4.tga", FOREVER_MINIMAL = "ForeverMinimalShadow-4.tga",
+	FOREVER_MINIMAL_SHADED = "ForeverMinimalShadow-4.tga" }) do
+	border = Fresh(true)
+	border:Apply(Look(style, { shadow = SHADOW }))
+	Equal(style .. " makes eight pieces", #border.shadowPieces, 8)
+	Equal(style .. " draws its own file", border.shadowPieces[1].file:match("[^\\]+$"), file)
+	Equal(style .. " needs no square shadow", border.square, nil)
+	local first = border.shadowPieces[1]
+	border:Apply(Look(style))
+	Equal(style .. " off hides it", AllHidden(border.shadowPieces), true)
+	border:Apply(Look(style, { shadow = SHADOW }))
+	Equal(style .. " on again reuses it", border.shadowPieces[1], first)
+	Equal(style .. " on again shows it", first.shown, true)
+end
+
+-- A size takes the nearest built file.
+border = Fresh(true)
+border:Apply(Look("FOREVER", { shadow = { size = 7, color = Border.SHADOW_COLOR } }))
+Equal("size 7 takes a built file", border.shadowSize, 6)
+border:Apply(Look("FOREVER", { shadow = { size = 10, color = Border.SHADOW_COLOR } }))
+Equal("the largest", border.shadowSize, 10)
+
+-- The other styles use the library's square shadow, below the owner, out to the band.
+border = Fresh(true)
+border:Apply(Look("THIN_LINE", { shadow = SHADOW }))
+Equal("Thin Line has a square shadow", border.square.shown, true)
+Equal("below its owner", border.square.options.below, true)
+Equal("reaching nothing past the owner", border.square.options.extend.left, 0)
+border:Layout()
+Equal("laying out unchanged redraws nothing", border.square.calls, 1)
+border:Apply(Look("THIN_LINE"))
+Equal("off hides it", border.square.shown, false)
+border:Apply(Look("THIN_LINE", { shadow = SHADOW }))
+Equal("on again shows it", border.square.shown, true)
+
+border = Fresh(true)
+border:Apply(Look("SLATE", { shadow = SHADOW }))
+Equal("Slate reaches to its band", border.square.options.extend.top, 2.25)
+
+border = Fresh(true)
+border:Apply(Look("METAL", { shadow = SHADOW }))
+Equal("Metal reaches to its band, at its scale", border.square.options.extend.left, 9 * border.metalScale)
+border:Apply(Look("METAL", { shadow = SHADOW, top = ROWS }))
+Equal("past a title bar on a side with rows", border.square.options.extend.top, 11)
+Equal("and the plain band on the other", border.square.options.extend.bottom, 9)
+
+-- Switching between the two kinds leaves one drawn.
+border = Fresh(true)
+border:Apply(Look("THIN_LINE", { shadow = SHADOW }))
+border:Apply(Look("FOREVER", { shadow = SHADOW }))
+Equal("switching to art hides the square shadow", border.square.shown, false)
+Equal("and draws the art's", border.shadowPieces[1].shown, true)
+border:Apply(Look("THIN_LINE", { shadow = SHADOW }))
+Equal("switching back hides the art's", AllHidden(border.shadowPieces), true)
+Equal("and shows the square one", border.square.shown, true)
+
 io.stdout:write(("check_border: %d checks passed\n"):format(checks))

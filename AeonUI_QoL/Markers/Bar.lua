@@ -195,6 +195,10 @@ function Bar:Arrange(bar, kinds, secure)
 		color = style == "FOREVER" and AUI.Border.ART_COLOR or Options:Get("markers.border.color"),
 		thickness = Options:Get("markers.border.thickness"),
 		background = BACKGROUND,
+		shadow = Options:Get("markers.border.showShadow") and {
+			size = Options:Get("markers.border.shadowSize"),
+			color = Options:Get("markers.border.shadowColor"),
+		} or nil,
 	})
 end
 
