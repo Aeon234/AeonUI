@@ -80,6 +80,18 @@ function SwingTimer:Formatter()
 	return self.formatter
 end
 
+---Gives a row's texts the chosen font.
+---@param row AUISwingTimerRow
+function SwingTimer:StyleFonts(row)
+	local Profile = AUI.Profile
+	local font = AUI.Media:Font(Profile:Get("swingTimer.font"))
+	local flags = AUI.Media:FontFlags(Profile:Get("swingTimer.outline"))
+	local size = Profile:Get("swingTimer.textSize")
+
+	row.tag:SetFont(font, size, flags)
+	row.time:SetFont(font, size, flags)
+end
+
 ---Builds a row without its look; `Style` gives it that.
 ---@param parent Frame
 ---@param spec AUISwingTimerRowSpec
@@ -115,11 +127,14 @@ function SwingTimer:BuildRow(parent, spec)
 	row.tag = over:CreateFontString(nil, "OVERLAY")
 	row.tag:SetPoint("LEFT", row, "LEFT", Options.TEXT_INSET, 0)
 	row.tag:SetWordWrap(false)
-	row.tag:SetText(L[spec.label])
 
 	row.time = over:CreateFontString(nil, "OVERLAY")
 	row.time:SetPoint("RIGHT", row, "RIGHT", -Options.TEXT_INSET, 0)
 	row.time:SetWordWrap(false)
+
+	-- A font string needs a font before its first text, and the client writes into a bound one at once.
+	self:StyleFonts(row)
+	row.tag:SetText(L[spec.label])
 	row.time:SetText("")
 
 	row.duration = C_DurationUtil.CreateDuration()
@@ -213,9 +228,6 @@ function SwingTimer:Style(row)
 	local height = self:RowHeight()
 	local bar = row.bar
 	local background = Profile:Get("swingTimer.background")
-	local font = AUI.Media:Font(Profile:Get("swingTimer.font"))
-	local flags = AUI.Media:FontFlags(Profile:Get("swingTimer.outline"))
-	local size = Profile:Get("swingTimer.textSize")
 
 	local host = row.host
 
@@ -230,8 +242,7 @@ function SwingTimer:Style(row)
 
 	self:PaintRow(row)
 	row.spark:SetSize(Options.SPARK_WIDTH, height * SPARK_GROW)
-	row.tag:SetFont(font, size, flags)
-	row.time:SetFont(font, size, flags)
+	self:StyleFonts(row)
 	row.tag:SetShown(not host and Profile:Get("swingTimer.label") == true)
 	row.time:SetShown(not host and Profile:Get("swingTimer.time") == true)
 
