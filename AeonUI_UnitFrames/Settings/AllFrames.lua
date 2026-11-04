@@ -609,6 +609,8 @@ function SettingsAllFrames:Declare(window)
 
 	local cast = page:Section("allFramesCastBars", L["Cast Bars"])
 
+	AUI.SettingsFrameCopy:Link(cast, page, Options.ALL .. "castBars.", nil, { { title = L["Cast Bar"], base = "castBar." } })
+
 	self:DeclareCastLook(cast, function(id, label, field, extra)
 		return Field(id, label, "castBars." .. field, extra)
 	end, function(name, label)

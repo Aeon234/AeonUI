@@ -197,13 +197,20 @@ local function NewSection(id, title)
 		self.notes[#self.notes + 1] = { text = text, small = small }
 	end
 
+	function section:LinkMenu(info)
+		Allowed("link menu " .. id, info, { text = true, build = true, show = true })
+		self.linkMenu = info
+
+		return info
+	end
+
 	return section
 end
 
 local function NewPage(id, info)
 	Allowed("page " .. id, info, PAGE_FIELDS)
 
-	local page = { id = id, info = info, sections = {} }
+	local page = { id = id, info = info, sections = {}, settings = {} }
 
 	function page:Preview(previewInfo)
 		Allowed("preview " .. id, previewInfo, { height = true, states = true, create = true, refresh = true,
@@ -441,7 +448,7 @@ for _, file in ipairs({ "AeonUI/Core/Callbacks.lua", "AeonUI/Core/Capabilities.l
 	"AeonUI_QoL/Markers/Markers.lua", "AeonUI_QoL/DeleteCheapestItem/Options.lua", "AeonUI/Core/AuctionPrices.lua",
 	"AeonUI_QoL/MerchantWindow/Options.lua", "AeonUI_QoL/MerchantWindow/BottomBar.lua", "AeonUI_QoL/MerchantWindow/MerchantWindow.lua",
 	"AeonUI_QoL/HiddenSettings/Options.lua", "AeonUI_QoL/HiddenSettings/CVarHolder.lua", "AeonUI_QoL/HiddenSettings/HiddenSettings.lua",
-	"AeonUI_QoL/Macros/Options.lua", "AeonUI_QoL/Macros/Macros.lua", "AeonUI/Settings/Window.lua", "AeonUI/Settings/General.lua", "AeonUI_UnitFrames/Settings/AllFrames.lua", "AeonUI_UnitFrames/Settings/Previews.lua", "AeonUI_UnitFrames/Settings/FramePage.lua", "AeonUI_UnitFrames/Settings/PlayerResources.lua", "AeonUI_UnitFrames/Settings/CastBar.lua", "AeonUI_UnitFrames/Settings/FramePages.lua",
+	"AeonUI_QoL/Macros/Options.lua", "AeonUI_QoL/Macros/Macros.lua", "AeonUI/Settings/Window.lua", "AeonUI/Settings/General.lua", "AeonUI_UnitFrames/Settings/FrameCopy.lua", "AeonUI_UnitFrames/Settings/AllFrames.lua", "AeonUI_UnitFrames/Settings/Previews.lua", "AeonUI_UnitFrames/Settings/FramePage.lua", "AeonUI_UnitFrames/Settings/PlayerResources.lua", "AeonUI_UnitFrames/Settings/CastBar.lua", "AeonUI_UnitFrames/Settings/FramePages.lua",
 	"AeonUI_Maps/Settings/MinimapEditor.lua", "AeonUI_Maps/Settings/Minimap.lua", "AeonUI_Maps/Settings/WorldMap.lua", "AeonUI_Tooltip/Settings/Tooltip.lua",
 	"AeonUI_QoL/Settings/Automation.lua", "AeonUI_QoL/Settings/DeleteCheapestItem.lua", "AeonUI_QoL/Settings/MerchantWindow.lua",
 	"AeonUI_QoL/Settings/HiddenSettings.lua", "AeonUI_QoL/Settings/Macros.lua", "AeonUI_QoL/Settings/PlayerMenu.lua", "AeonUI_QoL/Settings/Input.lua",
@@ -2060,6 +2067,165 @@ CheckMacrosPage()
 			end
 		end
 	end
+end)()
+
+-- Copy From -----------------------------------------------------------------------------------------------
+
+;(function()
+	local Options = AUI.UnitFrameOptions
+	local FrameCopy = AUI.SettingsFrameCopy
+	local Schema = AUI.Schema
+	local window = Load(nil)
+	local unitPages = window.pages
+	local closed, recorded, flashed = 0, nil, nil
+
+	function lib.CloseMenus()
+		closed = closed + 1
+	end
+
+	function window:RecordChange(info)
+		recorded = info
+	end
+
+	function window:FlashSettings(settings)
+		flashed = settings
+
+		return #settings
+	end
+
+	local function Own(key, rest)
+		return Options:Path(key, rest)
+	end
+
+	local function Pick(card)
+		local rows = {}
+		local menu = {}
+
+		function menu.Action(_, text, onClick)
+			rows[#rows + 1] = { text = text, onClick = onClick }
+		end
+
+		function menu.Hint(_, text)
+			rows[#rows + 1] = { text = text }
+		end
+
+		card.linkMenu.build(menu)
+
+		return rows
+	end
+
+	local page = { id = "copyCheck", settings = {
+		width = { id = "width", path = Own("target", "width") },
+		height = { id = "height", path = Own("target", "height") },
+	} }
+	local size = { title = "Size" }
+
+	function size:LinkMenu(info)
+		self.linkMenu = info
+	end
+
+	-- Plans
+	local changes, shared = FrameCopy:Plan(Own("player", ""), Own("target", ""), { "tooltip." })
+	Equal("Interaction: both settings shared, none differ", #changes .. " " .. shared, "0 2")
+
+	Profile:Set(Own("player", "tooltip.enabled"), false)
+	changes = FrameCopy:Plan(Own("player", ""), Own("target", ""), { "tooltip." })
+	Equal("a difference is counted", #changes, 1)
+	Equal("and names the target's path", changes[1].path, Own("target", "tooltip.enabled"))
+	Equal("with the source's value", changes[1].value, false)
+	Profile:Set(Own("player", "tooltip.enabled"), true)
+
+	_, shared = FrameCopy:Plan(Own("player", ""), Own("target", ""), { "power." })
+	Equal("Player has no power card to give", shared, 0)
+	_, shared = FrameCopy:Plan(Own("target", ""), Own("player", ""), { "fade." })
+	Equal("idle and range fades share nothing", shared, 0)
+
+	-- A setting following a shared one stays following.
+	local texture = Own("target", "bars.texture")
+
+	Profile:Set(texture, "Flat")
+	changes = FrameCopy:Plan(Own("player", ""), Own("target", ""), { "bars." })
+	Equal("following on the source clears the target", #changes, 1)
+	Equal("to nil", changes[1].value, nil)
+	Profile:Set(texture, nil)
+	Profile:Set(Own("player", "bars.texture"), "Flat")
+	changes = FrameCopy:Plan(Own("player", ""), Own("target", ""), { "bars." })
+	Equal("an own value copies", changes[1].value, "Flat")
+	Profile:Set(Own("player", "bars.texture"), nil)
+	changes = FrameCopy:Plan(Own("player", ""), Own("target", ""), { "bars." })
+	Equal("both following, nothing to do", #changes, 0)
+
+	-- Positions and switches are outside every scope.
+	for name, scope in pairs(FrameCopy.SCOPES) do
+		for _, entry in ipairs(scope) do
+			Equal(name .. " holds no switch or place", entry ~= "enabled" and entry ~= "position" and entry ~= "position.",
+				true)
+		end
+	end
+
+	-- Indicators only cover what both frames have.
+	changes = FrameCopy:Plan(Own("player", ""), Own("target", ""), FrameCopy.SCOPES.indicators)
+
+	for _, change in ipairs(changes) do
+		Equal(change.path .. " is the target's", Schema:Field(change.path) ~= nil, true)
+		Equal(change.path .. " is no resting indicator", change.path:find("resting", 1, true), nil)
+	end
+
+	-- The menu, one Undo step and the flash.
+	local width, height = Profile:Get(Own("target", "width")), Profile:Get(Own("target", "height"))
+
+	FrameCopy:Link(size, page, Own("target", ""), FrameCopy.SCOPES.size, {
+		{ title = "Player", base = Own("player", "") },
+	})
+	Equal("the link shows while a source shares settings", size.linkMenu.show(), true)
+	Profile:Set(Own("player", "width"), width + 10)
+	Profile:Set(Own("player", "height"), height + 4)
+
+	local rows = Pick(size)
+
+	Equal("the row counts what differs", rows[1].text, "Player (" .. (Profile:Get(Own("player", "reverse"))
+		== Profile:Get(Own("target", "reverse")) and 2 or 3) .. " different)")
+	rows[1].onClick()
+	Equal("a pick closes the menu", closed, 1)
+	Equal("and applies at once", Profile:Get(Own("target", "width")), width + 10)
+	Equal("every value", Profile:Get(Own("target", "height")), height + 4)
+	Equal("as one Undo step", recorded.paths[1].before ~= nil and recorded.page, "copyCheck")
+	Equal("that holds what was there", recorded.paths[1].before, width)
+	Equal("the changed rows flash", #flashed, 2)
+	Equal("the menu then shows no differences", Pick(size)[1].text, "Player (no differences)")
+	Equal("the menu row has no action", Pick(size)[1].onClick, nil)
+
+	for _, change in ipairs(recorded.paths) do
+		Profile:Set(change.path, change.before)
+	end
+
+	Equal("put back", Profile:Get(Own("target", "width")), width)
+	Profile:Set(Own("player", "width"), width)
+	Profile:Set(Own("player", "height"), height)
+
+	-- All Frames' Cast Bars copies from the standalone bar.
+	changes, shared = FrameCopy:Plan("castBar.", Options.ALL .. "castBars.")
+	Equal("the standalone bar shares its look with All Frames", shared > 0, true)
+	Equal("its size stays out", Schema:Field(Options.ALL .. "castBars.width"), nil)
+
+	-- Which cards carry the link.
+	local targetCards = unitPages.unitFrameTarget.sections
+
+	for _, id in ipairs({ "targetSize", "targetBars", "targetHealth", "targetPortrait", "targetText", "targetbuffs",
+		"targetdebuffs", "targetIndicators", "targetInteraction" }) do
+		Equal(id .. " offers the Player", targetCards[id].linkMenu.show(), true)
+	end
+
+	Equal("no other frame has a power card", targetCards.targetPower.linkMenu.show(), false)
+
+	if targetCards.targetCastBar then
+		Equal("nor a cast bar card", targetCards.targetCastBar.linkMenu.show(), false)
+	end
+
+	Equal("nor shared fades", targetCards.targetFading.linkMenu.show(), false)
+	Equal("All Frames' Cast Bars offers the standalone bar",
+		unitPages.unitFramesAll.sections.allFramesCastBars.linkMenu.show(), true)
+	Equal("no link on Player Resources' cards", unitPages.unitFrameResources.sections.playerPowerBars.linkMenu, nil)
 end)()
 
 io.stdout:write(("check_settings: %d checks passed\n"):format(checks))

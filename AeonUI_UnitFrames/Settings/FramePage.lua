@@ -242,6 +242,7 @@ local FramePage = {}
 FramePage.__index = FramePage
 AUI.SettingsFramePage = FramePage
 FramePage.ChoiceOptions = ChoiceOptions
+FramePage.TITLES = TITLES
 
 ---@param spec AUIFrameSpec
 ---@param prefix string? starts its Bars settings' ids, where a page holds two such cards
@@ -349,6 +350,8 @@ function FramePage:DeclareSize(page)
 	local key = self.spec.key
 	local card = page:Section(key .. "Size", L["Size"])
 
+	AUI.SettingsFrameCopy:LinkFrame(card, page, key, "size")
+
 	card:Slider(Field("width", L["Width"], Options:Path(key, "width"), {
 		min = Options.MIN_WIDTH,
 		max = Options.MAX_WIDTH,
@@ -370,6 +373,8 @@ function FramePage:DeclareBars(page, title)
 	local key = self.spec.key
 	local AllFrames = AUI.SettingsAllFrames
 	local card = page:Section(key .. "Bars", title or L["Bars"])
+
+	AUI.SettingsFrameCopy:LinkFrame(card, page, key, "bars")
 	local details = key .. "BarsLook"
 	local from = L["All Frames"]
 	local look = { "texture", "background", "borderColor", "lineColor", "borderThickness" }
@@ -470,6 +475,8 @@ end
 function FramePage:DeclarePower(page)
 	local key = self.spec.key
 	local card = page:Section(key .. "Power", L["Power"])
+
+	AUI.SettingsFrameCopy:LinkFrame(card, page, key, "power")
 	local make = self:PowerMaker()
 
 	card:Toggle(Field(POWER_SWITCH, L["Show Power Bar"], Options:Path(key, "power.enabled")))
@@ -497,6 +504,8 @@ function FramePage:DeclareCastBar(page)
 	local CastOptions = AUI.CastBarOptions
 	local base = AUI.UnitCastBar:Base(key)
 	local card = page:Section(key .. "CastBar", L["Cast Bar"])
+
+	AUI.SettingsFrameCopy:LinkFrame(card, page, key, "castBar")
 	local position, look = "castPosition", "castLook"
 
 	local function Style()
@@ -602,6 +611,8 @@ end
 function FramePage:DeclareHealth(page)
 	local key = self.spec.key
 	local card = page:Section(key .. "Health", L["Health"])
+
+	AUI.SettingsFrameCopy:LinkFrame(card, page, key, "health")
 	local details = key .. "HealthColors"
 	local declared = false
 
@@ -755,6 +766,8 @@ end
 function FramePage:DeclarePortrait(page)
 	local key = self.spec.key
 	local card = page:Section(key .. "Portrait", L["Portrait"])
+
+	AUI.SettingsFrameCopy:LinkFrame(card, page, key, "portrait")
 	local details = key .. "PortraitPlacement"
 
 	local function Own(field)
@@ -860,6 +873,8 @@ function FramePage:DeclareIndicators(page)
 	local spec = self.spec
 	local key = spec.key
 	local card = page:Section(key .. "Indicators", L["Indicators"])
+
+	AUI.SettingsFrameCopy:LinkFrame(card, page, key, "indicators")
 
 	for _, indicator in ipairs(spec.indicators or {}) do
 		local name = indicator.name
@@ -967,6 +982,8 @@ end
 function FramePage:DeclareRangeFading(page)
 	local key = self.spec.key
 	local card = page:Section(key .. "Fading", L["Fading"])
+
+	AUI.SettingsFrameCopy:LinkFrame(card, page, key, "fading")
 	local details = key .. "FadeStrength"
 
 	local function Own(field)
@@ -998,6 +1015,8 @@ end
 function FramePage:DeclareFading(page)
 	local key = self.spec.key
 	local card = page:Section(key .. "Fading", L["Fading"])
+
+	AUI.SettingsFrameCopy:LinkFrame(card, page, key, "fading")
 	local details = key .. "FadeStrength"
 
 	local function Own(field)
@@ -1030,6 +1049,8 @@ function FramePage:DeclareInteraction(page)
 	local key = self.spec.key
 	local card = page:Section(key .. "Interaction", L["Interaction"])
 
+	AUI.SettingsFrameCopy:LinkFrame(card, page, key, "interaction")
+
 	card:Checkbox(Field("tooltip", L["Tooltip"], Options:Path(key, "tooltip.enabled")))
 	card:Checkbox(Field("tooltipCombat", L["Hide Tooltip in Combat"], Options:Path(key, "tooltip.hideInCombat"), {
 		depends = "tooltip",
@@ -1045,6 +1066,8 @@ function FramePage:DeclareAuraDisplay(page, kind)
 	local prefix = buffs and "buff" or "debuff"
 	local show = prefix .. "Enabled"
 	local card = page:Section(key .. kind, buffs and L["Buffs"] or L["Debuffs"])
+
+	AUI.SettingsFrameCopy:LinkFrame(card, page, key, kind)
 
 	local function Own(field)
 		return Options:Path(key, kind .. "." .. field)
@@ -1416,6 +1439,8 @@ end
 function FramePage:DeclareText(page)
 	local key = self.spec.key
 	local card = page:Section(key .. "Text", L["Text"])
+
+	AUI.SettingsFrameCopy:LinkFrame(card, page, key, "text")
 
 	for index = 1, self.spec.slots do
 		self:DeclareSlot(card, index)

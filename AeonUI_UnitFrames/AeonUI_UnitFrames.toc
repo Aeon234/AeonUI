@@ -13,6 +13,7 @@ Namespace.lua
 Locale\Locale.xml
 Frames\Frames.xml
 CastBar\CastBar.xml
+Settings\FrameCopy.lua
 Settings\AllFrames.lua
 Settings\Previews.lua
 Settings\FramePage.lua

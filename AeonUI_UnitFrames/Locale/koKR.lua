@@ -251,6 +251,12 @@ L["Fades the frame while its unit is out of range of your spells."] = "유닛이
 L["Range Fade Opacity"] = "사거리 밖 불투명도"
 L["Hide Tooltip in Combat"] = "전투 중 툴팁 숨기기"
 
+-- Unit frames: Copy From (Settings)
+L["Copy From"] = "복사해 오기"
+L["%s (%d different)"] = "%s (%d개 다름)"
+L["%s (no differences)"] = "%s (차이 없음)"
+L["%s copied from %s."] = "%s: %s에서 복사했습니다."
+
 -- Unit frames: frame pages (Settings)
 L["Show Player Frame"] = "플레이어 프레임 표시"
 L["Show Target Frame"] = "대상 프레임 표시"

@@ -251,6 +251,12 @@ L["Fades the frame while its unit is out of range of your spells."] = "Attenua i
 L["Range Fade Opacity"] = "Opacità fuori portata"
 L["Hide Tooltip in Combat"] = "Nascondi descrizione in combattimento"
 
+-- Unit frames: Copy From (Settings)
+L["Copy From"] = "Copia da"
+L["%s (%d different)"] = "%s (%d diversi)"
+L["%s (no differences)"] = "%s (nessuna differenza)"
+L["%s copied from %s."] = "%s copiato da %s."
+
 -- Unit frames: frame pages (Settings)
 L["Show Player Frame"] = "Mostra riquadro giocatore"
 L["Show Target Frame"] = "Mostra riquadro del bersaglio"
