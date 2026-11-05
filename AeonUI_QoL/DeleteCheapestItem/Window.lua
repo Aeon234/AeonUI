@@ -19,6 +19,8 @@ local PRESS_SCALE = 0.85
 local PRESS_RESPONSE = 0.15
 local ACTION_SIZE = 28
 local LABEL_PADDING = 14
+local DELETE_ICON = "common-icon-delete"
+local DELETE_ICON_FALLBACK = "common-icon-redx"
 -- Seconds a row asking to confirm waits for the second click.
 local CONFIRM_SECONDS = 3
 -- Seconds the Undo message stays.
@@ -135,6 +137,7 @@ function Row:OnLoad()
 		end
 	end)
 
+	action.Icon:SetAtlas(C_Texture.GetAtlasInfo(DELETE_ICON) and DELETE_ICON or DELETE_ICON_FALLBACK)
 	action:SetBackdrop(BACKDROP)
 	action:SetScript("OnEnter", function()
 		self.hovered = true

@@ -8,7 +8,7 @@
 		<Size x="28" y="28"/>
 		<Layers>
 			<Layer level="ARTWORK">
-				<Texture parentKey="Icon" atlas="common-icon-delete">
+				<Texture parentKey="Icon">
 					<Size x="16" y="16"/>
 					<Anchors>
 						<Anchor point="CENTER"/>
