@@ -325,7 +325,7 @@ end
 ---@param visibility string the Show setting
 ---@param inCombat boolean
 ---@param hideIdle boolean? Hide When Idle, which only In Combat honors
----@param running boolean? a swing is running
+---@param running boolean? a swing is running, which keeps In Combat up until it ends
 ---@return boolean visible
 function Options:Visible(on, rows, sampling, visibility, inCombat, hideIdle, running)
 	if not on or rows == 0 then
@@ -336,7 +336,7 @@ function Options:Visible(on, rows, sampling, visibility, inCombat, hideIdle, run
 		return true
 	end
 
-	return inCombat and (not hideIdle or running == true)
+	return running == true or (inCombat and not hideIdle)
 end
 
 ---@param rows integer

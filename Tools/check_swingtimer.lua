@@ -304,6 +304,11 @@ Equal("a shield is one", Options:IsShield("INVTYPE_SHIELD"), true)
 Equal("a sword is not", Options:IsShield("INVTYPE_WEAPON"), false)
 Equal("Hide When Idle hides between swings", Options:Visible(true, 1, false, "COMBAT", true, true, false), false)
 Equal("and shows during one", Options:Visible(true, 1, false, "COMBAT", true, true, true), true)
+Equal("a running swing outlasts combat", Options:Visible(true, 1, false, "COMBAT", false, false, true), true)
+Equal("under Hide When Idle too", Options:Visible(true, 1, false, "COMBAT", false, true, true), true)
+Equal("an idle one does not", Options:Visible(true, 1, false, "COMBAT", false, false, false), false)
+Equal("no rows hide a running swing", Options:Visible(true, 0, false, "COMBAT", false, false, true), false)
+Equal("off hides a running swing", Options:Visible(false, 1, false, "COMBAT", true, false, true), false)
 Equal("Always ignores it", Options:Visible(true, 1, false, "ALWAYS", false, true, false), true)
 Equal("the sample ignores it", Options:Visible(true, 1, true, "COMBAT", false, true, false), true)
 
@@ -843,8 +848,18 @@ Set("swingTimer.position", nil)
 
 -- Edit mode -----------------------------------------------------------------------------------------------
 
+client:Fire("PLAYER_SWING", 2.6, MAIN)
 client:Fire("PLAYER_REGEN_ENABLED")
-Equal("back out of combat it hides", frame:IsShown(), false)
+Equal("a swing still running outlasts combat", frame:IsShown(), true)
+
+local charging = LastTimer()
+
+charging.fired = true
+charging.callback()
+Equal("back out of combat it hides when the swing ends", frame:IsShown(), false)
+client:Fire("PLAYER_REGEN_DISABLED")
+client:Fire("PLAYER_REGEN_ENABLED")
+Equal("with no swing running it hides at combat's end", frame:IsShown(), false)
 client:Fire("PLAYER_SWING", 2.6, MAIN)
 
 local parked = LastTimer()
