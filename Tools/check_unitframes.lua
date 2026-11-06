@@ -661,6 +661,7 @@ local sampleTarget = { Part = function(_, region, id)
 end }
 
 resourcePreview:Create(CreateFrame("Frame"))
+AUI.can.classResources = true
 
 local width, height = resourcePreview:Refresh(nil, sampleTarget)
 
@@ -674,6 +675,37 @@ for _, state in ipairs(Resource.STATES) do
 	width, height = resourcePreview:Refresh(state, sampleTarget)
 	Equal(state .. ": every part marked", table.concat(parts, " "), "classWidth extraMana powerWidth")
 	Equal(state .. ": stacked", width .. "x" .. height, "360x28")
+end
+
+Schema:Write(config, Options:Path("classPower", "extraMana"), false)
+
+local powerHeight = AUI.Profile:Get(Options:Path("playerPower", "height"))
+
+local function ResourceSample(class)
+	UnitClass = function()
+		return class, class
+	end
+	parts = {}
+	width, height = resourcePreview:Refresh(nil, sampleTarget)
+
+	return table.concat(parts, " ")
+end
+
+Equal("a class without a resource draws only power", ResourceSample("WARRIOR"), "powerWidth")
+Equal("with no gap above it", height, powerHeight)
+Equal("its class resource hidden", resourcePreview.resource:IsShown(), false)
+Equal("combo points for a rogue", ResourceSample("ROGUE"), "classWidth powerWidth")
+Equal("shown again", resourcePreview.resource:IsShown(), true)
+AUI.can.classResources = false
+Equal("no holy power where the client lacks it", ResourceSample("PALADIN"), "powerWidth")
+Equal("combo points there still", ResourceSample("DRUID"), "classWidth powerWidth")
+Schema:Write(config, Options:Path("classPower", "extraMana"), true)
+Equal("extra mana alone stands on power", ResourceSample("WARRIOR"), "extraMana powerWidth")
+Schema:Write(config, Options:Path("classPower", "extraMana"), false)
+AUI.can.classResources = true
+
+function UnitClass()
+	return "Mage", "MAGE"
 end
 
 -- The target frame ---------------------------------------------------------------------------------------------------

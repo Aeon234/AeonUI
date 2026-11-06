@@ -81,6 +81,7 @@ AUI.Capabilities = Capabilities
 ---@field manaPotions boolean mana potions belong in the food and drink macros (Forever)
 ---@field recuperate boolean every character has Recuperate, the self-heal out of combat (Retail)
 ---@field bandages boolean bandages need a First Aid rank that can be read (Forever)
+---@field classResources boolean classes have resources beyond combo points: runes, holy power, chi and the rest (Retail)
 AUI.can = {}
 
 ---The only place a client difference is detected. Runs once at login.
@@ -221,6 +222,7 @@ function Capabilities:Resolve()
 	can.recuperate = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE
 	can.bandages = WOW_PROJECT_ID == WOW_PROJECT_CAMELOT and C_SkillInfo ~= nil
 		and C_SkillInfo.GetSkillLineInfoByID ~= nil
+	can.classResources = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE
 
 	self.resolved = true
 

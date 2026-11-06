@@ -33,17 +33,25 @@ local PARTIAL, EMPTY, CHARGED = L["Partial"], L["Empty"], L["Charged"]
 -- The power bar's share of its maximum in each resource state.
 local POWER_SHARES = { [FULL] = 1, [PARTIAL] = 0.55, [EMPTY] = 0, [CHARGED] = 1 }
 local RESOURCE_MAX_POWER = 12400
--- The sample's segments and the class resource each class shows; any other class shows combo points.
+-- The sample's segments, and the class resource each class shows where the client has its own resources; a class
+-- missing here shows none.
 local SAMPLE_SEGMENTS = 5
 local SAMPLE_RUNES = 6
 local CLASS_RESOURCES = {
 	DEATHKNIGHT = "RUNES",
-	SHAMAN = "MAELSTROM",
+	DRUID = "COMBO_POINTS",
 	EVOKER = "ESSENCE",
 	MAGE = "ARCANE_CHARGES",
 	MONK = "CHI",
 	PALADIN = "HOLY_POWER",
+	ROGUE = "COMBO_POINTS",
+	SHAMAN = "MAELSTROM",
 	WARLOCK = "SOUL_SHARDS",
+}
+-- The classes with a resource where the client has only combo points.
+local COMBO_CLASSES = {
+	DRUID = "COMBO_POINTS",
+	ROGUE = "COMBO_POINTS",
 }
 -- Space between the sample's bars.
 local RESOURCE_GAP = 2
@@ -527,19 +535,24 @@ function ResourcePreview:Create(canvas)
 	self.extra:Show()
 end
 
----Draws the class resource in a state.
----@param settings table
----@param state string
----@param x number from the holder's left
----@param y number from the holder's top
----@param preview table the library's preview
-function ResourcePreview:DrawSegments(settings, state, x, y, preview)
-	local ClassPower = AUI.ClassPower
+---@return string? token the player's class resource on this client, or nil for a class without one
+local function SampleResource()
 	local _, class = UnitClass("player")
 
 	class = AUI:Readable(class)
 
-	local token = class and CLASS_RESOURCES[class] or "COMBO_POINTS"
+	return class and (AUI.can.classResources and CLASS_RESOURCES or COMBO_CLASSES)[class] or nil
+end
+
+---Draws the class resource in a state.
+---@param settings table
+---@param token string the resource's palette token
+---@param state string
+---@param x number from the holder's left
+---@param y number from the holder's top
+---@param preview table the library's preview
+function ResourcePreview:DrawSegments(settings, token, state, x, y, preview)
+	local ClassPower = AUI.ClassPower
 	local count = token == "RUNES" and SAMPLE_RUNES or SAMPLE_SEGMENTS
 	local base = ClassPower:BaseColor(settings, token, AUI.oUF.colors.power.MANA)
 	local filled = state == EMPTY and 0 or state == PARTIAL and count - 2 or count
@@ -625,17 +638,26 @@ function ResourcePreview:Refresh(state, preview)
 	local width = math.max(powerWidth, settings.width)
 	local attached = ClassPower:IsAttached()
 	local x = (width - settings.width) / 2 + (attached and settings.attachX or 0)
+	local token = SampleResource()
 	local y = 0
 
 	self.holder:SetWidth(width)
-	self:DrawSegments(settings, label, x, y, preview)
-	y = y + settings.height
+	self.resource:SetShown(token ~= nil)
+
+	if token then
+		self:DrawSegments(settings, token, label, x, y, preview)
+		y = y + settings.height
+	end
+
 	self.extraHolder:SetShown(settings.extraMana)
 
 	if settings.extraMana then
 		local extra = self.extraHolder
 
-		y = y + ClassPower.GAP
+		if token then
+			y = y + ClassPower.GAP
+		end
+
 		extra:ClearAllPoints()
 		extra:SetPoint("TOPLEFT", self.holder, "TOPLEFT", x, -y)
 		ClassPower:StyleHolder(extra, settings.look, settings.width, settings.extraManaHeight, { self.extra })
@@ -647,7 +669,10 @@ function ResourcePreview:Refresh(state, preview)
 		y = y + settings.extraManaHeight
 	end
 
-	y = y + (attached and settings.attachY or RESOURCE_GAP)
+	if y > 0 then
+		y = y + (attached and settings.attachY or RESOURCE_GAP)
+	end
+
 	self:DrawPower(label, powerWidth, powerHeight, y, preview)
 
 	local height = y + powerHeight
