@@ -12,6 +12,7 @@ local MARKERS = "Interface\\AddOns\\" .. (AUI.name or "AeonUI") .. "\\Media\\Tex
 local WORLD, CONTINENT, ZONE = 1, 2, 3
 
 -- The sizes each kind of marker is drawn at on each map type it shows on.
+local DUNGEON_SCALES = { [ZONE] = 1.5, [CONTINENT] = 1.125 }
 local INSTANCE_SCALES = { [ZONE] = 1, [CONTINENT] = 0.75 }
 local TRANSPORT_SCALES = { [ZONE] = 1, [CONTINENT] = 0.75, [WORLD] = 0.6 }
 local NODE_SCALES = { [ZONE] = 0.8 }
@@ -106,7 +107,7 @@ local Markers = {
 			label = "Dungeon",
 			atlas = "Dungeon",
 			group = "instance",
-			scales = INSTANCE_SCALES,
+			scales = DUNGEON_SCALES,
 			instance = true,
 		},
 		{
@@ -114,7 +115,7 @@ local Markers = {
 			label = "Raid",
 			atlas = "Raid",
 			group = "instance",
-			scales = INSTANCE_SCALES,
+			scales = DUNGEON_SCALES,
 			instance = true,
 		},
 		{
