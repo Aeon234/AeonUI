@@ -1157,6 +1157,7 @@ Equal("as a part", partRegions.statusLine, totPreview.StatusLine)
 Equal("the sample's name is you", totPreview.TextSlots[1].text, "Alex")
 
 Equal("without it, target changes are not followed", registered.PLAYER_TARGET_CHANGED, nil)
+TargetFrame = { totFrame = CreateFrame("Button", "TargetFrameToT", UIParent) }
 Frames.started, Frames.objects, registered = false, {}, {}
 Schema:Write(config, Path("enabled"), nil)
 Schema:Write(config, TotPath("enabled"), true)
@@ -1165,5 +1166,8 @@ Equal("spawned by its global name", spawned[#spawned], "AeonUITargetTarget")
 Equal("a new target is followed", registered.PLAYER_TARGET_CHANGED, Frames.OnTargetOfTargetChanged)
 Equal("and the target's new target", registered.UNIT_TARGET, Frames.OnTargetOfTargetChanged)
 Equal("no reload needed", Frames:ReloadNeeded(), false)
+Equal("Blizzard's target of target is invisible", TargetFrame.totFrame.alpha, 0)
+Equal("and lets clicks through", TargetFrame.totFrame.mouse, false)
+Equal("but is never hidden, which its update would undo", TargetFrame.totFrame:IsShown(), true)
 
 print(("check_unitframes: %d checks passed"):format(client.checks))

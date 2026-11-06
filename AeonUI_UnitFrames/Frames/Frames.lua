@@ -110,6 +110,7 @@ function Frames:Start()
 	if self.objects.targettarget then
 		AUI.Events:Register("PLAYER_TARGET_CHANGED", self, self.OnTargetOfTargetChanged)
 		AUI.Events:Register("UNIT_TARGET", self, self.OnTargetOfTargetChanged)
+		self:HideBlizzardTargetOfTarget()
 	end
 
 	AUI.Events:Register("PLAYER_REGEN_ENABLED", self, self.OnCombatEnded)
@@ -235,6 +236,19 @@ function Frames:SampleUnit(key, shown)
 	end
 
 	frame:SetAttribute("unit", shown and "player" or frame.spec.unit)
+end
+
+---Makes Blizzard's target of target, a secure child of its target frame, invisible and click-through for the session.
+---oUF's `DisableBlizzard` has no branch for the unit, and the frame's own `OnUpdate` shows it again after a `Hide`,
+---which is also refused in combat; its `showTargetOfTarget` setting is shared with the focus frame's. Alpha and mouse
+---are left alone by Blizzard's code, so one change out of combat lasts until the next reload.
+function Frames:HideBlizzardTargetOfTarget()
+	local blizzard = TargetFrame and TargetFrame.totFrame
+
+	if blizzard then
+		blizzard:SetAlpha(0)
+		blizzard:EnableMouse(false)
+	end
 end
 
 ---@param event string
