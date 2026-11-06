@@ -457,7 +457,7 @@ end
 Equal("the footer's reload notice follows the Minimap and UI Scale", table.concat({ Footer(false, false),
 	Footer(true, false), Footer(false, true) }, " "), "false true true")
 AUI.Minimap.ReloadNeeded, AUI.UIScale.ReloadNeeded = minimapWaits, scaleWaits
-Equal("sidebar order", table.concat(window.order, " "), "general #unitFramesHeader unitFramesAll unitFramePlayer unitFrameResources unitFrameTarget #mapsHeader minimap #tooltipHeader tooltipGeneral " ..
+Equal("sidebar order", table.concat(window.order, " "), "general #unitFramesHeader unitFramesAll unitFramePlayer unitFrameResources unitFrameTarget unitFrameTargetTarget #mapsHeader minimap #tooltipHeader tooltipGeneral " ..
 	"tooltipUnits tooltipItems #qualityOfLifeHeader automation alerts notifications - profiles")
 Equal("General and Profiles carry their icons, tinted", tostring(window.pages.general.info.icon == AUI.Media.sidebar.general)
 	.. " " .. tostring(window.pages.general.info.iconTint) .. " "
@@ -465,7 +465,7 @@ Equal("General and Profiles carry their icons, tinted", tostring(window.pages.ge
 	.. tostring(window.pages.profiles.info.iconTint), "true true true true")
 AUI.can.playerMenus, AUI.can.guildInvite, AUI.can.raiderIOLinks, AUI.can.warcraftLogsLinks = true, true, true, true
 window = Load(nil)
-Equal("Player Menu follows Automation", table.concat(window.order, " "), "general #unitFramesHeader unitFramesAll unitFramePlayer unitFrameResources unitFrameTarget #mapsHeader minimap " ..
+Equal("Player Menu follows Automation", table.concat(window.order, " "), "general #unitFramesHeader unitFramesAll unitFramePlayer unitFrameResources unitFrameTarget unitFrameTargetTarget #mapsHeader minimap " ..
 	"#tooltipHeader tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader automation playerMenu alerts notifications - profiles")
 local playerMenuPage = window.pages.playerMenu
 local playerMenuIDs = {}
@@ -487,7 +487,7 @@ window = Load(nil)
 Equal("no Player Menu page without player menus", window.pages.playerMenu, nil)
 AUI.can.clickDown, AUI.can.focusShortcut = true, true
 window = Load(nil)
-Equal("Input follows Player Menu's place", table.concat(window.order, " "), "general #unitFramesHeader unitFramesAll unitFramePlayer unitFrameResources unitFrameTarget #mapsHeader minimap " ..
+Equal("Input follows Player Menu's place", table.concat(window.order, " "), "general #unitFramesHeader unitFramesAll unitFramePlayer unitFrameResources unitFrameTarget unitFrameTargetTarget #mapsHeader minimap " ..
 	"#tooltipHeader tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader automation input alerts notifications - profiles")
 local inputPage = window.pages.input
 local inputIDs = {}
@@ -577,7 +577,7 @@ Equal("the Group Finder card after Sound Alerts", window.pages.alerts.sections[2
 AUI.can.premadeJoined = nil
 AUI.can.extraActionButton, AUI.can.helpTips, AUI.can.bossBanner, AUI.can.vaultOverlay = true, true, true, true
 window = Load(nil)
-Equal("Interface follows Alerts", table.concat(window.order, " "), "general #unitFramesHeader unitFramesAll unitFramePlayer unitFrameResources unitFrameTarget #mapsHeader minimap #tooltipHeader "
+Equal("Interface follows Alerts", table.concat(window.order, " "), "general #unitFramesHeader unitFramesAll unitFramePlayer unitFrameResources unitFrameTarget unitFrameTargetTarget #mapsHeader minimap #tooltipHeader "
 	.. "tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader automation alerts notifications interface - profiles")
 local interfacePage = window.pages.interface
 local interfaceIDs = {}
@@ -637,7 +637,7 @@ Equal("Retail: the Trading Post card alone keeps the page", tradingPostCard.titl
 AUI.can.tradingPost = nil
 AUI.can.screenText = true
 window = Load(nil)
-Equal("Screen Text follows Alerts", table.concat(window.order, " "), "general #unitFramesHeader unitFramesAll unitFramePlayer unitFrameResources unitFrameTarget #mapsHeader minimap #tooltipHeader "
+Equal("Screen Text follows Alerts", table.concat(window.order, " "), "general #unitFramesHeader unitFramesAll unitFramePlayer unitFrameResources unitFrameTarget unitFrameTargetTarget #mapsHeader minimap #tooltipHeader "
 	.. "tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader automation alerts notifications screenText - profiles")
 local screenTextPage = window.pages.screenText
 Equal("under the Quality of Life header", screenTextPage.info.under, "qualityOfLifeHeader")
@@ -704,7 +704,7 @@ window = Load(nil)
 Equal("no Screen Text page without its frames", window.pages.screenText, nil)
 AUI.can.cursorRing, AUI.can.castSwipe = true, true
 window = Load(nil)
-Equal("Cursor follows Alerts", table.concat(window.order, " "), "general #unitFramesHeader unitFramesAll unitFramePlayer unitFrameResources unitFrameTarget #mapsHeader minimap #tooltipHeader "
+Equal("Cursor follows Alerts", table.concat(window.order, " "), "general #unitFramesHeader unitFramesAll unitFramePlayer unitFrameResources unitFrameTarget unitFrameTargetTarget #mapsHeader minimap #tooltipHeader "
 	.. "tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader automation alerts notifications cursor - profiles")
 local cursorPage = window.pages.cursor
 Equal("under the Quality of Life header, with its icon", cursorPage.info.under .. " "
@@ -748,7 +748,7 @@ Equal("no Cursor page without the cursor ring", window.pages.cursor, nil)
 AUI.can.castBar, AUI.can.castTarget, AUI.can.empoweredCasts = true, true, true
 window = Load(nil)
 Equal("Cast Bar under Unit Frames, after General", table.concat(window.order, " "), "general #unitFramesHeader "
-	.. "unitFramesAll unitFramePlayer unitFrameResources castBar unitFrameTarget #mapsHeader minimap #tooltipHeader tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader "
+	.. "unitFramesAll unitFramePlayer unitFrameResources castBar unitFrameTarget unitFrameTargetTarget #mapsHeader minimap #tooltipHeader tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader "
 	.. "automation alerts notifications - profiles")
 do
 	local castBarPage = window.pages.castBar
@@ -871,7 +871,7 @@ end
 AUI.can.raidMarkers, AUI.can.worldMarkers = true, true
 window = Load(nil)
 local markersPage = window.pages.raidMarkers
-Equal("Raid Markers follows Notifications", table.concat(window.order, " "), "general #unitFramesHeader unitFramesAll unitFramePlayer unitFrameResources unitFrameTarget #mapsHeader minimap "
+Equal("Raid Markers follows Notifications", table.concat(window.order, " "), "general #unitFramesHeader unitFramesAll unitFramePlayer unitFrameResources unitFrameTarget unitFrameTargetTarget #mapsHeader minimap "
 	.. "#tooltipHeader tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader automation alerts notifications "
 	.. "raidMarkers - profiles")
 Equal("with its icon, a preview and no switch", markersPage.info.under .. " "
@@ -1705,7 +1705,7 @@ ITEM_QUALITY3_DESC, ITEM_QUALITY4_DESC = "Rare", "Epic"
 AUI.can.mail, AUI.can.expansionFilter, AUI.can.autoDeclineGuildInvites = nil, nil, nil
 AUI.can.deleteCheapestItem = true
 window = Load(nil)
-Equal("Delete Cheapest Item follows Automation", table.concat(window.order, " "), "general #unitFramesHeader unitFramesAll unitFramePlayer unitFrameResources unitFrameTarget #mapsHeader minimap "
+Equal("Delete Cheapest Item follows Automation", table.concat(window.order, " "), "general #unitFramesHeader unitFramesAll unitFramePlayer unitFrameResources unitFrameTarget unitFrameTargetTarget #mapsHeader minimap "
 	.. "#tooltipHeader tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader automation deleteCheapestItem "
 	.. "alerts notifications - profiles")
 local dci = window.pages.deleteCheapestItem
@@ -1762,7 +1762,7 @@ Equal("no page without the feature's functions", window.pages.deleteCheapestItem
 
 AUI.can.merchantWindow = true
 window = Load(nil)
-Equal("Merchant Window follows Automation", table.concat(window.order, " "), "general #unitFramesHeader unitFramesAll unitFramePlayer unitFrameResources unitFrameTarget #mapsHeader minimap "
+Equal("Merchant Window follows Automation", table.concat(window.order, " "), "general #unitFramesHeader unitFramesAll unitFramePlayer unitFrameResources unitFrameTarget unitFrameTargetTarget #mapsHeader minimap "
 	.. "#tooltipHeader tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader automation merchantWindow "
 	.. "alerts notifications - profiles")
 local merchantPage = window.pages.merchantWindow
@@ -1824,7 +1824,7 @@ Equal("no page without the merchant window's functions", window.pages.merchantWi
 
 AUI.can.merchantWindow, AUI.can.lootSparkle = true, true
 window = Load(nil)
-Equal("hidden settings after merchant window", table.concat(window.order, " "), "general #unitFramesHeader unitFramesAll unitFramePlayer unitFrameResources unitFrameTarget #mapsHeader minimap "
+Equal("hidden settings after merchant window", table.concat(window.order, " "), "general #unitFramesHeader unitFramesAll unitFramePlayer unitFrameResources unitFrameTarget unitFrameTargetTarget #mapsHeader minimap "
 	.. "#tooltipHeader tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader automation merchantWindow "
 	.. "hiddenSettings alerts notifications - profiles")
 local hiddenPage = window.pages.hiddenSettings
@@ -1900,7 +1900,7 @@ AUI.can.merchantWindow = nil
 local function CheckMacrosPage()
 	AUI.can.macros = true
 	window = Load(nil)
-	Equal("macros after automation", table.concat(window.order, " "), "general #unitFramesHeader unitFramesAll unitFramePlayer unitFrameResources unitFrameTarget #mapsHeader minimap "
+	Equal("macros after automation", table.concat(window.order, " "), "general #unitFramesHeader unitFramesAll unitFramePlayer unitFrameResources unitFrameTarget unitFrameTargetTarget #mapsHeader minimap "
 		.. "#tooltipHeader tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader automation macros alerts "
 		.. "notifications - profiles")
 	local macrosPage = window.pages.macros
@@ -1960,7 +1960,7 @@ CheckMacrosPage()
 ;(function()
 	local unitPages = Load(nil).pages
 
-	for _, pageID in ipairs({ "unitFramePlayer", "unitFrameResources", "unitFrameTarget" }) do
+	for _, pageID in ipairs({ "unitFramePlayer", "unitFrameResources", "unitFrameTarget", "unitFrameTargetTarget" }) do
 		local switch = unitPages[pageID].info.switch
 
 		Equal(pageID .. " has its switch above the preview", switch ~= nil, true)
@@ -1973,7 +1973,7 @@ CheckMacrosPage()
 		end
 	end
 
-	for _, pageID in ipairs({ "unitFramesAll", "unitFramePlayer", "unitFrameResources", "unitFrameTarget" }) do
+	for _, pageID in ipairs({ "unitFramesAll", "unitFramePlayer", "unitFrameResources", "unitFrameTarget", "unitFrameTargetTarget" }) do
 		for _, section in ipairs(unitPages[pageID].sections) do
 			for _, setting in ipairs(section.settings) do
 				if setting.details and setting.depends then
@@ -2249,7 +2249,22 @@ end)()
 		Equal(id .. " offers the Player", targetCards[id].linkMenu.show(), true)
 	end
 
-	Equal("no other frame has a power card", targetCards.targetPower.linkMenu.show(), false)
+	Equal("the target of target has a power card", targetCards.targetPower.linkMenu.show(), true)
+
+	local totCards = unitPages.unitFrameTargetTarget.sections
+
+	for _, id in ipairs({ "targettargetSize", "targettargetBars", "targettargetHealth", "targettargetPower",
+		"targettargetText", "targettargetIndicators", "targettargetInteraction" }) do
+		Equal(id .. " offers another frame", totCards[id].linkMenu.show(), true)
+	end
+
+	for _, id in ipairs({ "targettargetPortrait", "targettargetbuffs", "targettargetdebuffs", "targettargetCastBar",
+		"targettargetFading" }) do
+		Equal("the target of target has no " .. id, totCards[id], nil)
+	end
+
+	Equal("the target of target's text offers the Status Line", totCards.targettargetText.settings.statusLine ~= nil, true)
+	Equal("the target's does not", targetCards.targetText.settings.statusLine, nil)
 
 	if targetCards.targetCastBar then
 		Equal("nor a cast bar card", targetCards.targetCastBar.linkMenu.show(), false)

@@ -9,16 +9,19 @@ local PREVIEW_HEIGHT = 84
 local TITLES = {
 	player = PLAYER,
 	target = TARGET,
+	targettarget = SHOW_TARGET_OF_TARGET_TEXT,
 }
 
 local SWITCHES = {
 	player = L["Show Player Frame"],
 	target = L["Show Target Frame"],
+	targettarget = L["Show Target of Target Frame"],
 }
 
 local ICONS = {
 	player = "unitPlayer",
 	target = "unitTarget",
+	targettarget = "unitTargetTarget",
 }
 
 -- The switch on a frame's power card.
@@ -1491,6 +1494,10 @@ function FramePage:DeclareText(page)
 	end
 
 	card:Dropdown(Field("status", L["Status Text In"], Options:Path(key, "text.status"), { options = statusOptions }))
+
+	if self.spec.statusLine then
+		card:Checkbox(Field("statusLine", L["Status Line"], Options:Path(key, "text.statusLine")))
+	end
 
 	if AUI.can.surnames then
 		card:Dropdown(Field("nameFormat", L["Name Format"], Options:Path(key, "text.nameFormat"), {

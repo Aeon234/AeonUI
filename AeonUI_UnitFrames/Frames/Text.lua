@@ -21,6 +21,12 @@ local ESTIMATES = {
 -- Space kept between slots that share a row.
 local GAP = 8
 
+-- Contents that show health, and so can carry the frame's status.
+local HEALTH_CONTENTS = { health = true, healthPercent = true, healthAndPercent = true, missingHealth = true }
+
+-- The Status Line's inset from the bar's right edge.
+local STATUS_INSET = 4
+
 ---@class AUITextSlot
 ---@field content string
 ---@field separator string
@@ -233,11 +239,38 @@ function Text:Layout(key, count)
 	return slots, self:Widths(slots, Profile:Get(Options:Path(key, "width")) - left - right), contexts
 end
 
----Creates a frame's slots' font strings on a layer above its bar.
+---@param slot AUITextSlot
+---@return boolean middle the slot sits in the bar's middle row, where the Status Line also sits
+function Text:InMiddleRow(slot)
+	return slot.content ~= "none" and Row(slot) == "middle"
+end
+
+---Whether a frame shows its Status Line: it has one, the setting is on and no slot carries the status.
+---@param key string
+---@return boolean
+function Text:NeedsStatusLine(key)
+	local Profile = AUI.Profile
+	local spec = Options:Spec(key)
+
+	if not spec or not spec.statusLine or Profile:Get(Options:Path(key, "text.statusLine")) ~= true then
+		return false
+	end
+
+	local status = Profile:Get(Options:Path(key, "text.status"))
+
+	if status == 0 then
+		return true
+	end
+
+	return not HEALTH_CONTENTS[Profile:Get(Options:SlotPath(key, status, "content"))]
+end
+
+---Creates a frame's slots' font strings on a layer above its bar, and its Status Line when asked.
 ---@param frame table the unit frame, or a preview's holder
 ---@param bar StatusBar the bar the text sits on
 ---@param count integer
-function Text:Create(frame, bar, count)
+---@param statusLine boolean? the frame can show a Status Line
+function Text:Create(frame, bar, count, statusLine)
 	local layer = CreateFrame("Frame", nil, bar)
 
 	layer:SetAllPoints(bar)
@@ -255,6 +288,106 @@ function Text:Create(frame, bar, count)
 
 	frame.TextLayer = layer
 	frame.TextSlots = strings
+
+	if statusLine then
+		local line = layer:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+
+		line:SetWordWrap(false)
+		line:SetJustifyH("RIGHT")
+		line:Hide()
+		frame.StatusLine = line
+	end
+end
+
+---Shortens the middle-row slots by the Status Line's width while it shows a status, and restores them otherwise.
+---Status labels are AeonUI's own strings, never secret, so the line can be measured.
+---@param frame table made by `Text:Create`
+function Text:FitStatusLine(frame)
+	local line = frame.StatusLine
+	local label = line:IsShown() and line:GetText()
+	local room = 0
+
+	if label and label ~= "" then
+		room = line:GetUnboundedStringWidth() + GAP
+	end
+
+	for index in pairs(frame.middleSlots or {}) do
+		frame.TextSlots[index]:SetWidth(math.max(frame.slotWidths[index] - room, 1))
+	end
+end
+
+---Styles a Status Line like the frame's text and places it at the right of the bar, inside.
+---@param line FontString
+---@param bar Region
+---@param key string
+function Text:PlaceStatusLine(line, bar, key)
+	local Profile = AUI.Profile
+	local color = Profile:Get(Options:Path(key, "text.color"))
+
+	line:SetFont(AUI.Media:Font(Profile:Get(Options:Path(key, "text.font"))), Profile:Get(Options:Path(key, "text.size")),
+		AUI.Media:FontFlags(Profile:Get(Options:Path(key, "text.outline"))))
+	line:SetTextColor(color.r, color.g, color.b)
+	line:ClearAllPoints()
+	line:SetPoint("RIGHT", bar, "RIGHT", -STATUS_INSET, 0)
+end
+
+---Shows or hides a frame's Status Line, tagged with the unit's status, and fits the middle-row slots around it.
+---@param frame table a unit frame made by `Text:Create`
+---@param key string
+function Text:ApplyStatusLine(frame, key)
+	local line = frame.StatusLine
+
+	if not line then
+		return
+	end
+
+	frame:Untag(line)
+
+	if not self:NeedsStatusLine(key) then
+		line:SetText("")
+		line:Hide()
+		self:FitStatusLine(frame)
+
+		return
+	end
+
+	self:PlaceStatusLine(line, frame.Bar, key)
+	frame:Tag(line, "[aui:status]")
+
+	local update = line.UpdateTag
+
+	line.UpdateTag = function(fontString)
+		update(fontString)
+		Text:FitStatusLine(frame)
+	end
+
+	line:Show()
+
+	if frame:IsVisible() then
+		line:UpdateTag()
+	end
+end
+
+---Draws a still Status Line for a preview: the label while it needs one, nothing otherwise.
+---@param preview table made by `Text:Create`
+---@param key string
+---@param label string? the sample's status
+---@return boolean shown
+function Text:DrawStatusSample(preview, key, label)
+	local line = preview.StatusLine
+	local shown = line ~= nil and label ~= nil and self:NeedsStatusLine(key)
+
+	if line then
+		if shown then
+			self:PlaceStatusLine(line, preview.bar, key)
+			line:SetText(label)
+		end
+
+		line:SetShown(shown)
+		self:FitStatusLine(preview)
+	end
+
+	return shown
 end
 
 ---Styles a slot's font string and places it on its bar.
@@ -281,6 +414,9 @@ end
 function Text:Apply(frame, key)
 	local slots, widths, contexts = self:Layout(key, #frame.TextSlots)
 
+	frame.slotWidths = widths
+	frame.middleSlots = {}
+
 	for index, slot in ipairs(slots) do
 		local text = frame.TextSlots[index]
 		local tags = AUI.Tags:Compile(slot, contexts[index])
@@ -288,6 +424,10 @@ function Text:Apply(frame, key)
 		frame:Untag(text)
 
 		if tags then
+			if self:InMiddleRow(slot) then
+				frame.middleSlots[index] = true
+			end
+
 			self:Place(text, frame.Bar, slot, widths[index])
 			frame:Tag(text, tags)
 			text:Show()
@@ -300,4 +440,6 @@ function Text:Apply(frame, key)
 			text:Hide()
 		end
 	end
+
+	self:ApplyStatusLine(frame, key)
 end

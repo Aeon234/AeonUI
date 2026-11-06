@@ -1057,4 +1057,113 @@ Schema:Write(config, castBase .. "enabled", false)
 targetPreview:Refresh(nil, sampleTarget)
 Equal("off, no sample bar", targetPreview.cast:IsShown(), false)
 
+-- The target of target -----------------------------------------------------------------------------------------------
+
+local function TotPath(field)
+	return Options:Path("targettarget", field)
+end
+
+Equal("the target of target is off by default", Schema:Read(config, TotPath("enabled")), false)
+Equal("120 wide", Schema:Read(config, TotPath("width")), 120)
+Equal("24 tall", Schema:Read(config, TotPath("height")), 24)
+Equal("filling from the left", Schema:Read(config, TotPath("reverse")), false)
+Equal("no power bar by default", Schema:Read(config, TotPath("power.enabled")), false)
+Equal("three slots", Schema:Field(Options:SlotPath("targettarget", 3, "content")) ~= nil, true)
+Equal("not four", Schema:Field(Options:SlotPath("targettarget", 4, "content")), nil)
+Equal("its name at the left, inside", Schema:Read(config, Options:SlotPath("targettarget", 1, "content")) .. " "
+	.. Schema:Read(config, Options:SlotPath("targettarget", 1, "anchor")), "name LEFT")
+Equal("no slot carries the status", Schema:Read(config, TotPath("text.status")), 0)
+Equal("the Status Line on", Schema:Read(config, TotPath("text.statusLine")), true)
+Equal("the target has no Status Line", Schema:Field(TargetPath("text.statusLine")), nil)
+Equal("a small raid marker", Schema:Read(config, TotPath("indicators.raid.size")), 14)
+Equal("no portrait", Schema:Field(TotPath("portrait.enabled")), nil)
+Equal("no auras", Schema:Field(TotPath("buffs.enabled")), nil)
+Equal("no overlays", Schema:Field(TotPath("overlays.absorb.enabled")), nil)
+local totPlace, targetPlace = Options:Spec("targettarget").position, Options:Spec("target").position
+
+Equal("bottoms level with the target's", totPlace.y - 24 / 2, targetPlace.y - 36 / 2)
+Equal("8 right of the target", totPlace.x - 120 / 2 - (targetPlace.x + 270 / 2), 8)
+
+Equal("needs its Status Line", Text:NeedsStatusLine("targettarget"), true)
+Equal("the target never does", Text:NeedsStatusLine("target"), false)
+Schema:Write(config, TotPath("text.status"), 1)
+Equal("a name slot cannot carry the status", Text:NeedsStatusLine("targettarget"), true)
+Schema:Write(config, Options:SlotPath("targettarget", 1, "content"), "health")
+Equal("a health slot can", Text:NeedsStatusLine("targettarget"), false)
+Schema:Write(config, TotPath("text.status"), nil)
+Schema:Write(config, Options:SlotPath("targettarget", 1, "content"), nil)
+Schema:Write(config, TotPath("text.statusLine"), false)
+Equal("off, never", Text:NeedsStatusLine("targettarget"), false)
+Schema:Write(config, TotPath("text.statusLine"), nil)
+
+AUI.UnitFrame.specs.targettarget = Options:Spec("targettarget")
+
+local liveTot = AUI.oUF:Spawn("targettarget", "AeonUITargetTarget")
+
+liveTot:ApplyLayout()
+liveTot:ApplyAppearance()
+Equal("the live frame's size", table.concat({ liveTot:GetSize() }, "x"), "120x24")
+Equal("no cast bar", liveTot.CastBarView, nil)
+Equal("no aura displays", liveTot.AuraDisplays, nil)
+Equal("its raid marker runs", liveTot.elementsOn.RaidTargetIndicator, true)
+Equal("its name tagged", liveTot.TextSlots[1].tag ~= nil, true)
+Equal("its Status Line tagged", liveTot.StatusLine.tag, "[aui:status]")
+Equal("and shown", liveTot.StatusLine:IsShown(), true)
+Equal("at the bar's right", liveTot.StatusLine.points[1][1], "RIGHT")
+Equal("the name slot shares its row", liveTot.middleSlots[1], true)
+
+local nameWidth = liveTot.slotWidths[1]
+
+liveTot.StatusLine:SetText(DEAD)
+liveTot.StatusLine.stringWidth = 30
+liveTot.StatusLine:UpdateTag()
+Equal("a status shortens the name", liveTot.TextSlots[1].width, nameWidth - 38)
+liveTot.StatusLine:SetText("")
+liveTot.StatusLine:UpdateTag()
+Equal("no status gives the room back", liveTot.TextSlots[1].width, nameWidth)
+Schema:Write(config, TotPath("text.statusLine"), false)
+liveTot:ApplyAppearance()
+Equal("off, the line hides", liveTot.StatusLine:IsShown(), false)
+Equal("untagged", liveTot.StatusLine.tag, nil)
+Schema:Write(config, TotPath("text.statusLine"), nil)
+liveTot:ApplyAppearance()
+
+local objects = Frames.objects
+
+Frames.objects = { targettarget = liveTot }
+liveTot.fullUpdates = 0
+Frames:OnTargetOfTargetChanged("UNIT_TARGET", "party1")
+Equal("another unit's target is ignored", liveTot.fullUpdates, 0)
+Frames:OnTargetOfTargetChanged("UNIT_TARGET", "target")
+Equal("the target's new target redraws it", liveTot.fullUpdates, 1)
+Frames:OnTargetOfTargetChanged("PLAYER_TARGET_CHANGED")
+Equal("a new target redraws it", liveTot.fullUpdateEvent, "PLAYER_TARGET_CHANGED")
+liveTot:Hide()
+Frames:OnTargetOfTargetChanged("PLAYER_TARGET_CHANGED")
+Equal("hidden, it waits for oUF's show", liveTot.fullUpdates, 2)
+liveTot:Show()
+Frames.objects = objects
+
+local totPreview = AUI.FramePreview:New(Options:Spec("targettarget"))
+
+parts, partRegions = {}, {}
+totPreview:Create(CreateFrame("Frame"))
+width, height = totPreview:Refresh(AUI.FramePreview.STATES[1], sampleTarget)
+Equal("the sample draws", width > 0 and height > 0, true)
+Equal("full, no Status Line", totPreview.StatusLine:IsShown(), false)
+totPreview:Refresh(AUI.FramePreview.STATES[3], sampleTarget)
+Equal("dead, the sample shows it", totPreview.StatusLine.text, DEAD)
+Equal("as a part", partRegions.statusLine, totPreview.StatusLine)
+Equal("the sample's name is you", totPreview.TextSlots[1].text, "Alex")
+
+Equal("without it, target changes are not followed", registered.PLAYER_TARGET_CHANGED, nil)
+Frames.started, Frames.objects, registered = false, {}, {}
+Schema:Write(config, Path("enabled"), nil)
+Schema:Write(config, TotPath("enabled"), true)
+Frames:Start()
+Equal("spawned by its global name", spawned[#spawned], "AeonUITargetTarget")
+Equal("a new target is followed", registered.PLAYER_TARGET_CHANGED, Frames.OnTargetOfTargetChanged)
+Equal("and the target's new target", registered.UNIT_TARGET, Frames.OnTargetOfTargetChanged)
+Equal("no reload needed", Frames:ReloadNeeded(), false)
+
 print(("check_unitframes: %d checks passed"):format(client.checks))

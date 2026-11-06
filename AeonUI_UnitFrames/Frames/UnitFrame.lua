@@ -21,6 +21,9 @@ local NO_FILL = { r = 0, g = 0, b = 0, a = 0 }
 ---@field Background Texture
 ---@field Border AUIBorder
 ---@field TextSlots FontString[]
+---@field StatusLine FontString?
+---@field slotWidths number[]? each slot's width before the Status Line takes its room
+---@field middleSlots table<integer, boolean>? the tagged slots in the bar's middle row
 ---@field Overlays AUIOverlayWidgets?
 ---@field AuraDisplays table<string, AUIAuraWidgets>? by kind
 ---@field PortraitWidgets AUIPortraitWidgets?
@@ -306,7 +309,7 @@ function UnitFrame.Style(frame, unit)
 	local content = frame.Content
 
 	frame.Bar, frame.Background, frame.Border = UnitFrame:CreateBar(content)
-	AUI.Text:Create(frame, frame.Bar, spec.slots)
+	AUI.Text:Create(frame, frame.Bar, spec.slots, spec.statusLine)
 
 	local health = frame.Bar
 

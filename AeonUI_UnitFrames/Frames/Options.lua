@@ -22,6 +22,7 @@ local Schema = AUI.Schema
 ---@field totems table? its totems' place until moved: `anchor`, `placement`, `x`, `y` and `growth`
 ---@field idleFade boolean? it fades while the player is idle
 ---@field rangeFade boolean? it fades while its unit is out of range
+---@field statusLine boolean? it can show its unit's status at the right of its bar, on by default
 ---@field position { point: string, x: number, y: number } its place until moved
 
 ---The unit frames' settings: every frame's, and the shared ones they follow. Holds no frame code.
@@ -82,6 +83,19 @@ local Options = {
 				{ name = "classification", enabled = false, size = 20, anchor = "TOPRIGHT", placement = "edge", x = 10 },
 			},
 			position = { point = "CENTER", x = 330, y = -200 },
+		},
+		{
+			key = "targettarget",
+			unit = "targettarget",
+			name = "AeonUITargetTarget",
+			page = "unitFrameTargetTarget",
+			slots = 3,
+			power = true,
+			statusLine = true,
+			indicators = {
+				{ name = "raid", enabled = true, size = 14, anchor = "RIGHT", placement = "outside", x = 2 },
+			},
+			position = { point = "CENTER", x = 533, y = -206 },
 		},
 	},
 	RESOURCES_PATH = "frames.resources.enabled",
@@ -591,6 +605,10 @@ local function DeclareFrame(spec, width, height, status, slots)
 	Schema:Number(Options:Path(key, "text.status"), status, 0, spec.slots, true)
 	Schema:Choice(Options:Path(key, "text.nameFormat"), "unitFrameNameFormat", "first")
 
+	if spec.statusLine then
+		Schema:Boolean(Options:Path(key, "text.statusLine"), true)
+	end
+
 	for index = 1, spec.slots do
 		DeclareSlot(key, index, slots[index])
 	end
@@ -684,4 +702,7 @@ DeclareFrame(Options:Spec("target") --[[@as AUIFrameSpec]], 270, 36, 1, {
 	{ content = "healthAndPercent", anchor = "TOPLEFT", placement = "edge", x = 4 },
 	{ content = "levelName", anchor = "TOPRIGHT", placement = "edge", x = -4, colorMode = "class" },
 	{ content = "power", anchor = "BOTTOMLEFT", placement = "inside", x = 4, colorMode = "power" },
+})
+DeclareFrame(Options:Spec("targettarget") --[[@as AUIFrameSpec]], 120, 24, 0, {
+	{ content = "name", anchor = "LEFT", placement = "inside", x = 4 },
 })

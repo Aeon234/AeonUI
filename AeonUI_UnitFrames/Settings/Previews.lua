@@ -99,6 +99,9 @@ local FRIENDLY = 5
 ---@field background Texture
 ---@field border AUIBorder
 ---@field TextSlots FontString[]
+---@field StatusLine FontString?
+---@field slotWidths number[]? each slot's width before the Status Line takes its room
+---@field middleSlots table<integer, boolean>? the shown slots in the bar's middle row
 ---@field overlays AUIOverlayWidgets?
 ---@field auraIcons table<string, table[]> the sample icons made so far, by kind
 ---@field portrait AUIPortraitWidgets?
@@ -124,7 +127,7 @@ function FramePreview:Create(canvas)
 	holder:SetPoint("CENTER")
 	self.holder = holder
 	self.bar, self.background, self.border = AUI.UnitFrame:CreateBar(holder)
-	AUI.Text:Create(self, self.bar, self.spec.slots)
+	AUI.Text:Create(self, self.bar, self.spec.slots, self.spec.statusLine)
 
 	if self.spec.power then
 		self.power, self.powerBackground = AUI.UnitFrame:CreatePowerBar(holder)
@@ -424,11 +427,18 @@ function FramePreview:Refresh(state, preview)
 
 	local slots, widths, contexts = AUI.Text:Layout(key, self.spec.slots)
 
+	self.slotWidths = widths
+	self.middleSlots = {}
+
 	for index, slot in ipairs(slots) do
 		local text = self.TextSlots[index]
 		local shown = AUI.Tags:Sample(slot, contexts[index], sample)
 
 		if shown then
+			if AUI.Text:InMiddleRow(slot) then
+				self.middleSlots[index] = true
+			end
+
 			AUI.Text:Place(text, bar, slot, widths[index])
 			text:SetText(shown)
 			text:Show()
@@ -436,6 +446,10 @@ function FramePreview:Refresh(state, preview)
 		else
 			text:Hide()
 		end
+	end
+
+	if AUI.Text:DrawStatusSample(self, key, sample.status) then
+		preview:Part(self.StatusLine, "statusLine", { text = true })
 	end
 
 	self:DrawIndicators(preview)

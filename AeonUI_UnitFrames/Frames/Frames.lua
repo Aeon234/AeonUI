@@ -105,6 +105,13 @@ function Frames:Start()
 	end
 
 	self:SpawnResources()
+
+	-- oUF redraws an eventless unit on a half-second timer; these redraw it as soon as the unit it shows changes.
+	if self.objects.targettarget then
+		AUI.Events:Register("PLAYER_TARGET_CHANGED", self, self.OnTargetOfTargetChanged)
+		AUI.Events:Register("UNIT_TARGET", self, self.OnTargetOfTargetChanged)
+	end
+
 	AUI.Events:Register("PLAYER_REGEN_ENABLED", self, self.OnCombatEnded)
 	AUI.Events:Register("UI_SCALE_CHANGED", self, self.OnScaleChanged)
 
@@ -228,6 +235,20 @@ function Frames:SampleUnit(key, shown)
 	end
 
 	frame:SetAttribute("unit", shown and "player" or frame.spec.unit)
+end
+
+---@param event string
+---@param unit string? the unit whose target changed, for `UNIT_TARGET`
+function Frames:OnTargetOfTargetChanged(event, unit)
+	local frame = self.objects.targettarget
+
+	if event == "UNIT_TARGET" and unit ~= "target" then
+		return
+	end
+
+	if frame:IsVisible() then
+		frame:UpdateAllElements(event)
+	end
 end
 
 function Frames:OnCombatEnded()

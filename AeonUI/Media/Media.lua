@@ -103,6 +103,7 @@ local Media = {
 		allFrames = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarAllFrames.tga",
 		unitPlayer = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarUnitPlayer.tga",
 		unitTarget = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarUnitTarget.tga",
+		unitTargetTarget = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarUnitTargetTarget.tga",
 		playerResources = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarPlayerResources.tga",
 		general = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarGeneral.tga",
 		castBar = "Interface\\AddOns\\AeonUI\\Media\\Textures\\SidebarCastBar.tga",
