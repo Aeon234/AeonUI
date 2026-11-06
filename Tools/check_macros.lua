@@ -59,12 +59,13 @@ C_SkillInfo = {
 	end,
 }
 
--- Items: each one's use spell, required level (nil while loading) and cooldown.
+-- Items: each one's use spell and its ID, required level (nil while loading) and cooldown; an uncached item has no
+-- spell until its data arrives.
 local FOOD, DRINK = "Food", "Drink"
 local items = {}
 local requests = {}
-local function Item(id, spell, level, cooldown)
-	items[id] = { spell = spell, level = level, cooldown = cooldown }
+local function Item(id, spell, level, cooldown, spellID)
+	items[id] = { spell = spell, spellID = spellID or 1, level = level, cooldown = cooldown }
 end
 C_Spell = {
 	GetSpellName = function(id)
@@ -99,7 +100,15 @@ end
 
 C_Item = {
 	GetItemSpell = function(id)
-		return items[id] and items[id].spell
+		local item = items[id]
+		if not item or item.uncached or not item.spell then
+			return nil
+		end
+
+		return item.spell, item.spellID
+	end,
+	IsItemDataCachedByID = function(id)
+		return items[id] ~= nil and not items[id].uncached
 	end,
 	GetItemInfo = function(id)
 		local item = items[id]
@@ -395,6 +404,46 @@ Equal("a used-up item stays on the macro", Body("AeonUI Food"), kept)
 player.level = 20
 Fire("UNIT_LEVEL", "player")
 Equal("an item the player can no longer use leaves", Body("AeonUI Food"), "#showtooltip")
+player.level = 40
+
+-- The bank, food known by its eating spell, and items whose data is loading -------------------------------
+
+Item(4592, FOOD, 5)
+bags[0] = { 500, 4592 }
+Fire("BAG_UPDATE_DELAYED")
+Equal("the fish on the macro", Body("AeonUI Food"), Lines("/use [nocombat] item:4592"))
+bags[0] = { 500 }
+bags[-1], bags[5] = { 4592 }, { 4592 }
+Fire("BAG_UPDATE_DELAYED")
+Equal("fish moved to the bank stays as a used-up item", Body("AeonUI Food"), Lines("/use [nocombat] item:4592"))
+Item(2681, "Roasted Boar Meat", 5, nil, 1248380)
+table.insert(bags[0], 2681)
+Fire("BAG_UPDATE_DELAYED")
+Equal("food known by its eating spell replaces the fish at zero", Body("AeonUI Food"),
+	Lines("/use [nocombat] item:2681"))
+Equal("the bank never scanned", Count(4592), 0)
+local isFood, isDrink = Options.Kind(2681, "Roasted Boar Meat", 1248380, FOOD, DRINK)
+True("an eating spell makes food", isFood and not isDrink)
+isFood, isDrink = Options.Kind(1, "Roasted Boar Meat", 99, FOOD, DRINK)
+True("another spell does not", not isFood and not isDrink)
+Item(2682, FOOD, 10)
+items[2682].uncached = true
+table.insert(bags[0], 2682)
+Fire("BAG_UPDATE_DELAYED")
+Equal("an uncached item's data asked for", requests[#requests], 2682)
+Equal("the boar meat kept meanwhile", Body("AeonUI Food"), Lines("/use [nocombat] item:2681"))
+local written, asked = #calls, #requests
+Fire("ITEM_DATA_LOAD_RESULT", 2682, false)
+Equal("a failed load brings no update", #calls, written)
+Equal("nor another request", #requests, asked)
+Fire("BAG_UPDATE_DELAYED")
+Equal("the next bag change asks again", requests[#requests], 2682)
+items[2682].uncached = nil
+Fire("ITEM_DATA_LOAD_RESULT", 2682, true)
+Equal("the loaded food, once its spell is known", Body("AeonUI Food"), Lines("/use [nocombat] item:2682"))
+bags[0], bags[-1], bags[5] = { 500 }, nil, nil
+player.level = 4
+Fire("UNIT_LEVEL", "player")
 player.level = 40
 
 -- Combat --------------------------------------------------------------------------------------------------

@@ -157,7 +157,8 @@ end
 
 ---@param event string
 ---@param arg1 any
-function Macros:OnEvent(event, arg1)
+---@param arg2 any
+function Macros:OnEvent(event, arg1, arg2)
 	if event == "UNIT_LEVEL" and arg1 ~= "player" then
 		return
 	end
@@ -171,6 +172,11 @@ function Macros:OnEvent(event, arg1)
 
 		if next(self.requested) == nil then
 			AUI.Events:Unregister("ITEM_DATA_LOAD_RESULT", self)
+		end
+
+		-- A failed load would be asked for again by the update; the next bag change retries it instead.
+		if not arg2 then
+			return
 		end
 	end
 
@@ -243,10 +249,13 @@ function Macros:Scan()
 
 			if id and not seen[id] then
 				seen[id] = true
-				local spell = C_Item.GetItemSpell(id)
-				local both = Options.FOOD_AND_DRINK[id] == true
-				local isFood = both or (spell ~= nil and spell == foodName)
-				local isDrink = both or (spell ~= nil and spell == drinkName)
+				local spellName, spellID = C_Item.GetItemSpell(id)
+
+				if spellName == nil and not C_Item.IsItemDataCachedByID(id) then
+					self:Request(id)
+				end
+
+				local isFood, isDrink = Options.Kind(id, spellName, spellID, foodName, drinkName)
 				local candidate = (isFood or isDrink) and self:Candidate(id, playerLevel) or nil
 
 				if candidate and isFood and Options.Better(candidate, scan.food) then

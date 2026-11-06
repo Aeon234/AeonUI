@@ -25,6 +25,7 @@ local AUI = select(2, ...)
 ---@field NAMES table<string, string> each macro's name by settings key
 ---@field CONJURED table<number, true> conjured mage food and water, preferred over other items
 ---@field FOOD_AND_DRINK table<number, true> items that are both food and drink, which their spell does not show
+---@field FOOD_SPELLS table<number, true> eating spells by ID, for food whose use spell does not share `FOOD_SPELL`'s name
 ---@field MANA_POTIONS number[] mana potions, mana gems and healing-and-mana potions, best first (Forever)
 ---@field HEALTHSTONES number[] healthstones of both clients, best first
 ---@field HEALING_POTIONS number[] healing potions, Retail's then Forever's, best first
@@ -49,6 +50,7 @@ local Options = {
 	NAMES = NAMES,
 	CONJURED = {},
 	FOOD_AND_DRINK = {},
+	FOOD_SPELLS = {},
 	MANA_POTIONS = { 13444, 23578, 18253, 13443, 18841, 8008, 8007, 6149, 274935, 9144, 5513, 3827, 5514, 3385, 2455,
 		3087, 2456, 282013 },
 	HEALTHSTONES = { 9421, 19012, 19013, 5510, 19010, 19011, 5509, 19008, 19009, 5511, 19006, 19007, 5512, 19004, 19005,
@@ -73,6 +75,35 @@ end
 for _, id in ipairs({ 1401, 3448, 19301, 20031, 20388, 20389, 20390, 21071, 21153, 21215, 21537, 23172, 23176,
 	262433 }) do
 	Options.FOOD_AND_DRINK[id] = true
+end
+
+-- Forever's stat food eating spells, as ranges, then the eating spells of the original buff foods.
+for _, range in ipairs({ { 1248377, 1248384 }, { 1248386, 1248401 }, { 1248687, 1248687 }, { 1249500, 1249517 },
+	{ 1249522, 1249522 } }) do
+	for id = range[1], range[2] do
+		Options.FOOD_SPELLS[id] = true
+	end
+end
+
+for _, id in ipairs({ 5004, 5006, 18124, 21149, 24869, 25660 }) do
+	Options.FOOD_SPELLS[id] = true
+end
+
+---Whether an item counts as food, drink or both, from its use spell.
+---@param id number the item's ID
+---@param spellName string? its use spell's name, nil without one or while its data is loading
+---@param spellID number? its use spell's ID
+---@param foodName string? `FOOD_SPELL`'s name
+---@param drinkName string? `DRINK_SPELL`'s name
+---@return boolean isFood
+---@return boolean isDrink
+function Options.Kind(id, spellName, spellID, foodName, drinkName)
+	local both = Options.FOOD_AND_DRINK[id] == true
+	local isFood = both or (spellID ~= nil and Options.FOOD_SPELLS[spellID] == true)
+		or (spellName ~= nil and spellName == foodName)
+	local isDrink = both or (spellName ~= nil and spellName == drinkName)
+
+	return isFood, isDrink
 end
 
 ---@param level any an item's required level as the client returned it
