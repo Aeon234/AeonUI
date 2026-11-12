@@ -64,6 +64,7 @@ AUI.Capabilities = Capabilities
 ---@field petHealthNotice boolean the pet's health can be drawn through a curve
 ---@field talentNotice boolean unspent talent points can be read
 ---@field legacyNotice boolean unspent Legacy points can be read (Forever)
+---@field campNearbyNotice boolean the campfire auras can be read (Forever)
 ---@field durabilityNotice boolean equipped items' durability can be read
 ---@field lowHealthNotice boolean the player's health can be drawn through a curve
 ---@field trackingNotice boolean the minimap's trackings and the player's shapeshift form can be read
@@ -177,6 +178,8 @@ function Capabilities:Resolve()
 	can.legacyNotice = WOW_PROJECT_ID == WOW_PROJECT_CAMELOT and Constants.LegacyConsts ~= nil and C_Traits ~= nil
 		and C_Traits.GetConfigIDByTreeID ~= nil and C_Traits.GetTreeCurrencyInfo ~= nil and C_MajorFactions ~= nil
 		and C_MajorFactions.GetCurrentRenownLevel ~= nil
+	can.campNearbyNotice = WOW_PROJECT_ID == WOW_PROJECT_CAMELOT and C_UnitAuras ~= nil
+		and C_UnitAuras.GetPlayerAuraBySpellID ~= nil and C_Secrets ~= nil
 	can.durabilityNotice = GetInventoryItemDurability ~= nil
 	can.lowHealthNotice = can.petHealthNotice
 	can.trackingNotice = C_Minimap ~= nil and C_Minimap.GetNumTrackingTypes ~= nil and C_Minimap.GetTrackingInfo ~= nil

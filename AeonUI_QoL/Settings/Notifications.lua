@@ -19,6 +19,7 @@ local LABELS = {
 	durability = L["Low Durability"],
 	tracking = TRACKING,
 	flightPoint = L["Flight Points"],
+	campNearby = L["Camp Nearby"],
 }
 local LINES = {
 	petMissing = L["In combat or in instances."],
@@ -29,6 +30,7 @@ local LINES = {
 	durability = L["Out of combat."],
 	tracking = L["Outside instances."],
 	flightPoint = L["Out of combat."],
+	campNearby = L["Out of combat."],
 }
 
 ---The Notifications page, under the Quality of Life header: a sample of the notices turned on as its preview, the Text
@@ -155,6 +157,27 @@ local function Below(path, min, max)
 	end
 end
 
+---@return fun(section: table, details: string) extra Camp Nearby's mark in minutes, inside its Text row
+local function CampUnder()
+	return function(section, details)
+		local path = AUI.NotificationOptions.CAMP_UNDER_PATH
+
+		section:Slider({
+			id = details .. "_under",
+			label = L["Show Below"],
+			path = path,
+			default = AUI.Settings:Default(path),
+			details = details,
+			min = 0,
+			max = 10,
+			step = 1,
+			format = function(value)
+				return D_MINUTES:format(value)
+			end,
+		})
+	end
+end
+
 ---@return fun(section: table, details: string) extra the trackings Tracking reminds about, inside its Text row: the
 ---character's class's and race's, and the professions'
 local function RemindAbout()
@@ -259,7 +282,7 @@ function SettingsNotifications:DeclareCharacter(page)
 	local can = AUI.can
 
 	if not (can.talentNotice or can.legacyNotice or can.durabilityNotice or can.trackingNotice
-		or can.flightPointNotice) then
+		or can.flightPointNotice or can.campNearbyNotice) then
 		return
 	end
 
@@ -283,6 +306,10 @@ function SettingsNotifications:DeclareCharacter(page)
 
 	if can.flightPointNotice then
 		DeclareNotice(card, "flightPoint")
+	end
+
+	if can.campNearbyNotice then
+		DeclareNotice(card, "campNearby", CampUnder())
 	end
 end
 

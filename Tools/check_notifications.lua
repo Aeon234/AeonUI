@@ -95,8 +95,13 @@ C_SpecializationInfo = {
 C_Secrets = { ShouldAurasBeSecret = function()
 	return aurasSecret
 end }
-C_UnitAuras = { GetPlayerAuraBySpellID = function()
-	return sacrificeAura
+local playerAuras = {}
+C_UnitAuras = { GetPlayerAuraBySpellID = function(spell)
+	if spell == 196099 then
+		return sacrificeAura
+	end
+
+	return playerAuras[spell]
 end }
 Enum = {
 	LuaCurveType = { Step = 1 },
@@ -277,7 +282,8 @@ end
 
 for _, file in ipairs({ "AeonUI_QoL/Notifications/Options.lua", "AeonUI_QoL/Notifications/Notifications.lua", "AeonUI_QoL/Notifications/Combat.lua",
 	"AeonUI_QoL/Notifications/Pet.lua", "AeonUI_QoL/Notifications/Character.lua", "AeonUI_QoL/Notifications/Potion.lua", "AeonUI_QoL/Notifications/Health.lua",
-	"AeonUI_QoL/Notifications/Tracking.lua", "AeonUI_QoL/Notifications/FlightPoint.lua" }) do
+	"AeonUI_QoL/Notifications/Tracking.lua", "AeonUI_QoL/Notifications/FlightPoint.lua",
+	"AeonUI_QoL/Notifications/Campfire.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 
@@ -327,9 +333,9 @@ for _, notice in ipairs(Options.NOTICES) do
 end
 Equal("every notice off by default", table.concat(defaults, " "), "enter=false leave=false lowHealth=false "
 	.. "potion=false petMissing=false petPassive=false petHealth=false talents=false legacyPoints=false durability=false "
-	.. "tracking=false flightPoint=false")
+	.. "tracking=false flightPoint=false campNearby=false")
 Equal("Low Health is the stack's last slot, Pet Low Health just above it", Options:SlotOrder("health") .. " "
-	.. Options:SlotOrder("petHealth") .. " " .. #Options.SLOTS, "11 10 11")
+	.. Options:SlotOrder("petHealth") .. " " .. #Options.SLOTS, "12 11 12")
 Equal("Low Health shows below 35% by default", AUI.Profile:Get(Options.LOW_HEALTH_PATH), 35)
 
 local hunter, dwarfPaladin = {}, {}
@@ -934,6 +940,58 @@ Equal("on again: shown", Shown(), "Learn Flight Point: Razor Hill")
 Set(Options:Path("flightPoint", "enabled"), false)
 Advance(0)
 AUI.can.flightPointNotice = nil
+
+-- Camp Nearby ---------------------------------------------------------------------------------------------
+
+local CAMP_LINE = "|T" .. Options.CAMPFIRE_ICON .. ":0|t Camp Nearby"
+Equal("Camp Nearby: not near a campfire", tostring(Options:CampNearby(false, false, nil, 2)), "false")
+Equal("sitting at one", tostring(Options:CampNearby(true, true, nil, 2)), "false")
+Equal("no Camp Benefits", tostring(Options:CampNearby(true, false, nil, 2)), "true")
+Equal("Camp Benefits above the mark waits for it", table.concat({ tostring(Options:CampNearby(true, false, 300, 2)),
+	select(2, Options:CampNearby(true, false, 300, 2)) }, " "), "false 180")
+Equal("at the mark", tostring(Options:CampNearby(true, false, 120, 2)), "true")
+instance, aurasSecret = false, false
+On("campNearby")
+Equal("off the client: not followed", tostring(eventFrame.events.UNIT_AURA), "nil")
+Set(Options:Path("campNearby", "enabled"), false)
+AUI.can.campNearbyNotice = true
+playerAuras = { [1283391] = {}, [1229741] = { expirationTime = client.now + 600 } }
+On("campNearby")
+Equal("Camp Benefits well up: nothing", Shown(), "")
+Advance(480)
+Equal("down to the mark: Camp Nearby with its fire", Shown(), CAMP_LINE)
+playerAuras[1229741] = { expirationTime = client.now + 3600 }
+Fire("UNIT_AURA", "player")
+Equal("refreshed: gone", Shown(), "")
+playerAuras[1229741] = nil
+Fire("UNIT_AURA", "target")
+Equal("another unit's auras are ignored", Shown(), "")
+Fire("UNIT_AURA", "player")
+Equal("Camp Benefits gone", Shown(), CAMP_LINE)
+playerAuras[1229739] = {}
+Fire("UNIT_AURA", "player")
+Equal("hidden while sitting", Shown(), "")
+playerAuras[1229739] = nil
+Fire("UNIT_AURA", "player")
+Fire("PLAYER_REGEN_DISABLED")
+Equal("hidden in combat", Shown(), "")
+Fire("PLAYER_REGEN_ENABLED")
+Equal("back after combat", Shown(), CAMP_LINE)
+aurasSecret = true
+Fire("UNIT_AURA", "player")
+Equal("hidden while auras are secret", Shown(), "")
+aurasSecret = false
+instance = true
+Fire("ZONE_CHANGED_NEW_AREA")
+Equal("hidden in an instance", Shown(), "")
+instance = false
+playerAuras[1283391] = nil
+Fire("ZONE_CHANGED_NEW_AREA")
+Equal("gone away from the campfire", Shown(), "")
+Set(Options:Path("campNearby", "enabled"), false)
+Equal("off: no longer followed", tostring(eventFrame.events.UNIT_AURA), "nil")
+AUI.can.campNearbyNotice = nil
+playerAuras = {}
 
 Equal("no Lua error in the run", errors[1], nil)
 

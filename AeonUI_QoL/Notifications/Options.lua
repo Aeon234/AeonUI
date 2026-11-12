@@ -27,6 +27,7 @@ local Schema = AUI.Schema
 ---@field DURABILITY_PATH string the lowest durability, a percentage, below which Low Durability shows
 ---@field LOW_HEALTH_PATH string the player's health, a percentage, below which Low Health shows
 ---@field TRACKING_PATH string the branch holding, per tracking, whether Tracking reminds about it
+---@field CAMP_UNDER_PATH string minutes of Camp Benefits left below which Camp Nearby shows
 ---@field MOVE_RESPONSE number seconds; the spring that moves a line to its place
 ---@field FADE_IN number seconds; the spring that brings a line's opacity up
 ---@field FADE_OUT number seconds; the spring that takes a line's opacity down
@@ -52,12 +53,13 @@ local Options = {
 		{ key = "durability", slot = "durability", text = L["Low Durability"], color = { r = 1, g = 0.27, b = 0.27 } },
 		{ key = "tracking", slot = "tracking", text = L["Not Tracking"], color = { r = 1, g = 0.6, b = 0.2 } },
 		{ key = "flightPoint", slot = "flightPoint", text = L["Learn Flight Point"], color = { r = 0.4, g = 0.8, b = 1 } },
+		{ key = "campNearby", slot = "campNearby", text = L["Camp Nearby"], color = { r = 1, g = 0.55, b = 0.1 } },
 	},
 	-- Pet Low Health and Low Health come last: their lines stay shown at no opacity while health is above the mark, so
 	-- they hold no room between other lines. The player's own is the very last, the one that never leaves a gap.
 	SLOTS = {
 		"combat", "potion", "pet", "petStance", "talents", "legacyPoints", "durability", "tracking", "flightPoint",
-		"petHealth", "health",
+		"campNearby", "petHealth", "health",
 	},
 	FONT_PATH = "notifications.font",
 	SIZE_PATH = "notifications.size",
@@ -68,6 +70,7 @@ local Options = {
 	DURABILITY_PATH = "notifications.durability.below",
 	LOW_HEALTH_PATH = "notifications.lowHealth.below",
 	TRACKING_PATH = "notifications.tracking.remind",
+	CAMP_UNDER_PATH = "notifications.campNearby.under",
 	MOVE_RESPONSE = 0.35,
 	FADE_IN = 0.3,
 	FADE_OUT = 0.3,
@@ -125,6 +128,7 @@ Schema:Position(Options.POSITION_PATH)
 Schema:Number(Options.PET_HEALTH_PATH, 25, 5, 90, true)
 Schema:Number(Options.DURABILITY_PATH, 40, 10, 90, true)
 Schema:Number(Options.LOW_HEALTH_PATH, 35, 5, 90, true)
+Schema:Number(Options.CAMP_UNDER_PATH, 2, 0, 10, true)
 
 ---@param key string
 ---@return boolean on
@@ -297,6 +301,39 @@ function Options:PotionCooldown(start, duration, enable, now)
 	end
 
 	return "over"
+end
+
+-- Campfire ---------------------------------------------------------------------------------------------------
+
+Options.CAMP_BENEFITS = 1229741
+-- The area aura on a player within reach of a campfire.
+Options.CAMPFIRE_NEARBY = 1283391
+-- The auras while sitting at a campfire, before Camp Benefits lands: the plain one and the crafting one.
+Options.WELCOMING_CAMPFIRE = { 1229739, 1289723 }
+Options.CAMPFIRE_ICON = "Interface\\AddOns\\AeonUI\\Media\\Textures\\Campfire.tga"
+
+---Whether Camp Nearby shows: near a campfire, not sitting at one, and Camp Benefits gone or running low.
+---@param nearby boolean a campfire is within reach
+---@param sitting boolean the player sits at a campfire
+---@param left number? seconds of Camp Benefits left, nil when it is gone
+---@param under number minutes below which the notice shows
+---@return boolean show
+---@return number? wait seconds until Camp Benefits falls below the mark, while it is above it
+function Options:CampNearby(nearby, sitting, left, under)
+	if not nearby or sitting then
+		return false
+	end
+
+	if left and left > under * 60 then
+		return false, left - under * 60
+	end
+
+	return true
+end
+
+---@return string text Camp Nearby's text after the campfire icon
+function Options:CampNearbyText()
+	return ("|T%s:0|t %s"):format(self.CAMPFIRE_ICON, self:Text("campNearby"))
 end
 
 -- Tracking ---------------------------------------------------------------------------------------------------

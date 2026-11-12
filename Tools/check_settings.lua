@@ -822,6 +822,14 @@ window = Load(nil)
 notificationsPage = window.pages.notifications
 Equal("Forever's Flight Points after Tracking", NoticeCards(notificationsPage):match("tracking%+ .*$"),
 	"tracking+ trackingText flightPoint+ flightPointText")
+AUI.can.campNearbyNotice = true
+window = Load(nil)
+notificationsPage = window.pages.notifications
+Equal("Forever's Camp Nearby last, its mark in minutes",
+	tostring(NoticeCards(notificationsPage):match("flightPoint%+ .*$"))
+	.. " " .. notificationsPage.sections.notificationsCharacter.settings.campNearbyText_under.default,
+	"flightPoint+ flightPointText campNearby+ campNearbyText 2")
+AUI.can.campNearbyNotice = nil
 AUI.can.flightPointNotice = nil
 window = Load(nil)
 notificationsPage = window.pages.notifications

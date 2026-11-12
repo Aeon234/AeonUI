@@ -351,6 +351,8 @@ function Notifications:SampleText(key)
 		return Options:TrackingText({ AUI.L["Herbs"], AUI.L["Minerals"] })
 	elseif key == "flightPoint" then
 		return Options:FlightPointText(AUI.L["Ratchet"])
+	elseif key == "campNearby" then
+		return Options:CampNearbyText()
 	end
 
 	return Options:Text(key)
@@ -382,7 +384,7 @@ function Notifications:Apply()
 			local slot = Options:Notice(line.key).slot
 
 			if line.sample or (slot ~= "durability" and slot ~= "legacyPoints" and slot ~= "tracking"
-				and slot ~= "flightPoint") then
+				and slot ~= "flightPoint" and slot ~= "campNearby") then
 				line:SetText(line.sample and self:SampleText(line.key) or Options:Text(line.key))
 			end
 		end
@@ -397,6 +399,7 @@ function Notifications:Apply()
 	AUI.HealthNotice:Apply()
 	AUI.TrackingNotice:Apply()
 	AUI.FlightPointNotice:Apply()
+	AUI.CampfireNotice:Apply()
 end
 
 ---@param path string? the changed setting; nil when the whole profile changed
