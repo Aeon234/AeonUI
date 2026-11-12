@@ -345,6 +345,8 @@ end
 function Notifications:SampleText(key)
 	if key == "durability" then
 		return Options:DurabilityText(key, AUI.Profile:Get(Options.DURABILITY_PATH) - 1)
+	elseif key == "legacyPoints" then
+		return Options:LegacyPointsText(2)
 	elseif key == "tracking" then
 		return Options:TrackingText({ AUI.L["Herbs"], AUI.L["Minerals"] })
 	elseif key == "flightPoint" then
@@ -379,7 +381,8 @@ function Notifications:Apply()
 
 			local slot = Options:Notice(line.key).slot
 
-			if line.sample or (slot ~= "durability" and slot ~= "tracking" and slot ~= "flightPoint") then
+			if line.sample or (slot ~= "durability" and slot ~= "legacyPoints" and slot ~= "tracking"
+				and slot ~= "flightPoint") then
 				line:SetText(line.sample and self:SampleText(line.key) or Options:Text(line.key))
 			end
 		end

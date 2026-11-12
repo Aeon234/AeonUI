@@ -48,6 +48,7 @@ local Options = {
 		{ key = "petPassive", slot = "petStance", text = L["Pet Passive"], color = { r = 0.882, g = 0.882, b = 0.882 } },
 		{ key = "petHealth", slot = "petHealth", text = L["Pet Low Health"], color = { r = 1, g = 0.3, b = 0.3 } },
 		{ key = "talents", slot = "talents", text = L["Unspent Talent Points"], color = { r = 1, g = 0.82, b = 0 } },
+		{ key = "legacyPoints", slot = "legacyPoints", text = L["Unspent Legacy Points"], color = { r = 1, g = 0.82, b = 0 } },
 		{ key = "durability", slot = "durability", text = L["Low Durability"], color = { r = 1, g = 0.27, b = 0.27 } },
 		{ key = "tracking", slot = "tracking", text = L["Not Tracking"], color = { r = 1, g = 0.6, b = 0.2 } },
 		{ key = "flightPoint", slot = "flightPoint", text = L["Learn Flight Point"], color = { r = 0.4, g = 0.8, b = 1 } },
@@ -55,7 +56,8 @@ local Options = {
 	-- Pet Low Health and Low Health come last: their lines stay shown at no opacity while health is above the mark, so
 	-- they hold no room between other lines. The player's own is the very last, the one that never leaves a gap.
 	SLOTS = {
-		"combat", "potion", "pet", "petStance", "talents", "durability", "tracking", "flightPoint", "petHealth", "health",
+		"combat", "potion", "pet", "petStance", "talents", "legacyPoints", "durability", "tracking", "flightPoint",
+		"petHealth", "health",
 	},
 	FONT_PATH = "notifications.font",
 	SIZE_PATH = "notifications.size",
@@ -263,6 +265,12 @@ end
 ---@return string text Low Durability's text with the lowest durability
 function Options:DurabilityText(key, percent)
 	return ("%s (%d%%)"):format(self:Text(key), percent)
+end
+
+---@param points number
+---@return string text Unspent Legacy Points' text with the points to spend
+function Options:LegacyPointsText(points)
+	return ("%s (%d)"):format(self:Text("legacyPoints"), points)
 end
 
 -- A cooldown at most this long is the global cooldown, not the potion's own.

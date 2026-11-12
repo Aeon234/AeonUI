@@ -3,8 +3,8 @@
 -- replacing each other in their order, timed notices fading after the duration, reminders staying, samples kept apart
 -- from live notices, a restyle on each change); Entering and Leaving Combat with the grace that keeps a brief drop out
 -- of combat quiet; Pet Missing, Pet Passive and Pet Low Health (spells, Lone Wolf, Marksmanship, Grimoire of Sacrifice
--- with a secret aura, the places they apply, dismounting's grace, the health curve); Unspent Talent Points and Low
--- Durability out of combat; Potion Ready from a bag potion's cast, its cooldown waited out, a secret one ignored; and
+-- with a secret aura, the places they apply, dismounting's grace, the health curve); Unspent Talent Points, Unspent
+-- Legacy Points and Low Durability out of combat; Potion Ready from a bag potion's cast, its cooldown waited out, a secret one ignored; and
 -- every event followed only while a notice needs it.
 -- Run from any directory with Lua 5.1: lua Tools/check_notifications.lua
 -- Loads the real files against the shared stub client. Exits non-zero on the first failed check.
@@ -43,6 +43,7 @@ end)
 local known, instance, mounted, vehicle, taxi, dead = {}, false, false, false, false, false
 local pet, petDead, passive, spec, sacrificeAura, aurasSecret = true, false, false, nil, nil, false
 local petHealth, unspent, durability = 1, false, {}
+local renown, legacyConfig, legacyPoints = 0, nil, 0
 local playerHealth, trackings, form = 1, {}, nil
 local bags, cooldowns = {}, {}
 
@@ -141,6 +142,22 @@ end
 C_ClassTalents = { HasUnspentTalentPoints = function()
 	return unspent, 0, 0
 end }
+Constants = { LegacyConsts = { LEGACY_REWARD_TRACK_FACTION_ID = 2802, LEGACY_POINTS_TRAIT_CURRENCY_ID = 4225,
+	LEGACY_TREE_PROFESSIONS_ID = 1187 } }
+C_MajorFactions = { GetCurrentRenownLevel = function(faction)
+	return faction == 2802 and renown or 0
+end }
+C_Traits = {
+	GetConfigIDByTreeID = function(tree)
+		return tree == 1187 and legacyConfig or nil
+	end,
+	GetTreeCurrencyInfo = function(config, tree)
+		assert(config == legacyConfig and tree == 1187)
+
+		return { { traitCurrencyID = 1, quantity = 9, spent = 0 },
+			{ traitCurrencyID = 4225, quantity = legacyPoints, spent = 0 } }
+	end,
+}
 function GetInventoryItemDurability(slot)
 	local piece = durability[slot]
 
@@ -309,9 +326,10 @@ for _, notice in ipairs(Options.NOTICES) do
 	defaults[#defaults + 1] = notice.key .. "=" .. tostring(AUI.Profile:Get(Options:Path(notice.key, "enabled")))
 end
 Equal("every notice off by default", table.concat(defaults, " "), "enter=false leave=false lowHealth=false "
-	.. "potion=false petMissing=false petPassive=false petHealth=false talents=false durability=false tracking=false flightPoint=false")
+	.. "potion=false petMissing=false petPassive=false petHealth=false talents=false legacyPoints=false durability=false "
+	.. "tracking=false flightPoint=false")
 Equal("Low Health is the stack's last slot, Pet Low Health just above it", Options:SlotOrder("health") .. " "
-	.. Options:SlotOrder("petHealth") .. " " .. #Options.SLOTS, "10 9 10")
+	.. Options:SlotOrder("petHealth") .. " " .. #Options.SLOTS, "11 10 11")
 Equal("Low Health shows below 35% by default", AUI.Profile:Get(Options.LOW_HEALTH_PATH), 35)
 
 local hunter, dwarfPaladin = {}, {}
@@ -553,6 +571,28 @@ Fire("PLAYER_REGEN_ENABLED")
 unspent = false
 Fire("TRAIT_CONFIG_UPDATED")
 Equal("gone once spent", Shown(), "")
+Set(Options:Path("talents", "enabled"), false)
+On("legacyPoints")
+Equal("Legacy points off the client: not followed", tostring(eventFrame.events.TRAIT_TREE_CURRENCY_INFO_UPDATED), "nil")
+Set(Options:Path("legacyPoints", "enabled"), false)
+AUI.can.legacyNotice = true
+legacyPoints = 3
+On("legacyPoints")
+Equal("no Legacy renown yet: nothing", Shown(), "")
+renown, legacyConfig = 1, 77
+Fire("MAJOR_FACTION_RENOWN_LEVEL_CHANGED")
+Equal("Unspent Legacy Points with the count", Shown(), "Unspent Legacy Points (3)")
+Fire("PLAYER_REGEN_DISABLED")
+Equal("hidden in combat", Shown(), "")
+Fire("PLAYER_REGEN_ENABLED")
+legacyPoints = 0
+Fire("TRAIT_TREE_CURRENCY_INFO_UPDATED")
+Equal("gone once spent", Shown(), "")
+Set(Options:Path("legacyPoints", "enabled"), false)
+Equal("off: Legacy events no longer followed", tostring(eventFrame.events.TRAIT_TREE_CURRENCY_INFO_UPDATED)
+	.. tostring(eventFrame.events.PLAYER_LEVEL_UP), "nilnil")
+AUI.can.legacyNotice = nil
+On("talents")
 durability = { [1] = { 30, 100 }, [5] = { 90, 100 } }
 On("durability")
 Equal("Low Durability with the lowest", Shown(), "Low Durability (30%)")

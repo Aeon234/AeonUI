@@ -15,6 +15,7 @@ local LABELS = {
 	petPassive = L["Pet Passive"],
 	petHealth = L["Pet Low Health"],
 	talents = L["Unspent Talent Points"],
+	legacyPoints = L["Unspent Legacy Points"],
 	durability = L["Low Durability"],
 	tracking = TRACKING,
 	flightPoint = L["Flight Points"],
@@ -24,6 +25,7 @@ local LINES = {
 	petPassive = L["In combat or in instances."],
 	petHealth = L["In combat or in instances."],
 	talents = L["Out of combat."],
+	legacyPoints = L["Out of combat."],
 	durability = L["Out of combat."],
 	tracking = L["Outside instances."],
 	flightPoint = L["Out of combat."],
@@ -256,7 +258,8 @@ end
 function SettingsNotifications:DeclareCharacter(page)
 	local can = AUI.can
 
-	if not (can.talentNotice or can.durabilityNotice or can.trackingNotice or can.flightPointNotice) then
+	if not (can.talentNotice or can.legacyNotice or can.durabilityNotice or can.trackingNotice
+		or can.flightPointNotice) then
 		return
 	end
 
@@ -264,6 +267,10 @@ function SettingsNotifications:DeclareCharacter(page)
 
 	if can.talentNotice then
 		DeclareNotice(card, "talents")
+	end
+
+	if can.legacyNotice then
+		DeclareNotice(card, "legacyPoints")
 	end
 
 	if can.durabilityNotice then

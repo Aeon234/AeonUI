@@ -811,7 +811,7 @@ Equal("Notifications follows Alerts, with its icon and no switch", notifications
 	.. tostring(notificationsPage.info.switch), "qualityOfLifeHeader true nil")
 Equal("without the clients' extras: Text and Combat", NoticeCards(notificationsPage),
 	"Text: font size outline | Combat: enter enterText leave leaveText duration")
-for _, flag in ipairs({ "potionNotice", "petNotices", "petHealthNotice", "talentNotice", "durabilityNotice",
+for _, flag in ipairs({ "potionNotice", "petNotices", "petHealthNotice", "talentNotice", "legacyNotice", "durabilityNotice",
 	"lowHealthNotice", "trackingNotice" }) do
 	AUI.can[flag] = true
 end
@@ -828,7 +828,7 @@ notificationsPage = window.pages.notifications
 Equal("every card, a line only for a constraint", NoticeCards(notificationsPage),
 	"Text: font size outline | Combat: enter enterText leave leaveText lowHealth lowHealthText potion potionText "
 	.. "duration | Pet: petMissing+ petMissingText petPassive+ petPassiveText petHealth+ petHealthText | "
-	.. "Character: talents+ talentsText durability+ durabilityText tracking+ trackingText")
+	.. "Character: talents+ talentsText legacyPoints+ legacyPointsText durability+ durabilityText tracking+ trackingText")
 local combatCard, characterCard = notificationsPage.sections.notificationsCombat, notificationsPage.sections.notificationsCharacter
 Equal("Low Health's mark, 35% by default", combatCard.settings.lowHealthText_below.min .. "-"
 	.. combatCard.settings.lowHealthText_below.max .. " " .. combatCard.settings.lowHealthText_below.default, "5-90 35")
@@ -852,7 +852,7 @@ Equal("Pet Low Health's mark, in its Text row", petCard.settings.petHealthText_b
 	.. petCard.settings.petHealthText_below.format, "Show Below 5-90 percent")
 Equal("the Text row reads the notice's text", petCard.settings.petHealthText.summary(), "Pet Low Health")
 Equal("Low Durability's mark", notificationsPage.sections.notificationsCharacter.settings.durabilityText_below.min, 10)
-for _, flag in ipairs({ "potionNotice", "petNotices", "petHealthNotice", "talentNotice", "durabilityNotice",
+for _, flag in ipairs({ "potionNotice", "petNotices", "petHealthNotice", "talentNotice", "legacyNotice", "durabilityNotice",
 	"lowHealthNotice", "trackingNotice" }) do
 	AUI.can[flag] = nil
 end
