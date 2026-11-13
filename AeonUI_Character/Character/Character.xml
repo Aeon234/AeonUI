@@ -2,6 +2,7 @@
 	<Script file="Options.lua" />
 	<Script file="Layout.lua" />
 	<Script file="Gear.lua" />
+	<Script file="Slots.lua" />
 	<Script file="Frame.lua" />
 	<Script file="Character.lua" />
 </Ui>

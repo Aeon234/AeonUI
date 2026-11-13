@@ -6,3 +6,4 @@ AUI.L = L
 
 -- Slots (Character)
 L["Enchanted"] = "Enchanted"
+L["No Enchant"] = "No Enchant"

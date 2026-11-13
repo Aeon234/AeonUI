@@ -1,7 +1,8 @@
 -- Checks AeonUI_Character outside the game: the settings fields' defaults, enchantable slots, each class's main stat,
 -- the durability colors, the equipped average, money text, the extended layout with and without the model and gauges,
 -- each slot's item against stubbed item APIs and the gear summary, the extended frame on a stand-in character frame
--- (each tab, Blizzard's right pane toggle, the model, combat, off, the Gamepad style, on again),
+-- (each tab, Blizzard's right pane toggle, the model, combat, off, the Gamepad style, on again), the dressed slots
+-- (outline, item level, name and enchant, empty slots, gauges, a held item, a fade, and their restore),
 -- the page and its place, and nothing hooked or created on a client without the feature. Drawing and the real character
 -- panel are not exercised.
 -- Run from any directory with Lua 5.1: lua Tools/check_character.lua
@@ -15,9 +16,9 @@ local Equal = client.Equal
 
 CHARACTER = "Character"
 SlashCmdList = {}
-GREEN_FONT_COLOR = { name = "green" }
-YELLOW_FONT_COLOR = { name = "yellow" }
-RED_FONT_COLOR = { name = "red" }
+GREEN_FONT_COLOR = { name = "green", r = 0, g = 1, b = 0 }
+YELLOW_FONT_COLOR = { name = "yellow", r = 1, g = 1, b = 0 }
+RED_FONT_COLOR = { name = "red", r = 1, g = 0, b = 0 }
 ENCHANTED_TOOLTIP_LINE = "Enchanted: %s"
 NORMAL_FONT_COLOR = { name = "gold" }
 function UnitPVPName(unit)
@@ -82,7 +83,31 @@ for slot, name in pairs(SLOT_BUTTONS) do
 	local button = CreateFrame("Button", name, PaperDollFrame)
 	button:SetSize(40, 40)
 	button:SetPoint("TOPLEFT", CharacterFrame.LeftPaneHost, "TOPLEFT", slot, -60 - slot)
+	button:SetID(slot)
+	button.icon = button:CreateTexture()
+	button.icon:SetTexCoord(0, 1, 0, 1)
+	button.IconBorder = button:CreateTexture()
+	if slot == 0 then
+		button.slotFrame = button:CreateTexture()
+		button.slotFrame:SetAtlas("UI-Character-Info-GearSlotSmall")
+	else
+		button.BorderFrame = CreateFrame("Frame", nil, button)
+	end
+	_G[name:sub(10):upper()] = name:sub(10, -5)
 end
+-- Blizzard's update: the icon untinted, as for an empty or unbroken item.
+function PaperDollItemSlotButton_Update(button)
+	button.icon:SetVertexColor(1, 1, 1)
+	button.icon:SetTexCoord(0, 1, 0, 1)
+end
+ITEM_QUALITY_COLORS = { [2] = { r = 0.1, g = 1, b = 0 }, [3] = { r = 0, g = 0.44, b = 0.87 } }
+local holding, fits = false, {}
+function CursorHasItem()
+	return holding
+end
+C_PaperDollInfo = { CursorCanGoInSlot = function(slot)
+	return fits[slot] == true
+end }
 CharacterAmmoSlot:SetSize(27, 27)
 Enum = { TooltipDataLineType = { ItemEnchantmentPermanent = 15 } }
 
@@ -96,6 +121,11 @@ function GetInventoryItemLink(unit, slot)
 	assert(unit == "player")
 
 	return worn[slot] and worn[slot].link
+end
+function GetInventoryItemTexture(unit, slot)
+	assert(unit == "player")
+
+	return worn[slot] and (worn[slot].texture or 134400)
 end
 function GetInventoryItemQuality(_, slot)
 	return worn[slot] and worn[slot].quality
@@ -169,7 +199,7 @@ AUI.Profile = {
 }
 
 for _, file in ipairs({ "AeonUI_Character/Character/Options.lua", "AeonUI_Character/Character/Layout.lua",
-	"AeonUI_Character/Character/Gear.lua", "AeonUI_Character/Character/Frame.lua",
+	"AeonUI_Character/Character/Gear.lua", "AeonUI_Character/Character/Slots.lua", "AeonUI_Character/Character/Frame.lua",
 	"AeonUI_Character/Character/Character.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
@@ -406,7 +436,7 @@ client.hooks = 0
 AUI.can.characterPanel = true
 values[Options.ENABLED_PATH] = nil
 Set(Options.ENABLED_PATH, true)
-Equal("the frame's methods hooked once the feature is on", client.hooks, 2)
+Equal("the frame's methods and the slot update hooked once the feature is on", client.hooks, 3)
 
 CharacterFrame:Show()
 CharacterFrame:UpdateSize()
@@ -475,13 +505,128 @@ Equal("nothing changed under the Gamepad style", Native(), true)
 gamepad = false
 Set(Options.ENABLED_PATH, true)
 Equal("on again", Size(), "867x504")
-Equal("hooks installed once", client.hooks, 2)
+Equal("hooks installed once", client.hooks, 3)
 
 CharacterFrame:Hide()
 Set(Options.ENABLED_PATH, false)
 Equal("a closed panel restored too", Native(), true)
 Set(Options.ENABLED_PATH, true)
 Equal("a closed panel is left until it opens", Native(), true)
+
+-- Slots ---------------------------------------------------------------------------------------------------
+
+local Slots = AUI.CharacterSlots
+local TEXTURES = "Interface\\AddOns\\AeonUI\\Media\\Textures\\"
+
+local function Part(button, key)
+	return Slots.parts[button] and Slots.parts[button][key]
+end
+
+local function Color(region)
+	return table.concat(region.vertex or region.textColor or {}, " ")
+end
+
+local function Shown(region)
+	return region ~= nil and region:IsShown()
+end
+
+CharacterFrame:Show()
+CharacterFrame:UpdateSize()
+Equal("the slots painted as the panel widens", Shown(Part(CharacterHeadSlot, "outline")), true)
+
+do
+local helm, chest, wrists, shirt = CharacterHeadSlot, CharacterChestSlot, CharacterWristSlot, CharacterShirtSlot
+PaperDollItemSlotButton_Update(helm)
+Equal("a filled slot's outline, 2 units", Part(helm, "outline"):GetTexture(), TEXTURES .. "QualityOutline2")
+Equal("in its quality's color", Color(Part(helm, "outline")), "0 0.44 0.87")
+Equal("its shadow", Part(helm, "shadow"):GetTexture() .. " " .. tostring(Part(helm, "shadow"):IsShown()),
+	TEXTURES .. "QualityShadow true")
+Equal("its inner shade", Part(helm, "shade"):GetTexture() .. " " .. tostring(Part(helm, "shade"):IsShown()),
+	TEXTURES .. "IconShade true")
+Equal("the icon cropped", table.concat({ helm.icon:GetTexCoord() }, " "), "0.08 0.92 0.08 0.92")
+Equal("Blizzard's border and slot frame clear", helm.IconBorder:GetAlpha() .. " " .. helm.BorderFrame:GetAlpha(), "0 0")
+Equal("the item level on the icon", Part(helm, "level"):GetText(), "41")
+Equal("the name", Part(helm, "name"):GetText(), "Helm of the Bulwark")
+Equal("in its quality's color", Color(Part(helm, "name")), "0 0.44 0.87")
+Equal("the name beside the icon, text toward the middle", Part(helm, "name").justifyH, "LEFT")
+Equal("no enchant line on the head", Shown(Part(helm, "enchant")), false)
+
+PaperDollItemSlotButton_Update(chest)
+Equal("the chest's enchant", Part(chest, "enchant"):GetText(), "+4 All Stats")
+Equal("in green", Color(Part(chest, "enchant")), "0 1 0")
+PaperDollItemSlotButton_Update(CharacterHandsSlot)
+Equal("the hands' text left of the icon", Part(CharacterHandsSlot, "name").justifyH, "RIGHT")
+Equal("enchantable and bare", Part(CharacterHandsSlot, "enchant"):GetText(), "No Enchant")
+Equal("in red", Color(Part(CharacterHandsSlot, "enchant")), "1 0 0")
+
+PaperDollItemSlotButton_Update(shirt)
+Equal("an empty slot keeps Blizzard's frame shape", Part(shirt, "outline"):GetTexture(),
+	"Interface\\Common\\WhiteIconFrame")
+Equal("in dark gray", Color(Part(shirt, "outline")), "0.23 0.23 0.24")
+Equal("its icon a dark well", Color(shirt.icon) .. " " .. shirt.icon:GetAlpha(), "0 0 0 0.55")
+Equal("its slot's name", Part(shirt, "name"):GetText(), "Shirt")
+Equal("in gray", Color(Part(shirt, "name")), "0.5 0.5 0.5")
+Equal("no shadow, shade, level or enchant", tostring(Shown(Part(shirt, "shadow"))) .. tostring(Shown(Part(shirt,
+	"shade"))) .. tostring(Shown(Part(shirt, "level"))) .. tostring(Shown(Part(shirt, "enchant"))), "falsefalsefalsefalse")
+worn[0] = { texture = 132382, quality = 1 }
+local ammo = CharacterAmmoSlot
+PaperDollItemSlotButton_Update(ammo)
+Equal("the ammo slot has no text", Shown(Part(ammo, "name")), false)
+Equal("ammo, worn without a link, is a filled slot", Part(ammo, "outline"):GetTexture() .. " " .. ammo.icon:GetAlpha(),
+	TEXTURES .. "QualityOutline2 1")
+Equal("in white for a quality without a color", Color(Part(ammo, "outline")), "1 1 1")
+Equal("its small slot frame cleared", rawget(ammo, "slotFrame"):GetAlpha(), 0)
+
+Set(Options.QUALITY_BORDER_PATH, "THICK")
+Equal("Thick, 3 units", Part(helm, "outline"):GetTexture(), TEXTURES .. "QualityOutline3")
+Set(Options.ITEM_LEVEL_PATH, false)
+Equal("no item level when off", Shown(Part(helm, "level")), false)
+Set(Options.ENCHANTS_PATH, false)
+Equal("no enchant line when off", Shown(Part(chest, "enchant")), false)
+Equal("no gauge by default", Shown(Part(chest, "gauge")), false)
+Set(Options.GAUGES_PATH, true)
+Equal("the chest's gauge, two thirds full", Shown(Part(chest, "gauge")) and Part(chest, "fill").height, 40 * (30 / 45))
+Equal("in green", Color(Part(chest, "fill")), "0 1 0")
+Equal("the broken wrists' gauge empty, in red", Part(wrists, "fill").height .. " " .. Color(Part(wrists, "fill")), "0 1 0 0")
+Equal("none for the empty shirt", Shown(Part(shirt, "gauge")), false)
+Set(Options.GAUGES_PATH, false)
+Set(Options.ENCHANTS_PATH, true)
+Set(Options.ITEM_LEVEL_PATH, true)
+Set(Options.QUALITY_BORDER_PATH, "NORMAL")
+
+holding, fits = true, { [11] = true, [12] = true }
+client:Fire("CURSOR_CHANGED")
+client:RunTimers()
+Equal("holding a ring, the finger slots stay", CharacterFinger0Slot:GetAlpha() .. " " .. CharacterFinger1Slot:GetAlpha(),
+	"1 1")
+Equal("the rest dim", helm:GetAlpha(), 0.55)
+holding, fits = false, {}
+client:Fire("CURSOR_CHANGED")
+client:RunTimers()
+Equal("put down, all back", helm:GetAlpha(), 1)
+
+Slots:SetFade(function(slot)
+	return slot == 9
+end, 0.3)
+Equal("a fade keeps the slots it names", wrists:GetAlpha() .. " " .. helm:GetAlpha(), "1 0.3")
+Slots:SetFade(nil)
+Equal("and clears", helm:GetAlpha(), 1)
+
+CharacterFrame.activeSubframe = "ReputationFrame"
+CharacterFrame:UpdateSize()
+Equal("another tab restores the slots", tostring(Shown(Part(helm, "overlay"))) .. " " .. table.concat({
+	helm.icon:GetTexCoord() }, " ") .. " " .. helm.IconBorder:GetAlpha() .. " " .. helm.BorderFrame:GetAlpha(),
+	"false 0 1 0 1 1 1")
+Equal("the empty well undone", Color(shirt.icon) .. " " .. shirt.icon:GetAlpha(), "1 1 1 1")
+Equal("the ammo slot's frame back", rawget(CharacterAmmoSlot, "slotFrame"):GetAlpha(), 1)
+PaperDollItemSlotButton_Update(helm)
+Equal("Blizzard's updates leave other tabs alone", Shown(Part(helm, "overlay")), false)
+CharacterFrame.activeSubframe = "PaperDollFrame"
+CharacterFrame:UpdateSize()
+Set(Options.ENABLED_PATH, false)
+Equal("off restores them too", Shown(Part(helm, "overlay")), false)
+Equal("and stops following the cursor", AUI.Callbacks:Count("event:CURSOR_CHANGED"), 0)
+end
 
 Equal("no Lua error in the run", errors[1], nil)
 

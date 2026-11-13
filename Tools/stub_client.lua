@@ -633,9 +633,16 @@ local Frame = Type(ScriptRegion, {
 		return self.level
 	end,
 	CreateTexture = function(self)
-		client.texturesMade = client.texturesMade + 1
+		local texture = setmetatable({ parent = self, shown = true, alpha = 1, points = {}, scripts = {} }, Texture)
 
-		return setmetatable({ parent = self, shown = true, alpha = 1, points = {}, scripts = {} }, Texture)
+		client.texturesMade = client.texturesMade + 1
+		self.regions = self.regions or {}
+		self.regions[#self.regions + 1] = texture
+
+		return texture
+	end,
+	GetRegions = function(self)
+		return unpack(self.regions or {})
 	end,
 	CreateFontString = function(self, _, _, template)
 		return setmetatable({

@@ -21,6 +21,18 @@ local Schema = AUI.Schema
 ---@field RIGHT_SLOTS integer[] the right column, top to bottom
 ---@field WEAPON_SLOTS integer[] main hand, off hand, ranged
 ---@field AMMO_SLOT integer the ammo slot's ID
+---@field SLOT_BUTTONS table<integer, string> Blizzard's slot buttons by slot ID, the ammo slot at `AMMO_SLOT`
+---@field OUTLINES table<string, string> the quality outline's texture for each Quality Border choice
+---@field SHADOW string the outline's soft shadow, 80 units across
+---@field SHADE string the icon's inner shade
+---@field EMPTY_FRAME string the frame an empty slot keeps
+---@field EMPTY_COLOR number[] the empty slot's frame
+---@field EMPTY_TEXT number[] the empty slot's name
+---@field ICON_CROP number trimmed from each side of an item's icon, as a texture coordinate
+---@field SHADOW_ALPHA number
+---@field SHADE_ALPHA number
+---@field WELL_ALPHA number the empty slot's darkened icon
+---@field DIM number a slot the held item does not fit
 local Options = {
 	ENABLED_PATH = "character.enabled",
 	SHOW_MODEL_PATH = "character.showModel",
@@ -38,6 +50,42 @@ local Options = {
 	RIGHT_SLOTS = { 10, 6, 7, 8, 11, 12, 13, 14 },
 	WEAPON_SLOTS = { 16, 17, 18 },
 	AMMO_SLOT = 0,
+	SLOT_BUTTONS = {
+		[1] = "CharacterHeadSlot",
+		[2] = "CharacterNeckSlot",
+		[3] = "CharacterShoulderSlot",
+		[4] = "CharacterShirtSlot",
+		[5] = "CharacterChestSlot",
+		[6] = "CharacterWaistSlot",
+		[7] = "CharacterLegsSlot",
+		[8] = "CharacterFeetSlot",
+		[9] = "CharacterWristSlot",
+		[10] = "CharacterHandsSlot",
+		[11] = "CharacterFinger0Slot",
+		[12] = "CharacterFinger1Slot",
+		[13] = "CharacterTrinket0Slot",
+		[14] = "CharacterTrinket1Slot",
+		[15] = "CharacterBackSlot",
+		[16] = "CharacterMainHandSlot",
+		[17] = "CharacterSecondaryHandSlot",
+		[18] = "CharacterRangedSlot",
+		[19] = "CharacterTabardSlot",
+		[0] = "CharacterAmmoSlot",
+	},
+	OUTLINES = {
+		NORMAL = "Interface\\AddOns\\AeonUI\\Media\\Textures\\QualityOutline2",
+		THICK = "Interface\\AddOns\\AeonUI\\Media\\Textures\\QualityOutline3",
+	},
+	SHADOW = "Interface\\AddOns\\AeonUI\\Media\\Textures\\QualityShadow",
+	SHADE = "Interface\\AddOns\\AeonUI\\Media\\Textures\\IconShade",
+	EMPTY_FRAME = "Interface\\Common\\WhiteIconFrame",
+	EMPTY_COLOR = { 0.23, 0.23, 0.24 },
+	EMPTY_TEXT = { 0.5, 0.5, 0.5 },
+	ICON_CROP = 0.08,
+	SHADOW_ALPHA = 0.35,
+	SHADE_ALPHA = 0.55,
+	WELL_ALPHA = 0.55,
+	DIM = 0.55,
 }
 AUI.CharacterOptions = Options
 

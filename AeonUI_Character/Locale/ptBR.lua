@@ -6,3 +6,4 @@ local L = select(2, ...).L
 
 -- Slots (Character)
 L["Enchanted"] = "Encantado"
+L["No Enchant"] = "Sem encantamento"

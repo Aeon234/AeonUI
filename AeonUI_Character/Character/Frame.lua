@@ -2,29 +2,7 @@ local AUI = select(2, ...)
 
 local Options, Layout = AUI.CharacterOptions, AUI.CharacterLayout
 
--- Blizzard's slot buttons by slot ID, the ammo slot at `Options.AMMO_SLOT`.
-local SLOT_BUTTONS = {
-	[1] = "CharacterHeadSlot",
-	[2] = "CharacterNeckSlot",
-	[3] = "CharacterShoulderSlot",
-	[4] = "CharacterShirtSlot",
-	[5] = "CharacterChestSlot",
-	[6] = "CharacterWaistSlot",
-	[7] = "CharacterLegsSlot",
-	[8] = "CharacterFeetSlot",
-	[9] = "CharacterWristSlot",
-	[10] = "CharacterHandsSlot",
-	[11] = "CharacterFinger0Slot",
-	[12] = "CharacterFinger1Slot",
-	[13] = "CharacterTrinket0Slot",
-	[14] = "CharacterTrinket1Slot",
-	[15] = "CharacterBackSlot",
-	[16] = "CharacterMainHandSlot",
-	[17] = "CharacterSecondaryHandSlot",
-	[18] = "CharacterRangedSlot",
-	[19] = "CharacterTabardSlot",
-	[0] = "CharacterAmmoSlot",
-}
+local SLOT_BUTTONS = Options.SLOT_BUTTONS
 local SLOT_SIZE = 40
 -- The race backdrop's textures on Blizzard's model scene, anchored to the scene.
 local BACKDROP = { "BackgroundTopLeft", "BackgroundTopRight", "BackgroundBotLeft", "BackgroundBotRight" }
@@ -39,6 +17,7 @@ local LEVEL_Y = -11 -- Blizzard's level line, moved below the name
 ---@field extended boolean
 ---@field nameText FontString? the character's name, top center of the left pane
 ---@field backdrop Frame? where Blizzard's model scene sits, holding its race backdrop while the scene is narrowed
+---@field layout AUICharacterLayoutResult? the layout the slots are placed by, while extended
 ---@field saved table recorded points and sizes of Blizzard's frames, by frame
 local Window = {
 	hooked = false,
@@ -157,6 +136,8 @@ function Window:Extend()
 	PaperDollLevelInfo:SetPoint("CENTER", PaperDollFrame.TopBackgroundStripHost, "CENTER", 0, LEVEL_Y)
 
 	self.extended = true
+	self.layout = layout
+	AUI.CharacterSlots:PaintAll()
 end
 
 ---Puts back everything `Extend` changed. When `native` is set, also Blizzard's own frame size, for a change the
@@ -168,6 +149,8 @@ function Window:Restore(native)
 	end
 
 	self.extended = false
+	self.layout = nil
+	AUI.CharacterSlots:Restore()
 	Restore(CharacterFrame.LeftPaneHost)
 	for _, name in pairs(SLOT_BUTTONS) do
 		Restore(_G[name])
@@ -211,6 +194,7 @@ function Window:Hook()
 	end
 
 	self.hooked = true
+	AUI.CharacterSlots:Hook()
 	hooksecurefunc(CharacterFrame, "UpdateSize", function()
 		Window:OnUpdateSize()
 	end)
