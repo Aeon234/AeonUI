@@ -894,9 +894,33 @@ local FRAME_TYPES = {
 	Minimap = Minimap,
 	AuraContainer = AuraContainer,
 	AuraButton = AuraButton,
+	EventFrame = Frame,
 }
+-- A template's methods are copied onto each frame made from it; `build`, when present, then adds its child regions.
 local TEMPLATES = {
 	CooldownFrameTemplate = {},
+	MinimalScrollBar = {},
+	WowScrollBoxList = {
+		SetDataProvider = State(function(self, provider, retain)
+			self.dataProvider, self.retained = provider, retain
+		end),
+		GetDataProvider = function(self)
+			return self.dataProvider
+		end,
+		RegisterCallback = State(function(self, event, callback, owner)
+			self.callbacks = self.callbacks or {}
+			self.callbacks[event] = { callback = callback, owner = owner }
+		end),
+		SetEdgeFadeLength = State(function(self, length)
+			self.edgeFade = length
+		end),
+	},
+	CharacterStatFrameCategoryTemplate = {
+		build = function(self)
+			self.Background = self:CreateTexture()
+			self.Title = self:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+		end,
+	},
 	SecureActionButtonTemplate = {},
 	SearchBoxTemplate = {},
 	GameTooltipTemplate = {
@@ -977,8 +1001,15 @@ function CreateFrame(kind, name, parent, template)
 	client.frames[#client.frames + 1] = frame
 
 	if template then
-		for method, body in pairs(assert(TEMPLATES[template], "stub_client: no template " .. template)) do
-			frame[method] = body
+		local methods = assert(TEMPLATES[template], "stub_client: no template " .. template)
+
+		for method, body in pairs(methods) do
+			if method ~= "build" then
+				frame[method] = body
+			end
+		end
+		if methods.build then
+			methods.build(frame)
 		end
 	end
 

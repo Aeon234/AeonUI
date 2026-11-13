@@ -7,3 +7,6 @@ AUI.L = L
 -- Slots (Character)
 L["Enchanted"] = "Enchanted"
 L["No Enchant"] = "No Enchant"
+
+-- Item level (Character)
+L["Equipped items average %.1f (%d of %d slots)"] = "Equipped items average %.1f (%d of %d slots)"

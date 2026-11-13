@@ -24,6 +24,7 @@ function Character:Apply()
 	end
 
 	AUI.CharacterFrame:Apply()
+	AUI.CharacterStats:Apply()
 end
 
 ---@param path string? the changed setting; nil when the whole profile changed

@@ -20,7 +20,7 @@ GREEN_FONT_COLOR = { name = "green", r = 0, g = 1, b = 0 }
 YELLOW_FONT_COLOR = { name = "yellow", r = 1, g = 1, b = 0 }
 RED_FONT_COLOR = { name = "red", r = 1, g = 0, b = 0 }
 ENCHANTED_TOOLTIP_LINE = "Enchanted: %s"
-NORMAL_FONT_COLOR = { name = "gold" }
+NORMAL_FONT_COLOR = { name = "gold", r = 1, g = 0.82, b = 0 }
 function UnitPVPName(unit)
 	assert(unit == "player")
 
@@ -111,6 +111,66 @@ end }
 CharacterAmmoSlot:SetSize(27, 27)
 Enum = { TooltipDataLineType = { ItemEnchantmentPermanent = 15 } }
 
+-- Blizzard's stats list: its ScrollBox and ScrollBar, and `UpdateStats` filling `elementData` and a data provider.
+STAT_AVERAGE_ITEM_LEVEL = "Item Level"
+MIN_PLAYER_LEVEL_FOR_ITEM_LEVEL_DISPLAY = 10
+HIGHLIGHT_FONT_COLOR = { r = 1, g = 1, b = 1 }
+ScrollBoxConstants = { RetainScrollPosition = true }
+ScrollBoxListMixin = { Event = { OnUpdate = "OnUpdate" } }
+function CreateDataProvider(elements)
+	return { elements = elements }
+end
+function CreateScrollBoxListLinearView(...)
+	return { padding = { ... }, SetElementFactory = function(self, factory)
+		self.factory = factory
+	end }
+end
+ScrollUtil = { InitScrollBoxListWithScrollBar = function(scrollBox, scrollBar, view)
+	scrollBox.view, scrollBox.scrollBar = view, scrollBar
+end }
+local playerLevel, averageLevel, equippedLevel, secretStats = 19, 10, 10, false
+function UnitLevel(unit)
+	assert(unit == "player")
+
+	return playerLevel
+end
+function GetAverageItemLevel()
+	return averageLevel, equippedLevel, averageLevel
+end
+C_Secrets = { ShouldUnitStatsBeSecret = function()
+	return secretStats
+end }
+local tooltip = {}
+GameTooltip = tooltip
+function tooltip:SetOwner(owner)
+	self.owner, self.lines = owner, {}
+end
+function tooltip:SetText(text, r, g, b)
+	self.lines[1] = { text = text, color = { r, g, b } }
+end
+function tooltip:AddLine(text, r, g, b, wrap)
+	self.lines[#self.lines + 1] = { text = text, color = { r, g, b }, wrap = wrap }
+end
+function tooltip:Show()
+	self.shown = true
+end
+function GameTooltip_Hide()
+	tooltip.shown = false
+end
+CharacterStatsPaneScrollBox = CreateFrame("Frame", "CharacterStatsPaneScrollBox", CharacterFrame)
+CharacterStatsPaneScrollBox.ScrollBox = CreateFrame("Frame", nil, CharacterStatsPaneScrollBox, "WowScrollBoxList")
+CharacterStatsPaneScrollBox.ScrollBar = CreateFrame("EventFrame", nil, CharacterStatsPaneScrollBox, "MinimalScrollBar")
+function CharacterStatsPaneScrollBox:UpdateStats()
+	self.elementData = {
+		{ isHeader = true, name = "General" },
+		{ isHeader = false, unit = "player", name = "HEALTH", statIndex = 1 },
+		{ isHeader = false, unit = "player", name = "MOVESPEED", statIndex = 2 },
+		{ isHeader = true, name = "Resistance" },
+		{ isHeader = false, statIndex = 1, atlas = "fire", labelText = "Fire", valueText = "0" },
+	}
+	self.ScrollBox:SetDataProvider(CreateDataProvider(self.elementData), ScrollBoxConstants.RetainScrollPosition)
+end
+
 -- Equipped items by slot: link, quality, item level, equip location, durability and tooltip data (nil while the item
 -- is not cached).
 local worn = {}
@@ -199,7 +259,8 @@ AUI.Profile = {
 }
 
 for _, file in ipairs({ "AeonUI_Character/Character/Options.lua", "AeonUI_Character/Character/Layout.lua",
-	"AeonUI_Character/Character/Gear.lua", "AeonUI_Character/Character/Slots.lua", "AeonUI_Character/Character/Frame.lua",
+	"AeonUI_Character/Character/Gear.lua", "AeonUI_Character/Character/Slots.lua", "AeonUI_Character/Character/Stats.lua",
+	"AeonUI_Character/Character/Frame.lua",
 	"AeonUI_Character/Character/Character.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
@@ -436,7 +497,7 @@ client.hooks = 0
 AUI.can.characterPanel = true
 values[Options.ENABLED_PATH] = nil
 Set(Options.ENABLED_PATH, true)
-Equal("the frame's methods and the slot update hooked once the feature is on", client.hooks, 3)
+Equal("the frame's methods, the slot update and the stats list hooked once the feature is on", client.hooks, 4)
 
 CharacterFrame:Show()
 CharacterFrame:UpdateSize()
@@ -505,7 +566,7 @@ Equal("nothing changed under the Gamepad style", Native(), true)
 gamepad = false
 Set(Options.ENABLED_PATH, true)
 Equal("on again", Size(), "867x504")
-Equal("hooks installed once", client.hooks, 3)
+Equal("hooks installed once", client.hooks, 4)
 
 CharacterFrame:Hide()
 Set(Options.ENABLED_PATH, false)
@@ -626,6 +687,85 @@ CharacterFrame:UpdateSize()
 Set(Options.ENABLED_PATH, false)
 Equal("off restores them too", Shown(Part(helm, "overlay")), false)
 Equal("and stops following the cursor", AUI.Callbacks:Count("event:CURSOR_CHANGED"), 0)
+end
+
+-- Stats -------------------------------------------------------------------------------------------------
+
+do
+	local Stats = AUI.CharacterStats
+	local pane = CharacterStatsPaneScrollBox
+	local hooksBefore = client.hooks
+
+	Set(Options.ENABLED_PATH, true)
+	Equal("no second hook on the stats list", client.hooks - hooksBefore, 0)
+	pane:UpdateStats()
+
+	local blizzard = pane.ScrollBox:GetDataProvider()
+	local original = pane.elementData
+	local mirrored = Stats.ui.list:GetDataProvider().elements
+	local names = {}
+
+	for index, element in ipairs(mirrored) do
+		names[index] = element.name or element.labelText
+	end
+	Equal("the mirror holds Blizzard's elements in order", table.concat(names, " "), "General HEALTH MOVESPEED Resistance Fire")
+	Equal("as copies", mirrored[2] ~= original[2] and mirrored[2].statIndex == original[2].statIndex, true)
+	Equal("Blizzard's provider untouched", blizzard.elements == original and #original == 5, true)
+	mirrored[2].shouldRemove = true
+	Equal("a copy's flag stays off Blizzard's element", original[2].shouldRemove, nil)
+	Stats.ui.list.callbacks.OnUpdate.callback(Stats.ui.list.callbacks.OnUpdate.owner)
+	Equal("a flagged copy leaves the mirror", #Stats.ui.list:GetDataProvider().elements, 4)
+	Equal("Blizzard's list faded", pane.ScrollBox:GetAlpha() .. " " .. pane.ScrollBar:GetAlpha(), "0 0")
+	Equal("the mirror shown", Stats.ui.list:IsShown() and Stats.ui.bar:IsShown(), true)
+	Equal("Blizzard's row templates", Stats.ui.list.view ~= nil and Stats.ui.list.scrollBar == Stats.ui.bar, true)
+
+	Equal("the item level block under the tabs", select(5, Stats.ui.block:GetPoint(1)), 0)
+	Equal("its title", Stats.ui.title.Title:GetText(), "Item Level")
+	Equal("the equipped average, one decimal", Stats.ui.value:GetText(), "10.0")
+	Equal("the list below the block", select(5, Stats.ui.list:GetPoint(1)), -69)
+	Stats.ui.level:GetScript("OnEnter")(Stats.ui.level)
+	Equal("its hover title", tooltip.lines[1].text, "Item Level 10.0")
+	Equal("its note, the worn items' own average", tooltip.lines[2].text,
+		"Equipped items average 38.8 (4 of 17 slots)")
+	Equal("in gold", table.concat(tooltip.lines[2].color, " "), "1 0.82 0")
+
+	playerLevel = 9
+	pane:UpdateStats()
+	Equal("no block below level 10", Stats.ui.block:IsShown(), false)
+	Equal("the list up to Blizzard's place", select(5, Stats.ui.list:GetPoint(1)), -8)
+	playerLevel = 19
+
+	secretStats = true
+	client:Fire("ADDON_RESTRICTION_STATE_CHANGED", 1, 1)
+	Equal("read one frame later", Stats.ui.list:IsShown(), true)
+	client:RunTimers()
+	Equal("secret stats: the mirror out", Stats.ui.list:IsShown() or Stats.ui.block:IsShown(), false)
+	Equal("Blizzard's list in", pane.ScrollBox:GetAlpha() .. " " .. pane.ScrollBar:GetAlpha(), "1 1")
+	pane:UpdateStats()
+	Equal("and stays out while they are", Stats.ui.list:IsShown(), false)
+	secretStats = false
+	client:Fire("ADDON_RESTRICTION_STATE_CHANGED", 1, 0)
+	client:RunTimers()
+	Equal("back once they are not", Stats.ui.list:IsShown() and pane.ScrollBox:GetAlpha() == 0, true)
+
+	local rows = 0
+	Stats:AddRows(function(elements)
+		rows = rows + 1
+		table.insert(elements, 2, { isHeader = false, labelText = "Extra", statIndex = 1 })
+	end)
+	pane:UpdateStats()
+	Equal("added rows go into the mirror", Stats.ui.list:GetDataProvider().elements[2].labelText, "Extra")
+	Equal("never Blizzard's", #pane.elementData, 5)
+
+	Set(Options.ENABLED_PATH, false)
+	Equal("off: the mirror and block out", Stats.ui.list:IsShown() or Stats.ui.block:IsShown(), false)
+	Equal("Blizzard's list back", pane.ScrollBox:GetAlpha() .. " " .. pane.ScrollBar:GetAlpha(), "1 1")
+	pane:UpdateStats()
+	Equal("its updates leave it alone while off", Stats.ui.list:IsShown(), false)
+	Equal("no restriction listener while off", AUI.Callbacks:Count("event:ADDON_RESTRICTION_STATE_CHANGED"), 0)
+	Set(Options.ENABLED_PATH, true)
+	Equal("on again", Stats.ui.list:IsShown(), true)
+	Equal("hooked once", client.hooks - hooksBefore, 0)
 end
 
 Equal("no Lua error in the run", errors[1], nil)
