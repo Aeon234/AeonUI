@@ -1,6 +1,7 @@
 -- Checks AeonUI_Character outside the game: the settings fields' defaults, enchantable slots, each class's main stat,
 -- the durability colors, the equipped average, money text, the extended layout with and without the model and gauges,
--- each slot's item against stubbed item APIs and the gear summary,
+-- each slot's item against stubbed item APIs and the gear summary, the extended frame on a stand-in character frame
+-- (each tab, Blizzard's right pane toggle, the model, combat, off, the Gamepad style, on again),
 -- the page and its place, and nothing hooked or created on a client without the feature. Drawing and the real character
 -- panel are not exercised.
 -- Run from any directory with Lua 5.1: lua Tools/check_character.lua
@@ -18,6 +19,71 @@ GREEN_FONT_COLOR = { name = "green" }
 YELLOW_FONT_COLOR = { name = "yellow" }
 RED_FONT_COLOR = { name = "red" }
 ENCHANTED_TOOLTIP_LINE = "Enchanted: %s"
+NORMAL_FONT_COLOR = { name = "gold" }
+function UnitPVPName(unit)
+	assert(unit == "player")
+
+	return "Baraque Pecheloin"
+end
+
+local gamepad = false
+InputUtil = { IsGamepadUIEnabled = function()
+	return gamepad
+end }
+
+-- Blizzard's character frame as Forever builds it: the sizes, the left pane, the slot buttons and their anchors, the
+-- model, the level line, and the methods the feature hooks.
+CHARACTER_FRAME_WIDTH, CHARACTER_FRAME_COLLAPSED_WIDTH, CHARACTER_FRAME_HEIGHT = 631, 398, 484
+CharacterFrame = CreateFrame("Frame", "CharacterFrame")
+CharacterFrame:Hide()
+CharacterFrame.activeSubframe = "PaperDollFrame"
+CharacterFrame.LeftPaneHost = CreateFrame("Frame", "CharacterFrameLeftPaneHost", CharacterFrame)
+CharacterFrame.LeftPaneHost:SetWidth(398)
+function CharacterFrame:IsRightPaneCollapsed()
+	return self.rightPaneCollapsed == true
+end
+function CharacterFrame:UpdateSize()
+	local width = self:IsRightPaneCollapsed() and CHARACTER_FRAME_COLLAPSED_WIDTH or CHARACTER_FRAME_WIDTH
+	self:SetSize(width, CHARACTER_FRAME_HEIGHT)
+end
+function CharacterFrame:SetTitle(title)
+	self.title = title
+end
+function CharacterFrame:SetTitleColor(color)
+	self.titleColor = color
+end
+function CharacterFrame:UpdateTitle()
+	self:SetTitleColor({ name = "white" })
+	self:SetTitle(UnitPVPName("player"))
+end
+PaperDollFrame = CreateFrame("Frame", "PaperDollFrame", CharacterFrame)
+PaperDollFrame.TopBackgroundStripHost = CreateFrame("Frame", nil, PaperDollFrame)
+PaperDollLevelInfo = CreateFrame("Frame", "PaperDollLevelInfo", PaperDollFrame)
+PaperDollLevelInfo:SetPoint("CENTER", PaperDollFrame.TopBackgroundStripHost, "CENTER", 0, -2)
+CharacterModelScene = CreateFrame("Frame", "CharacterModelScene", PaperDollFrame)
+CharacterModelScene:SetPoint("TOPLEFT", PaperDollFrame.TopBackgroundStripHost, "BOTTOMLEFT")
+CharacterModelScene:SetPoint("BOTTOMRIGHT", CharacterFrame.LeftPaneHost, "BOTTOMRIGHT")
+for _, key in ipairs({ "BackgroundTopLeft", "BackgroundTopRight", "BackgroundBotLeft", "BackgroundBotRight" }) do
+	CharacterModelScene[key] = CharacterModelScene:CreateTexture()
+	CharacterModelScene[key]:SetPoint("TOPLEFT", CharacterModelScene, "TOPLEFT", 1, -1)
+end
+CharacterModelScene.BackgroundOverlay = CharacterModelScene:CreateTexture()
+CharacterModelScene.BackgroundOverlay:SetAllPoints()
+
+local SLOT_BUTTONS = {
+	[1] = "CharacterHeadSlot", [2] = "CharacterNeckSlot", [3] = "CharacterShoulderSlot", [4] = "CharacterShirtSlot",
+	[5] = "CharacterChestSlot", [6] = "CharacterWaistSlot", [7] = "CharacterLegsSlot", [8] = "CharacterFeetSlot",
+	[9] = "CharacterWristSlot", [10] = "CharacterHandsSlot", [11] = "CharacterFinger0Slot",
+	[12] = "CharacterFinger1Slot", [13] = "CharacterTrinket0Slot", [14] = "CharacterTrinket1Slot",
+	[15] = "CharacterBackSlot", [16] = "CharacterMainHandSlot", [17] = "CharacterSecondaryHandSlot",
+	[18] = "CharacterRangedSlot", [19] = "CharacterTabardSlot", [0] = "CharacterAmmoSlot",
+}
+for slot, name in pairs(SLOT_BUTTONS) do
+	local button = CreateFrame("Button", name, PaperDollFrame)
+	button:SetSize(40, 40)
+	button:SetPoint("TOPLEFT", CharacterFrame.LeftPaneHost, "TOPLEFT", slot, -60 - slot)
+end
+CharacterAmmoSlot:SetSize(27, 27)
 Enum = { TooltipDataLineType = { ItemEnchantmentPermanent = 15 } }
 
 -- Equipped items by slot: link, quality, item level, equip location, durability and tooltip data (nil while the item
@@ -103,7 +169,8 @@ AUI.Profile = {
 }
 
 for _, file in ipairs({ "AeonUI_Character/Character/Options.lua", "AeonUI_Character/Character/Layout.lua",
-	"AeonUI_Character/Character/Gear.lua", "AeonUI_Character/Character/Character.lua" }) do
+	"AeonUI_Character/Character/Gear.lua", "AeonUI_Character/Character/Frame.lua",
+	"AeonUI_Character/Character/Character.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 
@@ -185,6 +252,8 @@ Equal("the ranged slot", shown.slots[18].x, 390.5)
 Equal("the ammo slot", ("%s %s %s"):format(shown.slots[Options.AMMO_SLOT].x, shown.slots[Options.AMMO_SLOT].y,
 	shown.slots[Options.AMMO_SLOT].side), "573.5 418 LEFT")
 Equal("the ammo slot has no text", shown.slots[Options.AMMO_SLOT].textWidth, 0)
+Equal("the model's center column, down to the weapon row", ("%s %s %s %s"):format(shown.model.x, shown.model.y,
+	shown.model.width, shown.model.height), "214 40 210 378")
 
 local hidden = Layout:Compute({ model = false, gauges = false })
 Equal("the left pane without the model", hidden.leftWidth, 440)
@@ -198,6 +267,7 @@ Equal("the ranged slot below the main hand", ("%s %s"):format(hidden.slots[18].x
 Equal("the ammo slot on the right", ("%s %s %s"):format(hidden.slots[Options.AMMO_SLOT].x,
 	hidden.slots[Options.AMMO_SLOT].y, hidden.slots[Options.AMMO_SLOT].side), "20 464 RIGHT")
 Equal("the weapons' full text", hidden.slots[18].textWidth, 150)
+Equal("no model column", hidden.model, nil)
 
 Equal("gauges widen each column", Layout:Compute({ model = true, gauges = true }).leftWidth, 652)
 
@@ -293,6 +363,125 @@ declared.start()
 Equal("started", AUI.Character.active, true)
 Equal("not on without the feature", AUI.Character:IsOn(), false)
 Equal("nothing created", #client.frames, framesBefore)
+
+-- Extended frame ----------------------------------------------------------------------------------------------
+
+local function Set(path, value)
+	values[path] = value
+	AUI.Callbacks:Fire("Profile", path)
+	client:RunTimers()
+end
+
+local function Size()
+	return ("%sx%s"):format(rawget(CharacterFrame, "width"), rawget(CharacterFrame, "height"))
+end
+
+local function Anchor(button)
+	local point, relative, relativePoint, x, y = button:GetPoint(1)
+
+	return ("%s %s %s %s %s"):format(point, relative == CharacterFrame.LeftPaneHost and "pane" or tostring(relative),
+		relativePoint, x, y)
+end
+
+local scene = CharacterModelScene
+local topLeft, botRight = rawget(scene, "BackgroundTopLeft"), rawget(scene, "BackgroundBotRight")
+
+-- Whether the model scene and its race backdrop are anchored as Blizzard anchors them.
+local function NativeModel()
+	return select(2, scene:GetPoint(1)) == PaperDollFrame.TopBackgroundStripHost and scene:GetNumPoints() == 2
+		and select(2, topLeft:GetPoint(1)) == scene
+		and select(2, botRight:GetPoint(1)) == scene
+		and select(2, scene.BackgroundOverlay:GetPoint(1)) == scene
+end
+
+local function Native()
+	return NativeModel() and Size() == "631x484" and rawget(CharacterFrame.LeftPaneHost, "width") == 398 and Anchor(CharacterHeadSlot)
+		== "TOPLEFT pane TOPLEFT 1 -61" and Anchor(CharacterHandsSlot) == "TOPLEFT pane TOPLEFT 10 -70"
+		and rawget(CharacterAmmoSlot, "width") == 27 and CharacterModelScene:IsShown() and #rawget(CharacterHeadSlot, "points") == 1
+		and select(5, PaperDollLevelInfo:GetPoint(1)) == -2
+end
+
+local Window = AUI.CharacterFrame
+client.hooks = 0
+AUI.can.characterPanel = true
+values[Options.ENABLED_PATH] = nil
+Set(Options.ENABLED_PATH, true)
+Equal("the frame's methods hooked once the feature is on", client.hooks, 2)
+
+CharacterFrame:Show()
+CharacterFrame:UpdateSize()
+Equal("widened with the model", Size(), "867x504")
+Equal("the left pane widened", rawget(CharacterFrame.LeftPaneHost, "width"), 634)
+Equal("the head placed", Anchor(CharacterHeadSlot), "TOPLEFT pane TOPLEFT 24 -40")
+Equal("one anchor each", #rawget(CharacterHeadSlot, "points"), 1)
+Equal("the hands from the right", Anchor(CharacterHandsSlot), "TOPRIGHT pane TOPRIGHT -20 -40")
+Equal("the main hand in the weapon row", Anchor(CharacterMainHandSlot), "TOPLEFT pane TOPLEFT 24.5 -418")
+Equal("the ammo slot full size", ("%sx%s"):format(rawget(CharacterAmmoSlot, "width"), rawget(CharacterAmmoSlot, "height")), "40x40")
+Equal("is extended", Window:IsExtended(), true)
+Equal("the model in the center column", Anchor(scene), "TOPLEFT pane TOPLEFT 214 -40")
+Equal("one anchor", scene:GetNumPoints(), 1)
+Equal("its size", ("%sx%s"):format(rawget(scene, "width"), rawget(scene, "height")), "210x378")
+local backdrop = select(2, topLeft:GetPoint(1))
+Equal("the race backdrop kept on the whole pane", backdrop ~= scene and select(2, backdrop:GetPoint(1)),
+	PaperDollFrame.TopBackgroundStripHost)
+Equal("each corner keeps its offsets", select(4, botRight:GetPoint(1)), 1)
+Equal("the overlay too", select(2, scene.BackgroundOverlay:GetPoint(1)), backdrop)
+
+CharacterFrame:UpdateTitle()
+Equal("the title names the panel", CharacterFrame.title, "Character")
+Equal("in gold", CharacterFrame.titleColor.name, "gold")
+Equal("the name moved into the pane", Window.nameText:GetText(), "Baraque Pecheloin")
+Equal("and shown", Window.nameText:IsShown(), true)
+Equal("the level line moved below it", select(5, PaperDollLevelInfo:GetPoint(1)), -11)
+
+CharacterFrame.rightPaneCollapsed = true
+CharacterFrame:UpdateSize()
+Equal("Blizzard's toggle collapses to the left pane", Size(), "634x504")
+CharacterFrame.rightPaneCollapsed = false
+CharacterFrame:UpdateSize()
+Equal("and expands to both panes", Size(), "867x504")
+
+Set(Options.SHOW_MODEL_PATH, false)
+Equal("narrowed without the model", Size(), "673x550")
+Equal("the model hidden", CharacterModelScene:IsShown(), false)
+Equal("the off hand continues the right column", Anchor(CharacterSecondaryHandSlot), "TOPRIGHT pane TOPRIGHT -20 -418")
+Set(Options.SHOW_MODEL_PATH, true)
+Equal("the model back", CharacterModelScene:IsShown(), true)
+Equal("widened again", Size(), "867x504")
+
+client:SetCombat(true)
+CharacterFrame:UpdateSize()
+Equal("in combat too, since none of these frames is protected", Size(), "867x504")
+client:SetCombat(false)
+
+CharacterFrame.activeSubframe = "ReputationFrame"
+CharacterFrame:UpdateSize()
+Equal("another tab gets Blizzard's frame back", Native(), true)
+CharacterFrame:UpdateTitle()
+Equal("and Blizzard's title", CharacterFrame.title, "Baraque Pecheloin")
+Equal("the name in the pane hidden", Window.nameText:IsShown(), false)
+CharacterFrame.activeSubframe = "PaperDollFrame"
+CharacterFrame:UpdateSize()
+Equal("the Character tab widens again", Size(), "867x504")
+
+Set(Options.ENABLED_PATH, false)
+Equal("turned off with the panel open, everything is Blizzard's", Native(), true)
+Equal("Blizzard's title back", CharacterFrame.title, "Baraque Pecheloin")
+Equal("not extended", Window:IsExtended(), false)
+
+gamepad = true
+Set(Options.ENABLED_PATH, true)
+Equal("nothing changed under the Gamepad style", Native(), true)
+gamepad = false
+Set(Options.ENABLED_PATH, true)
+Equal("on again", Size(), "867x504")
+Equal("hooks installed once", client.hooks, 2)
+
+CharacterFrame:Hide()
+Set(Options.ENABLED_PATH, false)
+Equal("a closed panel restored too", Native(), true)
+Set(Options.ENABLED_PATH, true)
+Equal("a closed panel is left until it opens", Native(), true)
 
 Equal("no Lua error in the run", errors[1], nil)
 

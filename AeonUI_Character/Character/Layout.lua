@@ -24,11 +24,19 @@ local STATS_WIDTH = 233
 ---@field side "LEFT"|"RIGHT"
 ---@field textWidth number 0 for a slot without text
 
+---The model's column in the left pane, as a slot's place without a side.
+---@class AUICharacterModelPlace
+---@field x number
+---@field y number
+---@field width number
+---@field height number
+
 ---@class AUICharacterLayoutResult
 ---@field leftWidth number the left pane
 ---@field width number the frame with the stats pane shown
 ---@field height number
 ---@field slots table<integer, AUICharacterSlotPlace> by slot ID, the ammo slot at `Options.AMMO_SLOT`
+---@field model AUICharacterModelPlace? between the columns, down to the weapon row; nil without the model
 
 ---The extended character panel's arithmetic: the frame's size and each slot's place.
 ---@class AUICharacterLayout
@@ -61,7 +69,7 @@ function Layout:Compute(opts)
 
 	local mainHand, offHand, ranged = Options.WEAPON_SLOTS[1], Options.WEAPON_SLOTS[2], Options.WEAPON_SLOTS[3]
 	local weaponsTop = TOP + (#Options.LEFT_SLOTS - 1) * STEP + ICON + WEAPONS_BELOW
-	local bottom
+	local bottom, model
 
 	if opts.model then
 		-- One row centered under the columns, its text narrowed to fit beside the ammo slot.
@@ -77,6 +85,7 @@ function Layout:Compute(opts)
 		end
 		slots[Options.AMMO_SLOT] = Place(x, weaponsTop, "LEFT", 0)
 		bottom = weaponsTop + ICON
+		model = { x = LEFT_PAD + column, y = TOP, width = MODEL_WIDTH, height = weaponsTop - TOP }
 	else
 		-- Too narrow for a weapon row with text: the weapons continue the columns.
 		slots[mainHand] = Place(LEFT_PAD, weaponsTop, "LEFT", TEXT_WIDTH)
@@ -91,5 +100,6 @@ function Layout:Compute(opts)
 		width = leftWidth + STATS_WIDTH,
 		height = PANE_TOP + bottom + BOTTOM_PAD,
 		slots = slots,
+		model = model,
 	}
 end
