@@ -13,6 +13,10 @@ local GAP_WITHOUT_MODEL = 16
 local WEAPON_GAP = 10
 local WEAPONS_BELOW = 16 -- from the last column row to the weapon row
 local PANE_TOP = 20 -- the left pane, down from the frame's top
+local STRIP = 36 -- Blizzard's top strip holding the name and level, where the model starts
+-- The model's scene. Blizzard's camera sizes the model mostly by the scene's width; at this width and the height down
+-- to the weapon row, the feet land just above that row.
+local SCENE_WIDTH = 500
 local BOTTOM_PAD = 26
 local STATS_WIDTH = 233
 
@@ -36,7 +40,7 @@ local STATS_WIDTH = 233
 ---@field width number the frame with the stats pane shown
 ---@field height number
 ---@field slots table<integer, AUICharacterSlotPlace> by slot ID, the ammo slot at `Options.AMMO_SLOT`
----@field model AUICharacterModelPlace? between the columns, down to the weapon row; nil without the model
+---@field model AUICharacterModelPlace? centered, its feet at the weapon row; nil without the model
 
 ---The extended character panel's arithmetic: the frame's size and each slot's place.
 ---@class AUICharacterLayout
@@ -85,7 +89,7 @@ function Layout:Compute(opts)
 		end
 		slots[Options.AMMO_SLOT] = Place(x, weaponsTop, "LEFT", 0)
 		bottom = weaponsTop + ICON
-		model = { x = LEFT_PAD + column, y = TOP, width = MODEL_WIDTH, height = weaponsTop - TOP }
+		model = { x = (leftWidth - SCENE_WIDTH) / 2, y = STRIP, width = SCENE_WIDTH, height = weaponsTop - STRIP }
 	else
 		-- Too narrow for a weapon row with text: the weapons continue the columns.
 		slots[mainHand] = Place(LEFT_PAD, weaponsTop, "LEFT", TEXT_WIDTH)

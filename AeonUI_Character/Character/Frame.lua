@@ -88,8 +88,8 @@ local function Restore(frame)
 	Window.saved[frame] = nil
 end
 
----Narrows Blizzard's model scene, and with it the model and its drag area, to the center column, and keeps its race
----backdrop over the area the scene covers natively.
+---Fits Blizzard's model scene, and with it the model and its drag area, to `place`, and keeps its race backdrop over
+---the area the scene covers natively.
 ---@param pane Frame
 ---@param place AUICharacterModelPlace
 function Window:PlaceModel(pane, place)

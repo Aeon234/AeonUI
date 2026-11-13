@@ -252,8 +252,8 @@ Equal("the ranged slot", shown.slots[18].x, 390.5)
 Equal("the ammo slot", ("%s %s %s"):format(shown.slots[Options.AMMO_SLOT].x, shown.slots[Options.AMMO_SLOT].y,
 	shown.slots[Options.AMMO_SLOT].side), "573.5 418 LEFT")
 Equal("the ammo slot has no text", shown.slots[Options.AMMO_SLOT].textWidth, 0)
-Equal("the model's center column, down to the weapon row", ("%s %s %s %s"):format(shown.model.x, shown.model.y,
-	shown.model.width, shown.model.height), "214 40 210 378")
+Equal("the model centered, under the top strip, down to the weapon row", ("%s %s %s %s"):format(
+	shown.model.x, shown.model.y, shown.model.width, shown.model.height), "67 36 500 382")
 
 local hidden = Layout:Compute({ model = false, gauges = false })
 Equal("the left pane without the model", hidden.leftWidth, 440)
@@ -418,9 +418,9 @@ Equal("the hands from the right", Anchor(CharacterHandsSlot), "TOPRIGHT pane TOP
 Equal("the main hand in the weapon row", Anchor(CharacterMainHandSlot), "TOPLEFT pane TOPLEFT 24.5 -418")
 Equal("the ammo slot full size", ("%sx%s"):format(rawget(CharacterAmmoSlot, "width"), rawget(CharacterAmmoSlot, "height")), "40x40")
 Equal("is extended", Window:IsExtended(), true)
-Equal("the model in the center column", Anchor(scene), "TOPLEFT pane TOPLEFT 214 -40")
+Equal("the model centered", Anchor(scene), "TOPLEFT pane TOPLEFT 67 -36")
 Equal("one anchor", scene:GetNumPoints(), 1)
-Equal("its size", ("%sx%s"):format(rawget(scene, "width"), rawget(scene, "height")), "210x378")
+Equal("its size", ("%sx%s"):format(rawget(scene, "width"), rawget(scene, "height")), "500x382")
 local backdrop = select(2, topLeft:GetPoint(1))
 Equal("the race backdrop kept on the whole pane", backdrop ~= scene and select(2, backdrop:GetPoint(1)),
 	PaperDollFrame.TopBackgroundStripHost)
