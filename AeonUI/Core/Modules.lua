@@ -5,6 +5,7 @@ local GROUPS = {
 	{ key = "unitFrames", header = "unitFramesHeader", title = "Unit Frames" },
 	{ key = "maps", header = "mapsHeader", title = "Maps" },
 	{ key = "tooltip", header = "tooltipHeader", title = "Tooltip" },
+	{ key = "windows", header = "windowsHeader", title = "Windows" },
 	{ key = "qualityOfLife", header = "qualityOfLifeHeader", title = "Quality of Life" },
 }
 

@@ -46,7 +46,7 @@ function SettingsMerchantWindow:Declare(window)
 	local Settings, Options = AUI.Settings, AUI.MerchantWindowOptions
 	local page = window:Page("merchantWindow", {
 		title = L["Merchant Window"],
-		under = "qualityOfLifeHeader",
+		under = "windowsHeader",
 		icon = AUI.Media.sidebar.merchantWindow,
 		iconTint = true,
 	})
@@ -97,7 +97,7 @@ function SettingsMerchantWindow:Declare(window)
 end
 
 AUI.Modules:Register({
-	group = "qualityOfLife",
+	group = "windows",
 	page = SettingsMerchantWindow,
 	start = function()
 		AUI.MerchantWindow:Start()

@@ -35,6 +35,7 @@ L["Profiles"] = "Profili"
 L["Recovery"] = "Ripristino"
 L["Unit Frames"] = "Riquadri unità"
 L["Maps"] = "Mappe"
+L["Windows"] = "Finestre"
 L["Quality of Life"] = "Qualità della vita"
 
 -- Shared settings labels (Settings)

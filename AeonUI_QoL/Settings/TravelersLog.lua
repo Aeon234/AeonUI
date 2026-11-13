@@ -24,7 +24,7 @@ function SettingsTravelersLog:Declare(window)
 	local Settings, Options = AUI.Settings, AUI.TravelersLogOptions
 	local page = window:Page("travelersLog", {
 		title = MONTHLY_ACTIVITIES_TAB,
-		under = "qualityOfLifeHeader",
+		under = "windowsHeader",
 		icon = AUI.Media.sidebar.travelersLog,
 		iconTint = true,
 		switch = {
@@ -61,7 +61,7 @@ function SettingsTravelersLog:Declare(window)
 end
 
 AUI.Modules:Register({
-	group = "qualityOfLife",
+	group = "windows",
 	page = SettingsTravelersLog,
 	start = function()
 		AUI.TravelersLog:Start()

@@ -50,6 +50,7 @@ L["Profiles"] = "Profiles"
 L["Recovery"] = "Recovery"
 L["Unit Frames"] = "Unit Frames"
 L["Maps"] = "Maps"
+L["Windows"] = "Windows"
 L["Quality of Life"] = "Quality of Life"
 
 -- Shared settings labels (Settings)

@@ -975,7 +975,7 @@ end })
 
 Equal("the page's ID", pageID, "travelersLog")
 Equal("Blizzard's name for it", pageInfo.title, "Traveler's Log")
-Equal("under Quality of Life", pageInfo.under, "qualityOfLifeHeader")
+Equal("under Windows", pageInfo.under, "windowsHeader")
 Equal("its icon", pageInfo.icon, "SidebarTravelersLog.tga")
 Equal("its switch", pageInfo.switch.path, Options.ENABLED_PATH)
 Equal("its switch's label", pageInfo.switch.label, "Enhance Traveler's Log")
@@ -988,7 +988,7 @@ Equal("available with the log", AUI.SettingsTravelersLog:IsAvailable(), true)
 AUI.can.travelersLog = false
 Equal("not without it", AUI.SettingsTravelersLog:IsAvailable(), false)
 AUI.can.travelersLog = true
-Equal("the module's group", declared.group, "qualityOfLife")
+Equal("the module's group", declared.group, "windows")
 declared.start()
 Equal("started once", Log.active, true)
 

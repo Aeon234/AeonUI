@@ -35,6 +35,7 @@ L["Profiles"] = "프로필"
 L["Recovery"] = "복구"
 L["Unit Frames"] = "유닛 프레임"
 L["Maps"] = "지도"
+L["Windows"] = "창"
 L["Quality of Life"] = "편의 기능"
 
 -- Shared settings labels (Settings)

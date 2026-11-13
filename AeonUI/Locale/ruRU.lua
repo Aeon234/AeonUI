@@ -35,6 +35,7 @@ L["Profiles"] = "Профили"
 L["Recovery"] = "Восстановление"
 L["Unit Frames"] = "Рамки юнитов"
 L["Maps"] = "Карты"
+L["Windows"] = "Окна"
 L["Quality of Life"] = "Удобство"
 
 -- Shared settings labels (Settings)

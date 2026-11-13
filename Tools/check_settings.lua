@@ -1770,13 +1770,13 @@ Equal("no page without the feature's functions", window.pages.deleteCheapestItem
 
 AUI.can.merchantWindow = true
 window = Load(nil)
-Equal("Merchant Window follows Automation", table.concat(window.order, " "), "general #unitFramesHeader unitFramesAll unitFramePlayer unitFrameResources unitFrameTarget unitFrameTargetTarget #mapsHeader minimap "
-	.. "#tooltipHeader tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader automation merchantWindow "
+Equal("Merchant Window under Windows, before Quality of Life", table.concat(window.order, " "), "general #unitFramesHeader unitFramesAll unitFramePlayer unitFrameResources unitFrameTarget unitFrameTargetTarget #mapsHeader minimap "
+	.. "#tooltipHeader tooltipGeneral tooltipUnits tooltipItems #windowsHeader merchantWindow #qualityOfLifeHeader automation "
 	.. "alerts notifications - profiles")
 local merchantPage = window.pages.merchantWindow
-Equal("titled, under Quality of Life, with its icon and no page switch", merchantPage.info.title .. " "
+Equal("titled, under Windows, with its icon and no page switch", merchantPage.info.title .. " "
 	.. merchantPage.info.under .. " " .. tostring(merchantPage.info.icon == AUI.Media.sidebar.merchantWindow) .. " "
-	.. tostring(merchantPage.info.switch), "Merchant Window qualityOfLifeHeader true nil")
+	.. tostring(merchantPage.info.switch), "Merchant Window windowsHeader true nil")
 local merchantCards = {}
 for _, section in ipairs(merchantPage.sections) do
 	merchantCards[#merchantCards + 1] = section.title .. ": " .. SettingIDs(section)
@@ -1832,8 +1832,8 @@ Equal("no page without the merchant window's functions", window.pages.merchantWi
 
 AUI.can.merchantWindow, AUI.can.lootSparkle = true, true
 window = Load(nil)
-Equal("hidden settings after merchant window", table.concat(window.order, " "), "general #unitFramesHeader unitFramesAll unitFramePlayer unitFrameResources unitFrameTarget unitFrameTargetTarget #mapsHeader minimap "
-	.. "#tooltipHeader tooltipGeneral tooltipUnits tooltipItems #qualityOfLifeHeader automation merchantWindow "
+Equal("hidden settings after automation", table.concat(window.order, " "), "general #unitFramesHeader unitFramesAll unitFramePlayer unitFrameResources unitFrameTarget unitFrameTargetTarget #mapsHeader minimap "
+	.. "#tooltipHeader tooltipGeneral tooltipUnits tooltipItems #windowsHeader merchantWindow #qualityOfLifeHeader automation "
 	.. "hiddenSettings alerts notifications - profiles")
 local hiddenPage = window.pages.hiddenSettings
 Equal("titled, under Quality of Life, with its icon, tinted", hiddenPage.info.title .. " " .. hiddenPage.info.under

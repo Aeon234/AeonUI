@@ -35,6 +35,7 @@ L["Profiles"] = "配置文件"
 L["Recovery"] = "恢复"
 L["Unit Frames"] = "单位框架"
 L["Maps"] = "地图"
+L["Windows"] = "窗口"
 L["Quality of Life"] = "便利功能"
 
 -- Shared settings labels (Settings)

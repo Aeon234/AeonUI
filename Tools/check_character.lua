@@ -276,12 +276,12 @@ end })
 
 Equal("the page's ID", pageID, "character")
 Equal("Blizzard's name for it", pageInfo.title, "Character")
-Equal("under Quality of Life", pageInfo.under, "qualityOfLifeHeader")
+Equal("under Windows", pageInfo.under, "windowsHeader")
 Equal("its switch", pageInfo.switch.path, Options.ENABLED_PATH)
 Equal("its switch's default", pageInfo.switch.default, true)
 Equal("its switch's label", pageInfo.switch.label, "Enhance Character")
 Equal("available on Forever", AUI.SettingsCharacter:IsAvailable(), true)
-Equal("the module's group", declared.group, "qualityOfLife")
+Equal("the module's group", declared.group, "windows")
 
 -- A client without the feature: nothing hooked or created -------------------------------------------------
 

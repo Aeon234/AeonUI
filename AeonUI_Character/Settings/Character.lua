@@ -18,7 +18,7 @@ function SettingsCharacter:Declare(window)
 
 	window:Page("character", {
 		title = CHARACTER,
-		under = "qualityOfLifeHeader",
+		under = "windowsHeader",
 		switch = {
 			path = Options.ENABLED_PATH,
 			default = Settings:Default(Options.ENABLED_PATH),
@@ -28,7 +28,7 @@ function SettingsCharacter:Declare(window)
 end
 
 AUI.Modules:Register({
-	group = "qualityOfLife",
+	group = "windows",
 	page = SettingsCharacter,
 	start = function()
 		AUI.Character:Start()
