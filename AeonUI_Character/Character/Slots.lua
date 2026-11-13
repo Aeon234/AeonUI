@@ -15,7 +15,8 @@ local AMMO_FRAME = "UI-Character-Info-GearSlotSmall" -- the ammo slot's frame, a
 ---@class AUICharacterSlotParts
 ---@field overlay Frame above the button, holding the outline, shade and text
 ---@field shadow Texture on the button, below its icon
----@field slotFrame table? Blizzard's frame around the slot: the template's `BorderFrame`, or the ammo slot's texture
+---@field cleared table[] Blizzard's art around the slot, at alpha 0 while dressed: the template's `BorderFrame`, or the
+---ammo slot's frame texture and its own square `NormalTexture` (the template slots' is masked round)
 ---@field outline Texture
 ---@field shade Texture
 ---@field level FontString the item level on the icon
@@ -47,14 +48,16 @@ AUI.CharacterSlots = Slots
 ---@return AUICharacterSlotParts
 local function Build(button)
 	local overlay = CreateFrame("Frame", nil, button)
-	local parts = { overlay = overlay, slotFrame = button.BorderFrame }
+	local parts = { overlay = overlay, cleared = { button.BorderFrame } }
 
-	if not parts.slotFrame then
+	if not button.BorderFrame then
 		for _, region in ipairs({ button:GetRegions() }) do
 			if region.GetAtlas and region:GetAtlas() == AMMO_FRAME then
-				parts.slotFrame = region
+				parts.cleared[#parts.cleared + 1] = region
 			end
 		end
+		-- The slot's own normal texture replaces the intrinsic's, whose `NormalTexture` key is left behind.
+		parts.cleared[#parts.cleared + 1] = button:GetNormalTexture()
 	end
 
 	overlay:SetAllPoints(button)
@@ -167,8 +170,8 @@ function Slots:Paint(button)
 	self.painted[button] = true
 	parts.overlay:Show()
 	button.IconBorder:SetAlpha(0)
-	if parts.slotFrame then
-		parts.slotFrame:SetAlpha(0)
+	for _, region in ipairs(parts.cleared) do
+		region:SetAlpha(0)
 	end
 	button:SetAlpha(self:Alpha(slot))
 	icon:SetTexCoord(crop, 1 - crop, crop, 1 - crop)
@@ -278,8 +281,8 @@ function Slots:Restore()
 		parts.overlay:Hide()
 		parts.shadow:Hide()
 		button.IconBorder:SetAlpha(1)
-		if parts.slotFrame then
-			parts.slotFrame:SetAlpha(1)
+		for _, region in ipairs(parts.cleared) do
+			region:SetAlpha(1)
 		end
 		button:SetAlpha(1)
 		button.icon:SetTexCoord(0, 1, 0, 1)

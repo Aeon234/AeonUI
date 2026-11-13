@@ -90,6 +90,9 @@ for slot, name in pairs(SLOT_BUTTONS) do
 	if slot == 0 then
 		button.slotFrame = button:CreateTexture()
 		button.slotFrame:SetAtlas("UI-Character-Info-GearSlotSmall")
+		-- The intrinsic's `NormalTexture` key outlives the slot's own normal texture, which replaces it.
+		button.NormalTexture = button:CreateTexture()
+		button.normalTexture = button:CreateTexture()
 	else
 		button.BorderFrame = CreateFrame("Frame", nil, button)
 	end
@@ -720,6 +723,7 @@ Equal("ammo, worn without a link, is a filled slot", Part(ammo, "outline"):GetTe
 	TEXTURES .. "QualityOutline2 1")
 Equal("in white for a quality without a color", Color(Part(ammo, "outline")), "1 1 1")
 Equal("its small slot frame cleared", rawget(ammo, "slotFrame"):GetAlpha(), 0)
+Equal("and its own quickslot square", ammo:GetNormalTexture():GetAlpha(), 0)
 
 Set(Options.QUALITY_BORDER_PATH, "THICK")
 Equal("Thick, 3 units", Part(helm, "outline"):GetTexture(), TEXTURES .. "QualityOutline3")
@@ -763,6 +767,7 @@ Equal("another tab restores the slots", tostring(Shown(Part(helm, "overlay"))) .
 	"false 0 1 0 1 1 1")
 Equal("the empty well undone", Color(shirt.icon) .. " " .. shirt.icon:GetAlpha(), "1 1 1 1")
 Equal("the ammo slot's frame back", rawget(CharacterAmmoSlot, "slotFrame"):GetAlpha(), 1)
+Equal("and its quickslot square", CharacterAmmoSlot:GetNormalTexture():GetAlpha(), 1)
 PaperDollItemSlotButton_Update(helm)
 Equal("Blizzard's updates leave other tabs alone", Shown(Part(helm, "overlay")), false)
 CharacterFrame.activeSubframe = "PaperDollFrame"

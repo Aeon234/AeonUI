@@ -658,6 +658,9 @@ local Frame = Type(ScriptRegion, {
 })
 
 local Button = Type(Frame, {
+	GetNormalTexture = function(self)
+		return self.normalTexture
+	end,
 	RegisterForClicks = State(function(self, ...)
 		self.clicks = { ... }
 	end),
