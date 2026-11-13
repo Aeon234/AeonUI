@@ -1,0 +1,15 @@
+## Interface: 120105,, 16001
+## Title: |cff00a3e3Aeon|r|cfff2e6c8UI|r Character
+## Notes: Item levels, enchants and extra stats on the character panel for |cff00a3e3Aeon|r|cfff2e6c8UI|r.
+## IconTexture: Interface\AddOns\AeonUI\Media\Textures\Logo.png
+## Author: Aeon
+## Version: @project-version@
+
+## Dependencies: AeonUI
+
+## Category: Unit Frames
+
+Namespace.lua
+Locale\Locale.xml
+Character\Character.xml
+Settings\Character.lua

@@ -38,6 +38,7 @@ L["Maps"] = "地圖"
 L["Quality of Life"] = "便利功能"
 
 -- Shared settings labels (Settings)
+L["Enhance %s"] = "增強%s"
 L["Auctionator, TSM or Oribos Exchange provides auction prices."] = "拍賣價格由 Auctionator、TSM 或 Oribos Exchange 提供。"
 L["Access"] = "存取"
 L["Text"] = "文字"

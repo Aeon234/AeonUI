@@ -38,6 +38,7 @@ L["Maps"] = "Cartes"
 L["Quality of Life"] = "Qualité de vie"
 
 -- Shared settings labels (Settings)
+L["Enhance %s"] = "Améliorer %s"
 L["Auctionator, TSM or Oribos Exchange provides auction prices."] = "Auctionator, TSM ou Oribos Exchange fournit les prix des enchères."
 L["Access"] = "Accès"
 L["Text"] = "Texte"

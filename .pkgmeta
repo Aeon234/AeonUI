@@ -24,6 +24,7 @@ move-folders:
   AeonUI/AeonUI_Tooltip: AeonUI_Tooltip
   AeonUI/AeonUI_Maps: AeonUI_Maps
   AeonUI/AeonUI_QoL: AeonUI_QoL
+  AeonUI/AeonUI_Character: AeonUI_Character
 
 ignore:
   - .pkgmeta

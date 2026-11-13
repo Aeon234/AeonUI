@@ -100,7 +100,6 @@ L["Columns First"] = "Colonnes d’abord"
 L["Show All Items"] = "Afficher tous les objets"
 
 -- Traveler's Log page (Settings)
-L["Enhance %s"] = "Améliorer %s"
 L["Row Progress"] = "Progression des lignes"
 L["Show Progress Bars"] = "Afficher les barres de progression"
 L["Count"] = "Nombre"

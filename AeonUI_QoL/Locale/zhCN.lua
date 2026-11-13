@@ -100,7 +100,6 @@ L["Columns First"] = "先按列"
 L["Show All Items"] = "显示所有物品"
 
 -- Traveler's Log page (Settings)
-L["Enhance %s"] = "增强%s"
 L["Row Progress"] = "行进度"
 L["Show Progress Bars"] = "显示进度条"
 L["Count"] = "数量"

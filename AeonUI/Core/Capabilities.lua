@@ -72,6 +72,7 @@ AUI.Capabilities = Capabilities
 ---@field potionNotice boolean the bags' potions, their use spells and their cooldown can be read
 ---@field movementAlert boolean spell cooldowns give duration objects for text bindings and curves (Retail)
 ---@field travelersLog boolean the month's activities can be read and the Traveler's Log exists (Retail)
+---@field characterPanel boolean the character panel's slot updates and stats list can be hooked and item tooltip data read (Forever)
 ---@field raidMarkers boolean a bar of secure marker buttons can follow a visibility driver and start a role check
 ---@field worldMarkers boolean the client has world markers (`IsRaidMarkerSystemEnabled`)
 ---@field secureSnippets boolean wrapped secure scripts run (Retail)
@@ -200,6 +201,9 @@ function Capabilities:Resolve()
 		and C_StringUtil.CreateNumericRuleFormatter ~= nil and Enum.DurationTextBindingProperty ~= nil
 	can.travelersLog = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE and C_PerksActivities ~= nil and C_PlayerInfo ~= nil
 		and C_PlayerInfo.IsTravelersLogAvailable ~= nil
+	can.characterPanel = WOW_PROJECT_ID == WOW_PROJECT_CAMELOT and CharacterFrame ~= nil
+		and PaperDollItemSlotButton_Update ~= nil and CharacterStatsPaneScrollBox ~= nil and C_TooltipInfo ~= nil
+		and C_TooltipInfo.GetInventoryItem ~= nil
 	can.raidMarkers = RegisterStateDriver ~= nil and UnregisterStateDriver ~= nil and InitiateRolePoll ~= nil
 		and IsEveryoneAssistant ~= nil and C_AddOns ~= nil and C_AddOns.IsAddOnLoaded ~= nil
 	can.worldMarkers = IsRaidMarkerSystemEnabled ~= nil and IsRaidMarkerSystemEnabled() == true
