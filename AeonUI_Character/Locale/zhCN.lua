@@ -3,3 +3,6 @@ if GetLocale() ~= "zhCN" then
 end
 
 local L = select(2, ...).L
+
+-- Slots (Character)
+L["Enchanted"] = "已附魔"

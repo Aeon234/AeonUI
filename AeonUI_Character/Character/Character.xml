@@ -1,5 +1,6 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/">
 	<Script file="Options.lua" />
 	<Script file="Layout.lua" />
+	<Script file="Gear.lua" />
 	<Script file="Character.lua" />
 </Ui>

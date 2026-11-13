@@ -3,3 +3,6 @@ if GetLocale() ~= "deDE" then
 end
 
 local L = select(2, ...).L
+
+-- Slots (Character)
+L["Enchanted"] = "Verzaubert"

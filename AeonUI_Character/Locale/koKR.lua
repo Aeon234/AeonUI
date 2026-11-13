@@ -3,3 +3,6 @@ if GetLocale() ~= "koKR" then
 end
 
 local L = select(2, ...).L
+
+-- Slots (Character)
+L["Enchanted"] = "마법부여됨"

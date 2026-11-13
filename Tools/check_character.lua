@@ -1,5 +1,6 @@
 -- Checks AeonUI_Character outside the game: the settings fields' defaults, enchantable slots, each class's main stat,
 -- the durability colors, the equipped average, money text, the extended layout with and without the model and gauges,
+-- each slot's item against stubbed item APIs and the gear summary,
 -- the page and its place, and nothing hooked or created on a client without the feature. Drawing and the real character
 -- panel are not exercised.
 -- Run from any directory with Lua 5.1: lua Tools/check_character.lua
@@ -16,6 +17,54 @@ SlashCmdList = {}
 GREEN_FONT_COLOR = { name = "green" }
 YELLOW_FONT_COLOR = { name = "yellow" }
 RED_FONT_COLOR = { name = "red" }
+ENCHANTED_TOOLTIP_LINE = "Enchanted: %s"
+Enum = { TooltipDataLineType = { ItemEnchantmentPermanent = 15 } }
+
+-- Equipped items by slot: link, quality, item level, equip location, durability and tooltip data (nil while the item
+-- is not cached).
+local worn = {}
+local function Link(id, name, enchant)
+	return ("|cff0070dd|Hitem:%d:%s::::::::40:1:::::::|h[%s]|h|r"):format(id, enchant or "", name)
+end
+function GetInventoryItemLink(unit, slot)
+	assert(unit == "player")
+
+	return worn[slot] and worn[slot].link
+end
+function GetInventoryItemQuality(_, slot)
+	return worn[slot] and worn[slot].quality
+end
+function GetInventoryItemDurability(slot)
+	local item = worn[slot]
+
+	if item and item.maximum then
+		return item.current, item.maximum
+	end
+end
+local function ByLink(link)
+	for _, item in pairs(worn) do
+		if item.link == link then
+			return item
+		end
+	end
+end
+C_Item = {
+	GetDetailedItemLevelInfo = function(link)
+		local item = ByLink(link)
+
+		return item and item.level
+	end,
+	GetItemInfoInstant = function(link)
+		local item = ByLink(link)
+
+		return 1, "Armor", "Plate", item and item.equipLoc
+	end,
+}
+C_TooltipInfo = { GetInventoryItem = function(unit, slot)
+	assert(unit == "player")
+
+	return worn[slot] and worn[slot].tooltip
+end }
 C_AddOns = { GetAddOnMetadata = function(_, field)
 	return field == "Version" and "dev" or "AeonUI"
 end }
@@ -54,7 +103,7 @@ AUI.Profile = {
 }
 
 for _, file in ipairs({ "AeonUI_Character/Character/Options.lua", "AeonUI_Character/Character/Layout.lua",
-	"AeonUI_Character/Character/Character.lua" }) do
+	"AeonUI_Character/Character/Gear.lua", "AeonUI_Character/Character/Character.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 
@@ -151,6 +200,58 @@ Equal("the ammo slot on the right", ("%s %s %s"):format(hidden.slots[Options.AMM
 Equal("the weapons' full text", hidden.slots[18].textWidth, 150)
 
 Equal("gauges widen each column", Layout:Compute({ model = true, gauges = true }).leftWidth, 652)
+
+-- Gear --------------------------------------------------------------------------------------------------------
+
+local Gear = AUI.CharacterGear
+local LINE = Enum.TooltipDataLineType.ItemEnchantmentPermanent
+
+worn[1] = { link = Link(101, "Helm of the Bulwark"), quality = 3, level = 41, equipLoc = "INVTYPE_HEAD", current = 45,
+	maximum = 45, tooltip = { lines = { { type = 0, leftText = "Helm of the Bulwark" } }, repairCost = 0 } }
+worn[5] = { link = Link(105, "Breastplate of the Vanguard"), quality = 3, level = 42, equipLoc = "INVTYPE_CHEST",
+	current = 30, maximum = 45, tooltip = { lines = { { type = LINE, leftText = "Enchanted: +4 All Stats" } },
+	repairCost = 85 } }
+worn[9] = { link = Link(109, "Engraved Bracers", "1883"), quality = 2, level = 35, equipLoc = "INVTYPE_WRIST",
+	current = 0, maximum = 45, tooltip = { lines = {}, repairCost = 300 } }
+worn[10] = { link = Link(110, "Polar Gauntlets"), quality = 2, level = 37, equipLoc = "INVTYPE_HAND",
+	current = client.Secret(), maximum = 35, tooltip = { lines = {} } }
+worn[7] = { link = Link(107, "Legguards of the Marsh"), quality = 3, equipLoc = "INVTYPE_LEGS" }
+
+local helm = Gear:Read(1)
+Equal("the name from the link", helm.name, "Helm of the Bulwark")
+Equal("its quality", helm.quality, 3)
+Equal("its item level", helm.itemLevel, 41)
+Equal("its equip location", helm.equipLoc, "INVTYPE_HEAD")
+Equal("the head takes no enchant", helm.enchantable, false)
+Equal("and has none", helm.enchant, nil)
+Equal("full durability", ("%s/%s"):format(helm.current, helm.maximum), "45/45")
+
+local chest = Gear:Read(5)
+Equal("the enchant's effect", chest.enchant, "+4 All Stats")
+Equal("the chest takes one", chest.enchantable, true)
+Equal("its repair cost", chest.repair, 85)
+
+Equal("an enchant known only from the link", Gear:Read(9).enchant, "Enchanted")
+Equal("an empty slot", Gear:Read(4), nil)
+Equal("secret durability left out", Gear:Read(10).current, nil)
+Equal("no enchant on the hands", Gear:Read(10).enchant, nil)
+
+local legs = Gear:Read(7)
+Equal("an uncached item keeps its name", legs.name, "Legguards of the Marsh")
+Equal("and its quality", legs.quality, 3)
+Equal("but no item level yet", legs.itemLevel, nil)
+Equal("nor a repair cost", legs.repair, 0)
+
+local summary = Gear:Summary()
+Equal("enchanted", summary.enchanted, 2)
+Equal("of the enchantable items worn", summary.enchantable, 3)
+Equal("the lowest durability", summary.lowest, 0)
+Equal("the broken bracers damaged", summary.damaged[9], true)
+Equal("the worn chest damaged", summary.damaged[5], true)
+Equal("the full helm not", summary.damaged[1], nil)
+Equal("the secret gauntlets not counted", summary.damaged[10], nil)
+Equal("the repair costs added", summary.repair, 385)
+Equal("the item levels by slot", ("%s %s"):format(tostring(summary.levels[1]), tostring(summary.levels[7])), "41 nil")
 
 -- Settings page -------------------------------------------------------------------------------------------
 
