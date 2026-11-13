@@ -85,6 +85,8 @@ L["Width"] = "Ширина"
 L["Food"] = "Еда"
 L["A"] = "A"
 L["Layout"] = "Расположение"
+L["Normal"] = "Обычное"
+L["Thick"] = "Толстое"
 
 -- General page (Settings)
 L["Show Minimap Button"] = "Показывать кнопку у миникарты"

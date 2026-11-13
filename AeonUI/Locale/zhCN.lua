@@ -85,6 +85,8 @@ L["Width"] = "宽度"
 L["Food"] = "食物"
 L["A"] = "A"
 L["Layout"] = "布局"
+L["Normal"] = "普通"
+L["Thick"] = "粗"
 
 -- General page (Settings)
 L["Show Minimap Button"] = "显示小地图按钮"

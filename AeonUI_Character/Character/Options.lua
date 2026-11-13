@@ -141,6 +141,13 @@ function Options:MainStat(classFile)
 	return classFile and MAIN_STATS[classFile] or nil
 end
 
+---Blizzard's name for a slot ("Head", "Finger"), from its button's global string.
+---@param slot integer
+---@return string
+function Options:SlotName(slot)
+	return _G[self.SLOT_BUTTONS[slot]:sub(10):upper()]
+end
+
 ---@param fraction number durability left, 0 to 1
 ---@return table color
 function Options:GaugeColor(fraction)

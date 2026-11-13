@@ -85,6 +85,8 @@ L["Width"] = "Largeur"
 L["Food"] = "Nourriture"
 L["A"] = "A"
 L["Layout"] = "Disposition"
+L["Normal"] = "Normal"
+L["Thick"] = "Épais"
 
 -- General page (Settings)
 L["Show Minimap Button"] = "Afficher le bouton de la minicarte"

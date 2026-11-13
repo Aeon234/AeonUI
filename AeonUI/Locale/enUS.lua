@@ -101,6 +101,8 @@ L["Width"] = "Width"
 L["Food"] = "Food"
 L["A"] = "A"
 L["Layout"] = "Layout"
+L["Normal"] = "Normal"
+L["Thick"] = "Thick"
 
 -- General page (Settings)
 L["Show Minimap Button"] = "Show Minimap Button"

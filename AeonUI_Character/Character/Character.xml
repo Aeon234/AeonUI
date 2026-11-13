@@ -4,6 +4,7 @@
 	<Script file="Gear.lua" />
 	<Script file="Slots.lua" />
 	<Script file="Stats.lua" />
+	<Script file="Rows.lua" />
 	<Script file="Frame.lua" />
 	<Script file="Character.lua" />
 </Ui>

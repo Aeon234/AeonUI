@@ -109,7 +109,7 @@ C_PaperDollInfo = { CursorCanGoInSlot = function(slot)
 	return fits[slot] == true
 end }
 CharacterAmmoSlot:SetSize(27, 27)
-Enum = { TooltipDataLineType = { ItemEnchantmentPermanent = 15 } }
+Enum = { TooltipDataLineType = { ItemEnchantmentPermanent = 15 }, PowerType = { Mana = 0 } }
 
 -- Blizzard's stats list: its ScrollBox and ScrollBar, and `UpdateStats` filling `elementData` and a data provider.
 STAT_AVERAGE_ITEM_LEVEL = "Item Level"
@@ -151,6 +151,10 @@ end
 function tooltip:AddLine(text, r, g, b, wrap)
 	self.lines[#self.lines + 1] = { text = text, color = { r, g, b }, wrap = wrap }
 end
+function tooltip:AddDoubleLine(left, right, leftR, leftG, leftB, rightR, rightG, rightB)
+	self.lines[#self.lines + 1] = { text = left, right = right, color = { leftR, leftG, leftB },
+		rightColor = { rightR, rightG, rightB } }
+end
 function tooltip:Show()
 	self.shown = true
 end
@@ -160,15 +164,60 @@ end
 CharacterStatsPaneScrollBox = CreateFrame("Frame", "CharacterStatsPaneScrollBox", CharacterFrame)
 CharacterStatsPaneScrollBox.ScrollBox = CreateFrame("Frame", nil, CharacterStatsPaneScrollBox, "WowScrollBoxList")
 CharacterStatsPaneScrollBox.ScrollBar = CreateFrame("EventFrame", nil, CharacterStatsPaneScrollBox, "MinimalScrollBar")
+local statElements = {
+	{ isHeader = true, name = "General" },
+	{ isHeader = false, unit = "player", name = "HEALTH", statIndex = 1 },
+	{ isHeader = false, unit = "player", name = "MOVESPEED", statIndex = 2 },
+	{ isHeader = true, name = "Resistance" },
+	{ isHeader = false, statIndex = 1, atlas = "fire", labelText = "Fire", valueText = "0" },
+}
 function CharacterStatsPaneScrollBox:UpdateStats()
-	self.elementData = {
-		{ isHeader = true, name = "General" },
-		{ isHeader = false, unit = "player", name = "HEALTH", statIndex = 1 },
-		{ isHeader = false, unit = "player", name = "MOVESPEED", statIndex = 2 },
-		{ isHeader = true, name = "Resistance" },
-		{ isHeader = false, statIndex = 1, atlas = "fire", labelText = "Fire", valueText = "0" },
-	}
+	self.elementData = {}
+	for index, element in ipairs(statElements) do
+		local copy = {}
+
+		for key, value in pairs(element) do
+			copy[key] = value
+		end
+		self.elementData[index] = copy
+	end
 	self.ScrollBox:SetDataProvider(CreateDataProvider(self.elementData), ScrollBoxConstants.RetainScrollPosition)
+end
+-- Blizzard's strings, damage, spell bonus and mana for the extra rows.
+for name, text in pairs({ STAT_CATEGORY_GENERAL = "General", STAT_CATEGORY_PRIMARY_ATTRIBUTES = "Primary Attributes",
+	STAT_CATEGORY_WEAPONS = "Weapons", STAT_CATEGORY_MODIFIERS = "Modifiers", STAT_CATEGORY_DEFENSE = "Defense" }) do
+	rawset(_G, name, text)
+end
+ENCHANTS, DURABILITY, DAMAGE_PER_SECOND, MANA_REGEN = "Enchants", "Durability", "Damage per Second", "Mana Regen"
+INVTYPE_WEAPONMAINHAND = "Main Hand"
+MAX_SPELL_SCHOOLS = 7
+for school, name in ipairs({ "Holy", "Fire", "Nature", "Frost", "Shadow", "Arcane" }) do
+	_G["SPELL_SCHOOL" .. school .. "_CAP"] = name
+end
+local classFile, mana, schools = "WARRIOR", 0, { 10, 10, 10, 10, 10, 10 }
+function UnitClass(unit)
+	assert(unit == "player")
+
+	return "Class", classFile
+end
+function UnitPowerMax(unit, power)
+	assert(unit == "player" and power == 0)
+
+	return mana
+end
+function GetSpellBonusDamage(school)
+	return schools[school - 1]
+end
+function UnitDamage()
+	return 56, 76
+end
+function PaperDollFrame_GetDamage(unit, damage, invType)
+	assert(unit == "player" and damage == UnitDamage and invType == INVTYPE_WEAPONMAINHAND)
+
+	return "56 - 76", 56, 76, nil, 2.6
+end
+function BreakUpLargeNumbers(number)
+	return tostring(number)
 end
 
 -- Equipped items by slot: link, quality, item level, equip location, durability and tooltip data (nil while the item
@@ -260,7 +309,7 @@ AUI.Profile = {
 
 for _, file in ipairs({ "AeonUI_Character/Character/Options.lua", "AeonUI_Character/Character/Layout.lua",
 	"AeonUI_Character/Character/Gear.lua", "AeonUI_Character/Character/Slots.lua", "AeonUI_Character/Character/Stats.lua",
-	"AeonUI_Character/Character/Frame.lua",
+	"AeonUI_Character/Character/Rows.lua", "AeonUI_Character/Character/Frame.lua",
 	"AeonUI_Character/Character/Character.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
@@ -428,6 +477,19 @@ end }
 assert(loadfile(root .. "AeonUI_Character/Settings/Character.lua"))("AeonUI", AUI)
 
 local page = { sections = {} }
+page.Section = function(self, id, title)
+	local section = { id = id, title = title, rows = {} }
+
+	for _, kind in ipairs({ "Checkbox", "Dropdown" }) do
+		section[kind] = function(owner, row)
+			row.kind = kind
+			owner.rows[#owner.rows + 1] = row
+		end
+	end
+	self.sections[#self.sections + 1] = section
+
+	return section
+end
 local pageID, pageInfo
 AUI.SettingsCharacter:Declare({ Page = function(_, id, info)
 	pageID, pageInfo = id, info
@@ -443,6 +505,27 @@ Equal("its switch's default", pageInfo.switch.default, true)
 Equal("its switch's label", pageInfo.switch.label, "Enhance Character")
 Equal("available on Forever", AUI.SettingsCharacter:IsAvailable(), true)
 Equal("the module's group", declared.group, "windows")
+
+local function Rows(section)
+	local rows = {}
+
+	for index, row in ipairs(section.rows) do
+		rows[index] = ("%s %s=%s"):format(row.kind, row.label, tostring(row.path == nil and "?" or row.path))
+	end
+
+	return table.concat(rows, " | ")
+end
+Equal("two cards", ("%s: %s, %s: %s"):format(page.sections[1].id, page.sections[1].title, page.sections[2].id,
+	page.sections[2].title), "characterEquipment: Equipment, characterStats: Stats")
+Equal("the Equipment card", Rows(page.sections[1]), "Checkbox Show Character Model=character.showModel | "
+	.. "Checkbox Item Level=character.itemLevel | Checkbox Enchants=character.enchants | "
+	.. "Dropdown Quality Border=character.qualityBorder | Checkbox Durability Gauges=character.durabilityGauges")
+Equal("the border's choices", page.sections[1].rows[4].options[1].text .. " " .. page.sections[1].rows[4].options[2].value,
+	"Normal THICK")
+Equal("the Stats card", Rows(page.sections[2]), "Checkbox Average Item Level=character.averageItemLevel | "
+	.. "Checkbox Gear Summary=character.gearRows | Checkbox Extra Stats=character.extraStats | "
+	.. "Checkbox Highlight Main Stat=character.mainStat")
+Equal("each row's default from its field", page.sections[2].rows[1].default, true)
 
 -- A client without the feature: nothing hooked or created -------------------------------------------------
 
@@ -696,6 +779,7 @@ do
 	local pane = CharacterStatsPaneScrollBox
 	local hooksBefore = client.hooks
 
+	values[Options.GEAR_ROWS_PATH], values[Options.EXTRA_STATS_PATH], values[Options.MAIN_STAT_PATH] = false, false, false
 	Set(Options.ENABLED_PATH, true)
 	Equal("no second hook on the stats list", client.hooks - hooksBefore, 0)
 	pane:UpdateStats()
@@ -766,6 +850,148 @@ do
 	Set(Options.ENABLED_PATH, true)
 	Equal("on again", Stats.ui.list:IsShown(), true)
 	Equal("hooked once", client.hooks - hooksBefore, 0)
+	table.remove(Stats.providers)
+end
+
+-- Gear rows, extra stats and the main stat ------------------------------------------------------------------
+
+do
+	local Stats, Slots = AUI.CharacterStats, AUI.CharacterSlots
+	local pane = CharacterStatsPaneScrollBox
+
+	local function Stat(name, index)
+		return { isHeader = false, unit = "player", name = name, statIndex = index }
+	end
+
+	local function Header(name)
+		return { isHeader = true, name = name }
+	end
+
+	local function Mirror()
+		pane:UpdateStats()
+
+		return Stats.ui.list:GetDataProvider().elements
+	end
+
+	local function Names(elements)
+		local names = {}
+
+		for index, element in ipairs(elements) do
+			names[index] = element.name or element.labelText
+		end
+
+		return table.concat(names, "|")
+	end
+
+	local function Find(elements, label)
+		for _, element in ipairs(elements) do
+			if element.labelText == label or element.name == label then
+				return element
+			end
+		end
+	end
+
+	values[Options.GEAR_ROWS_PATH], values[Options.EXTRA_STATS_PATH], values[Options.MAIN_STAT_PATH] = nil, nil, nil
+	statElements = {
+		Header("General"), Stat("HEALTH", 1), Stat("POWER", 2), Stat("MOVESPEED", 3),
+		Header("Primary Attributes"), Stat("STRENGTH", 1), Stat("AGILITY", 2),
+		Header("Weapons"), Stat("MAINHAND_DAMAGE", 1), Stat("ATTACK_AP", 2),
+		Header("Defense"), Stat("ARMOR", 1),
+		Header("Resistance"), { isHeader = false, statIndex = 1, atlas = "fire", labelText = "Fire", valueText = "0" },
+	}
+	schools = { 10, 25, 10, 10, 10, 10 }
+
+	local elements = Mirror()
+	Equal("a Warrior's rows", Names(elements), "General|HEALTH|POWER|MOVESPEED|Enchants|Durability|Repair|"
+		.. "Primary Attributes|STRENGTH|AGILITY|Weapons|MAINHAND_DAMAGE|Damage per Second|ATTACK_AP|Modifiers|Fire|"
+		.. "Defense|ARMOR|Resistance|Fire")
+	Equal("General's rows numbered on", Find(elements, "Enchants").statIndex .. Find(elements, "Repair").statIndex, "46")
+	Equal("enchants done of enchantable, red while any are missing", Find(elements, "Enchants").valueText,
+		"|cffff00002 / 3|r")
+	Equal("the lowest durability, red below 30%", Find(elements, "Durability").valueText, "|cffff00000%|r")
+	Equal("the repair cost in coins", Find(elements, "Repair").valueText, Options:MoneyText(385))
+	Equal("damage per second from Blizzard's damage", Find(elements, "Damage per Second").valueText, "25.4")
+	Equal("a school above Spell Power", Find(elements, "Modifiers") ~= nil and elements[16].valueText, "25")
+	Equal("the main stat's band", Find(elements, "STRENGTH").band, true)
+	Equal("no band on the others", Find(elements, "AGILITY").band, nil)
+	Equal("Blizzard's list untouched", #pane.elementData, 14)
+
+	-- A row's frame from the mirror's view: Blizzard's `Init`, then the band and the hover.
+	local function Row(element)
+		local button = CreateFrame("Frame")
+		button.Background = button:CreateTexture()
+		function button:Init(data)
+			self.onEnterFunc = nil
+			self.Background:SetShown(data.statIndex % 2 == 1)
+		end
+		Stats.ui.list.view.factory(function(_, initialize)
+			initialize(button, element)
+		end, element)
+
+		return button
+	end
+
+	local strength = Row(Find(elements, "STRENGTH"))
+	Equal("the band shown on an even row too, in gold", tostring(strength.Background:IsShown()) .. " "
+		.. table.concat(rawget(strength.Background, "vertex"), " "), "true 1 0.82 0")
+	Equal("other rows keep Blizzard's band", table.concat(rawget(Row(Find(elements, "AGILITY")).Background, "vertex"), " "), "1 1 1")
+
+	local enchants = Row(Find(elements, "Enchants"))
+	rawget(enchants, "onEnterFunc")(enchants)
+	Equal("the Enchants hover title", tooltip.lines[1].text, "Enchants 2 / 3")
+	Equal("each enchantable slot", ("%s=%s %s=%s %s=%s"):format(tooltip.lines[2].text, tooltip.lines[2].right,
+		tooltip.lines[3].text, tooltip.lines[3].right, tooltip.lines[4].text, tooltip.lines[4].right),
+		"Chest=+4 All Stats Wrist=Enchanted Hands=No Enchant")
+	Equal("slots gold, enchants green, missing red", table.concat(tooltip.lines[2].color, " ") .. " "
+		.. table.concat(tooltip.lines[2].rightColor, " ") .. " " .. table.concat(tooltip.lines[4].rightColor, " "),
+		"1 0.82 0 0 1 0 1 0 0")
+
+	local durability = Row(Find(elements, "Durability"))
+	rawget(durability, "onEnterFunc")(durability)
+	Equal("each item's durability", ("%s=%s %s=%s %s=%s"):format(tooltip.lines[2].text, tooltip.lines[2].right,
+		tooltip.lines[3].text, tooltip.lines[3].right, tooltip.lines[4].text, tooltip.lines[4].right),
+		"Head=45 / 45 (100%) Chest=30 / 45 (67%) Wrist=0 / 45 (0%)")
+	Equal("in the gauge's colors", table.concat(tooltip.lines[4].rightColor, " "), "1 0 0")
+	Equal("hovering fades the undamaged slots", Slots.fade ~= nil and Slots.fade(9) and not Slots.fade(1)
+		and Slots.fadeAlpha, 0.3)
+	durability:GetScript("OnLeave")(durability)
+	Equal("leaving clears the fade", Slots.fade, nil)
+
+	local repair = Row(Find(elements, "Repair"))
+	rawget(repair, "onEnterFunc")(repair)
+	Equal("each item's repair cost", ("%s=%s %s=%s"):format(tooltip.lines[2].text, tooltip.lines[2].right,
+		tooltip.lines[3].text, tooltip.lines[3].right), "Chest=" .. Options:MoneyText(85) .. " Wrist="
+		.. Options:MoneyText(300))
+
+	classFile, mana = "DRUID", 100
+	statElements = {
+		Header("General"), Stat("HEALTH", 1),
+		Header("Weapons"), Stat("MAINHAND_DAMAGE", 1),
+		Header("Modifiers"), Stat("CRITCHANCE", 1), Stat("SPELLPOWER", 2), Stat("SPELLHEALING", 3),
+	}
+	elements = Mirror()
+	Equal("a mana user's rows", Names(elements), "General|HEALTH|Enchants|Durability|Repair|Weapons|MAINHAND_DAMAGE|"
+		.. "Damage per Second|Modifiers|CRITCHANCE|SPELLPOWER|Fire|SPELLHEALING|MANAREGEN")
+	Equal("Blizzard's own Mana Regen row", Find(elements, "MANAREGEN").unit, "player")
+	Equal("no band for a Druid", Find(elements, "STRENGTH") == nil and Find(elements, "HEALTH").band, nil)
+
+	classFile, mana = "WARRIOR", 0
+	Set(Options.GEAR_ROWS_PATH, false)
+	Equal("Gear Summary off removes its rows only", Names(Mirror()), "General|HEALTH|Weapons|MAINHAND_DAMAGE|"
+		.. "Damage per Second|Modifiers|CRITCHANCE|SPELLPOWER|Fire|SPELLHEALING")
+	Set(Options.EXTRA_STATS_PATH, false)
+	Set(Options.MAIN_STAT_PATH, false)
+	statElements[2] = Stat("STRENGTH", 1)
+	elements = Mirror()
+	Equal("all three off, the mirror is Blizzard's", Names(elements), Names(pane.elementData))
+	Equal("with no band", Find(elements, "STRENGTH").band, nil)
+	Set(Options.AVERAGE_PATH, false)
+	Equal("Average Item Level off hides the block", Stats.ui.block:IsShown(), false)
+	Equal("the list up to Blizzard's place", select(5, Stats.ui.list:GetPoint(1)), -8)
+	for _, path in ipairs({ Options.GEAR_ROWS_PATH, Options.EXTRA_STATS_PATH, Options.MAIN_STAT_PATH,
+		Options.AVERAGE_PATH }) do
+		Set(path, true)
+	end
 end
 
 Equal("no Lua error in the run", errors[1], nil)

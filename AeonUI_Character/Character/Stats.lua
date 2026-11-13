@@ -23,10 +23,40 @@ local function Template(elementData)
 	return "CharacterStatFrameScrollBoxLabelElementTemplate"
 end
 
+local leaveHooked = setmetatable({}, { __mode = "k" }) -- the mirror's row frames whose OnLeave clears the fade
+
+local function ClearFade()
+	if AUI.CharacterSlots.fade then
+		AUI.CharacterSlots:SetFade(nil)
+	end
+end
+
+---Blizzard's `Init`, then the feature's additions to a row: its hover (`onEnter`) and the main stat's gold band.
 ---@param button table
 ---@param elementData table
 local function Initialize(button, elementData)
 	button:Init(elementData)
+
+	if elementData.isHeader then
+		return
+	end
+
+	if elementData.onEnter then
+		button.onEnterFunc = elementData.onEnter
+	end
+	if not leaveHooked[button] then
+		leaveHooked[button] = true
+		button:HookScript("OnLeave", ClearFade)
+	end
+
+	local band, gold = button.Background, NORMAL_FONT_COLOR
+
+	if elementData.band then
+		band:Show()
+		band:SetVertexColor(gold.r, gold.g, gold.b)
+	else
+		band:SetVertexColor(1, 1, 1)
+	end
 end
 
 ---Blizzard's stats list: a frame holding `ScrollBox`, `ScrollBar` and the `elementData` its `UpdateStats` fills.
@@ -196,8 +226,9 @@ function Stats:Show(shown)
 
 	if ui then
 		local level = AUI:Readable(UnitLevel("player"), 0) --[[@as number]]
+		local average = AUI.Profile:Get(Options.AVERAGE_PATH) == true
 
-		ui.block:SetShown(shown and level >= MIN_LEVEL)
+		ui.block:SetShown(shown and average and level >= MIN_LEVEL)
 		ui.list:SetShown(shown)
 		ui.bar:SetShown(shown)
 	end
@@ -238,8 +269,9 @@ function Stats:AddRows(provider)
 	self:Refresh()
 end
 
+---Rebuilds on the next frame: after a restriction change, which applies once the event's dispatch completes, and after
+---a durability change, which Blizzard's list does not update for.
 function Stats:OnRestrictionChanged()
-	-- The restriction applies once the event's dispatch completes, so its state is read a frame later.
 	AUI.Events:Coalesce("characterStats", function()
 		Stats:Refresh()
 	end)
@@ -267,6 +299,7 @@ function Stats:Apply()
 	self:Build()
 	self.on = true
 	AUI.Events:Register("ADDON_RESTRICTION_STATE_CHANGED", self, self.OnRestrictionChanged)
+	AUI.Events:Register("UPDATE_INVENTORY_DURABILITY", self, self.OnRestrictionChanged)
 	self:Refresh()
 end
 
@@ -277,6 +310,7 @@ function Stats:Restore()
 
 	self.on = false
 	AUI.Events:Unregister("ADDON_RESTRICTION_STATE_CHANGED", self)
+	AUI.Events:Unregister("UPDATE_INVENTORY_DURABILITY", self)
 	AUI.Events:Cancel("characterStats")
 	self:Show(false)
 end

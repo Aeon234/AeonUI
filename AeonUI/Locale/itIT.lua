@@ -85,6 +85,8 @@ L["Width"] = "Larghezza"
 L["Food"] = "Cibo"
 L["A"] = "A"
 L["Layout"] = "Disposizione"
+L["Normal"] = "Normale"
+L["Thick"] = "Spesso"
 
 -- General page (Settings)
 L["Show Minimap Button"] = "Mostra pulsante della minimappa"

@@ -85,6 +85,8 @@ L["Width"] = "너비"
 L["Food"] = "음식"
 L["A"] = "A"
 L["Layout"] = "배치"
+L["Normal"] = "보통"
+L["Thick"] = "두껍게"
 
 -- General page (Settings)
 L["Show Minimap Button"] = "미니맵 버튼 표시"
