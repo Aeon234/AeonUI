@@ -240,11 +240,13 @@ end
 function Stats:Refresh()
 	local source, ui = Pane().elementData, self.ui
 
-	if not self.on or not source or not ui then
+	-- A closed pane is rebuilt by Blizzard's own update when it opens.
+	if not self.on or not source or not ui or not Pane():IsVisible() then
 		return
 	end
 
-	if C_Secrets.ShouldUnitStatsBeSecret() then
+	-- The interface style has no event, so the Gamepad check runs here as on every paint.
+	if C_Secrets.ShouldUnitStatsBeSecret() or not AUI.Character:IsOn() then
 		self:Show(false)
 
 		return

@@ -56,7 +56,8 @@ local function Place(x, y, side, textWidth)
 	return { x = x, y = y, side = side, textWidth = textWidth }
 end
 
----@param opts { model: boolean, gauges: boolean }
+---@param opts { model: boolean, gauges: boolean, ammo: boolean?, ranged: boolean? } `ammo` and `ranged` false when
+---Blizzard hides that slot; nil counts as shown
 ---@return AUICharacterLayoutResult
 function Layout:Compute(opts)
 	local gauge = opts.gauges and GAUGE_WIDTH or 0
@@ -76,18 +77,28 @@ function Layout:Compute(opts)
 	local bottom, model
 
 	if opts.model then
-		-- One row centered under the columns, its text narrowed to fit beside the ammo slot.
+		-- One row centered under the columns, its text narrowed to fit beside the ammo slot; Blizzard hides the ranged
+		-- and ammo slots for classes without them, so the row leaves them out.
+		local weapons = { mainHand, offHand }
 		local room = leftWidth - LEFT_PAD - RIGHT_PAD
-		local ammo = ICON + WEAPON_GAP
-		local textWidth = math.min(TEXT_WIDTH, math.floor((room - ammo - 2 * WEAPON_GAP) / 3) - ICON - gauge)
-		local width = ICON + gauge + textWidth
-		local x = LEFT_PAD + math.max(0, (room - (3 * width + 2 * WEAPON_GAP + ammo)) / 2)
+		local ammo = opts.ammo ~= false and ICON + WEAPON_GAP or 0
 
-		for _, slot in ipairs(Options.WEAPON_SLOTS) do
+		if opts.ranged ~= false then
+			weapons[3] = ranged
+		end
+
+		local gaps = (#weapons - 1) * WEAPON_GAP
+		local textWidth = math.min(TEXT_WIDTH, math.floor((room - ammo - gaps) / #weapons) - ICON - gauge)
+		local width = ICON + gauge + textWidth
+		local x = LEFT_PAD + math.max(0, (room - (#weapons * width + gaps + ammo)) / 2)
+
+		for _, slot in ipairs(weapons) do
 			slots[slot] = Place(x, weaponsTop, "LEFT", textWidth)
 			x = x + width + WEAPON_GAP
 		end
-		slots[Options.AMMO_SLOT] = Place(x, weaponsTop, "LEFT", 0)
+		if opts.ammo ~= false then
+			slots[Options.AMMO_SLOT] = Place(x, weaponsTop, "LEFT", 0)
+		end
 		bottom = weaponsTop + ICON
 		model = { x = (leftWidth - SCENE_WIDTH) / 2, y = STRIP, width = SCENE_WIDTH, height = weaponsTop - STRIP }
 	else

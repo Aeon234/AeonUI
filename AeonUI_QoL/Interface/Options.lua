@@ -17,6 +17,7 @@ local Schema = AUI.Schema
 ---@field TOAST_CLICK_THROUGH_PATH string event toasts let clicks through to the world
 ---@field RELEASE_PROTECTION_PATH string Release Spirit waits for a confirmation on death
 ---@field TRADING_POST_COMBAT_PATH string Trading Post previews start without their combat animation (Retail)
+---@field LOOT_ROLLS_POSITION_PATH string where the loot roll frames stack up from; absent while Blizzard places them
 ---@field SKIP_KEYS string[] the Hold to Skip choices, in the order the page lists them
 local Options = {
 	CLICK_THROUGH_PATH = "interface.extraActionButton.clickThrough",
@@ -31,6 +32,7 @@ local Options = {
 	TOAST_CLICK_THROUGH_PATH = "interface.popups.toastClickThrough",
 	RELEASE_PROTECTION_PATH = "interface.popups.releaseProtection",
 	TRADING_POST_COMBAT_PATH = "interface.tradingPost.noCombatAnimation",
+	LOOT_ROLLS_POSITION_PATH = "interface.lootRolls.position",
 	SKIP_KEYS = { "NONE", "SHIFT", "CTRL", "ALT" },
 }
 AUI.InterfaceOptions = Options
@@ -49,6 +51,7 @@ Schema:Boolean(Options.EASY_DESTROY_PATH, false)
 Schema:Boolean(Options.TOAST_CLICK_THROUGH_PATH, false)
 Schema:Boolean(Options.RELEASE_PROTECTION_PATH, false)
 Schema:Boolean(Options.TRADING_POST_COMBAT_PATH, false)
+Schema:Position(Options.LOOT_ROLLS_POSITION_PATH)
 
 ---@param path string one of the paths above
 ---@return any value

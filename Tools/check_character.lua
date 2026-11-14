@@ -108,9 +108,20 @@ local holding, fits = false, {}
 function CursorHasItem()
 	return holding
 end
-C_PaperDollInfo = { CursorCanGoInSlot = function(slot)
-	return fits[slot] == true
-end }
+local usesAmmo, rangedShown = true, true
+C_PaperDollInfo = {
+	CursorCanGoInSlot = function(slot)
+		return fits[slot] == true
+	end,
+	IsRangedSlotShown = function()
+		return rangedShown
+	end,
+}
+function UnitUsesAmmo(unit)
+	assert(unit == "player")
+
+	return usesAmmo
+end
 CharacterAmmoSlot:SetSize(27, 27)
 Enum = { TooltipDataLineType = { ItemEnchantmentPermanent = 15 }, PowerType = { Mana = 0 } }
 
@@ -414,6 +425,14 @@ Equal("no model column", hidden.model, nil)
 
 Equal("gauges widen each column", Layout:Compute({ model = true, gauges = true }).leftWidth, 652)
 
+local noAmmo = Layout:Compute({ model = true, gauges = false, ammo = false })
+Equal("without ammo, three weapons centered", ("%s %s %s %s"):format(noAmmo.slots[16].x, noAmmo.slots[17].x,
+	noAmmo.slots[18].x, noAmmo.slots[16].textWidth), "24 224 424 150")
+Equal("and no ammo slot", noAmmo.slots[Options.AMMO_SLOT], nil)
+local twoWeapons = Layout:Compute({ model = true, gauges = false, ammo = false, ranged = false })
+Equal("without a ranged slot, two", ("%s %s"):format(twoWeapons.slots[16].x, twoWeapons.slots[17].x), "124 324")
+Equal("and no ranged place", twoWeapons.slots[18], nil)
+
 -- Gear --------------------------------------------------------------------------------------------------------
 
 local Gear = AUI.CharacterGear
@@ -652,6 +671,18 @@ Equal("nothing changed under the Gamepad style", Native(), true)
 gamepad = false
 Set(Options.ENABLED_PATH, true)
 Equal("on again", Size(), "867x504")
+CharacterFrame:Hide()
+CharacterFrame:UpdateSize()
+Equal("closing hands the frame back", Native(), true)
+Equal("and stops following the cursor", AUI.Callbacks:Count("event:CURSOR_CHANGED"), 0)
+CharacterFrame:Show()
+CharacterFrame:UpdateSize()
+Equal("reopened, widened again", Size(), "867x504")
+usesAmmo = false
+CharacterFrame:UpdateSize()
+Equal("a class without ammo gets the row centered", Anchor(CharacterMainHandSlot), "TOPLEFT pane TOPLEFT 24 -418")
+usesAmmo = true
+CharacterFrame:UpdateSize()
 Equal("hooks installed once", client.hooks, 4)
 
 CharacterFrame:Hide()
@@ -759,6 +790,9 @@ end, 0.3)
 Equal("a fade keeps the slots it names", wrists:GetAlpha() .. " " .. helm:GetAlpha(), "1 0.3")
 Slots:SetFade(nil)
 Equal("and clears", helm:GetAlpha(), 1)
+Slots:SetFade(function(slot)
+	return slot == 9
+end, 0.3)
 
 CharacterFrame.activeSubframe = "ReputationFrame"
 CharacterFrame:UpdateSize()
@@ -766,6 +800,7 @@ Equal("another tab restores the slots", tostring(Shown(Part(helm, "overlay"))) .
 	helm.icon:GetTexCoord() }, " ") .. " " .. helm.IconBorder:GetAlpha() .. " " .. helm.BorderFrame:GetAlpha(),
 	"false 0 1 0 1 1 1")
 Equal("the empty well undone", Color(shirt.icon) .. " " .. shirt.icon:GetAlpha(), "1 1 1 1")
+Equal("a fade left on is cleared", Slots.fade, nil)
 Equal("the ammo slot's frame back", rawget(CharacterAmmoSlot, "slotFrame"):GetAlpha(), 1)
 Equal("and its quickslot square", CharacterAmmoSlot:GetNormalTexture():GetAlpha(), 1)
 PaperDollItemSlotButton_Update(helm)
@@ -836,6 +871,23 @@ do
 	client:Fire("ADDON_RESTRICTION_STATE_CHANGED", 1, 0)
 	client:RunTimers()
 	Equal("back once they are not", Stats.ui.list:IsShown() and pane.ScrollBox:GetAlpha() == 0, true)
+
+	gamepad = true
+	pane:UpdateStats()
+	Equal("the Gamepad style: Blizzard's list", Stats.ui.list:IsShown() or pane.ScrollBox:GetAlpha() == 0, false)
+	gamepad = false
+	pane:UpdateStats()
+	Equal("back after it", Stats.ui.list:IsShown(), true)
+
+	local provider = Stats.ui.list:GetDataProvider()
+	CharacterFrame:Hide()
+	client:Fire("UPDATE_INVENTORY_DURABILITY")
+	client:RunTimers()
+	Equal("no rebuild while the pane is closed", Stats.ui.list:GetDataProvider(), provider)
+	CharacterFrame:Show()
+	client:Fire("UPDATE_INVENTORY_DURABILITY")
+	client:RunTimers()
+	Equal("rebuilt on a durability change while open", Stats.ui.list:GetDataProvider() ~= provider, true)
 
 	local rows = 0
 	Stats:AddRows(function(elements)

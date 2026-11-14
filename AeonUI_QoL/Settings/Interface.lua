@@ -165,4 +165,22 @@ AUI.Modules:Register({
 	start = function()
 		AUI.Interface:Start()
 	end,
+	editTargets = {
+		{
+			key = "lootRolls",
+			path = AUI.InterfaceOptions.LOOT_ROLLS_POSITION_PATH,
+			target = function()
+				local LootRolls = AUI.LootRolls
+
+				if AUI.Interface.active and AUI.can.lootRolls then
+					return {
+						label = LOOT_ROLLS,
+						frame = LootRolls:Box(),
+						default = LootRolls:DefaultPosition(),
+						fixedEdge = "BOTTOM",
+					}
+				end
+			end,
+		},
+	},
 })

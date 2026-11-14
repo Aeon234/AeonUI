@@ -26,6 +26,7 @@ function Interface:Apply()
 
 	AUI.HelpTips:Apply()
 	AUI.HideFrames:Apply()
+	AUI.LootRolls:Apply()
 	AUI.BlizzardPopups:Apply()
 	AUI.ReleaseProtection:Apply()
 	AUI.TradingPost:Apply()

@@ -33,7 +33,8 @@ end
 
 ---@return boolean
 local function Wanted()
-	return AUI.Character:IsOn() and CharacterFrame.activeSubframe == "PaperDollFrame"
+	-- Not while closing: Blizzard collapses the frame from `PaperDollFrame`'s OnHide, its subframe still current.
+	return AUI.Character:IsOn() and CharacterFrame.activeSubframe == "PaperDollFrame" and PaperDollFrame:IsVisible()
 end
 
 ---Records a frame's points and size the first time the feature moves it.
@@ -103,7 +104,12 @@ end
 function Window:Extend()
 	local Profile = AUI.Profile
 	local model = Profile:Get(Options.SHOW_MODEL_PATH) == true
-	local layout = Layout:Compute({ model = model, gauges = Profile:Get(Options.GAUGES_PATH) == true })
+	local layout = Layout:Compute({
+		model = model,
+		gauges = Profile:Get(Options.GAUGES_PATH) == true,
+		ammo = UnitUsesAmmo("player") == true,
+		ranged = C_PaperDollInfo.IsRangedSlotShown() == true,
+	})
 	local pane = CharacterFrame.LeftPaneHost
 
 	CharacterFrame:SetSize(CharacterFrame:IsRightPaneCollapsed() and layout.leftWidth or layout.width, layout.height)

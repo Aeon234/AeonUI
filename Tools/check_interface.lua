@@ -4,7 +4,8 @@
 -- button's click-through and art, out of combat, put back when off; help tips marked seen; the boss banner's events
 -- taken and given back; the Great Vault's cover hidden once its addon loads, and shown again when off; and the
 -- pop-ups: accept countdowns skipped with or without a key, bind on pickup confirmed, and toasts let clicks through;
--- and Release Spirit held until the confirmation, rearmed on each death and left to Blizzard after Yes.
+-- and Release Spirit held until the confirmation, rearmed on each death and left to Blizzard after Yes; and the loot
+-- roll frames left to Blizzard until a position is saved, then stacked from the edit-mode box and given back.
 -- Run from any directory with Lua 5.1: lua Tools/check_interface.lua
 -- Loads the real files against the shared stub client. Exits non-zero on the first failed check.
 
@@ -261,7 +262,7 @@ end
 for _, file in ipairs({ "AeonUI/Profile/Schema.lua", "AeonUI_QoL/Interface/Options.lua", "AeonUI_QoL/Interface/ExtraActionButton.lua",
 	"AeonUI_QoL/Interface/HelpTips.lua", "AeonUI_QoL/Interface/HideFrames.lua",
 	"AeonUI_QoL/Interface/Popups.lua", "AeonUI_QoL/Interface/ReleaseProtection.lua", "AeonUI_QoL/Interface/TradingPost.lua",
-	"AeonUI_QoL/Interface/Interface.lua" }) do
+	"AeonUI_QoL/Interface/LootRolls.lua", "AeonUI_QoL/Interface/Interface.lua" }) do
 	assert(loadfile(root .. file))("AeonUI", AUI)
 end
 
@@ -639,5 +640,53 @@ Equal("on again: hooked once, without waiting", tostring(PerksProgramFrame.Foote
 	== footerUpdate) .. " " .. tostring(eventFrame.events.ADDON_LOADED), "true nil")
 Equal("and the window's script hooked once", PerksProgramFrame.scripts.OnShow, showHook)
 AUI.can.tradingPost = nil
+
+-- Loot rolls ---------------------------------------------------------------------------------------------------
+
+local LootRolls = AUI.LootRolls
+UIParent.width = 1920
+BottomManagedFrameContainer = CreateFrame("Frame", "BottomManagedFrameContainer", UIParent)
+GroupLootContainer = CreateFrame("Frame", "GroupLootContainer", UIParent)
+GroupLootContainer.reservedSize, GroupLootContainer.maxIndex = 100, 3
+local firstRoll, thirdRoll = CreateFrame("Frame", nil, UIParent), CreateFrame("Frame", nil, UIParent)
+GroupLootContainer.rollFrames = { [1] = firstRoll, [3] = thirdRoll }
+local blizzardUpdates = 0
+function GroupLootContainer_Update(_)
+	blizzardUpdates = blizzardUpdates + 1
+end
+
+local function Anchor(frame)
+	local point = frame.points[1]
+
+	return point and table.concat({ point[1], point[2] == LootRolls.box and "box" or point[2] == GroupLootContainer
+		and "container" or "?", point[3], point[4], point[5] }, " ")
+end
+
+AUI.can.lootRolls = true
+Set(Options.LOOT_ROLLS_POSITION_PATH, nil)
+Equal("no position: no box and no hook", tostring(LootRolls.box) .. " " .. tostring(LootRolls.hooked), "nil false")
+Equal("the default place without Blizzard's container placed", LootRolls:DefaultPosition().y, 250)
+BottomManagedFrameContainer.left, BottomManagedFrameContainer.right, BottomManagedFrameContainer.bottom = 600, 856, 180
+local default = LootRolls:DefaultPosition()
+Equal("and at the bottom of its container", default.point .. " " .. default.x .. " " .. default.y, "BOTTOM -232 180")
+
+local hooks = client.hooks
+Set(Options.LOOT_ROLLS_POSITION_PATH, { point = "BOTTOMLEFT", x = 40, y = 300 })
+Equal("a saved position places the box", LootRolls.box.points[1][1] .. " " .. LootRolls.box.points[1][4] .. " "
+	.. LootRolls.box.points[1][5], "BOTTOMLEFT 40 300")
+GroupLootContainer_Update(GroupLootContainer)
+Equal("after Blizzard's update each roll stacks up from the box at its spacing", Anchor(firstRoll) .. " / "
+	.. Anchor(thirdRoll) .. " / " .. blizzardUpdates, "CENTER box CENTER 0 0 / CENTER box CENTER 0 200 / 1")
+GroupLootContainer:Show()
+Set(Options.LOOT_ROLLS_POSITION_PATH, nil)
+Equal("cleared: the rolls are back where Blizzard puts them", Anchor(firstRoll) .. " / " .. Anchor(thirdRoll),
+	"CENTER container BOTTOM 0 50 / CENTER container BOTTOM 0 250")
+firstRoll:ClearAllPoints()
+GroupLootContainer_Update(GroupLootContainer)
+Equal("and Blizzard's updates are left alone", firstRoll.points[1], nil)
+Set(Options.LOOT_ROLLS_POSITION_PATH, { point = "BOTTOMLEFT", x = 40, y = 300 })
+Equal("set again: hooked once, and the shown rolls move at once", client.hooks - hooks .. " " .. Anchor(firstRoll),
+	"1 CENTER box CENTER 0 0")
+AUI.can.lootRolls = nil
 
 io.stdout:write(("check_interface: %d checks passed\n"):format(client.checks))

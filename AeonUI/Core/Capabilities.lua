@@ -45,6 +45,7 @@ AUI.Capabilities = Capabilities
 ---@field approachSparkles boolean approached objects can glint under the soft target's nameplate (Forever)
 ---@field bossBanner boolean the boss banner exists (`BossBanner`)
 ---@field vaultOverlay boolean the Great Vault covers itself away from the vault (Retail)
+---@field lootRolls boolean loot roll frames are stacked by `GroupLootContainer_Update`
 ---@field skipCountdown boolean static pop-ups count down through `StaticPopup_OnUpdate`
 ---@field confirmBind boolean a bind-on-pickup loot slot can be confirmed (`ConfirmLootSlot`)
 ---@field tradingPost boolean the Trading Post's attack animation toggle can be followed (Retail)
@@ -145,6 +146,7 @@ function Capabilities:Resolve()
 		and C_Timer.NewTicker ~= nil and C_CVar.GetCVarInfo("SoftTargetInteract") ~= nil
 	can.bossBanner = BossBanner ~= nil and BossBanner.UnregisterEvent ~= nil
 	can.vaultOverlay = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE and C_WeeklyRewards ~= nil
+	can.lootRolls = GroupLootContainer ~= nil and GroupLootContainer_Update ~= nil and BottomManagedFrameContainer ~= nil
 	can.skipCountdown = StaticPopup_OnUpdate ~= nil and StaticPopupDialogs ~= nil
 	can.confirmBind = ConfirmLootSlot ~= nil and StaticPopup_Hide ~= nil
 	can.tradingPost = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE and C_PerksProgram ~= nil

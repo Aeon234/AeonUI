@@ -274,6 +274,7 @@ function Slots:Restore()
 	AUI.Events:Unregister("CURSOR_CHANGED", self)
 	AUI.Events:Cancel("characterCursor")
 	self.holding = false
+	self.fade, self.fadeAlpha = nil, 1
 
 	for button in pairs(self.painted) do
 		local parts = self.parts[button]

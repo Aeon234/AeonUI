@@ -3,6 +3,7 @@
 	<Script file="ExtraActionButton.lua" />
 	<Script file="HelpTips.lua" />
 	<Script file="HideFrames.lua" />
+	<Script file="LootRolls.lua" />
 	<Script file="Popups.lua" />
 	<Script file="ReleaseProtection.lua" />
 	<Script file="TradingPost.lua" />
